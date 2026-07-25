@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Custom brand navy launch screen background with centered scaled logo -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/brand_navy" />
+
+    <item
+        android:width="140dp"
+        android:height="140dp"
+        android:gravity="center">
+        <bitmap
+            android:src="@drawable/launch_logo" />
+    </item>
+</layer-list>

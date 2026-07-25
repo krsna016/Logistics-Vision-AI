@@ -1,0 +1,68 @@
+name: Logistics Vision AI Continuous Integration
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  mobile_ci:
+    name: Flutter Lint & Test Run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Java Development Kit
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Setup Flutter Engine SDK
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Install Mobile Dependencies
+        run: |
+          cd apps/mobile
+          flutter pub get
+
+      - name: Verify Code Formatting
+        run: |
+          cd apps/mobile
+          flutter format --set-exit-if-changed lib/ test/
+
+      - name: Execute Linter Checks
+        run: |
+          cd apps/mobile
+          flutter analyze
+
+      - name: Execute Automated Tests
+        run: |
+          cd apps/mobile
+          flutter test
+
+  backend_ci:
+    name: FastAPI Lint & Python Audits
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python Runtime Environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Linter Requirements
+        run: pip install ruff mypy
+
+      - name: Execute Lint Audits (Ruff)
+        run: |
+          # Runs check if apps/backend code is populated
+          if [ -d "apps/backend" ]; then
+            ruff check apps/backend --ignore E501
+          fi

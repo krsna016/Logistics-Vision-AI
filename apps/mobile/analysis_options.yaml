@@ -1,0 +1,38 @@
+# Static analysis options for Logistics Vision AI
+# Enables strict compiler validation for production reliability.
+
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    # Treat printed logs as errors to prevent local test logs slipping to production.
+    avoid_print: error
+    # Treat missing return statements as errors.
+    missing_return: error
+    # Ensure constant constructors are used whenever possible to optimize memory footprint.
+    prefer_const_constructors: error
+    prefer_const_declarations: error
+
+linter:
+  rules:
+    # Enforce type definitions on public APIs to prevent runtime dynamic casting errors.
+    - always_declare_return_types
+    
+    # Avoid dynamic variables where static analysis can resolve compile-time safety.
+    - avoid_shadowing_type_parameters
+    
+    # Ensure streams are closed to prevent memory leaks in warehouses.
+    - close_sinks
+    
+    # Require curly braces for all control flow statements to prevent single-line bug slips.
+    - curly_braces_in_flow_control_structures
+    
+    # Disallow empty statement blocks.
+    - empty_catches
+    
+    # Ensure hash codes and equality overrides match.
+    - hash_and_equals
