@@ -6,12 +6,16 @@ import '../../../../presentation/widgets/app_card.dart';
 import '../../../../presentation/widgets/stats_card.dart';
 import '../../../../presentation/widgets/status_chip.dart';
 import '../../../../presentation/widgets/empty_state_widget.dart';
+import '../../../../presentation/widgets/progress_section.dart';
+import '../../../../presentation/widgets/timeline_widget.dart';
+import '../../../../core/audit/presentation/providers/audit_provider.dart';
 import '../../../../theme/app_theme.dart';
 import '../../domain/entities/wagon.dart';
 import '../providers/wagon_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../truck/presentation/widgets/truck_form_dialog.dart';
+
 
 class WagonDetailsScreen extends ConsumerWidget {
   final String wagonId;
@@ -169,31 +173,19 @@ class WagonDetailsScreen extends ConsumerWidget {
               ),
             ),
 
-            // Progress Bar section
+            // Progress Section
             Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Expected Truck Loading Progress: $completedCount / ${wagon.expectedTruckCount} ($progressPct%)',
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFFBDBDBD)),
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 8,
-                        backgroundColor: const Color(0xFF3A3A3A),
-                        valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                      ),
-                    ),
-                  ],
-                ),
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: ProgressSection(
+                expectedTrucks: wagon.expectedTruckCount,
+                completedTrucks: completedCount,
+                expectedLayers: wagonTrucks.fold(0, (sum, t) => sum + t.totalLayers),
+                completedLayers: wagonTrucks.fold(0, (sum, t) => sum + t.totalLayers),
+                cartonsCounted: cartons,
+                estimatedRemainingCartons: (wagon.expectedTruckCount - completedCount).clamp(0, 99) * 400,
               ),
             ),
+            const SizedBox(height: 16),
 
             // Action Buttons
             Padding(
@@ -202,39 +194,19 @@ class WagonDetailsScreen extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () {
-                        showDialog(
-                          context: context,
-                          builder: (context) => AlertDialog(
-                            title: const Text('Generate Report'),
-                            content: const Text('Exporting wagon loading logs to PDF report...'),
-                            actions: [
-                              TextButton(
-                                onPressed: () => Navigator.pop(context),
-                                child: const Text('OK'),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.picture_as_pdf),
-                      label: const Text('Generate Report'),
+                      onPressed: () => context.push('/registers/${wagon.id}'),
+                      icon: const Icon(Icons.description_outlined),
+                      label: const Text('Digital Register'),
                     ),
                   ),
                   const SizedBox(width: 12),
                   if (wagon.status == WagonStatus.loading)
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () async {
-                          await notifier.updateWagonStatus(wagon.id, WagonStatus.completed);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Wagon status marked Completed.')),
-                            );
-                          }
-                        },
+                        onPressed: () => _confirmCompleteWagon(context, ref, notifier, wagon, wagonTrucks.length, completedCount, cartons, defects),
                         icon: const Icon(Icons.done_all),
                         label: const Text('Complete Wagon'),
+                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
                       ),
                     )
                   else if (wagon.status == WagonStatus.planning)
@@ -242,6 +214,12 @@ class WagonDetailsScreen extends ConsumerWidget {
                       child: ElevatedButton.icon(
                         onPressed: () async {
                           await notifier.updateWagonStatus(wagon.id, WagonStatus.loading);
+                          ref.read(auditProvider.notifier).logEvent(
+                            action: 'Start Loading',
+                            target: 'Wagon ${wagon.wagonNumber}',
+                            targetId: wagon.id,
+                            reason: 'Operator initiated loading session',
+                          );
                         },
                         icon: const Icon(Icons.play_arrow),
                         label: const Text('Start Loading'),
@@ -384,6 +362,96 @@ class WagonDetailsScreen extends ConsumerWidget {
     );
   }
 
+  void _confirmCompleteWagon(
+    BuildContext context,
+    WidgetRef ref,
+    WagonListNotifier notifier,
+    Wagon wagon,
+    int truckCount,
+    int completedCount,
+    int cartons,
+    int defects,
+  ) {
+    final bool isIncomplete = completedCount < wagon.expectedTruckCount;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surfaceColor,
+        title: const Row(
+          children: [
+            Icon(Icons.verified_outlined, color: AppTheme.successColor),
+            SizedBox(width: 8),
+            Text('Complete Wagon Session?'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Wagon Number: ${wagon.wagonNumber}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            const SizedBox(height: 8),
+            Text('Completed Trucks: $completedCount of ${wagon.expectedTruckCount}'),
+            Text('Total Cartons Loaded: $cartons'),
+            Text('Total Defects Recorded: $defects'),
+            if (isIncomplete) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppTheme.warningColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.warningColor),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.warning_amber_rounded, color: AppTheme.warningColor, size: 20),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Warning: Not all expected trucks are completed. Completing will lock future edits.',
+                        style: TextStyle(color: AppTheme.warningColor, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await notifier.updateWagonStatus(wagon.id, WagonStatus.completed);
+              ref.read(auditProvider.notifier).logEvent(
+                action: 'Complete Wagon',
+                target: 'Wagon ${wagon.wagonNumber}',
+                targetId: wagon.id,
+                reason: 'Operational wagon loading completed and locked.',
+              );
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Wagon loading completed! Digital register generated.'),
+                    backgroundColor: AppTheme.successColor,
+                  ),
+                );
+                context.push('/registers/${wagon.id}');
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
+            child: const Text('Confirm Completion'),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatDate(DateTime dt) {
     final months = [
       'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -392,3 +460,4 @@ class WagonDetailsScreen extends ConsumerWidget {
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 }
+

@@ -16,6 +16,11 @@ import '../widgets/info_tile.dart';
 import '../widgets/layer_timeline.dart';
 import '../widgets/quick_action_button.dart';
 
+import '../../../../presentation/widgets/action_menu.dart';
+import '../../../../presentation/widgets/danger_dialog.dart';
+import '../../../../presentation/widgets/status_badge.dart';
+import '../../../../core/audit/presentation/providers/audit_provider.dart';
+
 class TruckDetailsScreen extends ConsumerWidget {
   final String truckId;
 
@@ -63,30 +68,56 @@ class TruckDetailsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(truck.truckNumber,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+            Row(
+              children: [
+                Text(truck.truckNumber, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                const SizedBox(width: 8),
+                const StatusBadge(status: AIStatusType.aiReady, compact: true),
+              ],
+            ),
             Text(
-              'Loading Workspace',
-              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
+              'Loading Workspace • Last Scan: 11:42 AM',
+              style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary),
             ),
           ],
         ),
         actions: [
-          if (!isReadOnly)
-            IconButton(
-              icon: const Icon(Icons.edit_outlined),
-              tooltip: 'Edit Truck Details',
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (ctx) => TruckFormDialog(existingTruck: truck),
-                );
-              },
-            ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppTheme.errorColor),
-            tooltip: 'Remove Truck',
-            onPressed: () => _confirmDelete(context, notifier, truck),
+          ActionMenu(
+            items: [
+              if (!isReadOnly)
+                ActionMenuItem(
+                  label: 'Edit Details',
+                  icon: Icons.edit_outlined,
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => TruckFormDialog(existingTruck: truck),
+                    );
+                  },
+                ),
+              ActionMenuItem(
+                label: 'View Timeline',
+                icon: Icons.history_outlined,
+                onTap: () => _showTruckTimeline(context, ref, truck),
+              ),
+              ActionMenuItem(
+                label: 'Generate Report',
+                icon: Icons.picture_as_pdf_outlined,
+                onTap: () => _showReportDialog(context),
+              ),
+              if (!isReadOnly)
+                ActionMenuItem(
+                  label: 'Archive Truck',
+                  icon: Icons.archive_outlined,
+                  onTap: () => _confirmArchive(context, ref, notifier, truck),
+                ),
+              ActionMenuItem(
+                label: 'Delete Truck',
+                icon: Icons.delete_outline,
+                isDestructive: true,
+                onTap: () => _confirmDelete(context, ref, notifier, truck, layerState.layers.length),
+              ),
+            ],
           ),
           const SizedBox(width: 4),
         ],
@@ -275,7 +306,10 @@ class TruckDetailsScreen extends ConsumerWidget {
                     isReadOnly: isReadOnly,
                     onEditNotes: (layer) =>
                         _editLayerNotesDialog(context, layerNotifier, layer),
-                    onDeleteLayer: (id) => layerNotifier.deleteLayer(id),
+                    onDeleteLayer: (id) {
+                      final layer = layerState.layers.firstWhere((l) => l.id == id);
+                      _confirmDeleteLayer(context, ref, layerNotifier, layer);
+                    },
                   ),
 
                 // bottom padding for sticky bar
@@ -393,25 +427,30 @@ class TruckDetailsScreen extends ConsumerWidget {
 
   void _confirmArchive(
     BuildContext context,
+    WidgetRef ref,
     TruckListNotifier notifier,
     Truck truck,
   ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Archive Session?'),
-        content: const Text(
-          'The truck session will be moved to archives. No further edits will be possible.',
-        ),
+        title: const Text('Archive Truck Session?'),
+        content: Text('The truck session "${truck.truckNumber}" will be moved to archives and locked as read-only.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               notifier.archiveTruck(truck.id);
+              ref.read(auditProvider.notifier).logEvent(
+                action: 'Archive Truck',
+                target: 'Truck ${truck.truckNumber}',
+                targetId: truck.id,
+                reason: 'Archived from truck details workspace',
+              );
               Navigator.pop(ctx);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.textSecondary),
-            child: const Text('Archive'),
+            child: const Text('Archive Truck'),
           ),
         ],
       ),
@@ -420,21 +459,6 @@ class TruckDetailsScreen extends ConsumerWidget {
 
   void _confirmDelete(
     BuildContext context,
-    TruckListNotifier notifier,
-    Truck truck,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove Truck?'),
-        content: const Text(
-          'This will soft-delete the truck from active logs. An administrator can restore this record if needed.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              notifier.deleteTruck(truck.id);
               Navigator.pop(ctx);
               context.go('/wagons');
             },
