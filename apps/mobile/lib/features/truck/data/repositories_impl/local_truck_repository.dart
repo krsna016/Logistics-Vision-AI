@@ -100,6 +100,12 @@ class LocalTruckRepository implements TruckRepository {
     return list.any((t) => t.truckNumber.toLowerCase() == truckNumber.toLowerCase() && t.id != excludeId);
   }
 
+  @override
+  Future<void> clearAndLoadDemoData() async {
+    final defaultMocks = _generateMockTrucks();
+    await _writeToCache(defaultMocks);
+  }
+
   List<Truck> _generateMockTrucks() {
     final now = DateTime.now();
     return [

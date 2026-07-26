@@ -102,6 +102,12 @@ class LocalLayerRepository implements LayerRepository {
     return list.any((l) => l.layerNumber == layerNumber);
   }
 
+  @override
+  Future<void> clearAndLoadDemoData() async {
+    final defaultMocks = _generateMockLayers();
+    await _writeToCache(defaultMocks);
+  }
+
   List<LayerRecord> _generateMockLayers() {
     final now = DateTime.now();
     return [

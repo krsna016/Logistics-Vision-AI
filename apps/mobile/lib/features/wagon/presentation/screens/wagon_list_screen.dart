@@ -9,6 +9,7 @@ import '../../domain/entities/wagon.dart';
 import '../providers/wagon_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
+import '../../../layer/presentation/providers/layer_providers.dart';
 import '../widgets/wagon_card.dart';
 import '../widgets/create_wagon_sheet.dart';
 
@@ -63,6 +64,18 @@ class WagonListScreen extends ConsumerWidget {
             icon: const Icon(Icons.photo_library),
             onPressed: () => context.push('/dataset'),
             tooltip: 'Dataset Developer Mode',
+          ),
+          IconButton(
+            icon: const Icon(Icons.bug_report_outlined),
+            tooltip: 'Load Demo Data',
+            onPressed: () async {
+              await ref.read(wagonRepositoryProvider).clearAndLoadDemoData();
+              await ref.read(truckRepositoryProvider).clearAndLoadDemoData();
+              await ref.read(layerRepositoryProvider).clearAndLoadDemoData();
+              
+              ref.read(wagonListProvider.notifier).refresh();
+              ref.read(truckListProvider.notifier).refresh();
+            },
           ),
           const SizedBox(width: 8),
         ],

@@ -89,6 +89,12 @@ class LocalWagonRepository implements WagonRepository {
     return list.any((t) => t.wagonNumber.toLowerCase() == wagonNumber.toLowerCase() && t.id != excludeId);
   }
 
+  @override
+  Future<void> clearAndLoadDemoData() async {
+    final defaultMocks = _generateMockWagons();
+    await _writeToCache(defaultMocks);
+  }
+
   List<Wagon> _generateMockWagons() {
     final now = DateTime.now();
     return [
