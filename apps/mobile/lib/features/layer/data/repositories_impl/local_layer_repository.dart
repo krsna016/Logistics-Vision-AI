@@ -27,15 +27,14 @@ class LocalLayerRepository implements LayerRepository {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedStr = prefs.getString(_storageKey);
+      final List<dynamic> rawList = cachedStr != null ? json.decode(cachedStr) : [];
 
-      if (cachedStr == null || cachedStr == '[]') {
-        // Feed initial mock layers if database is empty for our mockup demo
+      if (rawList.isEmpty) {
         final defaultMocks = _generateMockLayers();
         await _writeToCache(defaultMocks);
         return defaultMocks.where((l) => l.truckId == truckId && !l.isDeleted).toList();
       }
 
-      final List<dynamic> rawList = json.decode(cachedStr);
       final List<LayerRecord> allLayers = rawList.map((e) => LayerModel.fromJson(e as Map<String, dynamic>)).toList();
 
       return allLayers.where((l) => l.truckId == truckId && !l.isDeleted).toList();

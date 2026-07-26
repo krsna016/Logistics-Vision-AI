@@ -27,16 +27,15 @@ class LocalWagonRepository implements WagonRepository {
     try {
       final prefs = await SharedPreferences.getInstance();
       final cachedStr = prefs.getString(_storageKey);
+      final List<dynamic> rawList = cachedStr != null ? json.decode(cachedStr) : [];
       
-      if (cachedStr == null || cachedStr == '[]') {
+      if (rawList.isEmpty) {
         final defaultMocks = _generateMockWagons();
         await _writeToCache(defaultMocks);
         return defaultMocks;
       }
 
-      final List<dynamic> rawList = json.decode(cachedStr);
       final List<Wagon> allWagons = rawList.map((e) => WagonModel.fromJson(e as Map<String, dynamic>)).toList();
-      
       return allWagons;
     } catch (e, stack) {
       AppLogger.error('Failed reading wagon records', e, stack);
