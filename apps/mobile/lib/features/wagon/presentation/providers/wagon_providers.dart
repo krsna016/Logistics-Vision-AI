@@ -143,6 +143,11 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
     }
   }
 
+  Future<void> deleteWagon(String id) async {
+    await _repository.deleteWagon(id);
+    await refresh();
+  }
+
   void updateSearchQuery(String query) {
     state = state.copyWith(searchQuery: query);
   }

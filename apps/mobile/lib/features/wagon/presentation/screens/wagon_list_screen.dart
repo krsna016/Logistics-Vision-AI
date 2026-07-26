@@ -5,9 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../presentation/widgets/stats_card.dart';
 import '../../../../presentation/widgets/search_field.dart';
 import '../../../../presentation/widgets/empty_state_widget.dart';
-import '../../../../presentation/widgets/action_menu.dart';
-import '../../../../presentation/widgets/danger_dialog.dart';
-import '../../../../core/audit/presentation/providers/audit_provider.dart';
 import '../../domain/entities/wagon.dart';
 import '../providers/wagon_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
@@ -191,63 +188,20 @@ class WagonListScreen extends ConsumerWidget {
                             final wagon = state.processedWagons[index];
                             
                             // Calculate computed metrics
-                            final wagonTrucks = truckState.trucks.where((t) => t.wagonId == wagon.id && !t.isDeleted).toList();
+                            final wagonTrucks = truckState.trucks.where((t) => t.wagonId == wagon.id && !t.isDeleted);
                             final cartons = wagonTrucks.fold(0, (sum, t) => sum + t.totalCartons);
                             final defects = wagonTrucks.fold(0, (sum, t) => sum + t.totalDefects);
-                            final totalLayers = wagonTrucks.fold(0, (sum, t) => sum + t.totalLayers);
                             final completedCount = wagonTrucks.where((t) => t.status == TruckStatus.completed).length;
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
-                              child: Stack(
-                                children: [
-                                  WagonCard(
-                                    wagon: wagon,
-                                    totalCartons: cartons,
-                                    totalDefects: defects,
-                                    completedTrucks: completedCount,
-                                    totalTrucks: wagon.expectedTruckCount,
-                                    onTap: () => context.push('/wagons/${wagon.id}'),
-                                  ),
-                                  Positioned(
-                                    top: 8,
-                                    right: 8,
-                                    child: ActionMenu(
-                                      items: [
-                                        ActionMenuItem(
-                                          label: 'View Details',
-                                          icon: Icons.open_in_new,
-                                          onTap: () => context.push('/wagons/${wagon.id}'),
-                                        ),
-                                        ActionMenuItem(
-                                          label: 'Digital Register',
-                                          icon: Icons.description_outlined,
-                                          onTap: () => context.push('/registers/${wagon.id}'),
-                                        ),
-                                        if (wagon.status != WagonStatus.archived)
-                                          ActionMenuItem(
-                                            label: 'Archive Wagon',
-                                            icon: Icons.archive_outlined,
-                                            onTap: () async {
-                                              await notifier.updateWagonStatus(wagon.id, WagonStatus.archived);
-                                              ref.read(auditProvider.notifier).logEvent(
-                                                action: 'Archive Wagon',
-                                                target: 'Wagon ${wagon.wagonNumber}',
-                                                targetId: wagon.id,
-                                                reason: 'Archived from Wagon Control Center',
-                                              );
-                                            },
-                                          ),
-                                        ActionMenuItem(
-                                          label: 'Delete Wagon',
-                                          icon: Icons.delete_outline,
-                                          isDestructive: true,
-                                          onTap: () => _confirmDeleteWagon(context, ref, notifier, wagon, wagonTrucks.length, totalLayers, cartons),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
+                              child: WagonCard(
+                                wagon: wagon,
+                                totalCartons: cartons,
+                                totalDefects: defects,
+                                completedTrucks: completedCount,
+                                totalTrucks: wagon.expectedTruckCount,
+                                onTap: () => context.push('/wagons/${wagon.id}'),
                               ),
                             );
                           },
@@ -277,42 +231,6 @@ class WagonListScreen extends ConsumerWidget {
     );
   }
 
-  void _confirmDeleteWagon(
-    BuildContext context,
-    WidgetRef ref,
-    WagonListNotifier notifier,
-    Wagon wagon,
-    int truckCount,
-    int layerCount,
-    int cartonCount,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => DangerDialog(
-        title: 'Delete Wagon?',
-        confirmMatchString: wagon.wagonNumber,
-        matchLabel: 'Type wagon number',
-        warningBulletPoints: [
-          'Total Trucks: $truckCount trucks',
-          'Total Layers: $layerCount layers',
-          'Total Cartons: $cartonCount cartons',
-          'Associated Digital Reports & Manifests',
-          'AI Dataset Training Images',
-        ],
-        confirmButtonText: 'Delete Wagon',
-        onConfirm: () async {
-          await notifier.updateWagonStatus(wagon.id, WagonStatus.archived);
-          ref.read(auditProvider.notifier).logEvent(
-            action: 'Delete Wagon',
-            target: 'Wagon ${wagon.wagonNumber}',
-            targetId: wagon.id,
-            reason: 'Permanently removed wagon session',
-          );
-        },
-      ),
-    );
-  }
-
   String _getFormattedDate() {
     final now = DateTime.now();
     final months = [
@@ -322,4 +240,3 @@ class WagonListScreen extends ConsumerWidget {
     return '${now.day} ${months[now.month - 1]} ${now.year}';
   }
 }
-

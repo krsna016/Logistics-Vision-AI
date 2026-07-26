@@ -74,6 +74,17 @@ class LocalWagonRepository implements WagonRepository {
   }
 
   @override
+  Future<void> deleteWagon(String id) async {
+    final list = await getActiveWagons();
+    final index = list.indexWhere((element) => element.id == id);
+    if (index != -1) {
+      final wagon = list.removeAt(index);
+      await _writeToCache(list);
+      AppLogger.info('Deleted wagon record locally: ${wagon.wagonNumber}');
+    }
+  }
+
+  @override
   Future<bool> isWagonNumberExists(String wagonNumber, {String? excludeId}) async {
     final list = await getActiveWagons();
     return list.any((t) => t.wagonNumber.toLowerCase() == wagonNumber.toLowerCase() && t.id != excludeId);
