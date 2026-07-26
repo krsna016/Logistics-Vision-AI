@@ -16,185 +16,268 @@ class RegisterPreviewDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
+    const docBlue = Color(0xFF1E3A8A); // Deep corporate blue
+    const textDark = Color(0xFF1E293B);
+    const textLight = Color(0xFF64748B);
 
     return Dialog(
-      backgroundColor: Colors.white,
-      insetPadding: const EdgeInsets.all(16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      backgroundColor: AppTheme.surfaceColor, // Dark wrapper
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 700),
-        padding: const EdgeInsets.all(24),
+        constraints: const BoxConstraints(maxWidth: 800, maxHeight: 800),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Bar
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.print_outlined, color: Colors.black87),
-                    SizedBox(width: 8),
-                    Text(
-                      'PRINT PREVIEW — DOCUMENT VERIFICATION',
-                      style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Colors.black87),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
+            // Dark Top Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: const BoxDecoration(
+                border: Border(bottom: BorderSide(color: AppTheme.dividerColor)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.description_outlined, color: Colors.white70),
+                      SizedBox(width: 12),
+                      Text(
+                        'PRINT PREVIEW',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.2),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white70),
+                    onPressed: () => Navigator.pop(context),
+                    splashRadius: 24,
+                  ),
+                ],
+              ),
             ),
-            const Divider(color: Colors.black26),
             
-            // Printable Area Simulation (White background document)
+            // Scrollable Document Area (Grey background holding white paper)
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header Logo & Company
-                    Row(
-                      children: [
-                        Image.asset('assets/images/logo.png', height: 40, fit: BoxFit.contain),
-                        const SizedBox(width: 12),
-                        const Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Vinayak SmartLoad',
-                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black),
-                            ),
-                            Text(
-                              'Powered by Vinayak Logistics',
-                              style: TextStyle(fontSize: 10, color: Colors.black54, fontWeight: FontWeight.w500),
-                            ),
-                          ],
-                        ),
-                        const Spacer(),
-                        const Text(
-                          'DIGITAL WAGON REGISTER',
-                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black54),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    const Divider(color: Colors.black38, thickness: 1.5),
-                    const SizedBox(height: 12),
-
-                    // Wagon Meta Table
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      color: Colors.grey.shade100,
-                      child: Column(
+              child: Container(
+                color: AppTheme.backgroundColor,
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(24),
+                  child: Center(
+                    child: Container(
+                      width: 650, // Fixed width for A4 proportion
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(color: Colors.black.withValues(alpha: 0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                        ],
+                      ),
+                      child: Stack(
                         children: [
-                          _buildDocRow('Wagon Number:', register.wagonNumber, 'Loading Date:', _formatDate(register.loadingDate)),
-                          const SizedBox(height: 6),
-                          _buildDocRow('Route:', '${register.origin} to ${register.destination}', 'Supervisor:', register.supervisor),
+                          // Watermark
+                          Positioned.fill(
+                            child: Center(
+                              child: Transform.rotate(
+                                angle: -0.5,
+                                child: Icon(
+                                  Icons.verified,
+                                  size: 250,
+                                  color: Colors.green.withValues(alpha: 0.04),
+                                ),
+                              ),
+                            ),
+                          ),
+                          
+                          // Document Content
+                          Padding(
+                            padding: const EdgeInsets.all(48), // Large margins for print
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Header
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          const Text(
+                                            'VINAYAK LOGISTICS',
+                                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: docBlue, letterSpacing: 1.5),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          const Text(
+                                            'SMARTLOAD DIGITAL MANIFEST',
+                                            style: TextStyle(fontSize: 12, color: textLight, fontWeight: FontWeight.bold, letterSpacing: 1.0),
+                                          ),
+                                          const SizedBox(height: 16),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                            decoration: BoxDecoration(
+                                              color: Colors.green.shade50,
+                                              border: Border.all(color: Colors.green.shade300),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: const Text('VERIFIED & SECURED', style: TextStyle(fontSize: 9, color: Colors.green, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Image.asset('assets/images/logo.png', height: 60, fit: BoxFit.contain, color: docBlue),
+                                  ],
+                                ),
+                                const SizedBox(height: 32),
+
+                                // Meta Information (Modern clean layout)
+                                Row(
+                                  children: [
+                                    Expanded(child: _buildMetaGroup('Wagon Number', register.wagonNumber, docBlue, textDark)),
+                                    Expanded(child: _buildMetaGroup('Loading Date', _formatDate(register.loadingDate), docBlue, textDark)),
+                                    Expanded(child: _buildMetaGroup('Supervisor', register.supervisor, docBlue, textDark)),
+                                  ],
+                                ),
+                                const SizedBox(height: 16),
+                                _buildMetaGroup('Route Details', '${register.origin} ➔ ${register.destination}', docBlue, textDark),
+                                
+                                const SizedBox(height: 32),
+                                const Divider(color: Color(0xFFE2E8F0), thickness: 2),
+                                const SizedBox(height: 24),
+
+                                const Text(
+                                  'CARGO MANIFEST',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: docBlue, letterSpacing: 1.0),
+                                ),
+                                const SizedBox(height: 16),
+
+                                // Professional Data Table
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: Table(
+                                    border: TableBorder.all(color: const Color(0xFFCBD5E1), width: 1),
+                                    columnWidths: const {
+                                      0: FlexColumnWidth(2),
+                                      1: FlexColumnWidth(2.5),
+                                      2: FlexColumnWidth(1.2),
+                                      3: FlexColumnWidth(1.2),
+                                      4: FlexColumnWidth(1.5),
+                                    },
+                                    children: [
+                                      // Table Header
+                                      TableRow(
+                                        decoration: const BoxDecoration(color: docBlue),
+                                        children: const [
+                                          _TableCell('Truck No.', isHeader: true),
+                                          _TableCell('Driver', isHeader: true),
+                                          _TableCell('Layers', isHeader: true),
+                                          _TableCell('Cartons', isHeader: true),
+                                          _TableCell('Status', isHeader: true),
+                                        ],
+                                      ),
+                                      // Rows
+                                      ...register.trucks.asMap().entries.map((entry) {
+                                        final int idx = entry.key;
+                                        final Truck t = entry.value;
+                                        return TableRow(
+                                          decoration: BoxDecoration(color: idx.isEven ? Colors.white : const Color(0xFFF8FAFC)),
+                                          children: [
+                                            _TableCell(t.truckNumber),
+                                            _TableCell(t.driverName),
+                                            _TableCell('${t.totalLayers}', isNumeric: true),
+                                            _TableCell('${t.totalCartons}', isNumeric: true),
+                                            _TableCell(t.status.displayName),
+                                          ],
+                                        );
+                                      }),
+                                      // Totals Footer
+                                      TableRow(
+                                        decoration: const BoxDecoration(color: Color(0xFFF1F5F9)),
+                                        children: [
+                                          const _TableCell('TOTALS', isBold: true),
+                                          const _TableCell(''),
+                                          _TableCell('${register.totalLayers}', isBold: true, isNumeric: true),
+                                          _TableCell('${register.totalCartons}', isBold: true, isNumeric: true),
+                                          const _TableCell(''),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(height: 32),
+
+                                if (register.remarks != null && register.remarks!.isNotEmpty) ...[
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF8FAFC),
+                                      border: Border(left: BorderSide(color: Colors.amber.shade400, width: 4)),
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text('REMARKS / NOTES', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: textLight)),
+                                        const SizedBox(height: 4),
+                                        Text(register.remarks!, style: const TextStyle(fontSize: 12, color: textDark)),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 40),
+                                ] else ...[
+                                  const SizedBox(height: 20),
+                                ],
+
+                                // Footer Signatures
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    _buildSignatureLine('Supervisor Signature'),
+                                    _buildSignatureLine('Facility Manager'),
+                                  ],
+                                ),
+                                const SizedBox(height: 48),
+
+                                // Document Footer text
+                                const Divider(color: Color(0xFFE2E8F0)),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Generated securely via Vinayak SmartLoad API', style: TextStyle(fontSize: 9, color: textLight)),
+                                    Text('Printed: ${_formatDateTime(now)}', style: const TextStyle(fontSize: 9, color: textLight)),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 20),
-
-                    const Text(
-                      'CARGO MANIFEST DETAILS',
-                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.black),
-                    ),
-                    const SizedBox(height: 8),
-
-                    // Table
-                    Table(
-                      border: TableBorder.all(color: Colors.black26),
-                      columnWidths: const {
-                        0: FlexColumnWidth(2),
-                        1: FlexColumnWidth(2),
-                        2: FlexColumnWidth(1.5),
-                        3: FlexColumnWidth(1.2),
-                        4: FlexColumnWidth(1.5),
-                      },
-                      children: [
-                        TableRow(
-                          decoration: BoxDecoration(color: Colors.grey.shade200),
-                          children: const [
-                            _TableCell('Truck No.', isHeader: true),
-                            _TableCell('Driver', isHeader: true),
-                            _TableCell('Layers', isHeader: true),
-                            _TableCell('Cartons', isHeader: true),
-                            _TableCell('Status', isHeader: true),
-                          ],
-                        ),
-                        ...register.trucks.map((t) => TableRow(
-                          children: [
-                            _TableCell(t.truckNumber),
-                            _TableCell(t.driverName),
-                            _TableCell('${t.totalLayers}'),
-                            _TableCell('${t.totalCartons}'),
-                            _TableCell(t.status.displayName),
-                          ],
-                        )),
-                        TableRow(
-                          decoration: BoxDecoration(color: Colors.grey.shade100),
-                          children: [
-                            const _TableCell('TOTALS', isHeader: true),
-                            const _TableCell(''),
-                            _TableCell('${register.totalLayers}', isHeader: true),
-                            _TableCell('${register.totalCartons}', isHeader: true),
-                            const _TableCell(''),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 20),
-
-                    if (register.remarks != null && register.remarks!.isNotEmpty) ...[
-                      const Text('REMARKS:', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.black)),
-                      Text(register.remarks!, style: const TextStyle(fontSize: 11, color: Colors.black87)),
-                      const SizedBox(height: 20),
-                    ],
-
-                    // Footer
-                    const Divider(color: Colors.black26),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Generated by Vinayak SmartLoad • Powered by Vinayak Logistics',
-                          style: TextStyle(fontSize: 9, color: Colors.black54),
-                        ),
-                        Text(
-                          'Date: ${_formatDateTime(now)} | Page 1 of 1',
-                          style: const TextStyle(fontSize: 9, color: Colors.black54),
-                        ),
-                      ],
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
-            const SizedBox(height: 12),
 
-            // Action Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel', style: TextStyle(color: Colors.black54)),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    onConfirmExport();
-                  },
-                  icon: const Icon(Icons.print),
-                  label: const Text('Print Document'),
-                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor),
-                ),
-              ],
+            // Bottom Action Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              color: AppTheme.surfaceColor,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+                  ),
+                  const SizedBox(width: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      onConfirmExport();
+                    },
+                    icon: const Icon(Icons.print),
+                    label: const Text('Print Document'),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -202,27 +285,28 @@ class RegisterPreviewDialog extends StatelessWidget {
     );
   }
 
-  Widget _buildDocRow(String l1, String v1, String l2, String v2) {
-    return Row(
+  Widget _buildMetaGroup(String label, String value, Color labelColor, Color valueColor) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Row(
-            children: [
-              Text(l1, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black54)),
-              const SizedBox(width: 4),
-              Text(v1, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.black)),
-            ],
-          ),
+        Text(label.toUpperCase(), style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: labelColor.withValues(alpha: 0.6))),
+        const SizedBox(height: 4),
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor)),
+      ],
+    );
+  }
+
+  Widget _buildSignatureLine(String label) {
+    return Column(
+      children: [
+        const SizedBox(height: 40),
+        Container(
+          width: 150,
+          height: 1,
+          color: const Color(0xFF94A3B8),
         ),
-        Expanded(
-          child: Row(
-            children: [
-              Text(l2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.black54)),
-              const SizedBox(width: 4),
-              Text(v2, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Colors.black)),
-            ],
-          ),
-        ),
+        const SizedBox(height: 8),
+        Text(label, style: const TextStyle(fontSize: 10, color: Color(0xFF64748B))),
       ],
     );
   }
@@ -236,26 +320,29 @@ class RegisterPreviewDialog extends StatelessWidget {
     final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
-    return '${dt.day} ${months[dt.month - 1]} $h:$m';
+    return '${dt.day} ${months[dt.month - 1]} ${dt.year} at $h:$m';
   }
 }
 
 class _TableCell extends StatelessWidget {
   final String text;
   final bool isHeader;
+  final bool isBold;
+  final bool isNumeric;
 
-  const _TableCell(this.text, {this.isHeader = false});
+  const _TableCell(this.text, {this.isHeader = false, this.isBold = false, this.isNumeric = false});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.all(6.0),
+      padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 10.0),
       child: Text(
         text,
+        textAlign: isNumeric ? TextAlign.right : TextAlign.left,
         style: TextStyle(
-          fontSize: 10,
-          fontWeight: isHeader ? FontWeight.bold : FontWeight.normal,
-          color: Colors.black,
+          fontSize: 11,
+          fontWeight: isHeader || isBold ? FontWeight.bold : FontWeight.w500,
+          color: isHeader ? Colors.white : const Color(0xFF1E293B),
         ),
       ),
     );
