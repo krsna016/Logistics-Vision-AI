@@ -8,6 +8,8 @@ import 'package:mobile/features/session/data/repositories_impl/local_loading_ses
 import 'package:mobile/features/session/presentation/providers/session_providers.dart';
 import 'package:mobile/features/truck/data/repositories_impl/local_truck_repository.dart';
 import 'package:mobile/features/truck/presentation/providers/truck_providers.dart';
+import 'package:mobile/core/database/app_database.dart';
+import 'package:drift/native.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -38,11 +40,16 @@ void main() {
   });
 
   group('LocalLoadingSessionRepository & Recovery Tests', () {
+    late AppDatabase db;
     late LocalLoadingSessionRepository repository;
 
     setUp(() {
-      SharedPreferences.setMockInitialValues({}); // Clean cache
-      repository = LocalLoadingSessionRepository();
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      repository = LocalLoadingSessionRepository(db);
+    });
+    
+    tearDown(() async {
+      await db.close();
     });
 
     test('recoverLastActiveSession returns null if no started/paused session exists', () async {
@@ -70,13 +77,19 @@ void main() {
   });
 
   group('ActiveSessionNotifier State Transition Tests', () {
+    late AppDatabase db;
     late LocalLoadingSessionRepository sessionRepo;
     late LocalTruckRepository truckRepo;
 
-    setUp(() {
-      SharedPreferences.setMockInitialValues({});
-      sessionRepo = LocalLoadingSessionRepository();
-      truckRepo = LocalTruckRepository();
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      sessionRepo = LocalLoadingSessionRepository(db);
+      truckRepo = LocalTruckRepository(db);
+      await truckRepo.clearAndLoadDemoData();
+    });
+
+    tearDown(() async {
+      await db.close();
     });
 
     ProviderContainer makeContainer() {

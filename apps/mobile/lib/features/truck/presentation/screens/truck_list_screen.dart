@@ -10,6 +10,7 @@ import '../../../../presentation/widgets/stats_card.dart';
 import '../../../../presentation/widgets/status_chip.dart';
 import '../../../../presentation/widgets/search_field.dart';
 import '../../../../presentation/widgets/empty_state_widget.dart';
+import '../../../../core/presentation/widgets/app_drawer.dart';
 
 class TruckListScreen extends ConsumerWidget {
   const TruckListScreen({super.key});
@@ -23,14 +24,23 @@ class TruckListScreen extends ConsumerWidget {
     final (loadingCount, completedCount, totalCartons) = stats;
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         leadingWidth: 52,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0, top: 10, bottom: 10),
-          child: Image.asset(
-            'assets/images/logo.png',
-            fit: BoxFit.contain,
-          ),
+        leading: Builder(
+          builder: (context) {
+            return InkWell(
+              onTap: () => Scaffold.of(context).openDrawer(),
+              borderRadius: BorderRadius.circular(24),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 16.0, top: 10, bottom: 10),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            );
+          }
         ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,

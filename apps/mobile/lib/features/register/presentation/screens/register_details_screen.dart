@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../theme/app_theme.dart';
-import '../../../../core/presentation/widgets/app_drawer.dart';
+
 import '../../domain/entities/digital_register.dart';
 import '../providers/register_providers.dart';
 import '../widgets/register_header.dart';
@@ -33,12 +33,7 @@ class RegisterDetailsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text('${register.wagonNumber} — Digital Register'),
         actions: [
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-          ),
+
           IconButton(
             icon: const Icon(Icons.print_outlined),
             onPressed: () => _showPreview(context, register, notifier),
@@ -47,7 +42,7 @@ class RegisterDetailsScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
-      drawer: const AppDrawer(),
+
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(

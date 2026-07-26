@@ -17,7 +17,6 @@ class TruckTable extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.dividerColor),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(

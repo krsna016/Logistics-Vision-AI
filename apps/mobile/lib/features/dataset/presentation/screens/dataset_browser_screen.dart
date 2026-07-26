@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../providers/dataset_providers.dart';
-import '../../../../core/presentation/widgets/app_drawer.dart';
+
 
 class DatasetBrowserScreen extends ConsumerWidget {
   const DatasetBrowserScreen({super.key});
@@ -43,15 +43,10 @@ class DatasetBrowserScreen extends ConsumerWidget {
             },
             tooltip: 'Export selected items to ZIP',
           ),
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-          ),
+
         ],
       ),
-      drawer: const AppDrawer(),
+
       body: Column(
         children: [
           // Filter panels

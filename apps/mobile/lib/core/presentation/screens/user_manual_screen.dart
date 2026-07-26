@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../core/constants/manual_content.dart';
 import '../../../theme/app_theme.dart';
-import '../../presentation/widgets/app_drawer.dart';
+
 
 class UserManualScreen extends StatelessWidget {
   const UserManualScreen({super.key});
@@ -14,16 +14,8 @@ class UserManualScreen extends StatelessWidget {
         title: const Text('User Manual'),
         backgroundColor: AppTheme.surfaceColor,
         foregroundColor: Colors.white,
-        actions: [
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-          ),
-        ],
       ),
-      drawer: const AppDrawer(),
+
       body: Container(
         color: AppTheme.backgroundColor,
         child: Markdown(

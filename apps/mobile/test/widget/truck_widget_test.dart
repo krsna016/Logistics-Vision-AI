@@ -39,7 +39,7 @@ void main() {
         overrides: [
           truckListProvider.overrideWith((ref) {
             return StateController(TruckListState(trucks: mockTrucks));
-          } as StateNotifier Function(AutoDisposeStateNotifierProviderRef<TruckListNotifier, TruckListState>)),
+          }),
         ],
       );
 
@@ -66,9 +66,11 @@ class StateController extends StateNotifier<TruckListState> implements TruckList
     required String truckNumber,
     required String vehicleNumber,
     required String driverName,
+    String? driverMobile,
     required String company,
     required String warehouse,
     String? notes,
+    required String wagonId,
   }) async => null;
 
   @override

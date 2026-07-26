@@ -59,7 +59,6 @@ class WagonCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: statusColor.withOpacity(0.4)),
                 ),
                 child: Text(
                   wagon.status.displayName.toUpperCase(),

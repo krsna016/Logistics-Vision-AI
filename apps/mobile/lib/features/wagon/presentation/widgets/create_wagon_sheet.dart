@@ -68,8 +68,8 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
     final error = await notifier.createWagon(
       wagonNumber: _numberCtrl.text,
-      origin: _originCtrl.text,
-      destination: _destinationCtrl.text,
+      origin: _originCtrl.text.trim().isEmpty ? 'NIL' : _originCtrl.text,
+      destination: _destinationCtrl.text.trim().isEmpty ? 'NIL' : _destinationCtrl.text,
       loadingDate: _selectedDate,
       expectedTruckCount: expectedCount,
       remarks: _remarksCtrl.text.isEmpty ? null : _remarksCtrl.text,
@@ -150,18 +150,16 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
               TextFormField(
                 controller: _originCtrl,
-                decoration: const InputDecoration(labelText: 'Origin Facility*'),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Required.' : null,
+                decoration: const InputDecoration(labelText: 'Origin Facility (Optional)'),
               ),
               const SizedBox(height: 12),
 
               TextFormField(
                 controller: _destinationCtrl,
                 decoration: const InputDecoration(
-                  labelText: 'Destination Depot*',
+                  labelText: 'Destination Depot (Optional)',
                   hintText: 'e.g. Chicago Logistics Terminal',
                 ),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Required.' : null,
               ),
               const SizedBox(height: 12),
 
@@ -182,10 +180,9 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                     child: TextFormField(
                       controller: _expectedTrucksCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Expected Trucks*'),
+                      decoration: const InputDecoration(labelText: 'Expected Trucks (Optional)'),
                       validator: (val) {
-                        if (val == null || val.isEmpty) return 'Required.';
-                        if (int.tryParse(val) == null) return 'Invalid number.';
+                        if (val != null && val.isNotEmpty && int.tryParse(val) == null) return 'Invalid number.';
                         return null;
                       },
                     ),

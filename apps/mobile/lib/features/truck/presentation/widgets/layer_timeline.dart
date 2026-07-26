@@ -73,7 +73,6 @@ class _TimelineItem extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withOpacity(0.15),
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.primaryColor, width: 2),
                 ),
                 child: Center(
                   child: Text(

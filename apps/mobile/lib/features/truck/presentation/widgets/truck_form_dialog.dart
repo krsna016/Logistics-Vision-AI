@@ -65,10 +65,10 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
       error = await notifier.createTruck(
         truckNumber: _vehicleNumberCtrl.text,
         vehicleNumber: _vehicleNumberCtrl.text,
-        driverName: _driverNameCtrl.text,
-        driverMobile: _driverMobileCtrl.text,
-        company: _companyCtrl.text,
-        warehouse: _warehouseCtrl.text,
+        driverName: _driverNameCtrl.text.trim().isEmpty ? 'NIL' : _driverNameCtrl.text,
+        driverMobile: _driverMobileCtrl.text.trim().isEmpty ? 'NIL' : _driverMobileCtrl.text,
+        company: _companyCtrl.text.trim().isEmpty ? 'NIL' : _companyCtrl.text,
+        warehouse: _warehouseCtrl.text.trim().isEmpty ? 'NIL' : _warehouseCtrl.text,
         notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
         wagonId: widget.wagonId,
       );
@@ -76,10 +76,10 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
       final updated = widget.existingTruck!.copyWith(
         truckNumber: _vehicleNumberCtrl.text.trim(),
         vehicleNumber: _vehicleNumberCtrl.text.trim(),
-        driverName: _driverNameCtrl.text.trim(),
-        driverMobile: _driverMobileCtrl.text.trim(),
-        company: _companyCtrl.text.trim(),
-        warehouse: _warehouseCtrl.text.trim(),
+        driverName: _driverNameCtrl.text.trim().isEmpty ? 'NIL' : _driverNameCtrl.text.trim(),
+        driverMobile: _driverMobileCtrl.text.trim().isEmpty ? 'NIL' : _driverMobileCtrl.text.trim(),
+        company: _companyCtrl.text.trim().isEmpty ? 'NIL' : _companyCtrl.text.trim(),
+        warehouse: _warehouseCtrl.text.trim().isEmpty ? 'NIL' : _warehouseCtrl.text.trim(),
         notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
       );
       error = await notifier.editTruck(updated);
@@ -157,8 +157,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _driverNameCtrl,
-                decoration: const InputDecoration(labelText: 'Driver Name*', hintText: 'Full name'),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Required.' : null,
+                decoration: const InputDecoration(labelText: 'Driver Name (Optional)', hintText: 'Full name'),
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -169,14 +168,12 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _companyCtrl,
-                decoration: const InputDecoration(labelText: 'Carrier Company*', hintText: 'e.g. Swift Carriers'),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Required.' : null,
+                decoration: const InputDecoration(labelText: 'Carrier Company (Optional)', hintText: 'e.g. Swift Carriers'),
               ),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _warehouseCtrl,
-                decoration: const InputDecoration(labelText: 'Warehouse Facility*'),
-                validator: (val) => val == null || val.trim().isEmpty ? 'Required.' : null,
+                decoration: const InputDecoration(labelText: 'Warehouse Facility (Optional)'),
               ),
               const SizedBox(height: 12),
               TextFormField(

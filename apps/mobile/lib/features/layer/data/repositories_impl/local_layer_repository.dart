@@ -1,43 +1,39 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:drift/drift.dart' as drift;
 import '../../domain/entities/layer.dart';
 import '../../domain/repositories/layer_repository.dart';
-import '../models/layer_model.dart';
+import '../../../truck/domain/entities/truck.dart';
+import '../../../../core/database/app_database.dart';
 import '../../../../utils/logger.dart';
 
 class LocalLayerRepository implements LayerRepository {
-  static const String _storageKey = 'cached_layer_records_v1';
+  final AppDatabase _db;
 
-  LocalLayerRepository();
+  LocalLayerRepository(this._db);
 
-  Future<void> _writeToCache(List<LayerRecord> list) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final List<Map<String, dynamic>> rawMaps = list.map((e) => LayerModel.toJson(e)).toList();
-      final rawJson = json.encode(rawMaps);
-      await prefs.setString(_storageKey, rawJson);
-    } catch (e, stack) {
-      AppLogger.error('Failed writing layer database cache', e, stack);
-    }
+  LayerRecord _map(Layer data) {
+    return LayerRecord(
+      id: data.id,
+      truckId: data.truckId,
+      layerNumber: data.layerNumber,
+      cartonCount: data.cartonCount,
+      timestamp: data.timestamp ?? DateTime.now(),
+      operatorId: data.operatorId ?? '',
+      photoPath: data.photoPath,
+      notes: data.notes,
+      modelVersion: data.modelVersion ?? '',
+      averageConfidence: data.averageConfidence,
+      syncStatus: SyncStatus.values.firstWhere((e) => e.name == data.syncStatus, orElse: () => SyncStatus.pending),
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+      isDeleted: data.isDeleted,
+    );
   }
 
   @override
   Future<List<LayerRecord>> getLayersByTruck(String truckId) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final cachedStr = prefs.getString(_storageKey);
-      final List<dynamic> rawList = cachedStr != null ? json.decode(cachedStr) : [];
-
-      if (rawList.isEmpty) {
-        final defaultMocks = _generateMockLayers();
-        await _writeToCache(defaultMocks);
-        return defaultMocks.where((l) => l.truckId == truckId && !l.isDeleted).toList();
-      }
-
-      final List<LayerRecord> allLayers = rawList.map((e) => LayerModel.fromJson(e as Map<String, dynamic>)).toList();
-
-      return allLayers.where((l) => l.truckId == truckId && !l.isDeleted).toList();
+      final rows = await (_db.select(_db.layers)..where((t) => t.truckId.equals(truckId) & t.isDeleted.equals(false))).get();
+      return rows.map(_map).toList();
     } catch (e, stack) {
       AppLogger.error('Failed reading layer records', e, stack);
       return [];
@@ -46,108 +42,132 @@ class LocalLayerRepository implements LayerRepository {
 
   @override
   Future<void> saveLayer(LayerRecord layer) async {
-    final prefs = await SharedPreferences.getInstance();
-    final cachedStr = prefs.getString(_storageKey);
-    final List<LayerRecord> allLayers = [];
+    await _db.transaction(() async {
+      await _db.into(_db.layers).insert(LayersCompanion.insert(
+        id: layer.id,
+        truckId: layer.truckId,
+        layerNumber: layer.layerNumber,
+        cartonCount: layer.cartonCount,
+        defectCount: const drift.Value(0), // LayerRecord domain entity has no defectCount property currently? Wait it does? Ah, let me check. No, it doesn't. We'll set to 0.
+        photoPath: drift.Value(layer.photoPath),
+        notes: drift.Value(layer.notes),
+        averageConfidence: drift.Value(layer.averageConfidence),
+        timestamp: drift.Value(layer.timestamp),
+        operatorId: drift.Value(layer.operatorId),
+        modelVersion: drift.Value(layer.modelVersion),
+        createdAt: drift.Value(layer.createdAt),
+        updatedAt: drift.Value(layer.updatedAt),
+      ));
 
-    if (cachedStr != null) {
-      final List<dynamic> rawList = json.decode(cachedStr);
-      allLayers.addAll(rawList.map((e) => LayerModel.fromJson(e as Map<String, dynamic>)));
-    } else {
-      allLayers.addAll(_generateMockLayers());
-    }
-
-    allLayers.add(layer);
-    await _writeToCache(allLayers);
+      await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
+        id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
+        entityId: layer.id,
+        entityType: 'Layer',
+        operation: 'INSERT',
+        payloadData: '{}',
+      ));
+    });
     AppLogger.info('Saved layer number ${layer.layerNumber} for truck ${layer.truckId}');
   }
 
   @override
   Future<void> updateLayer(LayerRecord layer) async {
-    final prefs = await SharedPreferences.getInstance();
-    final cachedStr = prefs.getString(_storageKey);
-    if (cachedStr == null) return;
+    await _db.transaction(() async {
+      await (_db.update(_db.layers)..where((t) => t.id.equals(layer.id))).write(LayersCompanion(
+        truckId: drift.Value(layer.truckId),
+        layerNumber: drift.Value(layer.layerNumber),
+        cartonCount: drift.Value(layer.cartonCount),
+        photoPath: drift.Value(layer.photoPath),
+        notes: drift.Value(layer.notes),
+        averageConfidence: drift.Value(layer.averageConfidence),
+        timestamp: drift.Value(layer.timestamp),
+        operatorId: drift.Value(layer.operatorId),
+        modelVersion: drift.Value(layer.modelVersion),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
 
-    final List<dynamic> rawList = json.decode(cachedStr);
-    final List<LayerRecord> allLayers = rawList.map((e) => LayerModel.fromJson(e as Map<String, dynamic>)).toList();
-
-    final index = allLayers.indexWhere((element) => element.id == layer.id);
-    if (index != -1) {
-      allLayers[index] = layer.copyWith(updatedAt: DateTime.now());
-      await _writeToCache(allLayers);
-      AppLogger.info('Updated layer record: ${layer.id}');
-    }
+      await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
+        id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
+        entityId: layer.id,
+        entityType: 'Layer',
+        operation: 'UPDATE',
+        payloadData: '{}',
+      ));
+    });
+    AppLogger.info('Updated layer record: ${layer.id}');
   }
 
   @override
   Future<void> softDeleteLayer(String id) async {
-    final prefs = await SharedPreferences.getInstance();
-    final cachedStr = prefs.getString(_storageKey);
-    if (cachedStr == null) return;
+    await _db.transaction(() async {
+      await (_db.update(_db.layers)..where((t) => t.id.equals(id))).write(
+        const LayersCompanion(isDeleted: drift.Value(true))
+      );
 
-    final List<dynamic> rawList = json.decode(cachedStr);
-    final List<LayerRecord> allLayers = rawList.map((e) => LayerModel.fromJson(e as Map<String, dynamic>)).toList();
-
-    final index = allLayers.indexWhere((element) => element.id == id);
-    if (index != -1) {
-      allLayers[index] = allLayers[index].copyWith(isDeleted: true, updatedAt: DateTime.now());
-      await _writeToCache(allLayers);
-      AppLogger.info('Soft deleted layer: $id');
-    }
+      await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
+        id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
+        entityId: id,
+        entityType: 'Layer',
+        operation: 'DELETE',
+        payloadData: '{}',
+      ));
+    });
+    AppLogger.info('Soft deleted layer: $id');
   }
 
   @override
   Future<bool> isLayerNumberExists(String truckId, int layerNumber) async {
-    final list = await getLayersByTruck(truckId);
-    return list.any((l) => l.layerNumber == layerNumber);
+    final query = _db.select(_db.layers)..where((t) => t.truckId.equals(truckId) & t.layerNumber.equals(layerNumber) & t.isDeleted.equals(false));
+    final rows = await query.get();
+    return rows.isNotEmpty;
   }
 
   @override
   Future<void> clearAndLoadDemoData() async {
-    final defaultMocks = _generateMockLayers();
-    await _writeToCache(defaultMocks);
-  }
-
-  List<LayerRecord> _generateMockLayers() {
-    final now = DateTime.now();
-    return [
-      LayerRecord(
+    await _db.transaction(() async {
+      await _db.delete(_db.layers).go();
+      
+      final now = DateTime.now();
+      
+      await _db.into(_db.layers).insert(LayersCompanion.insert(
         id: 'mock_l1',
         truckId: 'mock_t1',
         layerNumber: 1,
         cartonCount: 24,
-        timestamp: now.subtract(const Duration(hours: 3)),
-        operatorId: 'usr_loader_01',
-        modelVersion: '1.0.0-YOLOv8n',
-        averageConfidence: 0.94,
-        createdAt: now.subtract(const Duration(hours: 3)),
-        updatedAt: now.subtract(const Duration(hours: 3)),
-      ),
-      LayerRecord(
+        timestamp: drift.Value(now.subtract(const Duration(hours: 3))),
+        operatorId: const drift.Value('usr_loader_01'),
+        modelVersion: const drift.Value('1.0.0-YOLOv8n'),
+        averageConfidence: const drift.Value(0.94),
+        createdAt: drift.Value(now.subtract(const Duration(hours: 3))),
+        updatedAt: drift.Value(now.subtract(const Duration(hours: 3))),
+      ));
+      
+      await _db.into(_db.layers).insert(LayersCompanion.insert(
         id: 'mock_l2',
         truckId: 'mock_t1',
         layerNumber: 2,
         cartonCount: 24,
-        timestamp: now.subtract(const Duration(hours: 2)),
-        operatorId: 'usr_loader_01',
-        modelVersion: '1.0.0-YOLOv8n',
-        averageConfidence: 0.96,
-        createdAt: now.subtract(const Duration(hours: 2)),
-        updatedAt: now.subtract(const Duration(hours: 2)),
-      ),
-      LayerRecord(
+        timestamp: drift.Value(now.subtract(const Duration(hours: 2))),
+        operatorId: const drift.Value('usr_loader_01'),
+        modelVersion: const drift.Value('1.0.0-YOLOv8n'),
+        averageConfidence: const drift.Value(0.96),
+        createdAt: drift.Value(now.subtract(const Duration(hours: 2))),
+        updatedAt: drift.Value(now.subtract(const Duration(hours: 2))),
+      ));
+      
+      await _db.into(_db.layers).insert(LayersCompanion.insert(
         id: 'mock_l3',
         truckId: 'mock_t1',
         layerNumber: 3,
         cartonCount: 24,
-        timestamp: now.subtract(const Duration(hours: 1)),
-        operatorId: 'usr_loader_01',
-        modelVersion: '1.0.0-YOLOv8n',
-        averageConfidence: 0.91,
-        notes: 'Slight carton slip corrected manually',
-        createdAt: now.subtract(const Duration(hours: 1)),
-        updatedAt: now.subtract(const Duration(hours: 1)),
-      ),
-    ];
+        timestamp: drift.Value(now.subtract(const Duration(hours: 1))),
+        operatorId: const drift.Value('usr_loader_01'),
+        modelVersion: const drift.Value('1.0.0-YOLOv8n'),
+        averageConfidence: const drift.Value(0.91),
+        notes: const drift.Value('Slight carton slip corrected manually'),
+        createdAt: drift.Value(now.subtract(const Duration(hours: 1))),
+        updatedAt: drift.Value(now.subtract(const Duration(hours: 1))),
+      ));
+    });
   }
 }

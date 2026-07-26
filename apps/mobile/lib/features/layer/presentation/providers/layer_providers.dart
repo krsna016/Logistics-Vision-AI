@@ -9,8 +9,11 @@ import '../../../session/presentation/providers/session_providers.dart';
 import '../../../../core/utils/audit_logger.dart';
 import '../../../../utils/logger.dart';
 
+import '../../../../core/providers/database_provider.dart';
+
 final layerRepositoryProvider = Provider<LayerRepository>((ref) {
-  return LocalLayerRepository();
+  final db = ref.watch(databaseProvider);
+  return LocalLayerRepository(db);
 });
 
 class LayerListState {

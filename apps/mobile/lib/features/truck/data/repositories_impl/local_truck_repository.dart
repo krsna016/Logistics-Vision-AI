@@ -1,42 +1,43 @@
-import 'dart:convert';
-import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:drift/drift.dart' as drift;
 import '../../domain/entities/truck.dart';
 import '../../domain/repositories/truck_repository.dart';
-import '../models/truck_model.dart';
+import '../../../../core/database/app_database.dart' as db;
 import '../../../../utils/logger.dart';
 
 class LocalTruckRepository implements TruckRepository {
-  static const String _storageKey = 'cached_truck_records_v2';
+  final db.AppDatabase _db;
 
-  LocalTruckRepository();
+  LocalTruckRepository(this._db);
 
-  Future<void> _writeToCache(List<Truck> list) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final List<Map<String, dynamic>> rawMaps = list.map((e) => TruckModel.toJson(e)).toList();
-      final rawJson = json.encode(rawMaps);
-      await prefs.setString(_storageKey, rawJson);
-    } catch (e, stack) {
-      AppLogger.error('Failed writing truck database cache', e, stack);
-    }
+  Truck _map(db.Truck data) {
+    return Truck(
+      id: data.id,
+      truckNumber: data.truckNumber,
+      vehicleNumber: data.vehicleNumber,
+      driverName: data.driverName,
+      driverMobile: data.driverMobile,
+      company: data.company,
+      warehouse: data.warehouse ?? '',
+      status: TruckStatus.values.firstWhere((e) => e.name == data.status, orElse: () => TruckStatus.loading),
+      createdDate: data.createdAt,
+      updatedDate: data.updatedAt,
+      wagonId: data.wagonId,
+      completedDate: data.completedDate,
+      totalLayers: data.totalLayers,
+      totalCartons: data.totalCartons,
+      totalDefects: data.totalDefects,
+      notes: data.notes,
+      syncStatus: SyncStatus.values.firstWhere((e) => e.name == data.syncStatus, orElse: () => SyncStatus.pending),
+      isDeleted: data.isDeleted,
+      isArchived: data.isArchived,
+    );
   }
 
   @override
   Future<List<Truck>> getActiveTrucks() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final cachedStr = prefs.getString(_storageKey);
-      final List<dynamic> rawList = cachedStr != null ? json.decode(cachedStr) : [];
-      
-      if (rawList.isEmpty) {
-        final defaultMocks = _generateMockTrucks();
-        await _writeToCache(defaultMocks);
-        return defaultMocks;
-      }
-
-      final List<Truck> allTrucks = rawList.map((e) => TruckModel.fromJson(e as Map<String, dynamic>)).toList();
-      return allTrucks.where((t) => !t.isDeleted).toList();
+      final rows = await (_db.select(_db.trucks)..where((t) => t.isDeleted.equals(false))).get();
+      return rows.map(_map).toList();
     } catch (e, stack) {
       AppLogger.error('Failed reading truck records', e, stack);
       return [];
@@ -45,9 +46,9 @@ class LocalTruckRepository implements TruckRepository {
 
   @override
   Future<Truck?> getTruckById(String id) async {
-    final list = await getActiveTrucks();
     try {
-      return list.firstWhere((element) => element.id == id);
+      final row = await (_db.select(_db.trucks)..where((t) => t.id.equals(id))).getSingleOrNull();
+      return row != null && !row.isDeleted ? _map(row) : null;
     } catch (_) {
       return null;
     }
@@ -55,91 +56,154 @@ class LocalTruckRepository implements TruckRepository {
 
   @override
   Future<void> createTruck(Truck truck) async {
-    final list = await getActiveTrucks();
-    list.add(truck);
-    await _writeToCache(list);
+    await _db.transaction(() async {
+      await _db.into(_db.trucks).insert(db.TrucksCompanion.insert(
+        id: truck.id,
+        wagonId: drift.Value(truck.wagonId),
+        truckNumber: truck.truckNumber,
+        vehicleNumber: truck.vehicleNumber,
+        driverName: truck.driverName,
+        driverMobile: drift.Value(truck.driverMobile),
+        company: truck.company,
+        status: truck.status.name,
+        warehouse: drift.Value(truck.warehouse),
+        completedDate: drift.Value(truck.completedDate),
+        notes: drift.Value(truck.notes),
+        totalLayers: drift.Value(truck.totalLayers),
+        totalCartons: drift.Value(truck.totalCartons),
+        totalDefects: drift.Value(truck.totalDefects),
+        isArchived: drift.Value(truck.isArchived),
+        createdAt: drift.Value(truck.createdDate),
+        updatedAt: drift.Value(truck.updatedDate),
+      ));
+
+      await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
+        id: 'sync_t_${DateTime.now().millisecondsSinceEpoch}',
+        entityId: truck.id,
+        entityType: 'Truck',
+        operation: 'INSERT',
+        payloadData: '{}',
+      ));
+    });
     AppLogger.info('Created new truck record locally: ${truck.truckNumber}');
   }
 
   @override
   Future<void> updateTruck(Truck truck) async {
-    final list = await getActiveTrucks();
-    final index = list.indexWhere((element) => element.id == truck.id);
-    if (index != -1) {
-      list[index] = truck.copyWith(updatedDate: DateTime.now());
-      await _writeToCache(list);
-      AppLogger.info('Updated truck record: ${truck.truckNumber}');
-    }
+    await _db.transaction(() async {
+      await (_db.update(_db.trucks)..where((t) => t.id.equals(truck.id))).write(db.TrucksCompanion(
+        wagonId: drift.Value(truck.wagonId),
+        truckNumber: drift.Value(truck.truckNumber),
+        vehicleNumber: drift.Value(truck.vehicleNumber),
+        driverName: drift.Value(truck.driverName),
+        driverMobile: drift.Value(truck.driverMobile),
+        company: drift.Value(truck.company),
+        status: drift.Value(truck.status.name),
+        warehouse: drift.Value(truck.warehouse),
+        completedDate: drift.Value(truck.completedDate),
+        notes: drift.Value(truck.notes),
+        totalLayers: drift.Value(truck.totalLayers),
+        totalCartons: drift.Value(truck.totalCartons),
+        totalDefects: drift.Value(truck.totalDefects),
+        isArchived: drift.Value(truck.isArchived),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+
+      await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
+        id: 'sync_t_${DateTime.now().millisecondsSinceEpoch}',
+        entityId: truck.id,
+        entityType: 'Truck',
+        operation: 'UPDATE',
+        payloadData: '{}',
+      ));
+    });
+    AppLogger.info('Updated truck record: ${truck.truckNumber}');
   }
 
   @override
   Future<void> softDeleteTruck(String id) async {
-    final list = await getActiveTrucks();
-    final index = list.indexWhere((element) => element.id == id);
-    if (index != -1) {
-      list[index] = list[index].copyWith(isDeleted: true, updatedDate: DateTime.now());
-      await _writeToCache(list);
-      AppLogger.info('Soft deleted truck: $id');
-    }
+    await _db.transaction(() async {
+      await (_db.update(_db.trucks)..where((t) => t.id.equals(id))).write(
+        db.TrucksCompanion(isDeleted: const drift.Value(true))
+      );
+
+      await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
+        id: 'sync_t_${DateTime.now().millisecondsSinceEpoch}',
+        entityId: id,
+        entityType: 'Truck',
+        operation: 'DELETE',
+        payloadData: '{}',
+      ));
+    });
+    AppLogger.info('Soft deleted truck: $id');
   }
 
   @override
   Future<void> archiveTruck(String id) async {
-    final list = await getActiveTrucks();
-    final index = list.indexWhere((element) => element.id == id);
-    if (index != -1) {
-      list[index] = list[index].copyWith(isArchived: true, updatedDate: DateTime.now());
-      await _writeToCache(list);
-      AppLogger.info('Archived truck: $id');
-    }
+    await _db.transaction(() async {
+      await (_db.update(_db.trucks)..where((t) => t.id.equals(id))).write(
+        db.TrucksCompanion(isArchived: const drift.Value(true))
+      );
+
+      await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
+        id: 'sync_t_${DateTime.now().millisecondsSinceEpoch}',
+        entityId: id,
+        entityType: 'Truck',
+        operation: 'UPDATE',
+        payloadData: '{"isArchived": true}',
+      ));
+    });
+    AppLogger.info('Archived truck: $id');
   }
 
   @override
   Future<bool> isTruckNumberExists(String truckNumber, {String? excludeId}) async {
-    final list = await getActiveTrucks();
-    return list.any((t) => t.truckNumber.toLowerCase() == truckNumber.toLowerCase() && t.id != excludeId);
+    final query = _db.select(_db.trucks)..where((t) => t.truckNumber.lower().equals(truckNumber.toLowerCase()));
+    if (excludeId != null) {
+      query.where((t) => t.id.isNotValue(excludeId));
+    }
+    final rows = await query.get();
+    return rows.isNotEmpty;
   }
 
   @override
   Future<void> clearAndLoadDemoData() async {
-    final defaultMocks = _generateMockTrucks();
-    await _writeToCache(defaultMocks);
-  }
-
-  List<Truck> _generateMockTrucks() {
-    final now = DateTime.now();
-    return [
-      Truck(
+    await _db.transaction(() async {
+      await _db.delete(_db.trucks).go();
+      
+      final now = DateTime.now();
+      await _db.into(_db.trucks).insert(db.TrucksCompanion.insert(
         id: 'mock_t1',
         truckNumber: 'TX-9908-AB',
         vehicleNumber: 'V-101',
         driverName: 'John Doe',
         company: 'Swift Carriers',
-        warehouse: 'Austin Fulfillment South',
-        status: TruckStatus.loading,
-        createdDate: now.subtract(const Duration(hours: 4)),
-        updatedDate: now.subtract(const Duration(hours: 4)),
-        totalLayers: 3,
-        totalCartons: 72,
-        totalDefects: 2,
-        wagonId: 'mock_w1',
-      ),
-      Truck(
+        warehouse: const drift.Value('Austin Fulfillment South'),
+        status: TruckStatus.loading.name,
+        createdAt: drift.Value(now.subtract(const Duration(hours: 4))),
+        updatedAt: drift.Value(now.subtract(const Duration(hours: 4))),
+        totalLayers: const drift.Value(3),
+        totalCartons: const drift.Value(72),
+        totalDefects: const drift.Value(2),
+        wagonId: const drift.Value('mock_w1'),
+      ));
+      
+      await _db.into(_db.trucks).insert(db.TrucksCompanion.insert(
         id: 'mock_t2',
         truckNumber: 'CA-4432-XY',
         vehicleNumber: 'V-205',
         driverName: 'Alice Smith',
         company: 'Pacific Freight',
-        warehouse: 'Austin Fulfillment South',
-        status: TruckStatus.completed,
-        createdDate: now.subtract(const Duration(days: 1)),
-        updatedDate: now.subtract(const Duration(hours: 12)),
-        completedDate: now.subtract(const Duration(hours: 12)),
-        totalLayers: 10,
-        totalCartons: 240,
-        totalDefects: 1,
-        wagonId: 'mock_w1',
-      ),
-    ];
+        warehouse: const drift.Value('Austin Fulfillment South'),
+        status: TruckStatus.completed.name,
+        createdAt: drift.Value(now.subtract(const Duration(days: 1))),
+        updatedAt: drift.Value(now.subtract(const Duration(hours: 12))),
+        completedDate: drift.Value(now.subtract(const Duration(hours: 12))),
+        totalLayers: const drift.Value(10),
+        totalCartons: const drift.Value(240),
+        totalDefects: const drift.Value(1),
+        wagonId: const drift.Value('mock_w1'),
+      ));
+    });
   }
 }

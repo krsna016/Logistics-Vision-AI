@@ -5,8 +5,11 @@ import '../../domain/entities/truck.dart';
 import '../../domain/repositories/truck_repository.dart';
 import '../../data/repositories_impl/local_truck_repository.dart';
 
+import '../../../../core/providers/database_provider.dart';
+
 final truckRepositoryProvider = Provider<TruckRepository>((ref) {
-  return LocalTruckRepository();
+  final db = ref.watch(databaseProvider);
+  return LocalTruckRepository(db);
 });
 
 class TruckListState {

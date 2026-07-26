@@ -19,7 +19,6 @@ class TruckHeader extends StatelessWidget {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3), width: 1),
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -109,7 +108,6 @@ class _StatusChip extends StatelessWidget {
       decoration: BoxDecoration(
         color: _color.withOpacity(0.15),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: _color.withOpacity(0.5)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

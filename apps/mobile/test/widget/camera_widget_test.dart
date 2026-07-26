@@ -22,7 +22,7 @@ void main() {
         overrides: [
           cameraNotifierProvider.overrideWith((ref) {
             return StateController(const CameraState(status: CameraStatus.initializing));
-          } as StateNotifier Function(AutoDisposeStateNotifierProviderRef<CameraNotifier, CameraState>)),
+          }),
         ],
       );
 
@@ -40,7 +40,7 @@ void main() {
               status: CameraStatus.error,
               errorMessage: 'Hardware connection lost.',
             ));
-          } as StateNotifier Function(AutoDisposeStateNotifierProviderRef<CameraNotifier, CameraState>)),
+          }),
         ],
       );
 
@@ -56,7 +56,7 @@ void main() {
         overrides: [
           cameraNotifierProvider.overrideWith((ref) {
             return StateController(const CameraState(status: CameraStatus.permissionDenied));
-          } as StateNotifier Function(AutoDisposeStateNotifierProviderRef<CameraNotifier, CameraState>)),
+          }),
         ],
       );
 

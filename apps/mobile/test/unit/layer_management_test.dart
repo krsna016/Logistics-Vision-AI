@@ -8,6 +8,8 @@ import 'package:mobile/features/layer/data/repositories_impl/local_layer_reposit
 import 'package:mobile/features/layer/presentation/providers/layer_providers.dart';
 import 'package:mobile/features/truck/presentation/providers/truck_providers.dart';
 import 'package:mobile/features/truck/data/repositories_impl/local_truck_repository.dart';
+import 'package:mobile/core/database/app_database.dart';
+import 'package:drift/native.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -39,11 +41,17 @@ void main() {
   });
 
   group('LocalLayerRepository Tests', () {
+    late AppDatabase db;
     late LocalLayerRepository repository;
 
-    setUp(() {
-      SharedPreferences.setMockInitialValues({}); // Clean cache
-      repository = LocalLayerRepository();
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      repository = LocalLayerRepository(db);
+      await repository.clearAndLoadDemoData();
+    });
+
+    tearDown(() async {
+      await db.close();
     });
 
     test('getLayersByTruck returns initial mock seeds when database is empty', () async {
@@ -64,13 +72,21 @@ void main() {
   });
 
   group('LayerListNotifier State Transitions & Parent Truck Updates', () {
+    late AppDatabase db;
     late LocalLayerRepository layerRepo;
     late LocalTruckRepository truckRepo;
 
-    setUp(() {
-      SharedPreferences.setMockInitialValues({});
-      layerRepo = LocalLayerRepository();
-      truckRepo = LocalTruckRepository();
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      layerRepo = LocalLayerRepository(db);
+      truckRepo = LocalTruckRepository(db);
+      
+      await truckRepo.clearAndLoadDemoData();
+      await layerRepo.clearAndLoadDemoData();
+    });
+    
+    tearDown(() async {
+      await db.close();
     });
 
     ProviderContainer makeContainer() {

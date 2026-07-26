@@ -15,7 +15,6 @@ class RegisterHeader extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -52,7 +51,6 @@ class RegisterHeader extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.primaryColor),
                 ),
                 child: const Text(
                   'OFFICIAL REGISTER',

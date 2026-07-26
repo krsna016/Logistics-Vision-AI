@@ -522,7 +522,6 @@ class _AIStatusPanel extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xDD0D1B2A),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.primaryColor.withOpacity(0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

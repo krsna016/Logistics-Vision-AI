@@ -5,6 +5,7 @@ import '../../../theme/app_theme.dart';
 import '../../../features/wagon/presentation/providers/wagon_providers.dart';
 import '../../../features/truck/presentation/providers/truck_providers.dart';
 import '../../../features/layer/presentation/providers/layer_providers.dart';
+import 'action_warning_dialog.dart';
 
 class AppDrawer extends ConsumerWidget {
   const AppDrawer({super.key});
@@ -92,7 +93,6 @@ class AppDrawer extends ConsumerWidget {
                       iconColor: Colors.redAccent,
                       textColor: Colors.redAccent,
                       onTap: () {
-                        Navigator.pop(context);
                         _confirmDemoDataLoad(context, ref);
                       },
                     ),
@@ -236,34 +236,33 @@ class AppDrawer extends ConsumerWidget {
   }
 
   void _confirmDemoDataLoad(BuildContext context, WidgetRef ref) {
-    showDialog(
+    // Capture provider references before showing dialog, since the drawer
+    // (and its ConsumerElement) will be disposed by the time onConfirm runs.
+    final wagonRepo = ref.read(wagonRepositoryProvider);
+    final truckRepo = ref.read(truckRepositoryProvider);
+    final layerRepo = ref.read(layerRepositoryProvider);
+    final wagonNotifier = ref.read(wagonListProvider.notifier);
+    final truckNotifier = ref.read(truckListProvider.notifier);
+
+    showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Load Demo Data?'),
-        content: const Text(
-          'WARNING: This will permanently DELETE all current local data (wagons, trucks, layers) and replace them with mock data for testing. This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await ref.read(wagonRepositoryProvider).clearAndLoadDemoData();
-              await ref.read(truckRepositoryProvider).clearAndLoadDemoData();
-              await ref.read(layerRepositoryProvider).clearAndLoadDemoData();
-              ref.read(wagonListProvider.notifier).refresh();
-              ref.read(truckListProvider.notifier).refresh();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Demo Data Loaded successfully.')));
-              }
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
-            child: const Text('Inject Demo Data'),
-          ),
-        ],
+      builder: (ctx) => ActionWarningDialog(
+        title: 'Load Demo Data?',
+        content: 'WARNING: This will permanently DELETE all current local data (wagons, trucks, layers) and replace them with mock data for testing. This action cannot be undone.',
+        actionLabel: 'Inject Demo Data',
+        actionColor: Colors.redAccent,
+        icon: Icons.bug_report_rounded,
+        onConfirm: () async {
+          Navigator.of(context).pop(); // close drawer
+          await wagonRepo.clearAndLoadDemoData();
+          await truckRepo.clearAndLoadDemoData();
+          await layerRepo.clearAndLoadDemoData();
+          wagonNotifier.refresh();
+          truckNotifier.refresh();
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Demo Data Loaded successfully.')));
+          }
+        },
       ),
     );
   }

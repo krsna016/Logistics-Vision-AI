@@ -69,7 +69,6 @@ class _SummaryStatCardState extends State<SummaryStatCard>
         decoration: BoxDecoration(
           color: effectiveColor.withOpacity(0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: effectiveColor.withOpacity(0.2)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

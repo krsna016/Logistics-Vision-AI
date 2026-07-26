@@ -5,16 +5,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile/features/layer/presentation/screens/layer_review_screen.dart';
 import 'package:mobile/features/layer/presentation/providers/layer_providers.dart';
 import 'package:mobile/features/layer/domain/entities/layer.dart';
+import 'package:mobile/features/layer/domain/entities/ai_result.dart';
 
 void main() {
   Widget buildTestableWidget(ProviderContainer container) {
     return UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(
+      child: MaterialApp(
         home: LayerReviewScreen(
           truckId: 'mock_t1',
-          cartonCount: 36,
-          averageConfidence: 0.945,
+          aiResult: AIResult(
+            detections: const [],
+            count: 36,
+            averageConfidence: 0.945,
+            processingTimeMs: 10,
+            modelVersion: '1.0.0-YOLOv8n',
+            inferenceTimestamp: DateTime.now(),
+            frameSize: const Size(640, 640),
+          ),
         ),
       ),
     );
@@ -26,16 +34,17 @@ void main() {
         overrides: [
           layerListProvider('mock_t1').overrideWith((ref) {
             return StateController(const LayerListState());
-          } as StateNotifier Function(AutoDisposeStateNotifierProviderRef<LayerListNotifier, LayerListState>)),
+          }),
         ],
       );
 
       await tester.pumpWidget(buildTestableWidget(container));
-      await tester.pump();
+      await tester.pumpAndSettle();
 
-      expect(find.text('36'), findsOneWidget);
-      expect(find.text('AI Prediction Confidence: 95%'), findsOneWidget);
-      expect(find.text('Confirm & Save Layer'), findsOneWidget);
+      expect(find.text('36'), findsWidgets);
+      expect(find.text('CONF'), findsOneWidget);
+      expect(find.text('95.0%'), findsOneWidget);
+      expect(find.text('Confirm  36 Cartons'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
     });
   });

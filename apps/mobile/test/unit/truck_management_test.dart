@@ -6,6 +6,8 @@ import 'package:mobile/features/truck/domain/entities/truck.dart';
 import 'package:mobile/features/truck/data/models/truck_model.dart';
 import 'package:mobile/features/truck/data/repositories_impl/local_truck_repository.dart';
 import 'package:mobile/features/truck/presentation/providers/truck_providers.dart';
+import 'package:mobile/core/database/app_database.dart';
+import 'package:drift/native.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -37,11 +39,17 @@ void main() {
   });
 
   group('LocalTruckRepository Tests', () {
+    late AppDatabase db;
     late LocalTruckRepository repository;
 
-    setUp(() {
-      SharedPreferences.setMockInitialValues({}); // Clean cache mock
-      repository = LocalTruckRepository();
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      repository = LocalTruckRepository(db);
+      await repository.clearAndLoadDemoData();
+    });
+
+    tearDown(() async {
+      await db.close();
     });
 
     test('getActiveTrucks returns initial mock seeds when database is empty', () async {
@@ -83,11 +91,17 @@ void main() {
   });
 
   group('TruckListNotifier State & Validation Tests', () {
+    late AppDatabase db;
     late LocalTruckRepository repo;
 
-    setUp(() {
-      SharedPreferences.setMockInitialValues({});
-      repo = LocalTruckRepository();
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      repo = LocalTruckRepository(db);
+      await repo.clearAndLoadDemoData();
+    });
+
+    tearDown(() async {
+      await db.close();
     });
 
     ProviderContainer makeContainer() {

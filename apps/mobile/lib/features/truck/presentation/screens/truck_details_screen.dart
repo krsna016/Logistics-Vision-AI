@@ -4,12 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../theme/app_theme.dart';
 import '../../../../presentation/widgets/app_card.dart';
+import '../../../../core/presentation/widgets/action_warning_dialog.dart';
 import '../../domain/entities/truck.dart';
 import '../providers/truck_providers.dart';
 import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../layer/domain/entities/layer.dart';
 import '../../../session/presentation/providers/session_providers.dart';
-import '../../../../core/presentation/widgets/app_drawer.dart';
+
 import '../widgets/truck_form_dialog.dart';
 import '../widgets/truck_header.dart';
 import '../widgets/summary_stat_card.dart';
@@ -50,7 +51,7 @@ class TruckDetailsScreen extends ConsumerWidget {
     if (truck.id.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Truck Details')),
-        drawer: const AppDrawer(),
+
         body: const Center(
           child: Text('Truck record not found.', style: TextStyle(color: AppTheme.textSecondary)),
         ),
@@ -77,12 +78,7 @@ class TruckDetailsScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-          ),
+
           if (!isReadOnly)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
@@ -98,15 +94,55 @@ class TruckDetailsScreen extends ConsumerWidget {
                 );
               },
             ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: AppTheme.errorColor),
-            tooltip: 'Remove Truck',
-            onPressed: () => _confirmDelete(context, notifier, truck),
-          ),
+          if (!isReadOnly && !truck.isArchived)
+            IconButton(
+              icon: const Icon(Icons.archive),
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext ctx) => ActionWarningDialog(
+                    title: 'Archive Truck?',
+                    content: 'Are you sure you want to archive this truck? It will no longer be editable.',
+                    actionLabel: 'Archive',
+                    actionColor: AppTheme.warningColor,
+                    onConfirm: () async {
+                      await notifier.archiveTruck(truck.id);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truck archived successfully.')));
+                      }
+                    },
+                  ),
+                );
+              },
+              tooltip: 'Archive Truck',
+            ),
+          if (!isReadOnly)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              tooltip: 'Delete Truck',
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext ctx) => ActionWarningDialog(
+                    title: 'Delete Truck?',
+                    content: 'Are you absolutely sure? This will permanently delete the truck and all its layers.',
+                    actionLabel: 'Delete',
+                    actionColor: Colors.redAccent,
+                    onConfirm: () async {
+                      await notifier.deleteTruck(truck.id);
+                      if (context.mounted) {
+                        context.pop();
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truck deleted permanently.')));
+                      }
+                    },
+                  ),
+                );
+              },
+            ),
           const SizedBox(width: 4),
         ],
       ),
-      drawer: const AppDrawer(),
+
       body: SafeArea(child: CustomScrollView(
         slivers: [
           SliverPadding(
@@ -468,22 +504,14 @@ class TruckDetailsScreen extends ConsumerWidget {
   ) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Archive Session?'),
-        content: const Text(
-          'The truck session will be moved to archives. No further edits will be possible.',
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              notifier.archiveTruck(truck.id);
-              Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.textSecondary),
-            child: const Text('Archive'),
-          ),
-        ],
+      builder: (ctx) => ActionWarningDialog(
+        title: 'Archive Session?',
+        content: 'The truck session will be moved to archives. No further edits will be possible.',
+        actionLabel: 'Archive',
+        actionColor: AppTheme.textSecondary,
+        onConfirm: () {
+          notifier.archiveTruck(truck.id);
+        },
       ),
     );
   }
@@ -575,7 +603,6 @@ class _EmptyLayersState extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.cardColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.dividerColor),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,

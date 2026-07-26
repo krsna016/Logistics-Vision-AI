@@ -7,10 +7,12 @@ import '../../../../presentation/widgets/stats_card.dart';
 import '../../../../presentation/widgets/status_chip.dart';
 import '../../../../presentation/widgets/empty_state_widget.dart';
 import '../../../../theme/app_theme.dart';
-import '../../../../core/presentation/widgets/app_drawer.dart';
+
 import '../../domain/entities/wagon.dart';
 import '../providers/wagon_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
+
+import '../../../../core/presentation/widgets/action_warning_dialog.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../truck/presentation/widgets/truck_form_dialog.dart';
 
@@ -69,12 +71,7 @@ class WagonDetailsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(wagon.wagonNumber),
         actions: [
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
-            ),
-          ),
+
           IconButton(
             icon: const Icon(Icons.description_outlined),
             onPressed: () => context.push('/registers/${wagon.id}'),
@@ -83,80 +80,56 @@ class WagonDetailsScreen extends ConsumerWidget {
             if (wagon.status != WagonStatus.archived)
               IconButton(
                 icon: const Icon(Icons.archive),
-                onPressed: () => _confirmArchive(context, notifier, wagon),
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (BuildContext ctx) => ActionWarningDialog(
+                      title: 'Archive Wagon?',
+                      content: 'Are you sure you want to archive this wagon? It will no longer be editable.',
+                      actionLabel: 'Archive',
+                      actionColor: AppTheme.warningColor,
+                      onConfirm: () async {
+                        await notifier.updateWagonStatus(wagon.id, WagonStatus.archived);
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Wagon archived successfully.')));
+                        }
+                      },
+                    ),
+                  );
+                },
                 tooltip: 'Archive Wagon',
               ),
             IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-            tooltip: 'Delete Wagon',
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (BuildContext ctx) {
-                  String inputValue = '';
-                  return StatefulBuilder(
-                    builder: (context, setState) {
-                      final bool canDelete = inputValue == wagon.wagonNumber;
-                      return AlertDialog(
-                        title: const Text('Delete Wagon'),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text('This action cannot be undone. This will permanently delete the wagon and all its associated data.'),
-                            const SizedBox(height: 16),
-                            Text('Type "${wagon.wagonNumber}" to confirm.', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 8),
-                            TextField(
-                              autofocus: true,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                hintText: 'Enter wagon number',
-                              ),
-                              onChanged: (value) {
-                                setState(() {
-                                  inputValue = value;
-                                });
-                              },
-                            ),
-                          ],
-                        ),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.of(ctx).pop(),
-                            child: const Text('Cancel'),
-                          ),
-                          TextButton(
-                            onPressed: canDelete ? () async {
-                              Navigator.of(ctx).pop();
-                              
-                              final truckNotifier = ref.read(truckListProvider.notifier);
-                              final trucks = ref.read(truckListProvider).trucks.where((t) => t.wagonId == wagon.id).toList();
-                              for (final t in trucks) {
-                                await truckNotifier.deleteTruck(t.id);
-                              }
-                              
-                              await notifier.deleteWagon(wagon.id);
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Wagon deleted successfully.')),
-                                );
-                                context.pop();
-                              }
-                            } : null,
-                            child: Text('Delete', style: TextStyle(color: canDelete ? Colors.redAccent : Colors.grey)),
-                          ),
-                        ],
-                      );
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              tooltip: 'Delete Wagon',
+              onPressed: () {
+                showDialog(
+                  context: context,
+                  builder: (BuildContext ctx) => ActionWarningDialog(
+                    title: 'Delete Wagon?',
+                    content: 'Are you absolutely sure? This will permanently delete the wagon and all associated trucks and layers.',
+                    actionLabel: 'Delete',
+                    actionColor: Colors.redAccent,
+                    onConfirm: () async {
+                      final truckNotifier = ref.read(truckListProvider.notifier);
+                      final trucks = ref.read(truckListProvider).trucks.where((t) => t.wagonId == wagon.id).toList();
+                      for (final t in trucks) {
+                        await truckNotifier.deleteTruck(t.id);
+                      }
+                      
+                      await notifier.deleteWagon(wagon.id);
+                      if (context.mounted) {
+                        context.go('/wagons');
+                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Wagon deleted permanently.')));
+                      }
                     },
-                  );
-                },
-              );
-            },
-          ),
+                  ),
+                );
+              },
+            ),
         ],
       ),
-      drawer: const AppDrawer(),
+
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -380,6 +353,26 @@ class WagonDetailsScreen extends ConsumerWidget {
     );
   }
 
+  void _confirmArchive(
+    BuildContext context,
+    WagonListNotifier notifier,
+    Wagon wagon,
+  ) {
+    showDialog(
+      context: context,
+      builder: (ctx) => ActionWarningDialog(
+        title: 'Archive Wagon?',
+        content: 'The wagon will be moved to archives. No further edits will be possible.',
+        actionLabel: 'Archive',
+        actionColor: AppTheme.textSecondary,
+        icon: Icons.archive_outlined,
+        onConfirm: () {
+          notifier.updateWagonStatus(wagon.id, WagonStatus.archived);
+        },
+      ),
+    );
+  }
+
   void _confirmCompleteWagon(
     BuildContext context, 
     WagonListNotifier notifier, 
@@ -406,7 +399,7 @@ class WagonDetailsScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(color: AppTheme.warningColor.withOpacity(0.1), border: Border.all(color: AppTheme.warningColor), borderRadius: BorderRadius.circular(8)),
+                decoration: BoxDecoration(color: AppTheme.warningColor.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   children: [
                     const Icon(Icons.warning_amber_outlined, color: AppTheme.warningColor, size: 20),

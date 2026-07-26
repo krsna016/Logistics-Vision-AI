@@ -8,8 +8,11 @@ import '../../../truck/domain/entities/truck.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../truck/domain/repositories/truck_repository.dart';
 
+import '../../../../core/providers/database_provider.dart';
+
 final wagonRepositoryProvider = Provider<WagonRepository>((ref) {
-  return LocalWagonRepository();
+  final db = ref.watch(databaseProvider);
+  return LocalWagonRepository(db);
 });
 
 class WagonListState {

@@ -10,8 +10,11 @@ import '../../../truck/domain/entities/truck.dart';
 import '../../../../core/utils/audit_logger.dart';
 import '../../../../utils/logger.dart';
 
+import '../../../../core/providers/database_provider.dart';
+
 final loadingSessionRepositoryProvider = Provider<LoadingSessionRepository>((ref) {
-  return LocalLoadingSessionRepository();
+  final db = ref.watch(databaseProvider);
+  return LocalLoadingSessionRepository(db);
 });
 
 class ActiveSessionState {

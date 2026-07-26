@@ -8,10 +8,14 @@ import 'package:mobile/features/layer/data/repositories_impl/local_layer_reposit
 import 'package:mobile/features/layer/presentation/providers/layer_providers.dart';
 import 'package:mobile/features/truck/presentation/providers/truck_providers.dart';
 import 'package:mobile/features/truck/data/repositories_impl/local_truck_repository.dart';
+import 'package:mobile/core/database/app_database.dart';
+import 'package:drift/native.dart';
+import 'dart:ui';
 
 // Test double for testing repository failure rollbacks
 class FailureLayerRepository extends LocalLayerRepository {
   bool shouldThrow = false;
+  FailureLayerRepository(super.db);
 
   @override
   Future<void> saveLayer(LayerRecord layer) async {
@@ -45,13 +49,19 @@ void main() {
   });
 
   group('Transactional Save Pipeline & Rollback Tests', () {
+    late AppDatabase db;
     late FailureLayerRepository mockLayerRepo;
     late LocalTruckRepository mockTruckRepo;
 
-    setUp(() {
-      SharedPreferences.setMockInitialValues({});
-      mockLayerRepo = FailureLayerRepository();
-      mockTruckRepo = LocalTruckRepository();
+    setUp(() async {
+      db = AppDatabase.forTesting(NativeDatabase.memory());
+      mockLayerRepo = FailureLayerRepository(db);
+      mockTruckRepo = LocalTruckRepository(db);
+      await mockTruckRepo.clearAndLoadDemoData();
+    });
+
+    tearDown(() async {
+      await db.close();
     });
 
     ProviderContainer makeContainer() {

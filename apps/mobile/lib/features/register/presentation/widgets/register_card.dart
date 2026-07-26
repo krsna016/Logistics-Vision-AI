@@ -145,7 +145,6 @@ class RegisterCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.successColor.withOpacity(0.15),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppTheme.successColor.withOpacity(0.5)),
       ),
       child: Text(
         status.toUpperCase(),

@@ -36,7 +36,7 @@ void main() {
         overrides: [
           layerListProvider('mock_t1').overrideWith((ref) {
             return StateController(const LayerListState());
-          } as StateNotifier Function(AutoDisposeStateNotifierProviderRef<LayerListNotifier, LayerListState>)),
+          }),
         ],
       );
 
@@ -44,10 +44,11 @@ void main() {
       await tester.pump();
 
       // Assert placeholder and metrics render
-      expect(find.byIcon(Icons.photo), findsOneWidget);
-      expect(find.text('18 Cartons'), findsOneWidget);
-      expect(find.text('Confidence Avg: 96%'), findsOneWidget);
-      expect(find.text('Confirm & Save'), findsOneWidget);
+      expect(find.byIcon(Icons.photo_camera_outlined), findsOneWidget);
+      expect(find.text('18'), findsWidgets);
+      expect(find.text('CONF'), findsOneWidget);
+      expect(find.text('96.0%'), findsOneWidget);
+      expect(find.text('Confirm  18 Cartons'), findsOneWidget);
     });
   });
 }
