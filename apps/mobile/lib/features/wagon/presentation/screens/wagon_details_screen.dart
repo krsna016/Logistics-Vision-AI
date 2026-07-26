@@ -293,14 +293,7 @@ class WagonDetailsScreen extends ConsumerWidget {
                   if (wagon.status == WagonStatus.loading)
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: () async {
-                          await notifier.updateWagonStatus(wagon.id, WagonStatus.completed);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Wagon status marked Completed.')),
-                            );
-                          }
-                        },
+                        onPressed: () => _confirmCompleteWagon(context, notifier, wagon, wagonTrucks, cartons, completedCount),
                         icon: const Icon(Icons.done_all),
                         label: const Text('Complete Wagon'),
                       ),
@@ -383,6 +376,63 @@ class WagonDetailsScreen extends ConsumerWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (context) => TruckFormDialog(wagonId: wagonId),
+    );
+  }
+
+  void _confirmCompleteWagon(
+    BuildContext context, 
+    WagonListNotifier notifier, 
+    Wagon wagon, 
+    List<Truck> trucks, 
+    int totalCartons, 
+    int completedCount,
+  ) {
+    final missingCount = wagon.expectedTruckCount - completedCount;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Complete Wagon Session?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('This will finalize the wagon and make it ready for the digital register.', style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 16),
+            _buildMetricSub('Total Trucks Loaded', '$completedCount / ${wagon.expectedTruckCount}'),
+            const SizedBox(height: 8),
+            _buildMetricSub('Total Cartons', '$totalCartons'),
+            if (missingCount > 0) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(color: AppTheme.warningColor.withOpacity(0.1), border: Border.all(color: AppTheme.warningColor), borderRadius: BorderRadius.circular(8)),
+                child: Row(
+                  children: [
+                    const Icon(Icons.warning_amber_outlined, color: AppTheme.warningColor, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text('Warning: $missingCount trucks are missing from the expected count.', style: const TextStyle(color: AppTheme.warningColor, fontSize: 12))),
+                  ],
+                ),
+              )
+            ]
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              await notifier.updateWagonStatus(wagon.id, WagonStatus.completed);
+              if (ctx.mounted) {
+                Navigator.pop(ctx);
+                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(content: Text('Wagon status marked Completed.')));
+                ctx.push('/registers/${wagon.id}');
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
+            child: const Text('Complete & Generate'),
+          ),
+        ],
+      ),
     );
   }
 

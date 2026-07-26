@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../core/constants/manual_content.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../theme/app_theme.dart';
 
 class UserManualScreen extends StatelessWidget {
   const UserManualScreen({super.key});
@@ -11,24 +11,24 @@ class UserManualScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('User Manual'),
-        backgroundColor: AppTheme.primaryDark,
+        backgroundColor: AppTheme.surfaceColor,
         foregroundColor: Colors.white,
       ),
       body: Container(
-        color: AppTheme.backgroundDark,
+        color: AppTheme.backgroundColor,
         child: Markdown(
           data: userManualMarkdown,
           styleSheet: MarkdownStyleSheet(
             h1: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-            h2: const TextStyle(color: AppTheme.primaryBlue, fontSize: 20, fontWeight: FontWeight.bold),
+            h2: const TextStyle(color: AppTheme.primaryColor, fontSize: 20, fontWeight: FontWeight.bold),
             h3: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
             p: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.5),
-            listBullet: const TextStyle(color: AppTheme.primaryBlue, fontSize: 16),
+            listBullet: const TextStyle(color: AppTheme.primaryColor, fontSize: 16),
             strong: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
             em: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic),
             code: const TextStyle(
               backgroundColor: Color(0xFF1E293B),
-              color: AppTheme.accentAmber,
+              color: AppTheme.warningColor,
               fontFamily: 'monospace',
               fontSize: 14,
             ),
@@ -39,10 +39,10 @@ class UserManualScreen extends StatelessWidget {
             ),
             blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
             blockquoteDecoration: BoxDecoration(
-              border: Border(left: BorderSide(color: AppTheme.primaryBlue, width: 4)),
+              border: Border(left: BorderSide(color: AppTheme.primaryColor, width: 4)),
             ),
             horizontalRuleDecoration: BoxDecoration(
-              border: Border(top: BorderSide(color: AppTheme.surfaceDark, width: 2)),
+              border: Border(top: BorderSide(color: AppTheme.dividerColor, width: 2)),
             ),
           ),
         ),

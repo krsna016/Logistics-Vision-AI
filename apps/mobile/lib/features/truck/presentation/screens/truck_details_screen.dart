@@ -8,6 +8,7 @@ import '../../domain/entities/truck.dart';
 import '../providers/truck_providers.dart';
 import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../layer/domain/entities/layer.dart';
+import '../../../session/presentation/providers/session_providers.dart';
 import '../widgets/truck_form_dialog.dart';
 import '../widgets/truck_header.dart';
 import '../widgets/summary_stat_card.dart';
@@ -27,6 +28,8 @@ class TruckDetailsScreen extends ConsumerWidget {
     final notifier = ref.read(truckListProvider.notifier);
     final layerState = ref.watch(layerListProvider(truckId));
     final layerNotifier = ref.read(layerListProvider(truckId).notifier);
+    final sessionState = ref.watch(activeSessionProvider);
+    final sessionNotifier = ref.read(activeSessionProvider.notifier);
 
     final truck = listState.trucks.firstWhere(
       (e) => e.id == truckId,
@@ -156,13 +159,38 @@ class TruckDetailsScreen extends ConsumerWidget {
                 const SizedBox(height: 10),
 
                 if (!isReadOnly) ...[
-                  QuickActionButton(
-                    icon: Icons.camera_alt_outlined,
-                    label: 'Capture Next Layer',
-                    subtitle: 'Launch AI carton scanning',
-                    backgroundColor: AppTheme.primaryColor,
-                    onPressed: () => context.push('/trucks/$truckId/camera'),
-                  ),
+                  if (sessionState.activeSession?.truckId == truckId)
+                    QuickActionButton(
+                      icon: Icons.camera_alt_outlined,
+                      label: 'Capture Next Layer',
+                      subtitle: 'Launch AI carton scanning',
+                      backgroundColor: AppTheme.primaryColor,
+                      onPressed: () => context.push('/trucks/$truckId/camera'),
+                    )
+                  else if (sessionState.activeSession == null)
+                    QuickActionButton(
+                      icon: Icons.play_circle_outline,
+                      label: 'Start Loading Session',
+                      subtitle: 'Initialize session & begin scanning',
+                      backgroundColor: AppTheme.primaryBlue,
+                      onPressed: () async {
+                        final error = await sessionNotifier.startSession(
+                          truckId: truckId,
+                          warehouseId: truck.warehouse,
+                        );
+                        if (error != null && context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+                        }
+                      },
+                    )
+                  else
+                    const QuickActionButton(
+                      icon: Icons.lock_outline,
+                      label: 'Another Session Active',
+                      subtitle: 'Finish current session first',
+                      backgroundColor: Colors.grey,
+                      onPressed: null,
+                    ),
                   const SizedBox(height: 10),
                 ],
 
@@ -190,13 +218,13 @@ class TruckDetailsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 10),
 
-                if (!isReadOnly)
+                if (!isReadOnly && (sessionState.activeSession?.truckId == truckId || truck.totalLayers > 0))
                   QuickActionButton(
                     icon: Icons.check_circle_outline,
                     label: 'Complete Loading Session',
                     subtitle: 'Mark as finished and close',
                     backgroundColor: AppTheme.successColor,
-                    onPressed: () => _confirmComplete(context, notifier, truck),
+                    onPressed: () => _confirmComplete(context, notifier, sessionNotifier, truck),
                   ),
 
                 if (truck.status == TruckStatus.completed && !truck.isArchived) ...[
@@ -294,6 +322,12 @@ class TruckDetailsScreen extends ConsumerWidget {
       // ── 7. Sticky Bottom Action Bar ─────────────────────────────────────
       bottomNavigationBar: _StickyBottomBar(
         isReadOnly: isReadOnly,
+        hasActiveSession: sessionState.activeSession?.truckId == truckId,
+        isAnotherSessionActive: sessionState.activeSession != null && sessionState.activeSession?.truckId != truckId,
+        onStartSession: () async {
+          final error = await sessionNotifier.startSession(truckId: truckId, warehouseId: truck.warehouse);
+          if (error != null && context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+        },
         onCapture: isReadOnly ? null : () => context.push('/trucks/$truckId/camera'),
         onReport: () => _showReportDialog(context),
       ),
@@ -367,26 +401,32 @@ class TruckDetailsScreen extends ConsumerWidget {
   void _confirmComplete(
     BuildContext context,
     TruckListNotifier notifier,
+    ActiveSessionNotifier sessionNotifier,
     Truck truck,
   ) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Complete Loading Session?'),
-        content: const Text(
-          'This will lock the session as read-only. No further layers can be captured after completion.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Are you sure you want to complete this truck session? It will be locked as read-only.', style: TextStyle(color: Colors.white70)),
+            const SizedBox(height: 16),
+            _buildMetricSub('Total Layers', '${truck.totalLayers}'),
+            const SizedBox(height: 8),
+            _buildMetricSub('Total Cartons', '${truck.totalCartons}'),
+            const SizedBox(height: 8),
+            _buildMetricSub('Total Defects', '${truck.totalDefects}', isAlert: truck.totalDefects > 0),
+          ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Continue Loading')),
           ElevatedButton(
-            onPressed: () {
-              notifier.editTruck(
-                truck.copyWith(
-                  status: TruckStatus.completed,
-                  completedDate: DateTime.now(),
-                ),
-              );
-              Navigator.pop(ctx);
+            onPressed: () async {
+              await sessionNotifier.completeSession(); // This auto-updates the truck status
+              if (context.mounted) Navigator.pop(ctx);
             },
             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
             child: const Text('Complete'),
@@ -547,11 +587,17 @@ class _EmptyLayersState extends StatelessWidget {
 
 class _StickyBottomBar extends StatelessWidget {
   final bool isReadOnly;
+  final bool hasActiveSession;
+  final bool isAnotherSessionActive;
+  final VoidCallback? onStartSession;
   final VoidCallback? onCapture;
   final VoidCallback onReport;
 
   const _StickyBottomBar({
     required this.isReadOnly,
+    required this.hasActiveSession,
+    required this.isAnotherSessionActive,
+    required this.onStartSession,
     required this.onCapture,
     required this.onReport,
   });
@@ -581,15 +627,15 @@ class _StickyBottomBar extends StatelessWidget {
           Expanded(
             flex: 3,
             child: ElevatedButton.icon(
-              onPressed: onCapture,
-              icon: const Icon(Icons.camera_alt_outlined, size: 20),
+              onPressed: isReadOnly || isAnotherSessionActive ? null : (hasActiveSession ? onCapture : onStartSession),
+              icon: Icon(hasActiveSession ? Icons.camera_alt_outlined : Icons.play_circle_outline, size: 20),
               label: Text(
-                isReadOnly ? 'Session Closed' : 'Capture Layer',
+                isReadOnly ? 'Session Closed' : (hasActiveSession ? 'Capture Layer' : 'Start Loading'),
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: isReadOnly ? AppTheme.dividerColor : AppTheme.primaryColor,
-                foregroundColor: isReadOnly ? AppTheme.textSecondary : Colors.white,
+                backgroundColor: isReadOnly || isAnotherSessionActive ? AppTheme.dividerColor : AppTheme.primaryColor,
+                foregroundColor: isReadOnly || isAnotherSessionActive ? AppTheme.textSecondary : Colors.white,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),

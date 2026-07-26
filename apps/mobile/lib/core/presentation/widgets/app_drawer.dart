@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import '../../theme/app_theme.dart';
+import '../../../theme/app_theme.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -8,14 +8,14 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      backgroundColor: AppTheme.backgroundDark,
+      backgroundColor: AppTheme.backgroundColor,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           DrawerHeader(
             decoration: const BoxDecoration(
-              color: AppTheme.primaryDark,
-              border: Border(bottom: BorderSide(color: AppTheme.surfaceDark, width: 2)),
+              color: AppTheme.surfaceColor,
+              border: Border(bottom: BorderSide(color: AppTheme.dividerColor, width: 2)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -23,7 +23,7 @@ class AppDrawer extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.local_shipping, color: AppTheme.primaryBlue, size: 36),
+                    const Icon(Icons.local_shipping, color: AppTheme.primaryColor, size: 36),
                     const SizedBox(width: 12),
                     Text(
                       'Vinayak\nSmartLoad',
@@ -61,10 +61,10 @@ class AppDrawer extends StatelessWidget {
           ),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Divider(color: AppTheme.surfaceDark),
+            child: const Divider(color: AppTheme.dividerColor),
           ),
           ListTile(
-            leading: const Icon(Icons.menu_book, color: AppTheme.primaryBlue),
+            leading: const Icon(Icons.menu_book, color: AppTheme.primaryColor),
             title: const Text('Documentation', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             subtitle: const Text('User manual & guides', style: TextStyle(color: Colors.white54, fontSize: 12)),
             onTap: () {

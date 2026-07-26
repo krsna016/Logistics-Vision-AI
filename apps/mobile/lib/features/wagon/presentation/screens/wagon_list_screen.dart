@@ -10,6 +10,7 @@ import '../providers/wagon_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../layer/presentation/providers/layer_providers.dart';
+import '../../../session/presentation/providers/session_providers.dart';
 import '../../../../core/presentation/widgets/app_drawer.dart';
 import '../widgets/wagon_card.dart';
 import '../widgets/create_wagon_sheet.dart';
@@ -23,6 +24,41 @@ class WagonListScreen extends ConsumerWidget {
     final stats = ref.watch(wagonStatsProvider);
     final notifier = ref.read(wagonListProvider.notifier);
     final truckState = ref.watch(truckListProvider);
+
+    ref.listen(activeSessionProvider, (previous, next) {
+      if (previous?.isRecovering == true && next.isRecovering == false && next.activeSession != null) {
+        // Find the vehicle number to show in the dialog if possible
+        final truck = ref.read(truckListProvider).trucks.firstWhere(
+          (t) => t.id == next.activeSession!.truckId,
+          orElse: () => Truck(id: '', truckNumber: '', vehicleNumber: 'Unknown Truck', driverName: '', company: '', warehouse: '', status: TruckStatus.loading, createdDate: DateTime.now(), updatedDate: DateTime.now()),
+        );
+
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Continue Loading?'),
+            content: Text('An unfinished loading session for truck ${truck.vehicleNumber} was found. Do you want to resume?'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  ref.read(activeSessionProvider.notifier).cancelSession();
+                  Navigator.of(ctx).pop();
+                },
+                child: const Text('Discard', style: TextStyle(color: Colors.red)),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  context.push('/trucks/${next.activeSession!.truckId}');
+                },
+                child: const Text('Continue'),
+              ),
+            ],
+          ),
+        );
+      }
+    });
 
     final (activeCount, completedCount, totalCartons, totalTrucks) = stats;
 

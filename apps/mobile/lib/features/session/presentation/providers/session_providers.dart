@@ -4,7 +4,9 @@ import 'package:uuid/uuid.dart';
 import '../../domain/entities/loading_session.dart';
 import '../../domain/repositories/loading_session_repository.dart';
 import '../../data/repositories_impl/local_loading_session_repository.dart';
+import '../../data/repositories_impl/local_loading_session_repository.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
+import '../../../../core/utils/audit_logger.dart';
 import '../../../../utils/logger.dart';
 
 final loadingSessionRepositoryProvider = Provider<LoadingSessionRepository>((ref) {
@@ -84,6 +86,7 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
       await _repository.saveSession(newSession);
       state = ActiveSessionState(activeSession: newSession);
       AppLogger.info('Started loading session ${newSession.id} for truck $truckId');
+      AuditLogger.log(AuditEvent.truckCreated, 'Started loading session for truck $truckId');
       return null;
     } catch (e, stack) {
       AppLogger.error('Failed to start session', e, stack);
@@ -111,6 +114,20 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
     AppLogger.info('Resumed loading session: ${session.id}');
   }
 
+  Future<void> recordLayerCaptured(int cartonCount, int defectCount) async {
+    final session = state.activeSession;
+    if (session == null) return;
+
+    final updated = session.copyWith(
+      totalLayers: session.totalLayers + 1,
+      totalCartons: session.totalCartons + cartonCount,
+      totalDefects: session.totalDefects + defectCount,
+    );
+    await _repository.saveSession(updated);
+    state = state.copyWith(activeSession: updated);
+    AppLogger.info('Updated session stats for: ${session.id}');
+  }
+
   Future<void> completeSession() async {
     final session = state.activeSession;
     if (session == null) return;
@@ -134,6 +151,7 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
       _ref.read(truckListProvider.notifier).refresh();
     }
     AppLogger.info('Completed loading session: ${session.id}');
+    AuditLogger.log(AuditEvent.truckCompleted, 'Completed loading session for truck ${session.truckId} with ${session.totalCartons} cartons.');
   }
 
   Future<void> cancelSession() async {

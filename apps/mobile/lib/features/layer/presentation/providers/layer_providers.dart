@@ -5,6 +5,8 @@ import '../../domain/entities/layer.dart';
 import '../../domain/repositories/layer_repository.dart';
 import '../../data/repositories_impl/local_layer_repository.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
+import '../../../session/presentation/providers/session_providers.dart';
+import '../../../../core/utils/audit_logger.dart';
 import '../../../../utils/logger.dart';
 
 final layerRepositoryProvider = Provider<LayerRepository>((ref) {
@@ -103,6 +105,16 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         // Refresh the parent truck list provider to update the dashboard stats!
         _ref.read(truckListProvider.notifier).refresh();
       }
+
+      // Update Session Progress
+      await _ref.read(activeSessionProvider.notifier).recordLayerCaptured(cartonCount, 0); // No defect count input yet
+
+      // Audit Log
+      AuditLogger.log(
+        AuditEvent.layerCaptured, 
+        'Captured layer $nextLayerNum for truck $_truckId with $cartonCount cartons.',
+        metadata: {'truckId': _truckId, 'layerNumber': nextLayerNum, 'cartonCount': cartonCount}
+      );
 
       await refresh();
       return null;
