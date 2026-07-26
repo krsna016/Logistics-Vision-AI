@@ -93,28 +93,55 @@ class WagonDetailsScreen extends ConsumerWidget {
               showDialog(
                 context: context,
                 builder: (BuildContext ctx) {
-                  return AlertDialog(
-                    title: const Text('Delete Wagon'),
-                    content: const Text('Are you sure you want to permanently delete this wagon? This action cannot be undone.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () async {
-                          Navigator.of(ctx).pop();
-                          await notifier.deleteWagon(wagon.id);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Wagon deleted successfully.')),
-                            );
-                            context.pop();
-                          }
-                        },
-                        child: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
-                      ),
-                    ],
+                  String inputValue = '';
+                  return StatefulBuilder(
+                    builder: (context, setState) {
+                      final bool canDelete = inputValue == wagon.wagonNumber;
+                      return AlertDialog(
+                        title: const Text('Delete Wagon'),
+                        content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('This action cannot be undone. This will permanently delete the wagon and all its associated data.'),
+                            const SizedBox(height: 16),
+                            Text('Type "${wagon.wagonNumber}" to confirm.', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            TextField(
+                              autofocus: true,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                hintText: 'Enter wagon number',
+                              ),
+                              onChanged: (value) {
+                                setState(() {
+                                  inputValue = value;
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            child: const Text('Cancel'),
+                          ),
+                          TextButton(
+                            onPressed: canDelete ? () async {
+                              Navigator.of(ctx).pop();
+                              await notifier.deleteWagon(wagon.id);
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Wagon deleted successfully.')),
+                                );
+                                context.pop();
+                              }
+                            } : null,
+                            child: Text('Delete', style: TextStyle(color: canDelete ? Colors.redAccent : Colors.grey)),
+                          ),
+                        ],
+                      );
+                    },
                   );
                 },
               );
