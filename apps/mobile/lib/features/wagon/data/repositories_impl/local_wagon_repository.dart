@@ -28,7 +28,7 @@ class LocalWagonRepository implements WagonRepository {
       final prefs = await SharedPreferences.getInstance();
       final cachedStr = prefs.getString(_storageKey);
       
-      if (cachedStr == null) {
+      if (cachedStr == null || cachedStr == '[]') {
         final defaultMocks = _generateMockWagons();
         await _writeToCache(defaultMocks);
         return defaultMocks;

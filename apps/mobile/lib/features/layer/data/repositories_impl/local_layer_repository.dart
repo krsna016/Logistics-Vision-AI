@@ -28,7 +28,7 @@ class LocalLayerRepository implements LayerRepository {
       final prefs = await SharedPreferences.getInstance();
       final cachedStr = prefs.getString(_storageKey);
 
-      if (cachedStr == null) {
+      if (cachedStr == null || cachedStr == '[]') {
         // Feed initial mock layers if database is empty for our mockup demo
         final defaultMocks = _generateMockLayers();
         await _writeToCache(defaultMocks);

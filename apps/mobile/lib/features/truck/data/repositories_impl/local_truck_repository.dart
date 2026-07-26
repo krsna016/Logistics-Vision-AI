@@ -28,7 +28,7 @@ class LocalTruckRepository implements TruckRepository {
       final prefs = await SharedPreferences.getInstance();
       final cachedStr = prefs.getString(_storageKey);
       
-      if (cachedStr == null) {
+      if (cachedStr == null || cachedStr == '[]') {
         // Feed initial mock trucks if database is empty for warehouse verification demo
         final defaultMocks = _generateMockTrucks();
         await _writeToCache(defaultMocks);
