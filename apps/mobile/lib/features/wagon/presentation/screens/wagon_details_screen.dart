@@ -403,7 +403,7 @@ class WagonDetailsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'Driver: ${truck.driverName}  •  Carrier: ${truck.company}',
+            'Driver: ${truck.driverName}${truck.driverMobile != null && truck.driverMobile!.isNotEmpty ? ' (${truck.driverMobile})' : ''}  •  Carrier: ${truck.company}',
             style: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 12),
           ),
           const Padding(

@@ -123,6 +123,7 @@ class CameraNotifier extends StateNotifier<CameraState> with WidgetsBindingObser
     if (controller != null) {
       await _repository.disposeController(controller);
     }
+    if (!mounted) return;
     state = state.copyWith(status: CameraStatus.disposed, controller: null);
   }
 

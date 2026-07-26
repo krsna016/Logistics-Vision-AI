@@ -44,6 +44,10 @@ class TruckHeader extends StatelessWidget {
 
           // Metadata Grid
           _MetaRow(icon: Icons.person_outline, label: 'Driver', value: truck.driverName),
+          if (truck.driverMobile != null && truck.driverMobile!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            _MetaRow(icon: Icons.phone_outlined, label: 'Driver Mobile', value: truck.driverMobile!),
+          ],
           const SizedBox(height: 8),
           _MetaRow(icon: Icons.business_outlined, label: 'Carrier', value: truck.company),
           const SizedBox(height: 8),
