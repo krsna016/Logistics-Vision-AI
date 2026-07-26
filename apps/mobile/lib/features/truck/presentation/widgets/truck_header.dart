@@ -54,10 +54,7 @@ class TruckHeader extends StatelessWidget {
 
 
           _MetaRow(icon: Icons.warehouse_outlined, label: 'Warehouse', value: truck.warehouse),
-          if (truck.wagonId != null) ...[
-            const SizedBox(height: 8),
-            _MetaRow(icon: Icons.train_outlined, label: 'Wagon', value: truck.wagonId!),
-          ],
+
           const SizedBox(height: 8),
           _MetaRow(
             icon: Icons.calendar_today_outlined,

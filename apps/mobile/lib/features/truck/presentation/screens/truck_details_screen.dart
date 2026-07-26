@@ -226,10 +226,7 @@ class TruckDetailsScreen extends ConsumerWidget {
 
 
                       InfoTile(icon: Icons.warehouse_outlined, label: 'Warehouse', value: truck.warehouse),
-                      if (truck.wagonId != null) ...[
-                        _divider(),
-                        InfoTile(icon: Icons.train_outlined, label: 'Wagon ID', value: truck.wagonId!),
-                      ],
+
                       _divider(),
                       InfoTile(
                         icon: Icons.calendar_today_outlined,
