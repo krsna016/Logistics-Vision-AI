@@ -10,6 +10,7 @@ import '../providers/wagon_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../layer/presentation/providers/layer_providers.dart';
+import '../../../../core/presentation/widgets/app_drawer.dart';
 import '../widgets/wagon_card.dart';
 import '../widgets/create_wagon_sheet.dart';
 
@@ -26,14 +27,23 @@ class WagonListScreen extends ConsumerWidget {
     final (activeCount, completedCount, totalCartons, totalTrucks) = stats;
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         leadingWidth: 52,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0, top: 10, bottom: 10),
-          child: Image.asset(
-            'assets/images/logo.png',
-            fit: BoxFit.contain,
-          ),
+        leading: Builder(
+          builder: (context) {
+            return InkWell(
+              onTap: () => Scaffold.of(context).openDrawer(),
+              borderRadius: BorderRadius.circular(24),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 16.0, top: 10, bottom: 10),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            );
+          }
         ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,

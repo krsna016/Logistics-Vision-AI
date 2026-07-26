@@ -15,12 +15,18 @@ import '../features/wagon/presentation/screens/wagon_details_screen.dart';
 
 import '../features/register/presentation/screens/register_list_screen.dart';
 import '../features/register/presentation/screens/register_details_screen.dart';
+import '../core/presentation/screens/user_manual_screen.dart';
 
 // Router provider representing Riverpod-based dependency injection for GoRouter
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/',
     routes: [
+      GoRoute(
+        path: '/manual',
+        name: 'manual',
+        builder: (context, state) => const UserManualScreen(),
+      ),
       GoRoute(
         path: '/',
         name: 'splash',

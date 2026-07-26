@@ -6,6 +6,7 @@ import '../../domain/repositories/wagon_repository.dart';
 import '../../data/repositories_impl/local_wagon_repository.dart';
 import '../../../truck/domain/entities/truck.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
+import '../../../truck/domain/repositories/truck_repository.dart';
 
 final wagonRepositoryProvider = Provider<WagonRepository>((ref) {
   return LocalWagonRepository();
