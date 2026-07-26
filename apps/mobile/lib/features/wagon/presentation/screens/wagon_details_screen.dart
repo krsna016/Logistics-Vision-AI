@@ -7,6 +7,7 @@ import '../../../../presentation/widgets/stats_card.dart';
 import '../../../../presentation/widgets/status_chip.dart';
 import '../../../../presentation/widgets/empty_state_widget.dart';
 import '../../../../theme/app_theme.dart';
+import '../../../../core/presentation/widgets/app_drawer.dart';
 import '../../domain/entities/wagon.dart';
 import '../providers/wagon_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
@@ -68,6 +69,12 @@ class WagonDetailsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(wagon.wagonNumber),
         actions: [
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.description_outlined),
             onPressed: () => context.push('/registers/${wagon.id}'),
@@ -156,6 +163,7 @@ class WagonDetailsScreen extends ConsumerWidget {
           ),
         ],
       ),
+      drawer: const AppDrawer(),
       body: SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,

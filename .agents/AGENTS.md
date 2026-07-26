@@ -71,6 +71,11 @@ All coding tasks completed by AI agents must strictly adhere to the following ru
 > *   Never catch exceptions silently. Always log them through the telemetry service or local crash handler.
 > *   Return clear, user-facing error states instead of raw system exceptions.
 
+> [!IMPORTANT]
+> **Documentation Sync Requirement**
+> *   Whenever any new features, screens, statuses, UI components, or workflow changes are added to the application, you MUST always update the in-app user manual (e.g., `manual_content.dart` or related documentation files).
+> *   Do not wait to be reminded. Keeping the user manual in sync with the codebase is a strict requirement for all feature tasks.
+
 ---
 
 ## 3. Linting and Validation rules

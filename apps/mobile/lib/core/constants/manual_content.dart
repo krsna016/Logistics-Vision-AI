@@ -29,81 +29,67 @@ Before using the app, it's crucial to understand the three main tiers of the wor
 
 ---
 
-## 3. Step-by-Step Usage Guide
+## 3. Understanding Status Tags
 
-### A. The Wagon Control Center (Dashboard)
-When you open the app, you land on the **Wagon Control Center**. This is your main dashboard.
+Throughout the app, you will see various colored tags or "chips" indicating the current state of a Wagon, Truck, or Loading Session. Here is exactly what each means:
 
-**What you can do here:**
+### Wagon Status Tags
+- **PLANNING (Grey)**: The wagon has been created, and trucks are being assigned, but no physical loading has commenced yet.
+- **LOADING (Blue)**: Active loading is happening right now. At least one truck assigned to this wagon is currently being loaded.
+- **COMPLETED (Green)**: The wagon is completely full. All expected trucks have been loaded and finalized. The Wagon is now locked and ready for digital register generation.
+
+### Truck Status Tags
+- **LOADING (Blue)**: The truck is actively receiving goods. The AI camera can be used to scan new layers.
+- **COMPLETED (Green)**: The truck is fully packed. The operator has explicitly locked the truck session, preventing any further layers from being added.
+- **ARCHIVED (Grey)**: The truck record is stored securely in the database for historical purposes but is completely hidden from active operational views.
+
+### Session Status Tags
+- **WAITING**: The AI engine is idling, waiting for the operator to initiate a scan.
+- **LOADING**: The camera is active and the system is hunting for cartons to count.
+- **PAUSED**: The active session has been paused, usually because the operator switched screens or the app was closed mid-session.
+- **REVIEW**: The AI has captured a frame and is waiting for human confirmation before saving it to the database.
+
+---
+
+## 4. Step-by-Step Usage Guide
+
+### A. The App Drawer & Global Navigation
+Tap the **Vinayak Logistics Logo** in the top-left corner of the dashboard, or swipe from the left edge of the screen, to open the **App Navigation Drawer**. This drawer contains:
+- **Wagon Control Center**: The main dashboard.
+- **Digital Registers**: Access the completed, exportable PDF reports.
+- **Refresh Data**: Force the app to synchronize with the database.
+- **Dataset Developer Mode**: A tool for engineers to review raw image captures.
+- **Load Demo Data**: Injects mock data for training and testing.
+
+### B. The Wagon Control Center (Dashboard)
+This is your main operational hub.
 - **View Active Operations**: The top cards show you exactly how many Wagons are active, how many Trucks are in the system, and the total number of Cartons loaded today.
 - **Filter**: Use the chips (`All`, `Planning`, `Loading`, `Completed`) to filter the list of Wagons.
-- **Create a New Wagon**: Tap the large floating `+ Create Wagon` button at the bottom.
+- **Create a New Wagon**: Tap the large floating `+ Create Wagon` button at the bottom. Enter the Wagon Number (e.g., `W-1002-IND`), Origin, Destination, and Expected Trucks.
 
-**How to Create a Wagon:**
-1. Tap `+ Create Wagon`.
-2. A sleek bottom sheet will slide up.
-3. Enter the **Wagon Number** (e.g., `W-1002-IND`).
-4. Enter the Origin and Destination.
-5. Set the expected number of Trucks needed to fill this Wagon.
-6. Tap **Create Wagon**.
-*The Wagon will now appear in your list with a "Planning" status.*
+### C. Managing a Wagon & Adding Trucks
+Tap on any Wagon in the dashboard to open its details.
+- **Add a Truck**: Tap the `+ Add Truck` button. Enter the Vehicle Number, Driver details, and Carrier Company.
+- **Delete Wagon**: If a mistake was made, tap the red trash can icon in the top right. *Warning: You will be required to manually type the Wagon Number to confirm deletion.*
 
----
+### D. The Truck Loading Workspace
+Tap a Truck in the list to open its Loading Workspace. 
+1. Tap **Start Loading Session** to lock the truck into an active state. 
+2. Tap **Capture Next Layer** to launch the AI Camera.
+3. *Auto-Resume feature: If your app crashes or you close it by accident while a session is active, the app will instantly prompt you to resume your session the next time you open the dashboard!*
 
-### B. Managing a Wagon (Wagon Details)
-Tap on any Wagon in the dashboard to open its **Wagon Details Screen**.
+### E. The AI Camera Experience
+This is the flagship feature of SmartLoad. You use this screen while standing at the loading dock.
+1. Align the back of the truck within the **blue dashed alignment guide**.
+2. Wait for the `Quality Indicator` (top left) to turn green (`EXCELLENT`).
+3. Tap the large **Capture Layer** button (bottom right).
+4. If the count looks correct, tap **Confirm & Save**. If the AI missed a box, tap **Reject & Retake**.
+5. Every confirmed layer is permanently logged to the truck, and the total carton count goes up automatically!
 
-**What you can do here:**
-- **View Progress**: See a visual progress bar indicating how many trucks have been loaded versus how many are expected.
-- **Add a Truck**: Tap the `+ Add Truck` button.
-- **Manage Trucks**: You will see a list of all trucks assigned to this Wagon. Tap any truck to manage its loading session.
-- **Delete Wagon**: If a mistake was made, tap the red trash can icon in the top right. *Warning: You will be required to manually type the Wagon Number to confirm deletion. This will also delete all associated trucks and layers!*
-
----
-
-### C. Creating & Managing Trucks
-When you tap `+ Add Truck` from the Wagon Details screen, you register a new vehicle for loading.
-
-**How to Create a Truck:**
-1. Enter the **Vehicle Number** (the license plate or internal fleet number, e.g., `V-101`).
-2. Enter the **Driver Name** and **Driver Mobile Number** (optional, but recommended).
-3. Enter the Carrier Company.
-4. Tap **Register Truck**.
-
-Once registered, tap the Truck in the list to open the **Truck Details Screen**. This acts as your "Loading Workspace".
-From here, you can see the Driver Details and most importantly, tap **Open AI Camera** to begin the physical loading process.
-
----
-
-### D. The AI Camera Experience
-This is the flagship feature of SmartLoad. You use this screen while standing at the loading dock, pointing your device at the back of the truck.
-
-**How to capture a Layer:**
-1. Tap **Open AI Camera** from the Truck Details screen.
-2. Align the back of the truck within the **blue dashed alignment guide**.
-3. Wait for the `Quality Indicator` (top left) to turn green (`EXCELLENT`).
-4. Look at the `AI Status Card` (floating on the right). It will say "Ready" when the AI model is stable.
-5. Look at the `Live Counter Bar` (bottom). It shows the real-time AI detection count.
-6. Tap the large **Capture Layer** button (bottom right).
-7. The app will freeze the frame, draw bounding boxes around every detected carton, and ask you to confirm.
-8. If the count looks correct, tap **Confirm & Save**. If the AI missed a box, tap **Reject & Retake**.
-
-Every confirmed layer is permanently logged to the truck, and the total carton count goes up automatically!
-
----
-
-### E. Completing the Process
-1. **Complete the Truck**: Once the truck is fully packed with layers, go back to the Truck Details screen and tap the "Complete Session" button. Its status will change to `Completed`.
-2. **Complete the Wagon**: Once all expected trucks for a Wagon are marked as Completed, the Wagon itself will transition to `Completed`.
-3. **Digital Registers**: Tap the document icon in the top right of the main dashboard to view **Digital Registers**. This automatically generates a professional exportable report of the Wagon, listing every single Truck, Driver, Time, and exact Carton counts—ready to be printed or emailed. No paper required!
-
----
-
-## 4. Troubleshooting & Developer Tools
-
-- **Data Not Showing?**: Tap the **Refresh** icon in the top right of the dashboard, or simply pull down on the list. The app is offline-first, but this forces a strict UI recalculation.
-- **Empty Screen?**: If you just installed the app and want to test it without typing everything manually, tap the **Bug Icon 🐞** in the top right of the dashboard. This will forcefully inject dummy demo data (Wagons, Trucks, and Layers) into your app so you can play around with the UI.
-- **Dataset Mode**: Tap the Photo Library icon in the top right to access the "Dataset Developer Mode" (used by engineers to review raw images and AI bounding boxes for model retraining).
+### F. Completing the Process
+1. **Complete the Truck**: Once the truck is fully packed, go back to the Truck Workspace and tap **Complete Loading Session**. It will show you a strict summary of your layers and cartons before locking the truck.
+2. **Complete the Wagon**: Once all expected trucks for a Wagon are Complete, go back to the Wagon Details and tap **Complete Wagon**. If you try to complete a wagon before the expected trucks are loaded, the app will issue a strict warning!
+3. **Digital Registers**: Once the Wagon is completed, it automatically generates a professional exportable report of the Wagon, listing every single Truck, Driver, Time, and exact Carton counts—ready to be printed or emailed. No paper required!
 
 ---
 *End of User Manual. Property of Vinayak Logistics.*

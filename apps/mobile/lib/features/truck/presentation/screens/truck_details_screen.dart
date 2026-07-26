@@ -9,6 +9,7 @@ import '../providers/truck_providers.dart';
 import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../layer/domain/entities/layer.dart';
 import '../../../session/presentation/providers/session_providers.dart';
+import '../../../../core/presentation/widgets/app_drawer.dart';
 import '../widgets/truck_form_dialog.dart';
 import '../widgets/truck_header.dart';
 import '../widgets/summary_stat_card.dart';
@@ -49,6 +50,7 @@ class TruckDetailsScreen extends ConsumerWidget {
     if (truck.id.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Truck Details')),
+        drawer: const AppDrawer(),
         body: const Center(
           child: Text('Truck record not found.', style: TextStyle(color: AppTheme.textSecondary)),
         ),
@@ -75,6 +77,12 @@ class TruckDetailsScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
           if (!isReadOnly)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
@@ -98,7 +106,8 @@ class TruckDetailsScreen extends ConsumerWidget {
           const SizedBox(width: 4),
         ],
       ),
-      body: CustomScrollView(
+      drawer: const AppDrawer(),
+      body: SafeArea(child: CustomScrollView(
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(16),
@@ -172,7 +181,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                       icon: Icons.play_circle_outline,
                       label: 'Start Loading Session',
                       subtitle: 'Initialize session & begin scanning',
-                      backgroundColor: AppTheme.primaryBlue,
+                      backgroundColor: AppTheme.primaryColor,
                       onPressed: () async {
                         final error = await sessionNotifier.startSession(
                           truckId: truckId,
@@ -395,6 +404,22 @@ class TruckDetailsScreen extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildMetricSub(String label, String value, {bool isAlert = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: const TextStyle(color: AppTheme.textSecondary)),
+        Text(
+          value,
+          style: TextStyle(
+            color: isAlert ? AppTheme.errorColor : Colors.white,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 

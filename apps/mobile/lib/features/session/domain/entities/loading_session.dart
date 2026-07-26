@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import '../../truck/domain/entities/truck.dart';
+import '../../../truck/domain/entities/truck.dart';
 
 enum SessionStatus {
   created,

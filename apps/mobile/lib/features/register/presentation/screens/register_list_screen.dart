@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../presentation/widgets/search_field.dart';
 import '../../../../presentation/widgets/empty_state_widget.dart';
+import '../../../../core/presentation/widgets/app_drawer.dart';
 import '../providers/register_providers.dart';
 import '../../../wagon/domain/entities/wagon.dart';
 import '../widgets/register_card.dart';
@@ -37,9 +38,16 @@ class RegisterListScreen extends ConsumerWidget {
             onPressed: () => notifier.refresh(),
             tooltip: 'Refresh Registers',
           ),
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
           const SizedBox(width: 8),
         ],
       ),
+      drawer: const AppDrawer(),
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(

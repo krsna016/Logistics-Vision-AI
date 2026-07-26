@@ -95,39 +95,7 @@ class WagonListScreen extends ConsumerWidget {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.description_outlined),
-            onPressed: () => context.push('/registers'),
-            tooltip: 'Digital Registers',
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () async {
-              await ref.read(truckListProvider.notifier).refresh();
-              await ref.read(wagonListProvider.notifier).refresh();
-            },
-            tooltip: 'Refresh list',
-          ),
-          IconButton(
-            icon: const Icon(Icons.photo_library),
-            onPressed: () => context.push('/dataset'),
-            tooltip: 'Dataset Developer Mode',
-          ),
-          IconButton(
-            icon: const Icon(Icons.bug_report_outlined),
-            tooltip: 'Load Demo Data',
-            onPressed: () async {
-              await ref.read(wagonRepositoryProvider).clearAndLoadDemoData();
-              await ref.read(truckRepositoryProvider).clearAndLoadDemoData();
-              await ref.read(layerRepositoryProvider).clearAndLoadDemoData();
-              
-              ref.read(wagonListProvider.notifier).refresh();
-              ref.read(truckListProvider.notifier).refresh();
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
+        actions: [],
       ),
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
