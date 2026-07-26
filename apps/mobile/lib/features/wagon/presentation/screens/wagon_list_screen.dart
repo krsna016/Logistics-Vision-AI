@@ -133,33 +133,36 @@ class WagonListScreen extends ConsumerWidget {
                             onChanged: (val) => notifier.updateSearchQuery(val),
                           ),
                           const SizedBox(height: 16),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.end,
-                            children: [
-                              ChoiceChip(
-                                label: const Text('All'),
-                                selected: state.statusFilter == null,
-                                onSelected: (_) => notifier.setStatusFilter(null),
-                              ),
-                              const SizedBox(width: 6),
-                              ChoiceChip(
-                                label: const Text('Planning'),
-                                selected: state.statusFilter == WagonStatus.planning,
-                                onSelected: (_) => notifier.setStatusFilter(WagonStatus.planning),
-                              ),
-                              const SizedBox(width: 6),
-                              ChoiceChip(
-                                label: const Text('Loading'),
-                                selected: state.statusFilter == WagonStatus.loading,
-                                onSelected: (_) => notifier.setStatusFilter(WagonStatus.loading),
-                              ),
-                              const SizedBox(width: 6),
-                              ChoiceChip(
-                                label: const Text('Completed'),
-                                selected: state.statusFilter == WagonStatus.completed,
-                                onSelected: (_) => notifier.setStatusFilter(WagonStatus.completed),
-                              ),
-                            ],
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.start,
+                              children: [
+                                ChoiceChip(
+                                  label: const Text('All'),
+                                  selected: state.statusFilter == null,
+                                  onSelected: (_) => notifier.setStatusFilter(null),
+                                ),
+                                const SizedBox(width: 6),
+                                ChoiceChip(
+                                  label: const Text('Planning'),
+                                  selected: state.statusFilter == WagonStatus.planning,
+                                  onSelected: (_) => notifier.setStatusFilter(WagonStatus.planning),
+                                ),
+                                const SizedBox(width: 6),
+                                ChoiceChip(
+                                  label: const Text('Loading'),
+                                  selected: state.statusFilter == WagonStatus.loading,
+                                  onSelected: (_) => notifier.setStatusFilter(WagonStatus.loading),
+                                ),
+                                const SizedBox(width: 6),
+                                ChoiceChip(
+                                  label: const Text('Completed'),
+                                  selected: state.statusFilter == WagonStatus.completed,
+                                  onSelected: (_) => notifier.setStatusFilter(WagonStatus.completed),
+                                ),
+                              ],
+                            ),
                           )
                         ],
                       ),
