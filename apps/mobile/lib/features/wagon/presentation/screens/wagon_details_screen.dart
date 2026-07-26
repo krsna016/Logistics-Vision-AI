@@ -129,6 +129,13 @@ class WagonDetailsScreen extends ConsumerWidget {
                           TextButton(
                             onPressed: canDelete ? () async {
                               Navigator.of(ctx).pop();
+                              
+                              final truckNotifier = ref.read(truckListProvider.notifier);
+                              final trucks = ref.read(truckListProvider).trucks.where((t) => t.wagonId == wagon.id).toList();
+                              for (final t in trucks) {
+                                await truckNotifier.deleteTruck(t.id);
+                              }
+                              
                               await notifier.deleteWagon(wagon.id);
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(

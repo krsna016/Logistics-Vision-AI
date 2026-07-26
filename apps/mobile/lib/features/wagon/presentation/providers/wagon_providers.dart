@@ -176,8 +176,11 @@ final wagonStatsProvider = Provider.autoDispose<(int, int, int, int)>((ref) {
   final activeWagons = wagonState.wagons.where((w) => w.status == WagonStatus.loading).length;
   final completedWagons = wagonState.wagons.where((w) => w.status == WagonStatus.completed).length;
 
-  final totalTrucks = truckState.trucks.where((t) => !t.isDeleted).length;
-  final totalCartons = truckState.trucks.where((t) => !t.isDeleted).fold(0, (sum, t) => sum + t.totalCartons);
+  final activeWagonIds = wagonState.wagons.map((w) => w.id).toSet();
+  final validTrucks = truckState.trucks.where((t) => !t.isDeleted && activeWagonIds.contains(t.wagonId)).toList();
+
+  final totalTrucks = validTrucks.length;
+  final totalCartons = validTrucks.fold(0, (sum, t) => sum + t.totalCartons);
 
   return (activeWagons, completedWagons, totalCartons, totalTrucks);
 });
