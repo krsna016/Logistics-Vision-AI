@@ -390,7 +390,7 @@ class WagonDetailsScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                truck.truckNumber,
+                truck.vehicleNumber,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               ),
               StatusChip(

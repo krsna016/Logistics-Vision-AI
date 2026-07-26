@@ -136,7 +136,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
             right: 0,
             child: _CameraTopBar(
               wagonNumber: wagon.wagonNumber,
-              truckNumber: truck.truckNumber,
+              truckNumber: truck.vehicleNumber,
               layerNumber: currentLayer,
               totalCartons: truck.totalCartons,
               isOnline: false,
@@ -1171,9 +1171,10 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
   void _startStream() {
     if (_isStreaming) return;
     try {
+      final notifier = ref.read(inferenceNotifierProvider.notifier);
       widget.controller.startImageStream((image) {
         if (mounted) {
-          ref.read(inferenceNotifierProvider.notifier).processImageFrame(image);
+          notifier.processImageFrame(image);
         }
       });
       _isStreaming = true;

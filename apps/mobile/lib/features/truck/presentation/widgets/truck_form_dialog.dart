@@ -15,7 +15,7 @@ class TruckFormDialog extends ConsumerStatefulWidget {
 
 class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
   final _formKey = GlobalKey<FormState>();
-  late TextEditingController _truckNumberCtrl;
+
   late TextEditingController _vehicleNumberCtrl;
   late TextEditingController _driverNameCtrl;
   late TextEditingController _companyCtrl;
@@ -28,7 +28,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
   void initState() {
     super.initState();
     final t = widget.existingTruck;
-    _truckNumberCtrl = TextEditingController(text: t?.truckNumber ?? '');
+
     _vehicleNumberCtrl = TextEditingController(text: t?.vehicleNumber ?? '');
     _driverNameCtrl = TextEditingController(text: t?.driverName ?? '');
     _companyCtrl = TextEditingController(text: t?.company ?? '');
@@ -38,7 +38,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
   @override
   void dispose() {
-    _truckNumberCtrl.dispose();
+
     _vehicleNumberCtrl.dispose();
     _driverNameCtrl.dispose();
     _companyCtrl.dispose();
@@ -60,7 +60,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
     if (widget.existingTruck == null) {
       error = await notifier.createTruck(
-        truckNumber: _truckNumberCtrl.text,
+        truckNumber: _vehicleNumberCtrl.text,
         vehicleNumber: _vehicleNumberCtrl.text,
         driverName: _driverNameCtrl.text,
         company: _companyCtrl.text,
@@ -70,7 +70,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
       );
     } else {
       final updated = widget.existingTruck!.copyWith(
-        truckNumber: _truckNumberCtrl.text.trim(),
+        truckNumber: _vehicleNumberCtrl.text.trim(),
         vehicleNumber: _vehicleNumberCtrl.text.trim(),
         driverName: _driverNameCtrl.text.trim(),
         company: _companyCtrl.text.trim(),
@@ -112,16 +112,8 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                     style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
                   ),
                 ),
-              TextFormField(
-                controller: _truckNumberCtrl,
-                decoration: const InputDecoration(labelText: 'Truck Number (License)*', hintText: 'e.g. TX-9908-AB'),
-                validator: (val) {
-                  if (val == null || val.trim().isEmpty) return 'Truck number is required.';
-                  if (val.trim().length < 3) return 'Too short.';
-                  return null;
-                },
-              ),
-              const SizedBox(height: 12),
+
+
               TextFormField(
                 controller: _vehicleNumberCtrl,
                 decoration: const InputDecoration(labelText: 'Vehicle Number*', hintText: 'e.g. V-101'),

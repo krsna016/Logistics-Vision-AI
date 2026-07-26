@@ -63,7 +63,7 @@ class TruckDetailsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(truck.truckNumber,
+            Text(truck.vehicleNumber,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
             Text(
               'Loading Workspace',
@@ -213,14 +213,14 @@ class TruckDetailsScreen extends ConsumerWidget {
                 AppCard(
                   child: Column(
                     children: [
-                      InfoTile(icon: Icons.tag, label: 'Truck Number', value: truck.truckNumber),
-                      _divider(),
+
+
                       InfoTile(icon: Icons.person_outline, label: 'Driver', value: truck.driverName),
                       _divider(),
                       InfoTile(icon: Icons.business_outlined, label: 'Carrier', value: truck.company),
                       _divider(),
-                      InfoTile(icon: Icons.badge_outlined, label: 'Vehicle ID', value: truck.vehicleNumber),
-                      _divider(),
+
+
                       InfoTile(icon: Icons.warehouse_outlined, label: 'Warehouse', value: truck.warehouse),
                       if (truck.wagonId != null) ...[
                         _divider(),

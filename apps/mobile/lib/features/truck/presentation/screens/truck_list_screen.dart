@@ -241,7 +241,7 @@ class TruckListScreen extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                truck.truckNumber,
+                truck.vehicleNumber,
                 style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 0.5),
               ),
               StatusChip(

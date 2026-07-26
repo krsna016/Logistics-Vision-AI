@@ -25,9 +25,9 @@ class TruckHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Large Truck Number
+          // Large Vehicle Number
           Text(
-            truck.truckNumber,
+            truck.vehicleNumber,
             style: const TextStyle(
               fontSize: 36,
               fontWeight: FontWeight.w900,
@@ -47,8 +47,8 @@ class TruckHeader extends StatelessWidget {
           const SizedBox(height: 8),
           _MetaRow(icon: Icons.business_outlined, label: 'Carrier', value: truck.company),
           const SizedBox(height: 8),
-          _MetaRow(icon: Icons.badge_outlined, label: 'Vehicle ID', value: truck.vehicleNumber),
-          const SizedBox(height: 8),
+
+
           _MetaRow(icon: Icons.warehouse_outlined, label: 'Warehouse', value: truck.warehouse),
           if (truck.wagonId != null) ...[
             const SizedBox(height: 8),
