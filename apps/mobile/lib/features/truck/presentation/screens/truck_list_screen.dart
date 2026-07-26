@@ -24,23 +24,15 @@ class TruckListScreen extends ConsumerWidget {
     final (loadingCount, completedCount, totalCartons) = stats;
 
     return Scaffold(
-      drawer: const AppDrawer(),
+      endDrawer: const AppDrawer(),
       appBar: AppBar(
         leadingWidth: 52,
-        leading: Builder(
-          builder: (context) {
-            return InkWell(
-              onTap: () => Scaffold.of(context).openDrawer(),
-              borderRadius: BorderRadius.circular(24),
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16.0, top: 10, bottom: 10),
-                child: Image.asset(
-                  'assets/images/logo.png',
-                  fit: BoxFit.contain,
-                ),
-              ),
-            );
-          }
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 16.0, top: 10, bottom: 10),
+          child: Image.asset(
+            'assets/images/logo.png',
+            fit: BoxFit.contain,
+          ),
         ),
         title: const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -66,6 +58,12 @@ class TruckListScreen extends ConsumerWidget {
             icon: const Icon(Icons.photo_library),
             onPressed: () => context.push('/dataset'),
             tooltip: 'Dataset Developer Mode',
+          ),
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openEndDrawer(),
+            ),
           ),
           const SizedBox(width: 8),
         ],
