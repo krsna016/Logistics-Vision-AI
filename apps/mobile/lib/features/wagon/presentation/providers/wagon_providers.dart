@@ -74,9 +74,9 @@ class WagonListState {
 
 class WagonListNotifier extends StateNotifier<WagonListState> {
   final WagonRepository _repository;
-  final List<Truck> _allTrucks;
+  final TruckRepository _truckRepository;
 
-  WagonListNotifier(this._repository, this._allTrucks) : super(const WagonListState()) {
+  WagonListNotifier(this._repository, this._truckRepository) : super(const WagonListState()) {
     refresh();
   }
 
@@ -84,9 +84,11 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
     state = state.copyWith(isLoading: true);
     try {
       final list = await _repository.getActiveWagons();
+      final allTrucks = await _truckRepository.getActiveTrucks();
+      
       // Calculate dynamic completed counts based on current trucks state
       final updatedList = list.map((wagon) {
-        final completed = _allTrucks.where((t) => t.wagonId == wagon.id && t.status == TruckStatus.completed).length;
+        final completed = allTrucks.where((t) => t.wagonId == wagon.id && t.status == TruckStatus.completed).length;
         if (wagon.completedTruckCount != completed) {
           final updated = wagon.copyWith(completedTruckCount: completed);
           _repository.updateWagon(updated);
@@ -164,8 +166,8 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
 // Global wagon list provider
 final wagonListProvider = StateNotifierProvider.autoDispose<WagonListNotifier, WagonListState>((ref) {
   final repo = ref.watch(wagonRepositoryProvider);
-  final truckState = ref.watch(truckListProvider);
-  return WagonListNotifier(repo, truckState.trucks);
+  final truckRepo = ref.watch(truckRepositoryProvider);
+  return WagonListNotifier(repo, truckRepo);
 });
 
 // Computed wagon stats provider: (activeWagonsCount, completedWagonsCount, todayCartons, todayTrucksCount)

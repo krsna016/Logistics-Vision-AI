@@ -57,7 +57,10 @@ class WagonListScreen extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () => notifier.refresh(),
+            onPressed: () async {
+              await ref.read(truckListProvider.notifier).refresh();
+              await ref.read(wagonListProvider.notifier).refresh();
+            },
             tooltip: 'Refresh list',
           ),
           IconButton(
@@ -83,7 +86,10 @@ class WagonListScreen extends ConsumerWidget {
       body: state.isLoading
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
-              onRefresh: () => notifier.refresh(),
+              onRefresh: () async {
+                await ref.read(truckListProvider.notifier).refresh();
+                await ref.read(wagonListProvider.notifier).refresh();
+              },
               child: CustomScrollView(
                 slivers: [
                   // Operations Header
