@@ -29,6 +29,7 @@ class Truck {
   final String truckNumber;
   final String vehicleNumber;
   final String driverName;
+  final String? driverMobile;
   final String company;
   final String warehouse;
   final TruckStatus status;
@@ -49,6 +50,7 @@ class Truck {
     required this.truckNumber,
     required this.vehicleNumber,
     required this.driverName,
+    this.driverMobile,
     required this.company,
     required this.warehouse,
     required this.status,
@@ -70,6 +72,7 @@ class Truck {
     String? truckNumber,
     String? vehicleNumber,
     String? driverName,
+    String? driverMobile,
     String? company,
     String? warehouse,
     TruckStatus? status,
@@ -90,6 +93,7 @@ class Truck {
       truckNumber: truckNumber ?? this.truckNumber,
       vehicleNumber: vehicleNumber ?? this.vehicleNumber,
       driverName: driverName ?? this.driverName,
+      driverMobile: driverMobile ?? this.driverMobile,
       company: company ?? this.company,
       warehouse: warehouse ?? this.warehouse,
       status: status ?? this.status,

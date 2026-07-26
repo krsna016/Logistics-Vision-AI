@@ -18,6 +18,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
   late TextEditingController _vehicleNumberCtrl;
   late TextEditingController _driverNameCtrl;
+  late TextEditingController _driverMobileCtrl;
   late TextEditingController _companyCtrl;
   late TextEditingController _warehouseCtrl;
   late TextEditingController _notesCtrl;
@@ -31,6 +32,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
     _vehicleNumberCtrl = TextEditingController(text: t?.vehicleNumber ?? '');
     _driverNameCtrl = TextEditingController(text: t?.driverName ?? '');
+    _driverMobileCtrl = TextEditingController(text: t?.driverMobile ?? '');
     _companyCtrl = TextEditingController(text: t?.company ?? '');
     _warehouseCtrl = TextEditingController(text: t?.warehouse ?? 'Austin Fulfillment South');
     _notesCtrl = TextEditingController(text: t?.notes ?? '');
@@ -41,6 +43,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
     _vehicleNumberCtrl.dispose();
     _driverNameCtrl.dispose();
+    _driverMobileCtrl.dispose();
     _companyCtrl.dispose();
     _warehouseCtrl.dispose();
     _notesCtrl.dispose();
@@ -63,6 +66,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
         truckNumber: _vehicleNumberCtrl.text,
         vehicleNumber: _vehicleNumberCtrl.text,
         driverName: _driverNameCtrl.text,
+        driverMobile: _driverMobileCtrl.text,
         company: _companyCtrl.text,
         warehouse: _warehouseCtrl.text,
         notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
@@ -73,6 +77,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
         truckNumber: _vehicleNumberCtrl.text.trim(),
         vehicleNumber: _vehicleNumberCtrl.text.trim(),
         driverName: _driverNameCtrl.text.trim(),
+        driverMobile: _driverMobileCtrl.text.trim(),
         company: _companyCtrl.text.trim(),
         warehouse: _warehouseCtrl.text.trim(),
         notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
@@ -124,6 +129,12 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                 controller: _driverNameCtrl,
                 decoration: const InputDecoration(labelText: 'Driver Name*', hintText: 'Full name'),
                 validator: (val) => val == null || val.trim().isEmpty ? 'Required.' : null,
+              ),
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _driverMobileCtrl,
+                decoration: const InputDecoration(labelText: 'Driver Mobile Number', hintText: 'e.g. +91 9876543210'),
+                keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 12),
               TextFormField(

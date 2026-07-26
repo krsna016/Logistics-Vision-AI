@@ -216,6 +216,10 @@ class TruckDetailsScreen extends ConsumerWidget {
 
 
                       InfoTile(icon: Icons.person_outline, label: 'Driver', value: truck.driverName),
+                      if (truck.driverMobile != null && truck.driverMobile!.isNotEmpty) ...[
+                        _divider(),
+                        InfoTile(icon: Icons.phone_outlined, label: 'Driver Mobile', value: truck.driverMobile!),
+                      ],
                       _divider(),
                       InfoTile(icon: Icons.business_outlined, label: 'Carrier', value: truck.company),
                       _divider(),

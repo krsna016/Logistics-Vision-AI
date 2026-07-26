@@ -7,6 +7,7 @@ class TruckModel {
       truckNumber: json['truckNumber'] as String,
       vehicleNumber: json['vehicleNumber'] as String,
       driverName: json['driverName'] as String,
+      driverMobile: json['driverMobile'] as String?,
       company: json['company'] as String,
       warehouse: json['warehouse'] as String,
       status: TruckStatus.values.firstWhere(
@@ -38,6 +39,7 @@ class TruckModel {
       'truckNumber': truck.truckNumber,
       'vehicleNumber': truck.vehicleNumber,
       'driverName': truck.driverName,
+      'driverMobile': truck.driverMobile,
       'company': truck.company,
       'warehouse': truck.warehouse,
       'status': truck.status.name,
