@@ -47,7 +47,7 @@ class AppDrawer extends ConsumerWidget {
                     ),
                   ]),
                   
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 4),
                   _buildSectionLabel('RESOURCES'),
                   _buildSection([
                     _buildTile(
@@ -62,7 +62,7 @@ class AppDrawer extends ConsumerWidget {
                     ),
                   ]),
 
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 4),
                   _buildSectionLabel('DEVELOPER & TOOLS'),
                   _buildSection([
                     _buildTile(
@@ -162,7 +162,7 @@ class AppDrawer extends ConsumerWidget {
           const SizedBox(height: 4),
           Text(
             'Enterprise Warehouse System',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13, fontWeight: FontWeight.w500),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -186,16 +186,15 @@ class AppDrawer extends ConsumerWidget {
 
   Widget _buildSection(List<Widget> children) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.dividerColor),
+        borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.15),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -224,16 +223,17 @@ class AppDrawer extends ConsumerWidget {
         ),
       ),
       subtitle: subtitle != null
-          ? Text(subtitle, style: TextStyle(color: textColor?.withValues(alpha: 0.7) ?? Colors.white.withValues(alpha: 0.5), fontSize: 12))
+          ? Text(subtitle, style: TextStyle(color: textColor?.withValues(alpha: 0.7) ?? Colors.white.withValues(alpha: 0.5), fontSize: 11))
           : null,
-      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 20),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+      visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onTap: onTap,
     );
   }
 
   Widget _buildDivider() {
-    return const Divider(height: 1, color: AppTheme.dividerColor, indent: 54, endIndent: 16);
+    return const Divider(height: 1, color: AppTheme.dividerColor, indent: 48, endIndent: 12);
   }
 }

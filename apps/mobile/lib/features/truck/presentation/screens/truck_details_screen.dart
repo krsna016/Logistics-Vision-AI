@@ -326,7 +326,7 @@ class TruckDetailsScreen extends ConsumerWidget {
             ),
           ),
         ],
-      ),
+      )),
 
       // ── 7. Sticky Bottom Action Bar ─────────────────────────────────────
       bottomNavigationBar: _StickyBottomBar(
