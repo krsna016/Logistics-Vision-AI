@@ -91,14 +91,9 @@ class AppDrawer extends ConsumerWidget {
                       subtitle: 'Inject mock data for testing',
                       iconColor: Colors.redAccent,
                       textColor: Colors.redAccent,
-                      onTap: () async {
+                      onTap: () {
                         Navigator.pop(context);
-                        await ref.read(wagonRepositoryProvider).clearAndLoadDemoData();
-                        await ref.read(truckRepositoryProvider).clearAndLoadDemoData();
-                        await ref.read(layerRepositoryProvider).clearAndLoadDemoData();
-                        ref.read(wagonListProvider.notifier).refresh();
-                        ref.read(truckListProvider.notifier).refresh();
-                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Demo Data Loaded.')));
+                        _confirmDemoDataLoad(context, ref);
                       },
                     ),
                   ]),
@@ -198,8 +193,11 @@ class AppDrawer extends ConsumerWidget {
           ),
         ],
       ),
-      child: Column(
-        children: children,
+      child: Material(
+        color: Colors.transparent,
+        child: Column(
+          children: children,
+        ),
       ),
     );
   }
@@ -235,5 +233,38 @@ class AppDrawer extends ConsumerWidget {
 
   Widget _buildDivider() {
     return const Divider(height: 1, color: AppTheme.dividerColor, indent: 48, endIndent: 12);
+  }
+
+  void _confirmDemoDataLoad(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Load Demo Data?'),
+        content: const Text(
+          'WARNING: This will permanently DELETE all current local data (wagons, trucks, layers) and replace them with mock data for testing. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(wagonRepositoryProvider).clearAndLoadDemoData();
+              await ref.read(truckRepositoryProvider).clearAndLoadDemoData();
+              await ref.read(layerRepositoryProvider).clearAndLoadDemoData();
+              ref.read(wagonListProvider.notifier).refresh();
+              ref.read(truckListProvider.notifier).refresh();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Demo Data Loaded successfully.')));
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            child: const Text('Inject Demo Data'),
+          ),
+        ],
+      ),
+    );
   }
 }

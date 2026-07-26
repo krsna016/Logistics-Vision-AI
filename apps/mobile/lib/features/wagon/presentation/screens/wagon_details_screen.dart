@@ -80,20 +80,13 @@ class WagonDetailsScreen extends ConsumerWidget {
             onPressed: () => context.push('/registers/${wagon.id}'),
             tooltip: 'View Digital Register',
           ),
-          if (wagon.status != WagonStatus.archived)
+            if (wagon.status != WagonStatus.archived)
+              IconButton(
+                icon: const Icon(Icons.archive),
+                onPressed: () => _confirmArchive(context, notifier, wagon),
+                tooltip: 'Archive Wagon',
+              ),
             IconButton(
-              icon: const Icon(Icons.archive),
-              onPressed: () async {
-                await notifier.updateWagonStatus(wagon.id, WagonStatus.archived);
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Wagon session archived successfully.')),
-                  );
-                }
-              },
-              tooltip: 'Archive Wagon',
-            ),
-          IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
             tooltip: 'Delete Wagon',
             onPressed: () {
