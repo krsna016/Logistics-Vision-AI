@@ -128,7 +128,6 @@ class TruckListScreen extends ConsumerWidget {
                           ),
                           const SizedBox(height: 16),
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               // Sort selection Dropdown
                               DropdownButtonHideUnderline(
@@ -150,27 +149,35 @@ class TruckListScreen extends ConsumerWidget {
                                   ],
                                 ),
                               ),
+                              const SizedBox(width: 8),
                               // Filter Choice Chips
-                              Row(
-                                children: [
-                                  ChoiceChip(
-                                    label: const Text('All'),
-                                    selected: listState.statusFilter == null,
-                                    onSelected: (_) => notifier.setStatusFilter(null),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  reverse: true,
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ChoiceChip(
+                                        label: const Text('All'),
+                                        selected: listState.statusFilter == null,
+                                        onSelected: (_) => notifier.setStatusFilter(null),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      ChoiceChip(
+                                        label: const Text('Active'),
+                                        selected: listState.statusFilter == TruckStatus.loading,
+                                        onSelected: (_) => notifier.setStatusFilter(TruckStatus.loading),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      ChoiceChip(
+                                        label: const Text('Closed'),
+                                        selected: listState.statusFilter == TruckStatus.completed,
+                                        onSelected: (_) => notifier.setStatusFilter(TruckStatus.completed),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 6),
-                                  ChoiceChip(
-                                    label: const Text('Active'),
-                                    selected: listState.statusFilter == TruckStatus.loading,
-                                    onSelected: (_) => notifier.setStatusFilter(TruckStatus.loading),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ChoiceChip(
-                                    label: const Text('Closed'),
-                                    selected: listState.statusFilter == TruckStatus.completed,
-                                    onSelected: (_) => notifier.setStatusFilter(TruckStatus.completed),
-                                  ),
-                                ],
+                                ),
                               )
                             ],
                           ),
@@ -214,8 +221,12 @@ class TruckListScreen extends ConsumerWidget {
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          showDialog(
+          showModalBottomSheet(
             context: context,
+            isScrollControlled: true,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+            ),
             builder: (context) => const TruckFormDialog(),
           );
         },

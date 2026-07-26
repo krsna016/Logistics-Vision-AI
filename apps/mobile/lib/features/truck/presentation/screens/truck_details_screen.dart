@@ -77,8 +77,12 @@ class TruckDetailsScreen extends ConsumerWidget {
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Edit Truck Details',
               onPressed: () {
-                showDialog(
+                showModalBottomSheet(
                   context: context,
+                  isScrollControlled: true,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                  ),
                   builder: (ctx) => TruckFormDialog(existingTruck: truck),
                 );
               },

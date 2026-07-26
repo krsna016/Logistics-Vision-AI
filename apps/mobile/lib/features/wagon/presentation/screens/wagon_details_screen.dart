@@ -369,8 +369,12 @@ class WagonDetailsScreen extends ConsumerWidget {
   }
 
   void _openAddTruckDialog(BuildContext context, String wagonId) {
-    showDialog(
+    showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (context) => TruckFormDialog(wagonId: wagonId),
     );
   }
