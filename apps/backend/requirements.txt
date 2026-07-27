@@ -3,7 +3,7 @@ uvicorn[standard]
 sqlalchemy
 aiosqlite
 asyncpg
-passlib[bcrypt]
-python-jose[cryptography]
+bcrypt
+PyJWT
 python-multipart
 pydantic-settings
