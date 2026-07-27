@@ -19,22 +19,17 @@ class RegisterListScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        leadingWidth: 52,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 16.0, top: 10, bottom: 10),
-          child: Image.asset(
-            'assets/images/logo.png',
-            fit: BoxFit.contain,
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/wagons');
+            }
+          },
         ),
-        title: const Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text('Vinayak SmartLoad', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-            Text('Digital Wagon Registers', style: TextStyle(fontSize: 10, color: Color(0xFFBDBDBD), fontWeight: FontWeight.w500)),
-          ],
-        ),
+        title: const Text('Digital Registers'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

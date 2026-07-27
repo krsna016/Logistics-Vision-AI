@@ -22,7 +22,7 @@ class RegisterHeader extends StatelessWidget {
           // Branding Header
           Row(
             children: [
-              Image.asset('assets/images/logo.png', height: 38, fit: BoxFit.contain),
+              Image.asset('assets/images/logo.png', height: 38, width: 38, fit: BoxFit.contain),
               const SizedBox(width: 12),
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

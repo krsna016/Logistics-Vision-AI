@@ -72,7 +72,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       destination: _destinationCtrl.text.trim().isEmpty ? 'NIL' : _destinationCtrl.text,
       loadingDate: _selectedDate,
       expectedTruckCount: expectedCount,
-      remarks: _remarksCtrl.text.isEmpty ? null : _remarksCtrl.text,
+      remarks: _remarksCtrl.text.isEmpty ? 'NIL' : _remarksCtrl.text,
     );
 
     if (mounted) {

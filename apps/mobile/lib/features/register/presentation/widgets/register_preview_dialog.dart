@@ -123,7 +123,7 @@ class RegisterPreviewDialog extends StatelessWidget {
                                         ],
                                       ),
                                     ),
-                                    Image.asset('assets/images/logo.png', height: 60, fit: BoxFit.contain, color: docBlue),
+                                    Image.asset('assets/images/logo.png', height: 60, width: 60, fit: BoxFit.contain),
                                   ],
                                 ),
                                 const SizedBox(height: 32),

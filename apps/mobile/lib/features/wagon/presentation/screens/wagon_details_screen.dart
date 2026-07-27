@@ -13,8 +13,10 @@ import '../providers/wagon_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
 
 import '../../../../core/presentation/widgets/action_warning_dialog.dart';
+import '../../../../core/presentation/widgets/strict_action_warning_dialog.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../truck/presentation/widgets/truck_form_dialog.dart';
+import '../../../reports/presentation/providers/report_providers.dart';
 
 class WagonDetailsScreen extends ConsumerWidget {
   final String wagonId;
@@ -83,9 +85,10 @@ class WagonDetailsScreen extends ConsumerWidget {
                 onPressed: () {
                   showDialog(
                     context: context,
-                    builder: (BuildContext ctx) => ActionWarningDialog(
+                    builder: (BuildContext ctx) => StrictActionWarningDialog(
                       title: 'Archive Wagon?',
                       content: 'Are you sure you want to archive this wagon? It will no longer be editable.',
+                      expectedConfirmationText: wagon.wagonNumber,
                       actionLabel: 'Archive',
                       actionColor: AppTheme.warningColor,
                       onConfirm: () async {
@@ -105,9 +108,10 @@ class WagonDetailsScreen extends ConsumerWidget {
               onPressed: () {
                 showDialog(
                   context: context,
-                  builder: (BuildContext ctx) => ActionWarningDialog(
+                  builder: (ctx) => StrictActionWarningDialog(
                     title: 'Delete Wagon?',
                     content: 'Are you absolutely sure? This will permanently delete the wagon and all associated trucks and layers.',
+                    expectedConfirmationText: wagon.wagonNumber,
                     actionLabel: 'Delete',
                     actionColor: Colors.redAccent,
                     onConfirm: () async {
@@ -248,12 +252,40 @@ class WagonDetailsScreen extends ConsumerWidget {
                         showDialog(
                           context: context,
                           builder: (context) => AlertDialog(
-                            title: const Text('Generate Report'),
+                            title: const Text('Generate Loading Report'),
                             content: const Text('Exporting wagon loading logs to PDF report...'),
                             actions: [
                               TextButton(
                                 onPressed: () => Navigator.pop(context),
-                                child: const Text('OK'),
+                                child: const Text('Cancel'),
+                              ),
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.table_chart, color: Colors.green),
+                                label: const Text('Export Excel'),
+                                onPressed: () async {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Generating Excel Report...')));
+                                  try {
+                                    final file = await ref.read(excelReportServiceProvider).generateWagonReport(wagonId: wagonId);
+                                    await ref.read(shareServiceProvider).shareFile(file, subject: 'Wagon Loading Report (Excel)');
+                                  } catch (e) {
+                                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                                  }
+                                },
+                              ),
+                              ElevatedButton.icon(
+                                icon: const Icon(Icons.picture_as_pdf_outlined),
+                                label: const Text('Export PDF'),
+                                onPressed: () async {
+                                  Navigator.pop(context);
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Generating PDF Report...')));
+                                  try {
+                                    final file = await ref.read(pdfReportServiceProvider).generateWagonReport(wagonId: wagonId);
+                                    await ref.read(shareServiceProvider).shareFile(file, subject: 'Wagon Loading Report (PDF)');
+                                  } catch (e) {
+                                    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+                                  }
+                                },
                               ),
                             ],
                           ),
@@ -443,11 +475,16 @@ class WagonDetailsScreen extends ConsumerWidget {
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                truck.vehicleNumber,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Expanded(
+                child: Text(
+                  truck.vehicleNumber,
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
+              const SizedBox(width: 8),
               StatusChip(
                 type: truck.status == TruckStatus.completed
                     ? CustomStatusType.completed

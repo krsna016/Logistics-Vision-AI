@@ -13,6 +13,8 @@ import '../widgets/history_tile.dart';
 import '../widgets/report_action_bar.dart';
 import '../widgets/register_preview_dialog.dart';
 import '../../domain/services/report_exporter.dart';
+import '../../../reports/presentation/providers/report_providers.dart';
+import '../../../reports/domain/services/report_services.dart';
 
 class RegisterDetailsScreen extends ConsumerWidget {
   final String registerId;
@@ -36,7 +38,7 @@ class RegisterDetailsScreen extends ConsumerWidget {
 
           IconButton(
             icon: const Icon(Icons.print_outlined),
-            onPressed: () => _showPreview(context, register, notifier),
+            onPressed: () => _showPreview(context, ref, register, notifier),
             tooltip: 'Print Preview',
           ),
           const SizedBox(width: 8),
@@ -58,8 +60,8 @@ class RegisterDetailsScreen extends ConsumerWidget {
 
             // Action Bar
             ReportActionBar(
-              onExport: (type) => _handleExport(context, register.id, type, notifier),
-              onPreview: () => _showPreview(context, register, notifier),
+              onExport: (type) => _handleExport(context, ref, register.id, type, notifier),
+              onPreview: () => _showPreview(context, ref, register, notifier),
             ),
             const SizedBox(height: 16),
 
@@ -83,19 +85,19 @@ class RegisterDetailsScreen extends ConsumerWidget {
     );
   }
 
-  void _showPreview(BuildContext context, dynamic register, RegisterListNotifier notifier) {
+  void _showPreview(BuildContext context, WidgetRef ref, dynamic register, RegisterListNotifier notifier) {
     showDialog(
       context: context,
       builder: (ctx) => RegisterPreviewDialog(
         register: register,
         onConfirmExport: () {
-          _handleExport(context, register.id, ExportType.print, notifier);
+          _handleExport(context, ref, register.id, ExportType.print, notifier);
         },
       ),
     );
   }
 
-  Future<void> _handleExport(BuildContext context, String registerId, ExportType type, RegisterListNotifier notifier) async {
+  Future<void> _handleExport(BuildContext context, WidgetRef ref, String registerId, ExportType type, RegisterListNotifier notifier) async {
     // Show Progress Dialog
     showDialog(
       context: context,
@@ -111,18 +113,39 @@ class RegisterDetailsScreen extends ConsumerWidget {
       ),
     );
 
-    final exporter = MockReportExporter();
-    await exporter.exportRegister(registerId, type);
-    await notifier.recordExport(registerId);
+    try {
+      if (type == ExportType.pdf || type == ExportType.print || type == ExportType.share) {
+        final file = await ref.read(pdfReportServiceProvider).generateWagonReport(wagonId: registerId);
+        if (type == ExportType.print) {
+          await ref.read(printServiceProvider).printPdf(file);
+        } else if (type == ExportType.share) {
+          await ref.read(shareServiceProvider).shareFile(file, subject: 'Register Report');
+        }
+      } else if (type == ExportType.excel) {
+        final file = await ref.read(excelReportServiceProvider).generateWagonReport(wagonId: registerId);
+      } else if (type == ExportType.csv) {
+        // Assume wagon ID is used as datasetId for csv here for now, or fallback
+        final file = await ref.read(csvExportServiceProvider).exportDataset(datasetId: registerId);
+      }
+      
+      await notifier.recordExport(registerId);
 
-    if (context.mounted) {
-      Navigator.pop(context); // Close progress dialog
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('${type.name.toUpperCase()} report successfully generated and saved to device!'),
-          backgroundColor: AppTheme.successColor,
-        ),
-      );
+      if (context.mounted) {
+        Navigator.pop(context); // Close progress dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${type.name.toUpperCase()} report successfully generated and saved!'),
+            backgroundColor: AppTheme.successColor,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // Close progress dialog
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to generate report: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 

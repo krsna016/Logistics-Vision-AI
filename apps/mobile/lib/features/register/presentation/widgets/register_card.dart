@@ -19,7 +19,6 @@ class RegisterCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppTheme.dividerColor),
       ),
       color: AppTheme.cardColor,
       child: InkWell(

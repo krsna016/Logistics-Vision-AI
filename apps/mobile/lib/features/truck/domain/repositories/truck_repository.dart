@@ -21,5 +21,6 @@ abstract class TruckRepository {
 
   /// Check if a truck number is already registered.
   Future<bool> isTruckNumberExists(String truckNumber, {String? excludeId});
-  Future<void> clearAndLoadDemoData();
+  Future<void> clearAllData();
+  Future<void> loadDemoData();
 }

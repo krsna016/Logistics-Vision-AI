@@ -123,10 +123,13 @@ class LocalLayerRepository implements LayerRepository {
   }
 
   @override
-  Future<void> clearAndLoadDemoData() async {
+  Future<void> clearAllData() async {
+    await _db.delete(_db.layers).go();
+  }
+
+  @override
+  Future<void> loadDemoData() async {
     await _db.transaction(() async {
-      await _db.delete(_db.layers).go();
-      
       final now = DateTime.now();
       
       await _db.into(_db.layers).insert(LayersCompanion.insert(

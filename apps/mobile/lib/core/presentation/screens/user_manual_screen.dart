@@ -1,25 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/constants/manual_content.dart';
 import '../../../theme/app_theme.dart';
 
-
-class UserManualScreen extends StatelessWidget {
+class UserManualScreen extends StatefulWidget {
   const UserManualScreen({super.key});
+
+  @override
+  State<UserManualScreen> createState() => _UserManualScreenState();
+}
+
+class _UserManualScreenState extends State<UserManualScreen> {
+  bool _isHindi = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Manual'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/wagons');
+            }
+          },
+        ),
+        title: Text(_isHindi ? 'उपयोगकर्ता मैनुअल' : 'User Manual'),
         backgroundColor: AppTheme.surfaceColor,
         foregroundColor: Colors.white,
+        actions: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+            child: ToggleButtons(
+              isSelected: [!_isHindi, _isHindi],
+              onPressed: (index) {
+                setState(() {
+                  _isHindi = index == 1;
+                });
+              },
+              color: Colors.white54,
+              selectedColor: Colors.white,
+              fillColor: AppTheme.primaryColor,
+              borderRadius: BorderRadius.circular(8),
+              constraints: const BoxConstraints(minHeight: 36.0, minWidth: 48.0),
+              children: const [
+                Text('EN', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('हि', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
 
       body: Container(
         color: AppTheme.backgroundColor,
         child: Markdown(
-          data: userManualMarkdown,
+          data: _isHindi ? userManualHindiMarkdown : userManualMarkdown,
           styleSheet: MarkdownStyleSheet(
             h1: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
             h2: const TextStyle(color: AppTheme.primaryColor, fontSize: 20, fontWeight: FontWeight.bold),
@@ -40,10 +80,10 @@ class UserManualScreen extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             blockquote: const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
-            blockquoteDecoration: BoxDecoration(
+            blockquoteDecoration: const BoxDecoration(
               border: Border(left: BorderSide(color: AppTheme.primaryColor, width: 4)),
             ),
-            horizontalRuleDecoration: BoxDecoration(
+            horizontalRuleDecoration: const BoxDecoration(
               border: Border(top: BorderSide(color: AppTheme.dividerColor, width: 2)),
             ),
           ),

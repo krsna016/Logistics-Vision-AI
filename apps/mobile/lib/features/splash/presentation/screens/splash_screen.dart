@@ -1,20 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 
 import '../widgets/logo_painter.dart';
 
-class SplashScreen extends StatefulWidget {
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends ConsumerState<SplashScreen> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _logoScale;
-  late Animation<double> _titleFade;
-  late Animation<double> _taglineFade;
   late Animation<double> _indicatorFade;
 
   @override
@@ -34,21 +34,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       ),
     );
 
-    // 2. Company name fades in between 30% and 65% timeline progress
-    _titleFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.3, 0.65, curve: Curves.easeIn),
-      ),
-    );
 
-    // 3. Tagline fades in between 55% and 85% timeline progress
-    _taglineFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.55, 0.85, curve: Curves.easeIn),
-      ),
-    );
 
     // 4. Loading indicator fades in at the end
     _indicatorFade = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -63,9 +49,21 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Staggered navigation trigger once animation completes
     _controller.addStatusListener((status) {
       if (status == AnimationStatus.completed) {
-        Future.delayed(const Duration(milliseconds: 500), () {
+        Future.delayed(const Duration(milliseconds: 500), () async {
           if (mounted) {
-            context.go('/wagons'); // Navigate to wagon list and replace stack
+            // Check if user is logged in
+            final authRepo = ref.read(authRepositoryProvider);
+            final user = await authRepo.getCurrentUser();
+            
+            if (mounted) {
+              if (user != null) {
+                // Manually update the state notifier so the app knows who is logged in
+                // (In a real app you'd have an init method on AuthNotifier)
+                context.go('/wagons');
+              } else {
+                context.go('/login');
+              }
+            }
           }
         });
       }
@@ -84,7 +82,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF121212) : Colors.white,
+      backgroundColor: isDark ? const Color(0xFF121212) : const Color(0xFF0F2027),
       body: SafeArea(
         child: Stack(
           children: [
@@ -98,36 +96,31 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     child: Image.asset(
                       'assets/images/logo.png',
                       width: 140,
-                      height: 140,
+                      fit: BoxFit.contain,
                     ),
                   ),
                   const SizedBox(height: 32),
 
                   // Company Title
-                  FadeTransition(
-                    opacity: _titleFade,
-                    child: const Text(
-                      'Vinayak SmartLoad',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1.5,
-                      ),
+                  const Text(
+                    'Vinayak SmartLoad',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 28,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
                     ),
                   ),
                   const SizedBox(height: 12),
 
                   // Subtitle
-                  FadeTransition(
-                    opacity: _taglineFade,
-                    child: Text(
-                      'Powered by Vinayak Logistics',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDark ? const Color(0xFFBDBDBD) : Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                        letterSpacing: 0.5,
-                      ),
+                  Text(
+                    'Powered by Vinayak Logistics',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 0.5,
                     ),
                   ),
                 ],

@@ -4,12 +4,14 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../theme/app_theme.dart';
 import '../../../../presentation/widgets/app_card.dart';
+import '../../../../core/presentation/widgets/strict_action_warning_dialog.dart';
 import '../../../../core/presentation/widgets/action_warning_dialog.dart';
 import '../../domain/entities/truck.dart';
 import '../providers/truck_providers.dart';
 import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../layer/domain/entities/layer.dart';
 import '../../../session/presentation/providers/session_providers.dart';
+import '../../../reports/presentation/providers/report_providers.dart';
 
 import '../widgets/truck_form_dialog.dart';
 import '../widgets/truck_header.dart';
@@ -100,9 +102,10 @@ class TruckDetailsScreen extends ConsumerWidget {
               onPressed: () {
                 showDialog(
                   context: context,
-                  builder: (BuildContext ctx) => ActionWarningDialog(
+                  builder: (BuildContext ctx) => StrictActionWarningDialog(
                     title: 'Archive Truck?',
                     content: 'Are you sure you want to archive this truck? It will no longer be editable.',
+                    expectedConfirmationText: truck.truckNumber,
                     actionLabel: 'Archive',
                     actionColor: AppTheme.warningColor,
                     onConfirm: () async {
@@ -123,9 +126,10 @@ class TruckDetailsScreen extends ConsumerWidget {
               onPressed: () {
                 showDialog(
                   context: context,
-                  builder: (BuildContext ctx) => ActionWarningDialog(
+                  builder: (BuildContext ctx) => StrictActionWarningDialog(
                     title: 'Delete Truck?',
                     content: 'Are you absolutely sure? This will permanently delete the truck and all its layers.',
+                    expectedConfirmationText: truck.truckNumber,
                     actionLabel: 'Delete',
                     actionColor: Colors.redAccent,
                     onConfirm: () async {
@@ -259,7 +263,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                   isOutlined: true,
                   backgroundColor: AppTheme.successColor,
                   foregroundColor: AppTheme.successColor,
-                  onPressed: () => _showReportDialog(context),
+                  onPressed: () => _showReportDialog(context, ref, truckId),
                 ),
                 const SizedBox(height: 10),
 
@@ -353,7 +357,24 @@ class TruckDetailsScreen extends ConsumerWidget {
                     isReadOnly: isReadOnly,
                     onEditNotes: (layer) =>
                         _editLayerNotesDialog(context, layerNotifier, layer),
-                    onDeleteLayer: (id) => layerNotifier.deleteLayer(id),
+                    onDeleteLayer: (layer) {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => StrictActionWarningDialog(
+                          title: 'Delete Layer ${layer.layerNumber}?',
+                          content: 'Are you sure you want to delete this layer? This action cannot be undone.',
+                          expectedConfirmationText: layer.layerNumber.toString(),
+                          actionLabel: 'Delete Layer',
+                          actionColor: Colors.redAccent,
+                          onConfirm: () async {
+                            await layerNotifier.deleteLayer(layer.id);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Layer deleted.')));
+                            }
+                          },
+                        ),
+                      );
+                    },
                   ),
 
                 // bottom padding for sticky bar
@@ -374,7 +395,7 @@ class TruckDetailsScreen extends ConsumerWidget {
           if (error != null && context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
         },
         onCapture: isReadOnly ? null : () => context.push('/trucks/$truckId/camera'),
-        onReport: () => _showReportDialog(context),
+        onReport: () => _showReportDialog(context, ref, truckId),
       ),
     );
   }
@@ -388,7 +409,7 @@ class TruckDetailsScreen extends ConsumerWidget {
     );
   }
 
-  void _showReportDialog(BuildContext context) {
+  void _showReportDialog(BuildContext context, WidgetRef ref, String truckId) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -402,9 +423,32 @@ class TruckDetailsScreen extends ConsumerWidget {
             child: const Text('Cancel'),
           ),
           ElevatedButton.icon(
+            icon: const Icon(Icons.table_chart, color: Colors.green),
+            label: const Text('Export Excel'),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Generating Excel Report...')));
+              try {
+                final file = await ref.read(excelReportServiceProvider).generateTruckReport(truckId: truckId);
+                await ref.read(shareServiceProvider).shareFile(file, subject: 'Truck Loading Report (Excel)');
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+              }
+            },
+          ),
+          ElevatedButton.icon(
             icon: const Icon(Icons.picture_as_pdf_outlined),
             label: const Text('Export PDF'),
-            onPressed: () => Navigator.pop(ctx),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Generating PDF Report...')));
+              try {
+                final file = await ref.read(pdfReportServiceProvider).generateTruckReport(truckId: truckId);
+                await ref.read(shareServiceProvider).shareFile(file, subject: 'Truck Loading Report (PDF)');
+              } catch (e) {
+                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+              }
+            },
           ),
         ],
       ),

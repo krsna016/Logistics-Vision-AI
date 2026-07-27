@@ -130,9 +130,13 @@ class SyncQueues extends Table {
   TextColumn get entityType => text()(); // Wagon, Truck, Layer, etc.
   TextColumn get operation => text()(); // INSERT, UPDATE, DELETE
   TextColumn get payloadData => text()(); // JSON string
+  IntColumn get version => integer().withDefault(const Constant(1))();
+  IntColumn get priority => integer().withDefault(const Constant(0))(); // Higher is more important
+  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get queuedAt => dateTime().withDefault(currentDateAndTime)();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
-  TextColumn get status => text().withDefault(const Constant('pending'))(); // pending, processing, failed
+  TextColumn get status => text().withDefault(const Constant('queued'))(); // queued, syncing, completed, failed, cancelled, conflict
   TextColumn get errorMessage => text().nullable()();
 }
 
@@ -141,20 +145,116 @@ class DatasetImages extends Table with SyncMetadata {
   Set<Column> get primaryKey => {id};
   TextColumn get warehouseId => text().nullable()();
   TextColumn get truckId => text().nullable()();
-  TextColumn get originalPath => text()();
+  TextColumn get wagonId => text().nullable()();
+  IntColumn get layerNumber => integer().nullable()();
+  
+  TextColumn get originalPath => text()(); // internal sandbox relative path
   TextColumn get annotatedPath => text().nullable()();
   TextColumn get thumbnailPath => text().nullable()();
-  TextColumn get metadataJson => text()(); // Environment info, lighting, etc.
   IntColumn get fileSize => integer()();
+  
+  // Review Status
+  TextColumn get approvalStatus => text().withDefault(const Constant('pending'))(); // pending, approved, rejected, manual_correction
+  TextColumn get rejectReason => text().nullable()();
+  
+  // Tracking
+  TextColumn get operatorId => text().nullable()();
+  DateTimeColumn get timestamp => dateTime().nullable()();
+  BoolColumn get isExported => boolean().withDefault(const Constant(false))();
+}
+
+class ImageMetadata extends Table {
+  @override
+  Set<Column> get primaryKey => {imageId};
+  TextColumn get imageId => text().references(DatasetImages, #id, onDelete: KeyAction.cascade)();
+  TextColumn get filename => text()();
+  DateTimeColumn get captureTime => dateTime()();
+  TextColumn get deviceModel => text().nullable()();
+  TextColumn get cameraResolution => text().nullable()();
+  
+  // Telemetry
+  TextColumn get modelVersion => text().nullable()();
+  RealColumn get inferenceTimeMs => real().withDefault(const Constant(0.0))();
+  RealColumn get averageConfidence => real().withDefault(const Constant(0.0))();
+  IntColumn get detectedCount => integer().withDefault(const Constant(0))();
+  IntColumn get manualCount => integer().nullable()();
+  IntColumn get finalCount => integer().nullable()();
+}
+
+class Annotations extends Table with SyncMetadata {
+  @override
+  Set<Column> get primaryKey => {id};
+  TextColumn get imageId => text().references(DatasetImages, #id, onDelete: KeyAction.cascade)();
+  RealColumn get boundingBoxX => real()();
+  RealColumn get boundingBoxY => real()();
+  RealColumn get boundingBoxW => real()();
+  RealColumn get boundingBoxH => real()();
+  TextColumn get label => text()(); // e.g., 'carton', 'defect'
+  RealColumn get confidence => real()();
+  BoolColumn get isManualCorrection => boolean().withDefault(const Constant(false))();
+  TextColumn get correctionReason => text().nullable()();
+}
+
+class DatasetExports extends Table {
+  @override
+  Set<Column> get primaryKey => {id};
+  TextColumn get id => text()();
+  TextColumn get exportPath => text()(); // zip file path
+  TextColumn get format => text()(); // 'yolo', 'zip'
+  DateTimeColumn get timestamp => dateTime().withDefault(currentDateAndTime)();
+  TextColumn get status => text().withDefault(const Constant('pending'))(); // pending, processing, completed, failed
+  IntColumn get totalImages => integer().withDefault(const Constant(0))();
+  TextColumn get manifestJson => text().nullable()(); // stores configurations used
+}
+
+class ImageQuality extends Table {
+  @override
+  Set<Column> get primaryKey => {imageId};
+  TextColumn get imageId => text().references(DatasetImages, #id, onDelete: KeyAction.cascade)();
+  RealColumn get blurScore => real().withDefault(const Constant(1.0))();
+  RealColumn get brightness => real().withDefault(const Constant(128.0))();
+  RealColumn get contrast => real().withDefault(const Constant(1.0))();
+  RealColumn get rotation => real().withDefault(const Constant(0.0))();
+  RealColumn get perspective => real().withDefault(const Constant(0.0))();
+  RealColumn get occlusion => real().withDefault(const Constant(0.0))();
+  RealColumn get distance => real().withDefault(const Constant(0.0))();
+}
+
+class ModelHistory extends Table {
+  @override
+  Set<Column> get primaryKey => {id};
+  TextColumn get id => text()();
+  TextColumn get modelName => text()();
+  TextColumn get version => text()();
+  DateTimeColumn get trainingDate => dateTime()();
+  IntColumn get imagesUsed => integer()();
+  RealColumn get precision => real().nullable()();
+  RealColumn get recall => real().nullable()();
+  RealColumn get mAP => real().nullable()();
+  DateTimeColumn get deploymentDate => dateTime().nullable()();
+}
+
+class DeviceSessions extends Table with SyncMetadata {
+  @override
+  Set<Column> get primaryKey => {id};
+  TextColumn get deviceName => text()();
+  TextColumn get deviceModel => text()();
+  TextColumn get osVersion => text()();
+  DateTimeColumn get lastSync => dateTime().withDefault(currentDateAndTime)();
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 }
 
 class Users extends Table with SyncMetadata {
   @override
   Set<Column> get primaryKey => {id};
+  TextColumn get employeeId => text()();
   TextColumn get name => text()();
   TextColumn get role => text()();
   TextColumn get warehouseId => text().nullable()();
   TextColumn get token => text().nullable()(); // Future auth
+  BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  IntColumn get failedLoginAttempts => integer().withDefault(const Constant(0))();
+  DateTimeColumn get lockedUntil => dateTime().nullable()();
 }
 
 class Settings extends Table {
@@ -163,4 +263,16 @@ class Settings extends Table {
   TextColumn get key => text()();
   TextColumn get value => text()(); // JSON or String
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
+}
+
+class ReportExports extends Table with SyncMetadata {
+  @override
+  Set<Column> get primaryKey => {id};
+  TextColumn get reportType => text()(); // e.g. 'Wagon Report', 'Daily Loading Report'
+  TextColumn get exportType => text()(); // e.g. 'PDF', 'EXCEL', 'CSV'
+  TextColumn get userId => text()();
+  DateTimeColumn get exportedAt => dateTime().withDefault(currentDateAndTime)();
+  TextColumn get status => text()(); // e.g. 'Success', 'Failed'
+  TextColumn get filePath => text().nullable()();
+  TextColumn get details => text().nullable()();
 }

@@ -20,6 +20,13 @@ part 'app_database.g.dart';
   AuditLogs,
   SyncQueues,
   DatasetImages,
+  ImageMetadata,
+  ImageQuality,
+  Annotations,
+  DatasetExports,
+  ModelHistory,
+  DeviceSessions,
+  ReportExports,
   Users,
   Settings
 ])
@@ -28,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(QueryExecutor e) : super(e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
@@ -37,7 +44,17 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        // Handle database migrations here in the future
+        if (from < 4) {
+          // Development workaround: Just recreate everything on schema changes
+          for (final table in allTables) {
+            try {
+              await m.deleteTable(table.actualTableName);
+            } catch (e) {
+              // Ignore if it doesn't exist
+            }
+            await m.createTable(table);
+          }
+        }
       },
     );
   }

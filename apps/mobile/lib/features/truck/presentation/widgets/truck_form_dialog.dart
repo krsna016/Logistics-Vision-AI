@@ -69,7 +69,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
         driverMobile: _driverMobileCtrl.text.trim().isEmpty ? 'NIL' : _driverMobileCtrl.text,
         company: _companyCtrl.text.trim().isEmpty ? 'NIL' : _companyCtrl.text,
         warehouse: _warehouseCtrl.text.trim().isEmpty ? 'NIL' : _warehouseCtrl.text,
-        notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
+        notes: _notesCtrl.text.isEmpty ? 'NIL' : _notesCtrl.text,
         wagonId: widget.wagonId,
       );
     } else {
@@ -80,7 +80,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
         driverMobile: _driverMobileCtrl.text.trim().isEmpty ? 'NIL' : _driverMobileCtrl.text.trim(),
         company: _companyCtrl.text.trim().isEmpty ? 'NIL' : _companyCtrl.text.trim(),
         warehouse: _warehouseCtrl.text.trim().isEmpty ? 'NIL' : _warehouseCtrl.text.trim(),
-        notes: _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
+        notes: _notesCtrl.text.isEmpty ? 'NIL' : _notesCtrl.text,
       );
       error = await notifier.editTruck(updated);
     }

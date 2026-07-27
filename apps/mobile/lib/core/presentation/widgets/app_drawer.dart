@@ -5,6 +5,7 @@ import '../../../theme/app_theme.dart';
 import '../../../features/wagon/presentation/providers/wagon_providers.dart';
 import '../../../features/truck/presentation/providers/truck_providers.dart';
 import '../../../features/layer/presentation/providers/layer_providers.dart';
+import '../../../features/auth/presentation/providers/auth_providers.dart';
 import 'action_warning_dialog.dart';
 
 class AppDrawer extends ConsumerWidget {
@@ -12,29 +13,44 @@ class AppDrawer extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(authProvider);
+    
     return Drawer(
       backgroundColor: AppTheme.backgroundColor,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.horizontal(right: Radius.circular(24)),
+        borderRadius: BorderRadius.horizontal(left: Radius.circular(24)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _buildHeader(context),
+          _buildHeader(context, user),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+
+                  
+                  const SizedBox(height: 4),
                   _buildSectionLabel('CORE OPERATIONS'),
                   _buildSection([
+                    _buildTile(
+                      icon: Icons.analytics_outlined,
+                      title: 'Analytics & Operations',
+                      onTap: () {
+                        Navigator.pop(context);
+                        context.go('/wagons');
+                        context.push('/dashboard');
+                      },
+                    ),
+                    _buildDivider(),
                     _buildTile(
                       icon: Icons.dashboard_rounded,
                       title: 'Wagon Control Center',
                       onTap: () {
                         Navigator.pop(context);
-                        context.go('/wagons'); // Force route to ensure it works anywhere
+                        context.go('/wagons');
                       },
                     ),
                     _buildDivider(),
@@ -43,6 +59,7 @@ class AppDrawer extends ConsumerWidget {
                       title: 'Digital Registers',
                       onTap: () {
                         Navigator.pop(context);
+                        context.go('/wagons');
                         context.push('/registers');
                       },
                     ),
@@ -58,6 +75,7 @@ class AppDrawer extends ConsumerWidget {
                       iconColor: AppTheme.primaryColor,
                       onTap: () {
                         Navigator.pop(context);
+                        context.go('/wagons');
                         context.push('/manual');
                       },
                     ),
@@ -76,15 +94,7 @@ class AppDrawer extends ConsumerWidget {
                         if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data refreshed successfully.')));
                       },
                     ),
-                    _buildDivider(),
-                    _buildTile(
-                      icon: Icons.photo_library_rounded,
-                      title: 'Dataset Mode',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.push('/dataset');
-                      },
-                    ),
+
                     _buildDivider(),
                     _buildTile(
                       icon: Icons.bug_report_rounded,
@@ -94,6 +104,25 @@ class AppDrawer extends ConsumerWidget {
                       textColor: Colors.redAccent,
                       onTap: () {
                         _confirmDemoDataLoad(context, ref);
+                      },
+                    ),
+                  ]),
+                  
+
+                  const SizedBox(height: 4),
+                  _buildSectionLabel('ACCOUNT'),
+                  _buildSection([
+                    _buildTile(
+                      icon: Icons.logout_rounded,
+                      title: 'Logout',
+                      iconColor: Colors.redAccent,
+                      textColor: Colors.redAccent,
+                      onTap: () async {
+                        await ref.read(authProvider.notifier).logout();
+                        if (context.mounted) {
+                          Navigator.pop(context); // close drawer
+                          context.go('/login');
+                        }
                       },
                     ),
                   ]),
@@ -118,7 +147,7 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, user) {
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 24,
@@ -136,29 +165,77 @@ class AppDrawer extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-            ),
-            child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 36),
-          ),
           const SizedBox(height: 16),
-          Text(
-            'Vinayak SmartLoad',
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/images/logo.png',
+                height: 36,
+                width: 36,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Vinayak SmartLoad',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: -0.5,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Enterprise Warehouse System',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w500),
+                    ),
+                  ],
                 ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Enterprise Warehouse System',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w500),
-          ),
+          const SizedBox(height: 24),
+          if (user != null)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    child: Text(
+                      user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
+                      style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          user.name,
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                        ),
+                        Text(
+                          user.role.displayName.toUpperCase(),
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -254,9 +331,17 @@ class AppDrawer extends ConsumerWidget {
         icon: Icons.bug_report_rounded,
         onConfirm: () async {
           Navigator.of(context).pop(); // close drawer
-          await wagonRepo.clearAndLoadDemoData();
-          await truckRepo.clearAndLoadDemoData();
-          await layerRepo.clearAndLoadDemoData();
+          
+          // Clear data (must delete children before parents to avoid FK errors)
+          await layerRepo.clearAllData();
+          await truckRepo.clearAllData();
+          await wagonRepo.clearAllData();
+
+          // Load data (must insert parents before children)
+          await wagonRepo.loadDemoData();
+          await truckRepo.loadDemoData();
+          await layerRepo.loadDemoData();
+
           wagonNotifier.refresh();
           truckNotifier.refresh();
           if (context.mounted) {

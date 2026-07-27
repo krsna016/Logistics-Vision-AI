@@ -368,7 +368,10 @@ class _CameraTopBar extends StatelessWidget {
           child: Row(
             children: [
               // Brand
-              const Icon(Icons.local_shipping, color: AppTheme.primaryColor, size: 18),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: Image.asset('assets/images/logo.png', width: 18, height: 18, fit: BoxFit.contain),
+              ),
               const SizedBox(width: 6),
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

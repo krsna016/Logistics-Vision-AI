@@ -31,7 +31,7 @@ class CameraTopBar extends StatelessWidget {
             // Left Side: Logo & Title
             Row(
               children: [
-                const Icon(Icons.local_shipping, color: Color(0xFF1565C0), size: 20),
+                Image.asset('assets/images/logo.png', width: 20, height: 20, fit: BoxFit.contain),
                 const SizedBox(width: 8),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

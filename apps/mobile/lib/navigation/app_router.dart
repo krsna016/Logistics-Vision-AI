@@ -7,8 +7,7 @@ import '../features/truck/presentation/screens/truck_list_screen.dart';
 import '../features/truck/presentation/screens/truck_details_screen.dart';
 import '../features/layer/presentation/screens/layer_review_screen.dart';
 import '../features/layer/domain/entities/ai_result.dart';
-import '../features/dataset/presentation/screens/dataset_browser_screen.dart';
-import '../features/dataset/presentation/screens/dataset_collection_screen.dart';
+
 import '../features/splash/presentation/screens/splash_screen.dart';
 import '../features/wagon/presentation/screens/wagon_list_screen.dart';
 import '../features/wagon/presentation/screens/wagon_details_screen.dart';
@@ -16,11 +15,45 @@ import '../features/wagon/presentation/screens/wagon_details_screen.dart';
 import '../features/register/presentation/screens/register_list_screen.dart';
 import '../features/register/presentation/screens/register_details_screen.dart';
 import '../core/presentation/screens/user_manual_screen.dart';
+import '../features/analytics/presentation/screens/analytics_dashboard_screen.dart';
+import '../features/auth/presentation/screens/login_screen.dart';
+import '../features/auth/presentation/screens/profile_screen.dart';
+import '../features/auth/presentation/screens/admin_security_screen.dart';
+import '../features/auth/presentation/screens/user_management_screen.dart';
+import '../features/auth/presentation/screens/role_policies_screen.dart';
+import '../features/auth/presentation/screens/device_management_screen.dart';
+import '../features/auth/presentation/screens/global_audit_screen.dart';
+import '../features/auth/presentation/providers/auth_providers.dart';
+import '../features/sync/presentation/screens/backup_management_screen.dart';
 
 // Router provider representing Riverpod-based dependency injection for GoRouter
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/', // default to splash
+    redirect: (context, state) {
+      final user = ref.read(authProvider);
+      final isLoggingIn = state.uri.toString() == '/login';
+      final isSplash = state.uri.toString() == '/';
+      
+      // Kill-switch: If user is deactivated on the backend, force them to login
+      if (user != null && !user.isActive) {
+        return '/login';
+      }
+      
+      // Security: If user is NOT logged in, they can only access splash or login
+      if (user == null) {
+        if (!isLoggingIn && !isSplash) {
+          return '/login';
+        }
+      }
+      
+      // UX: If user IS logged in, prevent them from going back to login screen
+      if (user != null && user.isActive && isLoggingIn) {
+        return '/wagons';
+      }
+      
+      return null;
+    },
     routes: [
       GoRoute(
         path: '/manual',
@@ -35,16 +68,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/login',
         name: 'login',
-        builder: (context, state) => const Scaffold(
-          body: Center(child: Text('Login Screen (Placeholder)')),
-        ),
+        builder: (context, state) => const LoginScreen(),
       ),
+
       GoRoute(
         path: '/dashboard',
         name: 'dashboard',
-        builder: (context, state) => const Scaffold(
-          body: Center(child: Text('Dashboard Screen (Placeholder)')),
-        ),
+        builder: (context, state) => const AnalyticsDashboardScreen(),
       ),
       GoRoute(
         path: '/registers',
@@ -125,18 +155,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           body: Center(child: Text('Settings Screen (Placeholder)')),
         ),
       ),
-      GoRoute(
-        path: '/dataset',
-        name: 'dataset_browser',
-        builder: (context, state) => const DatasetBrowserScreen(),
-        routes: [
-          GoRoute(
-            path: 'collect',
-            name: 'dataset_collect',
-            builder: (context, state) => const DatasetCollectionScreen(),
-          ),
-        ],
-      ),
+
     ],
     errorBuilder: (context, state) => Scaffold(
       body: Center(

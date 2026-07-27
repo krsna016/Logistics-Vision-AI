@@ -126,8 +126,10 @@ class RegisterListNotifier extends StateNotifier<RegisterListState> {
     state = state.copyWith(isLoading: true);
     try {
       final list = await _repository.getAllRegisters();
+      if (!mounted) return;
       state = state.copyWith(registers: list, isLoading: false, errorMessage: null);
     } catch (e) {
+      if (!mounted) return;
       state = state.copyWith(isLoading: false, errorMessage: 'Failed to read digital registers.');
     }
   }

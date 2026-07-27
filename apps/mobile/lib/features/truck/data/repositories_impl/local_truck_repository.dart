@@ -167,10 +167,13 @@ class LocalTruckRepository implements TruckRepository {
   }
 
   @override
-  Future<void> clearAndLoadDemoData() async {
+  Future<void> clearAllData() async {
+    await _db.delete(_db.trucks).go();
+  }
+
+  @override
+  Future<void> loadDemoData() async {
     await _db.transaction(() async {
-      await _db.delete(_db.trucks).go();
-      
       final now = DateTime.now();
       await _db.into(_db.trucks).insert(db.TrucksCompanion.insert(
         id: 'mock_t1',

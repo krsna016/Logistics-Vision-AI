@@ -87,6 +87,9 @@ class AppTheme {
         bodyMedium: TextStyle(fontSize: 13, color: textSecondary),
         labelLarge: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary),
       ),
+      chipTheme: const ChipThemeData(
+        side: BorderSide.none,
+      ),
       appBarTheme: const AppBarTheme(
         backgroundColor: surfaceColor,
         foregroundColor: textPrimary,

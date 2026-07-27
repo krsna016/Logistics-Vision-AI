@@ -7,7 +7,7 @@ class LayerTimeline extends StatelessWidget {
   final List<LayerRecord> layers;
   final bool isReadOnly;
   final void Function(LayerRecord layer) onEditNotes;
-  final void Function(String layerId) onDeleteLayer;
+  final void Function(LayerRecord layer) onDeleteLayer;
 
   const LayerTimeline({
     super.key,
@@ -31,7 +31,7 @@ class LayerTimeline extends StatelessWidget {
           isLast: isLast,
           isReadOnly: isReadOnly,
           onEditNotes: () => onEditNotes(layer),
-          onDelete: () => onDeleteLayer(layer.id),
+          onDelete: () => onDeleteLayer(layer),
         );
       },
     );

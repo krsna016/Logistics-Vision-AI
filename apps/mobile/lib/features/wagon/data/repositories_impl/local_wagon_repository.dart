@@ -129,10 +129,13 @@ class LocalWagonRepository implements WagonRepository {
   }
 
   @override
-  Future<void> clearAndLoadDemoData() async {
+  Future<void> clearAllData() async {
+    await _db.delete(_db.wagons).go();
+  }
+
+  @override
+  Future<void> loadDemoData() async {
     await _db.transaction(() async {
-      await _db.delete(_db.wagons).go();
-      
       final now = DateTime.now();
       await _db.into(_db.wagons).insert(db.WagonsCompanion.insert(
         id: 'mock_w1',
