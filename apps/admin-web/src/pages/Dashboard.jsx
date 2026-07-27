@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserCheck, ShieldCheck, ShieldAlert, LogOut, Plus, Search, Filter, RefreshCcw, Activity } from 'lucide-react';
+import { Users, UserCheck, ShieldCheck, ShieldAlert, LogOut, Plus, Search, Filter, RefreshCcw, Activity, Trash2, Copy } from 'lucide-react';
 import api from '../api';
 
 export default function Dashboard() {
@@ -48,6 +48,20 @@ export default function Dashboard() {
     }
   };
 
+  const hardDeleteUser = async (employeeId) => {
+    if (!window.confirm(`WARNING: Are you sure you want to PERMANENTLY delete ${employeeId}? This action cannot be undone.`)) return;
+    try {
+      await api.delete(`/users/${employeeId}/hard`);
+      fetchUsers();
+    } catch (err) {
+      alert('Failed to delete user');
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('token');
     navigate('/login');
@@ -77,7 +91,7 @@ export default function Dashboard() {
     <div className="app-layout">
       {/* SIDEBAR */}
       <aside className="app-sidebar">
-        <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ padding: '24px', borderBottom: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Activity color="var(--primary)" />
           </div>
@@ -176,7 +190,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="table-container" style={{ border: 'none', borderRadius: 0 }}>
+          <div style={{ padding: '24px' }}>
             {loading ? (
               <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading users...</div>
             ) : filteredUsers.length === 0 ? (
@@ -185,57 +199,66 @@ export default function Dashboard() {
                 No users match your filters.
               </div>
             ) : (
-              <table className="premium-table">
-                <thead>
-                  <tr>
-                    <th>Employee ID</th>
-                    <th>Full Name</th>
-                    <th>Role Privilege</th>
-                    <th>Status</th>
-                    <th style={{ textAlign: 'right' }}>Access Control</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map(user => (
-                    <tr key={user.id}>
-                      <td style={{ fontFamily: 'monospace', color: 'var(--text-main)' }}>{user.employee_id}</td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{ width: '32px', height: '32px', background: 'rgba(255,255,255,0.05)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold' }}>
-                            {user.name.charAt(0).toUpperCase()}
-                          </div>
-                          {user.name}
+              <div className="user-card-grid">
+                {filteredUsers.map(user => (
+                  <div key={user.id} className="user-card">
+                    <div className="user-card-header">
+                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                        <div className="user-card-avatar">
+                          {user.name.charAt(0).toUpperCase()}
                         </div>
-                      </td>
-                      <td style={{ color: 'var(--text-muted)' }}>{user.role}</td>
-                      <td>
-                        <span className={`status-badge ${user.is_active ? 'active' : 'inactive'}`}>
-                          {user.is_active ? 'Active' : 'Disabled'}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
+                        <div className="user-card-info">
+                          <h3 style={{ margin: 0, fontSize: '16px', color: 'white' }}>{user.name}</h3>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: '13px' }}>{user.employee_id}</span>
+                            <button onClick={() => copyToClipboard(user.employee_id)} style={{ background: 'transparent', padding: 0, color: 'var(--primary)', display: 'flex' }}>
+                              <Copy size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                      <span className={`status-badge ${user.is_active ? 'active' : 'inactive'}`}>
+                        {user.is_active ? 'Active' : 'Disabled'}
+                      </span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>
+                        Role: <span style={{ color: 'white' }}>{user.role}</span>
+                      </span>
+                      
+                      <div className="user-card-actions">
                         {user.is_active ? (
                           <button 
                             className="premium-button danger" 
-                            style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex' }}
+                            style={{ padding: '6px 16px', fontSize: '13px', borderRadius: '10px' }}
                             onClick={() => disableUser(user.employee_id)}
+                            title="Disable User (Revoke Access)"
                           >
                             Disable
                           </button>
                         ) : (
                           <button 
                             className="premium-button success" 
-                            style={{ padding: '6px 12px', fontSize: '12px', display: 'inline-flex' }}
+                            style={{ padding: '6px 16px', fontSize: '13px', borderRadius: '10px' }}
                             onClick={() => activateUser(user.employee_id)}
+                            title="Re-activate User"
                           >
-                            <RefreshCcw size={12} /> Activate
+                            <RefreshCcw size={14} style={{ marginRight: '6px' }} /> Activate
                           </button>
                         )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                        <button 
+                          className="icon-button danger"
+                          onClick={() => hardDeleteUser(user.employee_id)}
+                          title="Permanently Delete User"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
         </div>

@@ -41,7 +41,7 @@ export default function CreateUser() {
     <div className="app-layout">
       {/* SIDEBAR */}
       <aside className="app-sidebar">
-        <div style={{ padding: '24px', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ padding: '24px', borderBottom: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Activity color="var(--primary)" />
           </div>
@@ -80,7 +80,7 @@ export default function CreateUser() {
 
         <div className="premium-card animate-fade-in" style={{ width: '100%', maxWidth: '600px' }}>
           {error && (
-            <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid var(--danger)', color: 'var(--danger)', padding: '12px', borderRadius: '8px', marginBottom: '20px' }}>
+            <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: 'none', color: 'var(--danger)', padding: '12px', borderRadius: '12px', marginBottom: '20px' }}>
               {error}
             </div>
           )}
@@ -96,7 +96,7 @@ export default function CreateUser() {
                 <strong>You will not be able to see this password again.</strong>
               </p>
               
-              <div style={{ background: 'rgba(0,0,0,0.3)', padding: '24px', borderRadius: '12px', textAlign: 'left', marginBottom: '32px', border: '1px solid var(--border-color)' }}>
+              <div style={{ background: 'rgba(0,0,0,0.25)', padding: '24px', borderRadius: '16px', textAlign: 'left', marginBottom: '32px', border: 'none', boxShadow: 'inset 0 2px 8px rgba(0,0,0,0.2)' }}>
                 <div style={{ marginBottom: '16px' }}>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '4px' }}>Employee ID</div>
                   <div style={{ color: 'white', fontSize: '20px', fontFamily: 'monospace' }}>{successData.employee_id}</div>

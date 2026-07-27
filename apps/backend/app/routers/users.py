@@ -82,3 +82,15 @@ async def activate_user(employee_id: str, db: AsyncSession = Depends(get_db)):
     user.is_active = True
     await db.commit()
     return {"status": "success", "message": "User activated"}
+
+@router.delete("/{employee_id}/hard")
+async def hard_delete_user(employee_id: str, db: AsyncSession = Depends(get_db)):
+    # Permanently delete the user from the database
+    result = await db.execute(select(User).where(User.employee_id == employee_id))
+    user = result.scalars().first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+        
+    await db.delete(user)
+    await db.commit()
+    return {"status": "success", "message": "User permanently deleted"}
