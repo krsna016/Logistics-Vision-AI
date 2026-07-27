@@ -14,11 +14,11 @@ enum Environment {
   String get apiBaseUrl {
     switch (this) {
       case Environment.development:
-        return 'http://localhost:8000/api/v1';
+        return 'https://logistics-vision-ai.onrender.com/api'; // Switched to cloud backend for testing
       case Environment.staging:
-        return 'https://staging.logisticsvision.ai/api/v1';
+        return 'https://logistics-vision-ai.onrender.com/api';
       case Environment.production:
-        return 'https://api.logisticsvision.ai/api/v1';
+        return 'https://logistics-vision-ai.onrender.com/api';
     }
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -65,6 +66,7 @@ final authProvider = StateNotifierProvider<AuthNotifier, User?>((ref) {
 
 class AuthNotifier extends StateNotifier<User?> {
   final AuthRepository _repository;
+  Timer? _pollingTimer;
 
   AuthNotifier(this._repository) : super(null) {
     _init();
@@ -80,13 +82,31 @@ class AuthNotifier extends StateNotifier<User?> {
       await logout(); // Kill switch triggered, clear token
     } else {
       state = user;
+      _startPolling();
     }
+  }
+
+  void _startPolling() {
+    _pollingTimer?.cancel();
+    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
+      if (state == null) {
+        _pollingTimer?.cancel();
+        return;
+      }
+      final updatedUser = await _repository.getCurrentUser();
+      if (updatedUser != null && !updatedUser.isActive) {
+        await logout(); // Instantly log them out if revoked on the dashboard
+      }
+    });
   }
 
   Future<bool> login(String employeeId, String password, {bool offline = false}) async {
     try {
       final user = await _repository.login(employeeId, password, offline: offline);
       state = user;
+      if (user != null) {
+        _startPolling();
+      }
       return user != null;
     } catch (e) {
       print('Login error: $e');
@@ -97,8 +117,16 @@ class AuthNotifier extends StateNotifier<User?> {
 
 
   Future<void> logout() async {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
     await _repository.logout();
     state = null;
+  }
+  
+  @override
+  void dispose() {
+    _pollingTimer?.cancel();
+    super.dispose();
   }
 }
 
