@@ -537,6 +537,19 @@ body {
 
 .user-card.is-disabled { opacity: 0.72; }
 
+.delete-button {
+  padding: 7px 10px;
+  gap: 6px;
+  color: #ff8f8f;
+  border-color: rgba(239, 68, 68, 0.35);
+  font-size: 12px;
+}
+
+.delete-button:hover {
+  color: #ffd0d0;
+  background: rgba(239, 68, 68, 0.18);
+}
+
 .status-badge {
   padding: 5px 9px;
   font-size: 11px;

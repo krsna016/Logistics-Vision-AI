@@ -283,11 +283,12 @@ export default function Dashboard() {
                           </button>
                         )}
                         <button 
-                          className="icon-button danger"
+                          className="premium-button danger delete-button"
                           onClick={() => hardDeleteUser(user.employee_id)}
                           title="Permanently Delete User"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={15} />
+                          Delete user
                         </button>
                       </div>
                     </div>
