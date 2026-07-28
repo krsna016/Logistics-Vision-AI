@@ -23,9 +23,6 @@ function AppShell({ children, onLogout, active = 'users' }) {
           <button className={`nav-button ${active === 'users' ? 'active' : ''}`} onClick={() => navigate('/')}>
             <Users size={17} /> User management
           </button>
-          <button className="nav-button nav-disabled" title="Audit log is planned for a future release">
-            <ShieldCheck size={17} /> System audit <span className="soon-pill">Soon</span>
-          </button>
         </nav>
         <div className="sidebar-footer">
           <div className="security-note"><ShieldCheck size={15} /><span>Admin session<br /><strong>Protected</strong></span><span className="online-dot" /></div>
