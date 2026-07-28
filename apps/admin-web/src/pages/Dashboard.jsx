@@ -1,7 +1,75 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserCheck, ShieldCheck, ShieldAlert, LogOut, Plus, Search, Filter, RefreshCcw, Activity, Trash2, Copy, UserX } from 'lucide-react';
+import {
+  Activity, Check, CheckCircle2, ChevronDown, Copy, Filter, LayoutGrid, List,
+  LogOut, Plus, RefreshCcw, Search, ShieldAlert, ShieldCheck, Trash2, UserCheck,
+  UserPlus, Users, UserX, X
+} from 'lucide-react';
 import api from '../api';
+
+const roleOptions = ['All', 'Admin', 'Manager', 'Supervisor', 'Operator'];
+
+function AppShell({ children, onLogout, active = 'users' }) {
+  const navigate = useNavigate();
+  return (
+    <div className="app-layout">
+      <aside className="app-sidebar">
+        <div className="brand-lockup">
+          <div className="brand-mark"><Activity size={20} /></div>
+          <div><h2>SmartLoad</h2><p>Operations control</p></div>
+        </div>
+        <div className="workspace-label">WORKSPACE</div>
+        <nav className="sidebar-nav" aria-label="Primary navigation">
+          <button className={`nav-button ${active === 'users' ? 'active' : ''}`} onClick={() => navigate('/')}>
+            <Users size={17} /> User management
+          </button>
+          <button className="nav-button" onClick={() => navigate('/create-user')}>
+            <UserPlus size={17} /> Provision access
+          </button>
+          <button className="nav-button nav-disabled" title="Audit log is planned for a future release">
+            <ShieldCheck size={17} /> System audit <span className="soon-pill">Soon</span>
+          </button>
+        </nav>
+        <div className="sidebar-footer">
+          <div className="security-note"><ShieldCheck size={15} /><span>Admin session<br /><strong>Protected</strong></span><span className="online-dot" /></div>
+          <button className="logout-link" onClick={onLogout}><LogOut size={15} /> Sign out</button>
+        </div>
+      </aside>
+      <div className="mobile-header">
+        <div className="brand-lockup"><div className="brand-mark"><Activity size={18} /></div><h2>SmartLoad</h2></div>
+        <button className="icon-button" onClick={onLogout} aria-label="Sign out"><LogOut size={17} /></button>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function Metric({ icon: Icon, label, value, note, tone }) {
+  return <div className={`metric-card metric-${tone}`}>
+    <div className="metric-icon"><Icon size={19} /></div>
+    <div className="metric-copy"><span>{label}</span><strong>{value}</strong><small>{note}</small></div>
+  </div>;
+}
+
+function ConfirmDialog({ action, onCancel, onConfirm, loading }) {
+  if (!action) return null;
+  const isDelete = action.type === 'delete';
+  return <div className="modal-backdrop" role="presentation" onMouseDown={onCancel}>
+    <section className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirm-title" onMouseDown={e => e.stopPropagation()}>
+      <button className="modal-close" onClick={onCancel} aria-label="Close"><X size={17} /></button>
+      <div className={`modal-icon ${isDelete ? 'modal-icon-danger' : 'modal-icon-warning'}`}>
+        {isDelete ? <Trash2 size={22} /> : <ShieldAlert size={22} />}
+      </div>
+      <div className="modal-eyebrow">{isDelete ? 'PERMANENT ACTION' : 'ACCESS CONTROL'}</div>
+      <h2 id="confirm-title">{isDelete ? 'Delete this user?' : action.active ? 'Revoke access?' : 'Restore access?'}</h2>
+      <p>{isDelete
+        ? <>This permanently removes <strong>{action.name}</strong> from SmartLoad. This cannot be undone.</>
+        : <>{action.active ? <>The user will be signed out of connected mobile devices immediately.</> : <>The user will be allowed to sign in to connected mobile devices again.</>}</>}</p>
+      <div className="modal-user"><div className="avatar avatar-small">{action.name?.charAt(0).toUpperCase()}</div><div><strong>{action.name}</strong><span>{action.employeeId} · {action.role}</span></div></div>
+      <div className="modal-actions"><button className="button button-secondary" onClick={onCancel} disabled={loading}>Cancel</button><button className={`button ${isDelete || action.active ? 'button-danger' : 'button-success'}`} onClick={onConfirm} disabled={loading}>{loading ? <><RefreshCcw size={15} className="spin" /> Working…</> : isDelete ? 'Delete user' : action.active ? 'Revoke access' : 'Restore access'}</button></div>
+    </section>
+  </div>;
+}
 
 export default function Dashboard() {
   const [users, setUsers] = useState([]);
@@ -10,296 +78,95 @@ export default function Dashboard() {
   const [lastUpdated, setLastUpdated] = useState(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
-  
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [view, setView] = useState('table');
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [confirmAction, setConfirmAction] = useState(null);
+  const [actionLoading, setActionLoading] = useState(false);
+  const [copied, setCopied] = useState('');
   const navigate = useNavigate();
 
-  const fetchUsers = useCallback(async () => {
-    setRefreshing(true);
+  const fetchUsers = useCallback(async (silent = false) => {
+    if (!silent) setRefreshing(true);
     try {
       const res = await api.get('/users/');
-      setUsers(res.data);
+      setUsers(Array.isArray(res.data) ? res.data : []);
       setLastUpdated(new Date());
+      setError('');
     } catch (err) {
-      if (err.response?.status === 401) {
-        navigate('/login');
-      }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+      if (err.response?.status === 401) navigate('/login');
+      else setError(err.response?.data?.detail || 'Unable to load the user directory. Check the API connection.');
+    } finally { setLoading(false); setRefreshing(false); }
   }, [navigate]);
 
-  useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+  useEffect(() => { const timer = window.setInterval(() => fetchUsers(true), 10000); return () => window.clearInterval(timer); }, [fetchUsers]);
+  useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 4500); return () => window.clearTimeout(timer); }, [notice]);
 
-  useEffect(() => {
-    const refreshTimer = window.setInterval(fetchUsers, 10000);
-    return () => window.clearInterval(refreshTimer);
-  }, [fetchUsers]);
-
-  useEffect(() => {
-    const refreshTimer = window.setInterval(fetchUsers, 10000);
-    return () => window.clearInterval(refreshTimer);
-  }, [fetchUsers]);
-
-  const disableUser = async (employeeId) => {
-    if (!window.confirm(`Are you sure you want to disable ${employeeId}? They will be immediately logged out.`)) return;
-    try {
-      await api.delete(`/users/${employeeId}`);
-      fetchUsers();
-    } catch {
-      alert('Failed to disable user');
-    }
-  };
-
-  const activateUser = async (employeeId) => {
-    if (!window.confirm(`Are you sure you want to re-activate ${employeeId}?`)) return;
-    try {
-      await api.post(`/users/${employeeId}/activate`);
-      fetchUsers();
-    } catch {
-      alert('Failed to activate user');
-    }
-  };
-
-  const hardDeleteUser = async (employeeId) => {
-    if (!window.confirm(`WARNING: Are you sure you want to PERMANENTLY delete ${employeeId}? This action cannot be undone.`)) return;
-    try {
-      await api.delete(`/users/${employeeId}/hard`);
-      fetchUsers();
-    } catch (err) {
-      const detail = err.response?.data?.detail;
-      alert(detail || `Failed to delete user (${err.response?.status || 'network error'})`);
-    }
-  };
-
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-  };
-
-  const handleLogout = () => {
-    sessionStorage.removeItem('token');
-    navigate('/login');
-  };
-
-  // Derived State (Metrics)
   const metrics = useMemo(() => {
-    const active = users.filter(u => u.is_active);
-    return {
-      total: users.length,
-      activeCount: active.length,
-      disabledCount: users.length - active.length,
-      privilegedCount: active.filter(u => u.role === 'Admin' || u.role === 'Manager').length,
-    };
+    const active = users.filter(user => user.is_active);
+    return { total: users.length, active: active.length, disabled: users.length - active.length, privileged: active.filter(user => ['Admin', 'Manager'].includes(user.role)).length };
   }, [users]);
 
-  // Derived State (Filtered Users)
-  const filteredUsers = useMemo(() => {
-    return users.filter(user => {
-      const matchesSearch = user.name.toLowerCase().includes(search.toLowerCase()) || 
-                            user.employee_id.toLowerCase().includes(search.toLowerCase());
-      const matchesRole = roleFilter === 'All' || user.role === roleFilter;
-      return matchesSearch && matchesRole;
-    });
-  }, [users, search, roleFilter]);
+  const filteredUsers = useMemo(() => users.filter(user => {
+    const query = search.trim().toLowerCase();
+    const matchesSearch = !query || `${user.name} ${user.employee_id}`.toLowerCase().includes(query);
+    return matchesSearch && (roleFilter === 'All' || user.role === roleFilter) && (statusFilter === 'All' || (statusFilter === 'Active' ? user.is_active : !user.is_active));
+  }), [users, search, roleFilter, statusFilter]);
 
-  const formatUpdatedAt = (date) => date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+  const runAction = async () => {
+    if (!confirmAction) return;
+    setActionLoading(true);
+    try {
+      if (confirmAction.type === 'delete') await api.delete(`/users/${confirmAction.employeeId}/hard`);
+      else if (confirmAction.active) await api.delete(`/users/${confirmAction.employeeId}`);
+      else await api.post(`/users/${confirmAction.employeeId}/activate`);
+      setConfirmAction(null);
+      setNotice(confirmAction.type === 'delete' ? 'User permanently deleted.' : confirmAction.active ? 'Access revoked. Mobile sessions will be signed out on their next check.' : 'User access restored.');
+      await fetchUsers(true);
+    } catch (err) {
+      setError(err.response?.data?.detail || `Action failed (${err.response?.status || 'network error'}).`);
+    } finally { setActionLoading(false); }
+  };
 
-  return (
-    <div className="app-layout">
-      {/* SIDEBAR */}
-      <aside className="app-sidebar">
-        <div className="brand-lockup">
-          <div className="brand-mark"><Activity size={20} /></div>
-          <div>
-            <h2>SmartLoad</h2>
-            <p>Operations control</p>
-          </div>
-        </div>
-        
-        <nav style={{ padding: '24px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <button className="nav-button active">
-            <Users size={18} /> User Management
-          </button>
-          <button className="nav-button" onClick={() => alert('Audit Logs coming soon!')}>
-            <ShieldCheck size={18} /> System Audit
-          </button>
-        </nav>
+  const copyId = async (id) => {
+    try { await navigator.clipboard.writeText(id); setCopied(id); window.setTimeout(() => setCopied(''), 1600); } catch { setError('Copy is not available in this browser.'); }
+  };
+  const signOut = () => { sessionStorage.removeItem('token'); navigate('/login'); };
+  const formatTime = date => date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+  const openAction = (user, type) => setConfirmAction({ type, employeeId: user.employee_id, name: user.name, role: user.role, active: user.is_active });
 
-        <div style={{ padding: '24px' }}>
-          <button className="premium-button danger logout-button" onClick={handleLogout}>
-            <LogOut size={16} /> Logout
-          </button>
-        </div>
-      </aside>
+  return <AppShell onLogout={signOut}>
+    <main className="app-content animate-fade-in">
+      <header className="page-toolbar">
+        <div><div className="eyebrow"><span className="eyebrow-dot" /> ACCESS CONTROL <span> / </span> ADMIN CONSOLE</div><h1>User management</h1><p>Control workforce access across every connected SmartLoad device.</p></div>
+        <div className="toolbar-actions"><div className="sync-status"><span className="status-dot" /> Live sync <span className="sync-time">{formatTime(lastUpdated)}</span></div><button className="icon-button" onClick={() => fetchUsers()} disabled={refreshing} title="Refresh directory" aria-label="Refresh directory"><RefreshCcw size={17} className={refreshing ? 'spin' : ''} /></button><button className="button button-primary" onClick={() => navigate('/create-user')}><Plus size={17} /> Add user</button></div>
+      </header>
 
-      {/* MAIN CONTENT */}
-      <main className="app-content animate-fade-in">
-        
-        <div className="page-toolbar">
-          <div>
-            <div className="eyebrow">ACCESS CONTROL <span>•</span> ADMIN CONSOLE</div>
-            <h1>User management</h1>
-            <p>Provision staff access and keep warehouse operations moving.</p>
-          </div>
-          <div className="toolbar-actions">
-            <div className="sync-status"><span className="status-dot" /> Live sync <span className="sync-time">{formatUpdatedAt(lastUpdated)}</span></div>
-            <button className="icon-button refresh-button" onClick={fetchUsers} title="Refresh users" aria-label="Refresh users" disabled={refreshing}>
-              <RefreshCcw size={17} className={refreshing ? 'spin' : ''} />
-            </button>
-            <button className="premium-button" onClick={() => navigate('/create-user')}>
-              <Plus size={18} /> Add user
-            </button>
-          </div>
+      {error && <div className="alert alert-danger" role="alert"><ShieldAlert size={17} /><span>{error}</span><button onClick={() => setError('')} aria-label="Dismiss error"><X size={16} /></button></div>}
+      {notice && <div className="alert alert-success" role="status"><CheckCircle2 size={17} /><span>{notice}</span><button onClick={() => setNotice('')} aria-label="Dismiss notification"><X size={16} /></button></div>}
+
+      <section className="metrics-grid" aria-label="Directory summary">
+        <Metric icon={Users} label="Registered users" value={metrics.total} note="All accounts" tone="blue" />
+        <Metric icon={UserCheck} label="Active access" value={metrics.active} note="Can sign in now" tone="green" />
+        <Metric icon={ShieldCheck} label="Privileged" value={metrics.privileged} note="Admin & manager" tone="purple" />
+        <Metric icon={UserX} label="Revoked access" value={metrics.disabled} note="Blocked accounts" tone="red" />
+      </section>
+
+      <section className="directory-panel">
+        <div className="directory-heading"><div><div className="section-kicker">DIRECTORY</div><h2>Workforce accounts <span>{filteredUsers.length}</span></h2><p>Manage credentials, roles, and device access.</p></div><div className="view-switch" role="group" aria-label="Directory view"><button className={view === 'table' ? 'selected' : ''} onClick={() => setView('table')} aria-label="Table view"><List size={16} /></button><button className={view === 'grid' ? 'selected' : ''} onClick={() => setView('grid')} aria-label="Grid view"><LayoutGrid size={16} /></button></div></div>
+        <div className="directory-toolbar">
+          <label className="search-field"><Search size={17} /><span className="sr-only">Search users</span><input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or employee ID" /></label>
+          <label className="select-field"><Filter size={16} /><span className="sr-only">Filter by role</span><select value={roleFilter} onChange={e => setRoleFilter(e.target.value)}>{roleOptions.map(role => <option key={role} value={role}>{role === 'All' ? 'All roles' : role}</option>)}</select><ChevronDown size={15} /></label>
+          <label className="select-field"><span className="sr-only">Filter by status</span><select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}><option value="All">All statuses</option><option value="Active">Active</option><option value="Disabled">Disabled</option></select><ChevronDown size={15} /></label>
+          {(search || roleFilter !== 'All' || statusFilter !== 'All') && <button className="clear-filters" onClick={() => { setSearch(''); setRoleFilter('All'); setStatusFilter('All'); }}>Clear filters</button>}
         </div>
 
-        {/* METRICS */}
-        <div className="metrics-grid">
-          <div className="premium-card metric-card metric-blue">
-            <div className="metric-icon" style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
-              <Users color="#3B82F6" size={24} />
-            </div>
-            <div>
-              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '13px' }}>Total Registered</p>
-              <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '24px' }}>{metrics.total}</h2>
-            </div>
-          </div>
-          <div className="premium-card metric-card metric-green">
-            <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
-              <UserCheck color="var(--success)" size={24} />
-            </div>
-            <div>
-              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '13px' }}>Active Staff</p>
-              <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '24px' }}>{metrics.activeCount}</h2>
-            </div>
-          </div>
-          <div className="premium-card metric-card metric-purple">
-            <div className="metric-icon" style={{ background: 'rgba(139, 92, 246, 0.1)' }}>
-              <ShieldCheck color="#8B5CF6" size={24} />
-            </div>
-            <div>
-              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '13px' }}>Privileged Accounts</p>
-              <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '24px' }}>{metrics.privilegedCount}</h2>
-            </div>
-          </div>
-          <div className="premium-card metric-card metric-red">
-            <div className="metric-icon" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
-              <UserX color="var(--danger)" size={24} />
-            </div>
-            <div>
-              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '13px' }}>Disabled Access</p>
-              <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '24px' }}>{metrics.disabledCount}</h2>
-            </div>
-          </div>
-        </div>
-
-        {/* TABLE SECTION */}
-        <div className="premium-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div className="directory-toolbar">
-            <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
-              <Search color="var(--text-muted)" size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-              <input 
-                className="premium-input" 
-                placeholder="Search by ID or Name..." 
-                style={{ paddingLeft: '40px' }}
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
-            </div>
-            <div style={{ width: '200px', position: 'relative' }}>
-              <Filter color="var(--text-muted)" size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
-              <select 
-                className="premium-input" 
-                style={{ paddingLeft: '40px', appearance: 'none' }}
-                value={roleFilter}
-                onChange={e => setRoleFilter(e.target.value)}
-              >
-                <option value="All">All Roles</option>
-                <option value="Admin">Admin</option>
-                <option value="Manager">Manager</option>
-                <option value="Supervisor">Supervisor</option>
-                <option value="Operator">Operator</option>
-              </select>
-            </div>
-            <div className="directory-meta"><span>{filteredUsers.length} visible</span><span>Updated {formatUpdatedAt(lastUpdated)}</span></div>
-          </div>
-
-          <div style={{ padding: '24px' }}>
-            {loading ? (
-              <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>Loading users...</div>
-            ) : filteredUsers.length === 0 ? (
-              <div style={{ padding: '48px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                <ShieldAlert size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                No users match your filters.
-              </div>
-            ) : (
-              <div className="user-card-grid">
-                {filteredUsers.map(user => (
-                  <div key={user.id} className={`user-card ${!user.is_active ? 'is-disabled' : ''}`}>
-                    <div className="user-card-header">
-                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                        <div className="user-card-avatar">
-                          {user.name.charAt(0).toUpperCase()}
-                        </div>
-                        <div className="user-card-info">
-                          <h3 style={{ margin: 0, fontSize: '16px', color: 'white' }}>{user.name}</h3>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: '13px' }}>{user.employee_id}</span>
-                            <button onClick={() => copyToClipboard(user.employee_id)} style={{ background: 'transparent', padding: 0, color: 'var(--primary)', display: 'flex' }}>
-                              <Copy size={14} />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                      <span className={`status-badge ${user.is_active ? 'active' : 'inactive'}`}>
-                        <span className="status-dot" />
-                        {user.is_active ? 'Active' : 'Disabled'}
-                      </span>
-                    </div>
-                    
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                      <span style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>
-                        <span className="role-label">{user.role}</span>
-                      </span>
-                      
-                      <div className="user-card-actions">
-                        {user.is_active ? (
-                          <button 
-                            className="premium-button danger" 
-                            style={{ padding: '6px 16px', fontSize: '13px', borderRadius: '10px' }}
-                            onClick={() => disableUser(user.employee_id)}
-                            title="Disable User (Revoke Access)"
-                          >
-                            Disable
-                          </button>
-                        ) : (
-                          <button 
-                            className="premium-button success" 
-                            style={{ padding: '6px 16px', fontSize: '13px', borderRadius: '10px' }}
-                            onClick={() => activateUser(user.employee_id)}
-                            title="Re-activate User"
-                          >
-                            <RefreshCcw size={14} style={{ marginRight: '6px' }} /> Activate
-                          </button>
-                        )}
-                        <button 
-                          className="premium-button danger delete-button"
-                          onClick={() => hardDeleteUser(user.employee_id)}
-                          title="Permanently Delete User"
-                        >
-                          <Trash2 size={15} />
-                          Delete user
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      </main>
-    </div>
-  );
+        {loading ? <div className="empty-state"><div className="loading-orb"><RefreshCcw size={20} className="spin" /></div><h3>Loading directory</h3><p>Synchronizing account status…</p></div> : filteredUsers.length === 0 ? <div className="empty-state"><div className="empty-icon"><Users size={22} /></div><h3>{users.length ? 'No matching users' : 'No users yet'}</h3><p>{users.length ? 'Try changing your search or filters.' : 'Provision the first workforce account to get started.'}</p>{!users.length && <button className="button button-primary" onClick={() => navigate('/create-user')}><Plus size={16} /> Add first user</button>}</div> : view === 'table' ? <div className="table-wrap"><table className="user-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Created</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{filteredUsers.map(user => <tr key={user.id}><td><div className="user-cell"><div className="avatar">{user.name?.charAt(0).toUpperCase()}</div><div><strong>{user.name}</strong><button className="id-copy" onClick={() => copyId(user.employee_id)} title="Copy employee ID">{user.employee_id} {copied === user.employee_id ? <Check size={13} /> : <Copy size={13} />}</button></div></div></td><td><span className={`role-badge role-${user.role.toLowerCase()}`}>{user.role}</span></td><td><span className={`status-badge ${user.is_active ? 'active' : 'inactive'}`}><span className="status-dot" />{user.is_active ? 'Active' : 'Access revoked'}</span></td><td className="date-cell">{user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}</td><td><div className="row-actions"><button className={`text-action ${user.is_active ? 'danger' : 'success'}`} onClick={() => openAction(user, 'access')}>{user.is_active ? 'Revoke' : 'Restore'}</button><button className="icon-button danger" onClick={() => openAction(user, 'delete')} title="Permanently delete user" aria-label={`Delete ${user.name}`}><Trash2 size={16} /></button></div></td></tr>)}</tbody></table></div> : <div className="user-card-grid">{filteredUsers.map(user => <article key={user.id} className={`user-card ${!user.is_active ? 'is-disabled' : ''}`}><div className="user-card-header"><div className="user-cell"><div className="avatar">{user.name?.charAt(0).toUpperCase()}</div><div><strong>{user.name}</strong><button className="id-copy" onClick={() => copyId(user.employee_id)}>{user.employee_id} {copied === user.employee_id ? <Check size={13} /> : <Copy size={13} />}</button></div></div><span className={`status-badge ${user.is_active ? 'active' : 'inactive'}`}><span className="status-dot" />{user.is_active ? 'Active' : 'Revoked'}</span></div><div className="card-meta"><span className={`role-badge role-${user.role.toLowerCase()}`}>{user.role}</span><span>{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'No date'}</span></div><div className="card-actions"><button className={`button button-small ${user.is_active ? 'button-danger' : 'button-success'}`} onClick={() => openAction(user, 'access')}>{user.is_active ? 'Revoke access' : 'Restore access'}</button><button className="icon-button danger" onClick={() => openAction(user, 'delete')} aria-label={`Delete ${user.name}`}><Trash2 size={16} /></button></div></article>)}</div>}
+        <div className="directory-footer"><span><span className="online-dot" /> Updates automatically every 10 seconds</span><span>Last checked {formatTime(lastUpdated)}</span></div>
+      </section>
+    </main>
+    <ConfirmDialog action={confirmAction} onCancel={() => !actionLoading && setConfirmAction(null)} onConfirm={runAction} loading={actionLoading} />
+  </AppShell>;
 }
