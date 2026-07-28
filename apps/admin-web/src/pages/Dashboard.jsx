@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Activity, Check, CheckCircle2, ChevronDown, Copy, Filter, LayoutGrid, List,
+  Check, CheckCircle2, ChevronDown, Copy, Filter, LayoutGrid, List,
   LogOut, Plus, RefreshCcw, Search, ShieldAlert, ShieldCheck, Trash2, UserCheck,
   UserPlus, Users, UserX, X
 } from 'lucide-react';
@@ -15,7 +15,7 @@ function AppShell({ children, onLogout, active = 'users' }) {
     <div className="app-layout">
       <aside className="app-sidebar">
         <div className="brand-lockup">
-          <div className="brand-mark"><Activity size={20} /></div>
+          <div className="brand-mark"><img className="company-logo" src="/company-logo.png" alt="SmartLoad logo" /></div>
           <div><h2>SmartLoad</h2><p>Operations control</p></div>
         </div>
         <div className="workspace-label">WORKSPACE</div>
@@ -36,7 +36,7 @@ function AppShell({ children, onLogout, active = 'users' }) {
         </div>
       </aside>
       <div className="mobile-header">
-        <div className="brand-lockup"><div className="brand-mark"><Activity size={18} /></div><h2>SmartLoad</h2></div>
+        <div className="brand-lockup"><div className="brand-mark"><img className="company-logo" src="/company-logo.png" alt="SmartLoad logo" /></div><h2>SmartLoad</h2></div>
         <button className="icon-button" onClick={onLogout} aria-label="Sign out"><LogOut size={17} /></button>
       </div>
       {children}
