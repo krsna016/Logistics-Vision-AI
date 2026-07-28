@@ -116,13 +116,14 @@
 
 /* Final readability adjustment for primary daily-use screens. */
 .auth-form-wrap { width: min(100%, 430px); }
-.auth-heading h2 { font-size: 28px; }
-.auth-heading p { font-size: 13px; }
-.auth-form label { font-size: 13px; }
-.auth-form input { height: 48px; font-size: 14px; }
-.password-field button { height: 48px; }
-.auth-submit { height: 48px; font-size: 14px; }
-.auth-assurance { font-size: 11px; }
-.auth-hero > p { font-size: 15px; }
-.auth-feature strong { font-size: 13px; }
-.auth-feature p { font-size: 12px; }
+.auth-form-wrap { width: min(100%, 460px); }
+.auth-heading h2 { font-size: 30px; }
+.auth-heading p { font-size: 14px; }
+.auth-form label { font-size: 14px; }
+.auth-form input { height: 52px; font-size: 15px; }
+.password-field button { height: 52px; }
+.auth-submit { height: 52px; font-size: 15px; }
+.auth-assurance { font-size: 12px; }
+.auth-hero > p { font-size: 16px; }
+.auth-feature strong { font-size: 14px; }
+.auth-feature p { font-size: 13px; }
