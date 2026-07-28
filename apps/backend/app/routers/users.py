@@ -88,9 +88,9 @@ async def activate_user(employee_id: str, db: AsyncSession = Depends(get_db), _:
     await db.commit()
     return {"status": "success", "message": "User activated"}
 
-@router.delete("/{employee_id}/hard")
+@router.delete("/{employee_id}/hard", status_code=status.HTTP_200_OK)
 async def hard_delete_user(employee_id: str, db: AsyncSession = Depends(get_db), actor: User = Depends(require_admin)):
-    # Permanently delete the user from the database
+    """Permanently remove a user after the admin confirms the destructive action."""
     result = await db.execute(select(User).where(User.employee_id == employee_id))
     user = result.scalars().first()
     if not user:
@@ -99,5 +99,12 @@ async def hard_delete_user(employee_id: str, db: AsyncSession = Depends(get_db),
     if user.id == actor.id:
         raise HTTPException(status_code=400, detail="You cannot delete your own account")
     await db.delete(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="User could not be deleted because it is still referenced by another record",
+        )
     return {"status": "success", "message": "User permanently deleted"}

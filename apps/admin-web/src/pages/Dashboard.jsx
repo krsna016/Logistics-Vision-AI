@@ -68,8 +68,9 @@ export default function Dashboard() {
     try {
       await api.delete(`/users/${employeeId}/hard`);
       fetchUsers();
-    } catch {
-      alert('Failed to delete user');
+    } catch (err) {
+      const detail = err.response?.data?.detail;
+      alert(detail || `Failed to delete user (${err.response?.status || 'network error'})`);
     }
   };
 
