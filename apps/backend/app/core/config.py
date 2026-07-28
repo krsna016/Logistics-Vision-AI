@@ -15,7 +15,11 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins(self) -> list[str]:
-        return [origin.strip() for origin in self.ADMIN_CORS_ORIGINS.split(",") if origin.strip()]
+        configured = [origin.strip() for origin in self.ADMIN_CORS_ORIGINS.split(",") if origin.strip()]
+        # Keep the production admin origin available even if Render was
+        # provisioned with the original localhost-only default.
+        required = ["https://logistics-vision-ai.vercel.app"]
+        return list(dict.fromkeys(configured + required))
 
     def validate_runtime_secrets(self) -> None:
         if not self.SECRET_KEY or len(self.SECRET_KEY) < 32:
