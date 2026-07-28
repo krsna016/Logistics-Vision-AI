@@ -117,13 +117,19 @@
 /* Final readability adjustment for primary daily-use screens. */
 .auth-form-wrap { width: min(100%, 430px); }
 .auth-form-wrap { width: min(100%, 460px); }
-.auth-heading h2 { font-size: 30px; }
-.auth-heading p { font-size: 14px; }
-.auth-form label { font-size: 14px; }
-.auth-form input { height: 52px; font-size: 15px; }
-.password-field button { height: 52px; }
-.auth-submit { height: 52px; font-size: 15px; }
-.auth-assurance { font-size: 12px; }
-.auth-hero > p { font-size: 16px; }
-.auth-feature strong { font-size: 14px; }
-.auth-feature p { font-size: 13px; }
+.auth-heading h2 { font-size: 34px; }
+.auth-heading p { font-size: 15px; }
+.auth-form label { font-size: 15px; }
+.auth-form input { height: 56px; font-size: 17px; }
+.password-field button { height: 56px; }
+.auth-submit { height: 56px; font-size: 16px; }
+.auth-assurance { font-size: 13px; }
+.auth-hero > p { font-size: 17px; }
+.auth-feature strong { font-size: 15px; }
+.auth-feature p { font-size: 14px; }
+.page-toolbar h1 { font-size: clamp(32px, 3.4vw, 46px); }
+.page-toolbar p { font-size: 16px; }
+.directory-heading h2 { font-size: 20px; }
+.user-table td, .user-table th { font-size: 14px; }
+.user-cell strong { font-size: 14px; }
+.metric-copy span { font-size: 13px; }
