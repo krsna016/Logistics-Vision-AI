@@ -72,10 +72,8 @@ class LocalAuthRepository implements AuthRepository {
     final user = await getCurrentUser();
     if (user == null) return false;
 
-    // A real implementation would verify the PIN or password here against CredentialStorage
-    // For this module, assuming password verification passes for offline.
-    // In production, we'd inject OfflineAuthentication here and call authenticate().
-    final isValid = true; 
+    final authenticated = await _authService.login(user.employeeId, pinOrPassword, offline: true);
+    final isValid = authenticated != null;
     
     if (isValid) {
       await _sessionManager.unlockSession();
@@ -186,7 +184,7 @@ class LocalAuthRepository implements AuthRepository {
   @override
   Future<void> revokeDevice(String deviceId) async {
     await (_db.update(_db.deviceSessions)..where((t) => t.id.equals(deviceId))).write(
-      DeviceSessionsCompanion(isActive: const Value(false)),
+      const DeviceSessionsCompanion(isActive: Value(false)),
     );
     final currentUser = await getCurrentUser();
     await logAction('Revoked Device', details: 'Device ID: $deviceId', userId: currentUser?.id, userName: currentUser?.name, userRole: currentUser?.role);

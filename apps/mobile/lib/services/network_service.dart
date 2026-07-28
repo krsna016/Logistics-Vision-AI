@@ -1,11 +1,12 @@
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/environment.dart';
 import '../utils/logger.dart';
 
 class NetworkService {
   final Dio _dio;
 
-  NetworkService()
+  NetworkService({FlutterSecureStorage? secureStorage})
       : _dio = Dio(
           BaseOptions(
             baseUrl: Environment.current.apiBaseUrl,
@@ -14,7 +15,17 @@ class NetworkService {
             sendTimeout: const Duration(seconds: 15),
           ),
         ) {
+    final storage = secureStorage ?? const FlutterSecureStorage();
     _initializeInterceptors();
+    _dio.interceptors.add(InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        final token = await storage.read(key: 'jwt_token');
+        if (token != null && token.isNotEmpty) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+        handler.next(options);
+      },
+    ));
   }
 
   Dio get client => _dio;
@@ -23,11 +34,6 @@ class NetworkService {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          // Authentication Interceptor Placeholder:
-          // Read local secure JWT token and append to Headers.
-          const mockJwtToken = "Bearer_Token_Placeholder";
-          options.headers['Authorization'] = 'Bearer $mockJwtToken';
-          
           AppLogger.debug('HTTP Request: [${options.method}] -> ${options.path}');
           return handler.next(options);
         },

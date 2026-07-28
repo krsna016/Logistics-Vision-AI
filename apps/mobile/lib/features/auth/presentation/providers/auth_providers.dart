@@ -24,7 +24,7 @@ final passwordHasherProvider = Provider((ref) => PasswordHasherImpl());
 
 final credentialStorageProvider = Provider((ref) {
   const storage = FlutterSecureStorage();
-  return SecureCredentialStorage(storage);
+  return const SecureCredentialStorage(storage);
 });
 
 final offlineAuthProvider = Provider((ref) {
@@ -46,7 +46,24 @@ final authServiceProvider = Provider((ref) {
 final dioProvider = Provider((ref) {
   // Uses environment configuration to fetch the correct base URL
   // Development: Local IP | Production: Cloud URL (e.g., Render)
-  return Dio(BaseOptions(baseUrl: Environment.current.apiBaseUrl));
+  final dio = Dio(BaseOptions(baseUrl: Environment.current.apiBaseUrl));
+  final storage = ref.watch(secureStorageProvider);
+  dio.interceptors.add(InterceptorsWrapper(
+    onRequest: (options, handler) async {
+      final token = await storage.read(key: 'jwt_token');
+      if (token != null && token.isNotEmpty) {
+        options.headers['Authorization'] = 'Bearer $token';
+      }
+      handler.next(options);
+    },
+    onError: (error, handler) async {
+      if (error.response?.statusCode == 401) {
+        await storage.delete(key: 'jwt_token');
+      }
+      handler.next(error);
+    },
+  ));
+  return dio;
 });
 
 final secureStorageProvider = Provider((ref) {
@@ -94,8 +111,10 @@ class AuthNotifier extends StateNotifier<User?> {
         return;
       }
       final updatedUser = await _repository.getCurrentUser();
-      if (updatedUser != null && !updatedUser.isActive) {
-        await logout(); // Instantly log them out if revoked on the dashboard
+      if (updatedUser == null) {
+        await logout(); // Token expired or account was revoked server-side.
+      } else if (!updatedUser.isActive) {
+        await logout(); // Account was revoked on the dashboard.
       }
     });
   }
@@ -108,8 +127,7 @@ class AuthNotifier extends StateNotifier<User?> {
         _startPolling();
       }
       return user != null;
-    } catch (e) {
-      print('Login error: $e');
+    } catch (_) {
       return false;
     }
   }

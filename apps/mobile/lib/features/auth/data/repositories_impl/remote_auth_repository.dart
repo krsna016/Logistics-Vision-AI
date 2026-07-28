@@ -11,8 +11,11 @@ import '../../domain/repositories/auth_repository.dart';
 class RemoteAuthRepository implements AuthRepository {
   final Dio _dio;
   final FlutterSecureStorage _storage;
+  bool _locked = false;
+  String? _activeEmployeeId;
+  User? _cachedUser;
 
-  const RemoteAuthRepository(this._dio, this._storage);
+  RemoteAuthRepository(this._dio, this._storage);
 
   @override
   Future<User?> login(String employeeId, String password, {bool offline = false}) async {
@@ -29,20 +32,18 @@ class RemoteAuthRepository implements AuthRepository {
         ),
       );
 
-      final token = response.data['access_token'];
+      final responseData = response.data as Map<String, dynamic>;
+      final token = responseData['access_token'] as String?;
       if (token != null) {
         await _storage.write(key: 'jwt_token', value: token);
+        _activeEmployeeId = employeeId;
+        _locked = false;
         return await getCurrentUser();
       }
       return null;
-    } on DioException catch (e) {
-      print('Login error: $e');
-      if (e.response != null) {
-        print('Response data: ${e.response?.data}');
-      }
+    } on DioException {
       return null;
-    } catch (e) {
-      print('Login error: $e');
+    } catch (_) {
       return null;
     }
   }
@@ -50,35 +51,49 @@ class RemoteAuthRepository implements AuthRepository {
   @override
   Future<void> logout() async {
     await _storage.delete(key: 'jwt_token');
+    _activeEmployeeId = null;
+    _locked = false;
+    _cachedUser = null;
   }
 
   @override
   Future<Session?> getCurrentSession() async {
     final token = await _storage.read(key: 'jwt_token');
-    if (token == null || JwtDecoder.isExpired(token)) return null;
+    if (token == null || JwtDecoder.isExpired(token)) {
+      await _storage.delete(key: 'jwt_token');
+      _cachedUser = null;
+      return null;
+    }
     
     final decoded = JwtDecoder.decode(token);
+    final employeeId = decoded['sub'];
+    if (employeeId is! String) return null;
     return Session(
       sessionId: 'sess_$token',
-      userId: decoded['sub'], // The employee ID is stored in 'sub'
+      userId: employeeId,
       deviceName: 'device',
       loginTime: DateTime.now(),
       lastActivity: DateTime.now(),
-      isLocked: false,
+      isLocked: _locked,
     );
   }
 
   @override
   Future<User?> getCurrentUser() async {
     final token = await _storage.read(key: 'jwt_token');
-    if (token == null || JwtDecoder.isExpired(token)) return null;
+    if (token == null || JwtDecoder.isExpired(token)) {
+      await _storage.delete(key: 'jwt_token');
+      _cachedUser = null;
+      return null;
+    }
 
     final decoded = JwtDecoder.decode(token);
     final employeeId = decoded['sub'];
+    if (employeeId is! String) return null;
     
     try {
       final response = await _dio.get('/users/$employeeId');
-      final data = response.data;
+      final data = response.data as Map<String, dynamic>;
       
       Role parseRole(String roleStr) {
         switch(roleStr.toLowerCase()) {
@@ -90,33 +105,50 @@ class RemoteAuthRepository implements AuthRepository {
         }
       }
 
-      return User(
-        id: data['id'] ?? employeeId,
-        employeeId: data['employee_id'] ?? employeeId,
-        name: data['name'] ?? employeeId,
-        role: parseRole(data['role'] ?? 'Operator'),
+      final user = User(
+        id: data['id'] as String? ?? employeeId,
+        employeeId: data['employee_id'] as String? ?? employeeId,
+        name: data['name'] as String? ?? employeeId,
+        role: parseRole(data['role'] as String? ?? 'Operator'),
         warehouse: 'warehouse_1',
-        isActive: data['is_active'] ?? true,
+        isActive: data['is_active'] as bool? ?? true,
       );
-    } catch (e) {
-      print('Failed to fetch user data: $e');
-      // Fallback if the user fetch fails but token is valid
-      return User(
-        id: employeeId,
-        employeeId: employeeId,
-        name: employeeId,
-        role: Role.operator,
-        warehouse: 'warehouse_1',
-        isActive: true,
-      );
+      _cachedUser = user;
+      return user;
+    } on DioException catch (error) {
+      final status = error.response?.statusCode;
+      if (status == 401 || status == 403) {
+        await _storage.delete(key: 'jwt_token');
+        _cachedUser = null;
+        return null;
+      }
+      return _cachedUser;
+    } catch (_) {
+      return _cachedUser;
     }
   }
 
   @override
-  Future<void> lockSession() async {}
+  Future<void> lockSession() async {
+    _locked = true;
+  }
 
   @override
-  Future<bool> unlockSession(String pinOrPassword) async => true;
+  Future<bool> unlockSession(String pinOrPassword) async {
+    final employeeId = _activeEmployeeId;
+    if (employeeId == null) return false;
+    try {
+      await _dio.post('/auth/login', data: {
+        'grant_type': 'password',
+        'username': employeeId,
+        'password': pinOrPassword,
+      }, options: Options(contentType: Headers.formUrlEncodedContentType));
+      _locked = false;
+      return true;
+    } on DioException {
+      return false;
+    }
+  }
 
   @override
   Future<void> logAction(String action, {bool isSuccess = true, String details = '', String? userId, String? userName, Role? userRole}) async {}

@@ -44,17 +44,9 @@ class AppDatabase extends _$AppDatabase {
         await m.createAll();
       },
       onUpgrade: (Migrator m, int from, int to) async {
-        if (from < 4) {
-          // Development workaround: Just recreate everything on schema changes
-          for (final table in allTables) {
-            try {
-              await m.deleteTable(table.actualTableName);
-            } catch (e) {
-              // Ignore if it doesn't exist
-            }
-            await m.createTable(table);
-          }
-        }
+        // Never drop and recreate tables here: that would destroy offline work
+        // and the sync outbox. Every schema change must be represented by an
+        // additive, data-preserving migration.
       },
     );
   }

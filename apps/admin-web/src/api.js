@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getSessionToken, hasValidSession } from './auth';
 
 const api = axios.create({
   // Use Vercel environment variable for production, fallback to localhost for local dev
@@ -6,9 +7,11 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
+  const token = getSessionToken();
+  if (token && hasValidSession()) {
     config.headers.Authorization = `Bearer ${token}`;
+  } else if (token) {
+    sessionStorage.removeItem('token');
   }
   return config;
 });

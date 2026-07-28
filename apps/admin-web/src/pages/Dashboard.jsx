@@ -1,39 +1,54 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, UserCheck, ShieldCheck, ShieldAlert, LogOut, Plus, Search, Filter, RefreshCcw, Activity, Trash2, Copy } from 'lucide-react';
+import { Users, UserCheck, ShieldCheck, ShieldAlert, LogOut, Plus, Search, Filter, RefreshCcw, Activity, Trash2, Copy, UserX } from 'lucide-react';
 import api from '../api';
 
 export default function Dashboard() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState(null);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('All');
   
   const navigate = useNavigate();
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
+    setRefreshing(true);
     try {
       const res = await api.get('/users/');
       setUsers(res.data);
+      setLastUpdated(new Date());
     } catch (err) {
       if (err.response?.status === 401) {
         navigate('/login');
       }
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  };
+  }, [navigate]);
 
   useEffect(() => {
     fetchUsers();
-  }, []);
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    const refreshTimer = window.setInterval(fetchUsers, 10000);
+    return () => window.clearInterval(refreshTimer);
+  }, [fetchUsers]);
+
+  useEffect(() => {
+    const refreshTimer = window.setInterval(fetchUsers, 10000);
+    return () => window.clearInterval(refreshTimer);
+  }, [fetchUsers]);
 
   const disableUser = async (employeeId) => {
     if (!window.confirm(`Are you sure you want to disable ${employeeId}? They will be immediately logged out.`)) return;
     try {
       await api.delete(`/users/${employeeId}`);
       fetchUsers();
-    } catch (err) {
+    } catch {
       alert('Failed to disable user');
     }
   };
@@ -43,7 +58,7 @@ export default function Dashboard() {
     try {
       await api.post(`/users/${employeeId}/activate`);
       fetchUsers();
-    } catch (err) {
+    } catch {
       alert('Failed to activate user');
     }
   };
@@ -53,7 +68,7 @@ export default function Dashboard() {
     try {
       await api.delete(`/users/${employeeId}/hard`);
       fetchUsers();
-    } catch (err) {
+    } catch {
       alert('Failed to delete user');
     }
   };
@@ -63,7 +78,7 @@ export default function Dashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
+    sessionStorage.removeItem('token');
     navigate('/login');
   };
 
@@ -73,7 +88,8 @@ export default function Dashboard() {
     return {
       total: users.length,
       activeCount: active.length,
-      adminCount: active.filter(u => u.role === 'Admin' || u.role === 'Manager').length,
+      disabledCount: users.length - active.length,
+      privilegedCount: active.filter(u => u.role === 'Admin' || u.role === 'Manager').length,
     };
   }, [users]);
 
@@ -87,31 +103,31 @@ export default function Dashboard() {
     });
   }, [users, search, roleFilter]);
 
+  const formatUpdatedAt = (date) => date ? date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—';
+
   return (
     <div className="app-layout">
       {/* SIDEBAR */}
       <aside className="app-sidebar">
-        <div style={{ padding: '24px', borderBottom: 'none', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ width: '40px', height: '40px', background: 'rgba(255,255,255,0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Activity color="var(--primary)" />
-          </div>
+        <div className="brand-lockup">
+          <div className="brand-mark"><Activity size={20} /></div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '16px', color: 'white' }}>SmartLoad</h2>
-            <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)' }}>Admin Portal</p>
+            <h2>SmartLoad</h2>
+            <p>Operations control</p>
           </div>
         </div>
         
         <nav style={{ padding: '24px 12px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <button style={{ background: 'var(--primary)', color: 'white', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: '500', textAlign: 'left' }}>
+          <button className="nav-button active">
             <Users size={18} /> User Management
           </button>
-          <button style={{ background: 'transparent', color: 'var(--text-muted)', padding: '12px 16px', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '12px', fontSize: '14px', fontWeight: '500', textAlign: 'left' }} onClick={() => alert('Audit Logs coming soon!')}>
+          <button className="nav-button" onClick={() => alert('Audit Logs coming soon!')}>
             <ShieldCheck size={18} /> System Audit
           </button>
         </nav>
 
         <div style={{ padding: '24px' }}>
-          <button className="premium-button danger" style={{ width: '100%', padding: '12px' }} onClick={handleLogout}>
+          <button className="premium-button danger logout-button" onClick={handleLogout}>
             <LogOut size={16} /> Logout
           </button>
         </div>
@@ -120,19 +136,26 @@ export default function Dashboard() {
       {/* MAIN CONTENT */}
       <main className="app-content animate-fade-in">
         
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
+        <div className="page-toolbar">
           <div>
-            <h1 style={{ margin: 0, color: 'white', fontSize: '28px' }}>User Management</h1>
-            <p style={{ margin: '8px 0 0', color: 'var(--text-muted)' }}>Control access and roles across the organization</p>
+            <div className="eyebrow">ACCESS CONTROL <span>•</span> ADMIN CONSOLE</div>
+            <h1>User management</h1>
+            <p>Provision staff access and keep warehouse operations moving.</p>
           </div>
-          <button className="premium-button" onClick={() => navigate('/create-user')}>
-            <Plus size={18} /> Add New User
-          </button>
+          <div className="toolbar-actions">
+            <div className="sync-status"><span className="status-dot" /> Live sync <span className="sync-time">{formatUpdatedAt(lastUpdated)}</span></div>
+            <button className="icon-button refresh-button" onClick={fetchUsers} title="Refresh users" aria-label="Refresh users" disabled={refreshing}>
+              <RefreshCcw size={17} className={refreshing ? 'spin' : ''} />
+            </button>
+            <button className="premium-button" onClick={() => navigate('/create-user')}>
+              <Plus size={18} /> Add user
+            </button>
+          </div>
         </div>
 
         {/* METRICS */}
         <div className="metrics-grid">
-          <div className="premium-card metric-card">
+          <div className="premium-card metric-card metric-blue">
             <div className="metric-icon" style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
               <Users color="#3B82F6" size={24} />
             </div>
@@ -141,7 +164,7 @@ export default function Dashboard() {
               <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '24px' }}>{metrics.total}</h2>
             </div>
           </div>
-          <div className="premium-card metric-card">
+          <div className="premium-card metric-card metric-green">
             <div className="metric-icon" style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
               <UserCheck color="var(--success)" size={24} />
             </div>
@@ -150,20 +173,29 @@ export default function Dashboard() {
               <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '24px' }}>{metrics.activeCount}</h2>
             </div>
           </div>
-          <div className="premium-card metric-card">
+          <div className="premium-card metric-card metric-purple">
             <div className="metric-icon" style={{ background: 'rgba(139, 92, 246, 0.1)' }}>
               <ShieldCheck color="#8B5CF6" size={24} />
             </div>
             <div>
               <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '13px' }}>Privileged Accounts</p>
-              <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '24px' }}>{metrics.adminCount}</h2>
+              <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '24px' }}>{metrics.privilegedCount}</h2>
+            </div>
+          </div>
+          <div className="premium-card metric-card metric-red">
+            <div className="metric-icon" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
+              <UserX color="var(--danger)" size={24} />
+            </div>
+            <div>
+              <p style={{ margin: 0, color: 'var(--text-muted)', fontSize: '13px' }}>Disabled Access</p>
+              <h2 style={{ margin: '4px 0 0', color: 'white', fontSize: '24px' }}>{metrics.disabledCount}</h2>
             </div>
           </div>
         </div>
 
         {/* TABLE SECTION */}
         <div className="premium-card" style={{ padding: 0, overflow: 'hidden' }}>
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border-color)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
+          <div className="directory-toolbar">
             <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
               <Search color="var(--text-muted)" size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)' }} />
               <input 
@@ -185,9 +217,11 @@ export default function Dashboard() {
                 <option value="All">All Roles</option>
                 <option value="Admin">Admin</option>
                 <option value="Manager">Manager</option>
+                <option value="Supervisor">Supervisor</option>
                 <option value="Operator">Operator</option>
               </select>
             </div>
+            <div className="directory-meta"><span>{filteredUsers.length} visible</span><span>Updated {formatUpdatedAt(lastUpdated)}</span></div>
           </div>
 
           <div style={{ padding: '24px' }}>
@@ -201,7 +235,7 @@ export default function Dashboard() {
             ) : (
               <div className="user-card-grid">
                 {filteredUsers.map(user => (
-                  <div key={user.id} className="user-card">
+                  <div key={user.id} className={`user-card ${!user.is_active ? 'is-disabled' : ''}`}>
                     <div className="user-card-header">
                       <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
                         <div className="user-card-avatar">
@@ -218,13 +252,14 @@ export default function Dashboard() {
                         </div>
                       </div>
                       <span className={`status-badge ${user.is_active ? 'active' : 'inactive'}`}>
+                        <span className="status-dot" />
                         {user.is_active ? 'Active' : 'Disabled'}
                       </span>
                     </div>
                     
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                       <span style={{ color: 'var(--text-muted)', fontSize: '13px', fontWeight: '500' }}>
-                        Role: <span style={{ color: 'white' }}>{user.role}</span>
+                        <span className="role-label">{user.role}</span>
                       </span>
                       
                       <div className="user-card-actions">

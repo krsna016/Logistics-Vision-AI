@@ -163,6 +163,7 @@ export default function CreateUser() {
                   type="password"
                   className="premium-input" 
                   placeholder="Enter a secure password"
+                  minLength={12}
                   value={formData.password}
                   onChange={handleChange}
                   required

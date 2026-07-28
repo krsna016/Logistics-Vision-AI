@@ -2,11 +2,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CreateUser from './pages/CreateUser';
+import { hasValidSession } from './auth';
 
 // Simple PrivateRoute wrapper
 const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem('token');
-  return token ? children : <Navigate to="/login" />;
+  return hasValidSession() ? children : <Navigate to="/login" />;
 };
 
 function App() {

@@ -1,14 +1,24 @@
-import os
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Vinayak SmartLoad Backend"
     API_V1_STR: str = "/api"
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "super_secret_temporary_key_for_dev_only_change_in_prod")
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7 # 7 days
+    SECRET_KEY: str = Field(default="", validation_alias="SECRET_KEY")
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    BOOTSTRAP_ADMIN_PASSWORD: str = Field(default="", validation_alias="BOOTSTRAP_ADMIN_PASSWORD")
+    ADMIN_CORS_ORIGINS: str = Field(default="http://localhost:5173", validation_alias="ADMIN_CORS_ORIGINS")
     
     # SQLite for development, Postgres for prod
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./sql_app.db")
+    DATABASE_URL: str = Field(default="sqlite+aiosqlite:///./sql_app.db", validation_alias="DATABASE_URL")
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [origin.strip() for origin in self.ADMIN_CORS_ORIGINS.split(",") if origin.strip()]
+
+    def validate_runtime_secrets(self) -> None:
+        if not self.SECRET_KEY or len(self.SECRET_KEY) < 32:
+            raise RuntimeError("SECRET_KEY must be configured and at least 32 characters long")
 
     @property
     def get_database_url(self) -> str:

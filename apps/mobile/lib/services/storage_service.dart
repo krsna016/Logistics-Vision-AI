@@ -1,8 +1,10 @@
-class StorageService {
-  // SQLite Drift Reference placeholder (to be instantiated by data sources)
-  dynamic _databaseInstance;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-  StorageService();
+class StorageService {
+  final FlutterSecureStorage _secureStorage;
+
+  StorageService({FlutterSecureStorage? secureStorage})
+      : _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
   Future<void> init() async {
     // Database initialization, key extraction, and connection bootstrap.
@@ -14,16 +16,15 @@ class StorageService {
   static const String keyUserRole = 'user_role_type';
 
   Future<String?> readSecureValue(String key) async {
-    // Read securely from iOS Keychain / Android Keystore
-    return null;
+    return _secureStorage.read(key: key);
   }
 
   Future<void> writeSecureValue(String key, String value) async {
-    // Write securely to iOS Keychain / Android Keystore
+    await _secureStorage.write(key: key, value: value);
   }
 
   Future<void> deleteSecureValue(String key) async {
-    // Purge entry from secure key vault
+    await _secureStorage.delete(key: key);
   }
 
   Future<void> clearCache() async {

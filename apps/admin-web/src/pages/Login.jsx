@@ -20,9 +20,9 @@ export default function Login() {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
       
-      localStorage.setItem('token', res.data.access_token);
+      sessionStorage.setItem('token', res.data.access_token);
       navigate('/');
-    } catch (err) {
+    } catch {
       setError('Invalid credentials or inactive account');
     }
   };

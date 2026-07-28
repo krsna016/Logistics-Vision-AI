@@ -14,7 +14,11 @@ __pycache__/
 *$py.class
 apps/backend/.venv/
 apps/backend/venv/
+apps/backend/*.db
+apps/backend/*.sqlite
 .env
+.env.*
+!.env.example
 
 # System Files
 .DS_Store

@@ -1,31 +1,22 @@
 # REST API Specification - Logistics Vision AI
 
-All endpoint URLs are prefixed with the version namespace `/api/v1`. Communication is performed over HTTPS using JSON payloads.
+All currently implemented endpoint URLs are prefixed with `/api`. Communication must be performed over HTTPS outside local development.
 
 ---
 
 ## 1. Authentication
 
 ### POST `/api/v1/auth/login`
-Exchanges user credentials for a JWT token (delegated to Supabase Auth service).
+Exchanges an employee ID and password for a short-lived JWT token.
 *   **Request Body**:
     ```json
-    {
-      "email": "loader1@warehouse.com",
-      "password": "secure_password_123"
-    }
+    username=EMP-001&password=secure_password_123
     ```
 *   **Response (200 OK)**:
     ```json
     {
-      "access_token": "eyJhbGciOi...",
-      "refresh_token": "rfr_ey...",
-      "expires_in": 3600,
-      "user": {
-        "id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-        "email": "loader1@warehouse.com",
-        "role": "operator"
-      }
+        "access_token": "eyJhbGciOi...",
+        "token_type": "bearer"
     }
     ```
 
