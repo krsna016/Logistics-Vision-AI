@@ -1,8 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi import Depends, HTTPException
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from .core.config import settings
 from .db.database import engine, Base
 from .routers import auth, users
+from .db.database import get_db
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -62,3 +66,12 @@ app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["U
 @app.get("/")
 def root():
     return {"message": "Vinayak SmartLoad Central Auth Server is running"}
+
+@app.get("/health")
+async def health_check(db: AsyncSession = Depends(get_db)):
+    """Read-only deployment probe that confirms the API can reach its database."""
+    try:
+        await db.execute(text("SELECT 1"))
+        return {"status": "ok", "database": "connected"}
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail="Database unavailable") from exc
