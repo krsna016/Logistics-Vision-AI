@@ -90,3 +90,26 @@
 .create-page { max-width: 1120px; }.create-header { display: flex; align-items: flex-start; gap: 17px; margin-bottom: 27px; }.create-header > .button { margin-top: 4px; }.create-header h1 { margin: 8px 0 5px; color: #f1fbff; font-size: 32px; letter-spacing: -.05em; }.create-header p { margin: 0; color: var(--muted); font-size: 13px; }.create-layout { display: grid; grid-template-columns: minmax(0, 1fr) 255px; gap: 17px; align-items: start; }.form-panel { padding: 25px; background: linear-gradient(145deg, rgba(18,40,58,.86), rgba(9,25,39,.84)); border: 1px solid var(--line); border-radius: 14px; }.user-form { display: grid; gap: 18px; }.form-section-title { display: flex; align-items: center; gap: 11px; padding-bottom: 17px; border-bottom: 1px solid var(--line); }.form-section-icon { width: 34px; height: 34px; display: grid; place-items: center; color: #82d7f6; background: rgba(46,168,230,.1); border-radius: 8px; }.form-section-title h2 { margin: 0 0 3px; color: #e5f2f6; font-size: 14px; }.form-section-title p { margin: 0; color: #77919d; font-size: 10px; }.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }.form-section-spaced { margin-top: 5px; }.user-form select { appearance: auto; }.password-hint { display: flex; align-items: center; gap: 7px; margin-top: -7px; color: #76929f; font-size: 10px; }.password-hint svg { color: #63cda4; }.create-submit { height: 42px; margin-top: 5px; }.create-aside { padding: 20px; background: rgba(18,40,58,.46); border: 1px solid var(--line); border-radius: 12px; }.aside-icon { width: 36px; height: 36px; display: grid; place-items: center; margin-bottom: 16px; color: #8fe3bd; background: rgba(57,201,145,.1); border-radius: 9px; }.create-aside h3 { margin: 0 0 15px; color: #deedf1; font-size: 13px; }.create-aside ul { display: grid; gap: 13px; padding: 0; margin: 0; list-style: none; }.create-aside li { display: flex; align-items: center; gap: 7px; color: #89a4af; font-size: 11px; }.create-aside li svg { color: #5fcca1; }.success-state { max-width: 560px; margin: 0 auto; padding: 20px 0; text-align: center; }.success-icon { width: 55px; height: 55px; display: grid; place-items: center; margin: 0 auto 18px; color: #7de0b4; background: rgba(57,201,145,.12); border: 1px solid rgba(57,201,145,.2); border-radius: 15px; }.success-state h2 { margin: 8px 0 8px; color: #edf8fa; font-size: 22px; letter-spacing: -.04em; }.success-state > p { margin: 0 auto 22px; max-width: 450px; color: #8ca6b2; font-size: 12px; line-height: 1.6; }.success-state > p strong { color: #dcebf0; }.credential-box { display: grid; gap: 13px; padding: 17px; margin-bottom: 20px; text-align: left; background: rgba(0,0,0,.18); border: 1px solid var(--line); border-radius: 10px; }.credential-box span { display: block; margin-bottom: 5px; color: #6e8997; font-size: 9px; font-weight: 800; letter-spacing: .1em; }.credential-box strong { color: #e9f7fa; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; }.credential-password { color: #7ed7f6 !important; }.form-actions { display: flex; justify-content: center; gap: 8px; }
 @media (max-width: 760px) { .auth-layout { display: block; }.auth-brand-panel { display: none; }.auth-form-panel { min-height: 100vh; padding: 25px 19px; align-items: start; }.mobile-auth-logo { display: flex; align-items: center; gap: 9px; margin-bottom: 70px; color: #effaff; font-size: 15px; }.mobile-auth-logo .brand-mark { width: 32px; height: 32px; }.create-layout { grid-template-columns: 1fr; }.create-aside { display: none; }.form-panel { padding: 19px; }.create-header { display: block; }.create-header > .button { margin-bottom: 21px; }.form-grid { grid-template-columns: 1fr; } }
 @media (max-width: 430px) { .form-actions { flex-direction: column; }.form-actions .button { width: 100%; } }
+
+/* Readability pass: slightly larger type and controls for daily operations. */
+.nav-button { font-size: 14px; }
+.page-toolbar p { font-size: 15px; }
+.button { min-height: 40px; font-size: 13px; }
+.icon-button { width: 40px; height: 40px; }
+.sync-status { font-size: 12px; }
+.metric-copy span { font-size: 12px; }
+.metric-copy small { font-size: 11px; }
+.directory-heading p { font-size: 13px; }
+.search-field, .select-field { height: 40px; }
+.search-field input, .select-field select { font-size: 13px; }
+.user-table td { font-size: 13px; }
+.user-cell strong { font-size: 13px; }
+.id-copy { font-size: 11px; }
+.role-badge { font-size: 11px; }
+.status-badge { font-size: 12px; }
+.text-action { font-size: 12px; }
+.directory-footer { font-size: 11px; }
+.auth-form label, .user-form label { font-size: 12px; }
+.auth-form input, .user-form input, .user-form select { height: 46px; font-size: 13px; }
+.password-field button { height: 46px; }
+.auth-submit, .create-submit { height: 46px; }

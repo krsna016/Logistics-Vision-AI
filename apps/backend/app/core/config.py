@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     SECRET_KEY: str = Field(default="", validation_alias="SECRET_KEY")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
     BOOTSTRAP_ADMIN_PASSWORD: str = Field(default="", validation_alias="BOOTSTRAP_ADMIN_PASSWORD")
+    RESET_ADMIN_PASSWORD: bool = Field(default=False, validation_alias="RESET_ADMIN_PASSWORD")
     ADMIN_CORS_ORIGINS: str = Field(default="http://localhost:5173", validation_alias="ADMIN_CORS_ORIGINS")
     
     # SQLite for development, Postgres for prod

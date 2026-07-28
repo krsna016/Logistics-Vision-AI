@@ -59,6 +59,14 @@ async def startup_event():
             )
             session.add(db_admin)
             await session.commit()
+        elif admin and settings.BOOTSTRAP_ADMIN_PASSWORD and settings.RESET_ADMIN_PASSWORD:
+            # Explicitly opt-in one-time recovery for a known admin credential.
+            # Keep this disabled after the password has been reset.
+            admin.hashed_password = get_password_hash(settings.BOOTSTRAP_ADMIN_PASSWORD)
+            admin.is_active = True
+            admin.failed_login_attempts = 0
+            admin.locked_until = None
+            await session.commit()
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["Authentication"])
 app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["Users"])
