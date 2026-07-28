@@ -181,3 +181,22 @@
 .search-field, .select-field, .view-switch, .icon-button { box-shadow: inset 0 1px 8px rgba(0, 0, 0, .12); }
 .auth-feature, .auth-assurance { padding-top: 22px; }
 .user-table tbody tr { box-shadow: 0 -1px 0 rgba(166, 202, 222, .035); }
+
+/* Larger everyday reading scale. */
+.brand-lockup h2 { font-size: 18px; }
+.brand-lockup p, .workspace-label { font-size: 13px; }
+.nav-button { padding: 14px 15px; font-size: 15px; }
+.page-toolbar p, .directory-heading p { font-size: 17px; }
+.button { min-height: 44px; padding-inline: 17px; font-size: 14px; }
+.sync-status { font-size: 13px; }
+.metric-copy span { font-size: 14px; }
+.metric-copy small { font-size: 12px; }
+.directory-heading h2 { font-size: 22px; }
+.search-field input, .select-field select { font-size: 15px; }
+.user-table td, .user-table th { font-size: 15px; }
+.user-cell strong { font-size: 15px; }
+.id-copy, .role-badge, .text-action { font-size: 13px; }
+.status-badge { font-size: 14px; }
+.directory-footer { font-size: 12px; }
+.empty-state h3 { font-size: 16px; }
+.empty-state p { font-size: 14px; }

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Check, CheckCircle2, ChevronDown, Copy, Filter, LayoutGrid, List,
   LogOut, Plus, RefreshCcw, Search, ShieldAlert, ShieldCheck, Trash2, UserCheck,
-  UserPlus, Users, UserX, X
+  Users, UserX, X
 } from 'lucide-react';
 import api from '../api';
 
@@ -22,9 +22,6 @@ function AppShell({ children, onLogout, active = 'users' }) {
         <nav className="sidebar-nav" aria-label="Primary navigation">
           <button className={`nav-button ${active === 'users' ? 'active' : ''}`} onClick={() => navigate('/')}>
             <Users size={17} /> User management
-          </button>
-          <button className="nav-button" onClick={() => navigate('/create-user')}>
-            <UserPlus size={17} /> Provision access
           </button>
           <button className="nav-button nav-disabled" title="Audit log is planned for a future release">
             <ShieldCheck size={17} /> System audit <span className="soon-pill">Soon</span>
