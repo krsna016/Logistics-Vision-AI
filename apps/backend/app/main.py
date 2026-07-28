@@ -41,6 +41,17 @@ async def startup_event():
                 await conn.execute(text("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0"))
             if "locked_until" not in existing:
                 await conn.execute(text("ALTER TABLE users ADD COLUMN locked_until DATETIME"))
+        else:
+            # The original production PostgreSQL table predates the login
+            # lockout fields. Keep startup self-healing until migrations are
+            # introduced, and make each alteration idempotent.
+            await conn.execute(text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
+                "failed_login_attempts INTEGER NOT NULL DEFAULT 0"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP WITH TIME ZONE"
+            ))
         
     # Bootstrap an administrator only when an explicit one-time password is supplied.
     from .db.database import AsyncSessionLocal
