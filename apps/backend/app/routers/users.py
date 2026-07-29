@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import List
+
+from ..core.security import get_current_user, get_password_hash, require_admin
 from ..db.database import get_db
 from ..models.user import User
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
-from ..core.security import get_password_hash
-from ..core.security import get_current_user, require_admin
 
 router = APIRouter()
 
@@ -32,7 +32,7 @@ async def create_user(user_in: UserCreate, db: AsyncSession = Depends(get_db), _
     await db.refresh(db_user)
     return db_user
 
-@router.get("/", response_model=List[UserResponse])
+@router.get("/", response_model=list[UserResponse])
 async def read_users(db: AsyncSession = Depends(get_db), _: User = Depends(require_admin)):
     result = await db.execute(select(User))
     users = result.scalars().all()
@@ -101,7 +101,7 @@ async def hard_delete_user(employee_id: str, db: AsyncSession = Depends(get_db),
     await db.delete(user)
     try:
         await db.commit()
-    except Exception:
+    except SQLAlchemyError:
         await db.rollback()
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,

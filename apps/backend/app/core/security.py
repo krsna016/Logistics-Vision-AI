@@ -1,15 +1,16 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-import jwt
 import bcrypt
+import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from .config import settings
+
 from ..db.database import get_db
 from ..models.user import User
+from .config import settings
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -25,7 +26,7 @@ def get_password_hash(password: str) -> str:
         password = password.encode('utf-8')
     return bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
 
-def create_access_token(subject: str | Any, role: str, expires_delta: timedelta = None) -> str:
+def create_access_token(subject: str | Any, role: str, expires_delta: timedelta | None = None) -> str:
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
