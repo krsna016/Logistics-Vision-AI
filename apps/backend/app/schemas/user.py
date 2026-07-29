@@ -1,6 +1,8 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import Literal, Optional
 from datetime import datetime
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field
+
 
 class UserBase(BaseModel):
     employee_id: str = Field(min_length=1, max_length=64)
@@ -11,15 +13,15 @@ class UserCreate(UserBase):
     password: str = Field(min_length=12, max_length=128)
 
 class UserUpdate(BaseModel):
-    name: Optional[str] = Field(default=None, min_length=1, max_length=200)
-    role: Optional[Literal["Admin", "Manager", "Supervisor", "Operator"]] = None
-    is_active: Optional[bool] = None
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    role: Literal["Admin", "Manager", "Supervisor", "Operator"] | None = None
+    is_active: bool | None = None
 
 class UserResponse(UserBase):
     id: str
     is_active: bool
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
+    created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -28,4 +30,4 @@ class Token(BaseModel):
     token_type: str
 
 class TokenData(BaseModel):
-    employee_id: Optional[str] = None
+    employee_id: str | None = None

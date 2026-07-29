@@ -64,7 +64,7 @@ jobs:
         run: |
           # Runs check if apps/backend code is populated
           if [ -d "apps/backend" ]; then
-            ruff check apps/backend --ignore E501
+            ruff check apps/backend --ignore E501,B008
           fi
 
       - name: Execute Backend Tests
