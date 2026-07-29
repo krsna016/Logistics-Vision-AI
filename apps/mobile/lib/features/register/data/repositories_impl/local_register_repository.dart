@@ -1,14 +1,12 @@
-import 'package:flutter/foundation.dart';
 import '../../domain/entities/digital_register.dart';
 import '../../domain/repositories/register_repository.dart';
-import '../../../wagon/domain/entities/wagon.dart';
 import '../../../wagon/domain/repositories/wagon_repository.dart';
-import '../../../truck/domain/entities/truck.dart';
 import '../../../truck/domain/repositories/truck_repository.dart';
 
 class LocalRegisterRepository implements RegisterRepository {
   final WagonRepository wagonRepo;
   final TruckRepository truckRepo;
+  final String? supervisorName;
   final Map<String, int> _exportCounts = {};
   final Map<String, DateTime> _lastOpened = {};
   final Map<String, String> _customRemarks = {};
@@ -16,6 +14,7 @@ class LocalRegisterRepository implements RegisterRepository {
   LocalRegisterRepository({
     required this.wagonRepo,
     required this.truckRepo,
+    this.supervisorName,
   });
 
   @override
@@ -26,17 +25,25 @@ class LocalRegisterRepository implements RegisterRepository {
     final List<DigitalRegister> registers = [];
 
     for (final wagon in wagons) {
-      final wagonTrucks = allTrucks.where((t) => t.wagonId == wagon.id && !t.isDeleted).toList();
-      
+      final wagonTrucks = allTrucks
+          .where((t) => t.wagonId == wagon.id && !t.isDeleted)
+          .toList();
+
       final totalLayers = wagonTrucks.fold(0, (sum, t) => sum + t.totalLayers);
-      final totalCartons = wagonTrucks.fold(0, (sum, t) => sum + t.totalCartons);
-      final totalDefects = wagonTrucks.fold(0, (sum, t) => sum + t.totalDefects);
+      final totalCartons =
+          wagonTrucks.fold(0, (sum, t) => sum + t.totalCartons);
+      final totalDefects =
+          wagonTrucks.fold(0, (sum, t) => sum + t.totalDefects);
 
       // Duration calculation estimate
       Duration duration = const Duration(hours: 3, minutes: 45);
       if (wagonTrucks.isNotEmpty) {
-        final earliest = wagonTrucks.map((t) => t.createdDate).reduce((a, b) => a.isBefore(b) ? a : b);
-        final latest = wagonTrucks.map((t) => t.updatedDate).reduce((a, b) => a.isAfter(b) ? a : b);
+        final earliest = wagonTrucks
+            .map((t) => t.createdDate)
+            .reduce((a, b) => a.isBefore(b) ? a : b);
+        final latest = wagonTrucks
+            .map((t) => t.updatedDate)
+            .reduce((a, b) => a.isAfter(b) ? a : b);
         final diff = latest.difference(earliest);
         if (diff.inMinutes > 5) {
           duration = diff;
@@ -51,8 +58,12 @@ class LocalRegisterRepository implements RegisterRepository {
           origin: wagon.origin,
           destination: wagon.destination,
           loadingDate: wagon.loadingDate,
-          supervisor: 'Anurag Sharma (Supervisor)',
-          remarks: _customRemarks[wagon.id] ?? wagon.remarks ?? 'Manual correction applied for Layer 3.',
+          supervisor: supervisorName?.trim().isNotEmpty == true
+              ? supervisorName!.trim()
+              : 'Operations Supervisor',
+          remarks: _customRemarks[wagon.id] ??
+              wagon.remarks ??
+              'Manual correction applied for Layer 3.',
           status: wagon.status,
           totalTrucks: wagonTrucks.length,
           totalLayers: totalLayers,

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../theme/app_theme.dart';
-import '../../../../presentation/widgets/app_card.dart';
 import '../../../../core/presentation/widgets/strict_action_warning_dialog.dart';
 import '../../../../core/presentation/widgets/action_warning_dialog.dart';
 import '../../domain/entities/truck.dart';
@@ -12,12 +11,11 @@ import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../layer/domain/entities/layer.dart';
 import '../../../session/presentation/providers/session_providers.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
+import '../../../reports/presentation/widgets/generate_report_dialog.dart';
 
 import '../widgets/truck_form_dialog.dart';
 import '../widgets/truck_header.dart';
 import '../widgets/summary_stat_card.dart';
-import '../widgets/loading_progress_card.dart';
-import '../widgets/info_tile.dart';
 import '../widgets/layer_timeline.dart';
 import '../widgets/quick_action_button.dart';
 
@@ -53,35 +51,35 @@ class TruckDetailsScreen extends ConsumerWidget {
     if (truck.id.isEmpty) {
       return Scaffold(
         appBar: AppBar(title: const Text('Truck Details')),
-
         body: const Center(
-          child: Text('Truck record not found.', style: TextStyle(color: AppTheme.textSecondary)),
+          child: Text('Truck record not found.',
+              style: TextStyle(color: AppTheme.textSecondary)),
         ),
       );
     }
 
-    final isReadOnly = truck.status == TruckStatus.completed ||
-        truck.status == TruckStatus.dispatched ||
-        truck.isArchived;
+    // Completed/dispatched trucks can still be corrected until archived.
+    // Archiving is the explicit point at which layer editing is locked.
+    final isReadOnly = truck.isArchived;
+    final canEditOrDelete = !truck.isArchived;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(truck.vehicleNumber,
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-            Text(
-              'Loading Workspace',
-              style: const TextStyle(fontSize: 11, color: AppTheme.textSecondary),
-            ),
-          ],
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/wagons');
+            }
+          },
         ),
+        title: const Text('Truck Details'),
         actions: [
-
-          if (!isReadOnly)
+          if (canEditOrDelete)
             IconButton(
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Edit Truck Details',
@@ -90,36 +88,19 @@ class TruckDetailsScreen extends ConsumerWidget {
                   context: context,
                   isScrollControlled: true,
                   shape: const RoundedRectangleBorder(
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(20)),
                   ),
                   builder: (ctx) => TruckFormDialog(existingTruck: truck),
                 );
               },
             ),
-          if (!isReadOnly && !truck.isArchived)
-            IconButton(
-              icon: const Icon(Icons.archive),
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (BuildContext ctx) => StrictActionWarningDialog(
-                    title: 'Archive Truck?',
-                    content: 'Are you sure you want to archive this truck? It will no longer be editable.',
-                    expectedConfirmationText: truck.truckNumber,
-                    actionLabel: 'Archive',
-                    actionColor: AppTheme.warningColor,
-                    onConfirm: () async {
-                      await notifier.archiveTruck(truck.id);
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truck archived successfully.')));
-                      }
-                    },
-                  ),
-                );
-              },
-              tooltip: 'Archive Truck',
-            ),
-          if (!isReadOnly)
+          IconButton(
+            icon: const Icon(Icons.assessment_outlined),
+            tooltip: 'Generate Report',
+            onPressed: () => _showUnifiedReportDialog(context, ref, truckId),
+          ),
+          if (canEditOrDelete)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
               tooltip: 'Delete Truck',
@@ -128,7 +109,8 @@ class TruckDetailsScreen extends ConsumerWidget {
                   context: context,
                   builder: (BuildContext ctx) => StrictActionWarningDialog(
                     title: 'Delete Truck?',
-                    content: 'Are you absolutely sure? This will permanently delete the truck and all its layers.',
+                    content:
+                        'Are you absolutely sure? This will permanently delete the truck and all its layers.',
                     expectedConfirmationText: truck.truckNumber,
                     actionLabel: 'Delete',
                     actionColor: Colors.redAccent,
@@ -136,7 +118,9 @@ class TruckDetailsScreen extends ConsumerWidget {
                       await notifier.deleteTruck(truck.id);
                       if (context.mounted) {
                         context.pop();
-                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Truck deleted permanently.')));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text('Truck deleted permanently.')));
                       }
                     },
                   ),
@@ -147,18 +131,17 @@ class TruckDetailsScreen extends ConsumerWidget {
         ],
       ),
 
-      body: SafeArea(child: CustomScrollView(
+      body: SafeArea(
+          child: CustomScrollView(
         slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
               delegate: SliverChildListDelegate([
-
                 // ── 1. Header Card ─────────────────────────────────────────
                 TruckHeader(truck: truck),
                 const SizedBox(height: 20),
 
-                // ── 2. Summary Statistics Row ───────────────────────────────
                 Row(
                   children: [
                     SummaryStatCard(
@@ -182,161 +165,11 @@ class TruckDetailsScreen extends ConsumerWidget {
                       color: AppTheme.errorColor,
                       isAlert: true,
                     ),
-                    const SizedBox(width: 10),
-                    SummaryStatCard(
-                      label: 'Scans',
-                      value: layerState.layers.length,
-                      icon: Icons.document_scanner_outlined,
-                      color: AppTheme.successColor,
-                    ),
                   ],
-                ),
-                const SizedBox(height: 16),
-
-                // ── 3. Progress Bar Card ────────────────────────────────────
-                LoadingProgressCard(
-                  completedLayers: truck.totalLayers,
-                  totalLayers: truck.totalLayers > 0 ? truck.totalLayers : 1,
                 ),
                 const SizedBox(height: 20),
 
-                // ── 4. Primary Action Buttons ───────────────────────────────
-                _SectionHeader(
-                  icon: Icons.bolt_outlined,
-                  title: 'Workspace Actions',
-                ),
-                const SizedBox(height: 10),
-
-                if (!isReadOnly) ...[
-                  if (sessionState.activeSession?.truckId == truckId)
-                    QuickActionButton(
-                      icon: Icons.camera_alt_outlined,
-                      label: 'Capture Next Layer',
-                      subtitle: 'Launch AI carton scanning',
-                      backgroundColor: AppTheme.primaryColor,
-                      onPressed: () => context.push('/trucks/$truckId/camera'),
-                    )
-                  else if (sessionState.activeSession == null)
-                    QuickActionButton(
-                      icon: Icons.play_circle_outline,
-                      label: 'Start Loading Session',
-                      subtitle: 'Initialize session & begin scanning',
-                      backgroundColor: AppTheme.primaryColor,
-                      onPressed: () async {
-                        final error = await sessionNotifier.startSession(
-                          truckId: truckId,
-                          warehouseId: truck.warehouse,
-                        );
-                        if (error != null && context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
-                        }
-                      },
-                    )
-                  else
-                    const QuickActionButton(
-                      icon: Icons.lock_outline,
-                      label: 'Another Session Active',
-                      subtitle: 'Finish current session first',
-                      backgroundColor: Colors.grey,
-                      onPressed: null,
-                    ),
-                  const SizedBox(height: 10),
-                ],
-
-                QuickActionButton(
-                  icon: Icons.layers_outlined,
-                  label: 'Review Layers',
-                  subtitle: '${truck.totalLayers} layers captured',
-                  isOutlined: true,
-                  backgroundColor: AppTheme.primaryColor,
-                  foregroundColor: AppTheme.primaryColor,
-                  onPressed: layerState.layers.isEmpty
-                      ? null
-                      : () => _scrollToLayers(context),
-                ),
-                const SizedBox(height: 10),
-
-                QuickActionButton(
-                  icon: Icons.picture_as_pdf_outlined,
-                  label: 'Generate Report',
-                  subtitle: 'Export full loading log to PDF',
-                  isOutlined: true,
-                  backgroundColor: AppTheme.successColor,
-                  foregroundColor: AppTheme.successColor,
-                  onPressed: () => _showReportDialog(context, ref, truckId),
-                ),
-                const SizedBox(height: 10),
-
-                if (!isReadOnly && (sessionState.activeSession?.truckId == truckId || truck.totalLayers > 0))
-                  QuickActionButton(
-                    icon: Icons.check_circle_outline,
-                    label: 'Complete Loading Session',
-                    subtitle: 'Mark as finished and close',
-                    backgroundColor: AppTheme.successColor,
-                    onPressed: () => _confirmComplete(context, notifier, sessionNotifier, truck),
-                  ),
-
-                if (truck.status == TruckStatus.completed && !truck.isArchived) ...[
-                  const SizedBox(height: 10),
-                  QuickActionButton(
-                    icon: Icons.archive_outlined,
-                    label: 'Archive Truck',
-                    subtitle: 'Move session to read-only archive',
-                    backgroundColor: AppTheme.textSecondary,
-                    onPressed: () => _confirmArchive(context, notifier, truck),
-                  ),
-                ],
-                const SizedBox(height: 24),
-
-                // ── 5. Quick Information Panel ──────────────────────────────
-                _SectionHeader(icon: Icons.info_outline, title: 'Session Information'),
-                const SizedBox(height: 10),
-                AppCard(
-                  child: Column(
-                    children: [
-
-
-                      InfoTile(icon: Icons.person_outline, label: 'Driver', value: truck.driverName),
-                      if (truck.driverMobile != null && truck.driverMobile!.isNotEmpty) ...[
-                        _divider(),
-                        InfoTile(icon: Icons.phone_outlined, label: 'Driver Mobile', value: truck.driverMobile!),
-                      ],
-                      _divider(),
-                      InfoTile(icon: Icons.business_outlined, label: 'Carrier', value: truck.company),
-                      _divider(),
-
-
-                      InfoTile(icon: Icons.warehouse_outlined, label: 'Warehouse', value: truck.warehouse),
-
-                      _divider(),
-                      InfoTile(
-                        icon: Icons.calendar_today_outlined,
-                        label: 'Created',
-                        value: _formatDateTime(truck.createdDate),
-                      ),
-                      _divider(),
-                      InfoTile(
-                        icon: Icons.update_outlined,
-                        label: 'Last Updated',
-                        value: _formatDateTime(truck.updatedDate),
-                      ),
-                      _divider(),
-                      InfoTile(
-                        icon: truck.syncStatus == SyncStatus.synced
-                            ? Icons.cloud_done_outlined
-                            : Icons.cloud_upload_outlined,
-                        label: 'Sync Status',
-                        value: truck.syncStatus.name.toUpperCase(),
-                        valueColor: truck.syncStatus == SyncStatus.synced
-                            ? AppTheme.successColor
-                            : AppTheme.warningColor,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // ── 6. Layer Timeline ───────────────────────────────────────
+                // ── 2. Layer Timeline ───────────────────────────────────────
                 _SectionHeader(
                   icon: Icons.history_outlined,
                   title: 'Layer History',
@@ -344,13 +177,10 @@ class TruckDetailsScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
 
-                if (layerState.isLoading)
+                if (layerState.isLoading && layerState.layers.isEmpty)
                   const Center(child: CircularProgressIndicator())
                 else if (layerState.layers.isEmpty)
-                  _EmptyLayersState(
-                    isReadOnly: isReadOnly,
-                    onCapture: () => context.push('/trucks/$truckId/camera'),
-                  )
+                  const _EmptyLayersState()
                 else
                   LayerTimeline(
                     layers: layerState.layers,
@@ -362,14 +192,18 @@ class TruckDetailsScreen extends ConsumerWidget {
                         context: context,
                         builder: (ctx) => StrictActionWarningDialog(
                           title: 'Delete Layer ${layer.layerNumber}?',
-                          content: 'Are you sure you want to delete this layer? This action cannot be undone.',
-                          expectedConfirmationText: layer.layerNumber.toString(),
+                          content:
+                              'Are you sure you want to delete this layer? This action cannot be undone.',
+                          expectedConfirmationText:
+                              layer.layerNumber.toString(),
                           actionLabel: 'Delete Layer',
                           actionColor: Colors.redAccent,
                           onConfirm: () async {
                             await layerNotifier.deleteLayer(layer.id);
                             if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Layer deleted.')));
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('Layer deleted.')));
                             }
                           },
                         ),
@@ -385,22 +219,29 @@ class TruckDetailsScreen extends ConsumerWidget {
         ],
       )),
 
-      // ── 7. Sticky Bottom Action Bar ─────────────────────────────────────
+      // ── 6. Sticky Bottom Action Bar ─────────────────────────────────────
       bottomNavigationBar: _StickyBottomBar(
         isReadOnly: isReadOnly,
         hasActiveSession: sessionState.activeSession?.truckId == truckId,
-        isAnotherSessionActive: sessionState.activeSession != null && sessionState.activeSession?.truckId != truckId,
         onStartSession: () async {
-          final error = await sessionNotifier.startSession(truckId: truckId, warehouseId: truck.warehouse);
-          if (error != null && context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+          final error = await sessionNotifier.startSession(
+              truckId: truckId, warehouseId: truck.warehouse);
+          if (error != null && context.mounted)
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(error)));
         },
-        onCapture: isReadOnly ? null : () => context.push('/trucks/$truckId/camera'),
-        onReport: () => _showReportDialog(context, ref, truckId),
+        onCapture: isReadOnly
+            ? null
+            : () => context.push('/trucks/$truckId/count-method'),
+        onComplete: !isReadOnly && layerState.layers.isNotEmpty
+            ? () => _confirmComplete(context, notifier, sessionNotifier, truck)
+            : null,
+        onArchive: truck.status == TruckStatus.completed && !truck.isArchived
+            ? () => _confirmArchive(context, notifier, truck)
+            : null,
       ),
     );
   }
-
-  Widget _divider() => const Divider(height: 1, color: AppTheme.dividerColor);
 
   void _scrollToLayers(BuildContext context) {
     // Scrolls user to the layer section — functional stub
@@ -409,48 +250,161 @@ class TruckDetailsScreen extends ConsumerWidget {
     );
   }
 
+  void _showUnifiedReportDialog(
+      BuildContext context, WidgetRef ref, String truckId) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.72),
+      builder: (_) => GenerateReportDialog(
+        title: 'Generate Truck Report',
+        subtitle:
+            'Export layer scans, carton totals, notes, and defect records for this truck.',
+        onPdf: () => _exportTruckReport(context, ref, truckId, 'PDF'),
+        onExcel: () => _exportTruckReport(context, ref, truckId, 'Excel'),
+      ),
+    );
+  }
+
+  Future<void> _exportTruckReport(
+      BuildContext context, WidgetRef ref, String truckId, String type) async {
+    try {
+      final file = type == 'PDF'
+          ? await ref
+              .read(pdfReportServiceProvider)
+              .generateTruckReport(truckId: truckId)
+          : await ref
+              .read(excelReportServiceProvider)
+              .generateTruckReport(truckId: truckId);
+      await ref
+          .read(shareServiceProvider)
+          .shareFile(file, subject: 'Truck Loading Report ($type)');
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed: $e')));
+      }
+    }
+  }
+
   void _showReportDialog(BuildContext context, WidgetRef ref, String truckId) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Generate Loading Report'),
-        content: const Text(
-          'PDF report generation is ready. This will compile all layer scans, carton counts, and defect records into a printable document.',
+      barrierColor: Colors.black.withOpacity(0.72),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                  color: AppTheme.primaryColor.withOpacity(0.12),
+                  blurRadius: 28,
+                  spreadRadius: 2),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(20, 20, 12, 18),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                      colors: [Color(0xFF102A43), Color(0xFF173D5C)]),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(11),
+                      decoration: BoxDecoration(
+                          color: AppTheme.primaryColor.withOpacity(0.2),
+                          shape: BoxShape.circle),
+                      child: const Icon(Icons.assessment_outlined,
+                          color: AppTheme.primaryColor, size: 25),
+                    ),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Generate Report',
+                              style: TextStyle(
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white)),
+                          SizedBox(height: 3),
+                          Text('Export this truck loading record',
+                              style: TextStyle(
+                                  fontSize: 12, color: AppTheme.textSecondary)),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        icon: const Icon(Icons.close,
+                            color: AppTheme.textSecondary)),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  children: [
+                    const Text(
+                        'Choose a format. The report includes layer scans, carton totals, notes, and defect records.',
+                        style: TextStyle(
+                            color: AppTheme.textSecondary, height: 1.4)),
+                    const SizedBox(height: 18),
+                    _ReportFormatButton(
+                      icon: Icons.table_chart_outlined,
+                      title: 'Excel Spreadsheet',
+                      subtitle: 'Best for editing and analysis',
+                      color: AppTheme.successColor,
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        try {
+                          final file = await ref
+                              .read(excelReportServiceProvider)
+                              .generateTruckReport(truckId: truckId);
+                          await ref.read(shareServiceProvider).shareFile(file,
+                              subject: 'Truck Loading Report (Excel)');
+                        } catch (e) {
+                          if (context.mounted)
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed: $e')));
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _ReportFormatButton(
+                      icon: Icons.picture_as_pdf_outlined,
+                      title: 'PDF Document',
+                      subtitle: 'Best for printing and sharing',
+                      color: AppTheme.primaryColor,
+                      onPressed: () async {
+                        Navigator.pop(ctx);
+                        try {
+                          final file = await ref
+                              .read(pdfReportServiceProvider)
+                              .generateTruckReport(truckId: truckId);
+                          await ref.read(shareServiceProvider).shareFile(file,
+                              subject: 'Truck Loading Report (PDF)');
+                        } catch (e) {
+                          if (context.mounted)
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Failed: $e')));
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.table_chart, color: Colors.green),
-            label: const Text('Export Excel'),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Generating Excel Report...')));
-              try {
-                final file = await ref.read(excelReportServiceProvider).generateTruckReport(truckId: truckId);
-                await ref.read(shareServiceProvider).shareFile(file, subject: 'Truck Loading Report (Excel)');
-              } catch (e) {
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-              }
-            },
-          ),
-          ElevatedButton.icon(
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            label: const Text('Export PDF'),
-            onPressed: () async {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Generating PDF Report...')));
-              try {
-                final file = await ref.read(pdfReportServiceProvider).generateTruckReport(truckId: truckId);
-                await ref.read(shareServiceProvider).shareFile(file, subject: 'Truck Loading Report (PDF)');
-              } catch (e) {
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
-              }
-            },
-          ),
-        ],
       ),
     );
   }
@@ -468,10 +422,25 @@ class TruckDetailsScreen extends ConsumerWidget {
         content: TextField(
           controller: controller,
           maxLines: 3,
-          decoration: const InputDecoration(labelText: 'Operator Notes'),
+          decoration: const InputDecoration(
+            labelText: 'Operator Notes',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: AppTheme.dividerColor),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: AppTheme.dividerColor),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.all(Radius.circular(10)),
+              borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
+            ),
+          ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               notifier.editNotes(
@@ -517,23 +486,30 @@ class TruckDetailsScreen extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Are you sure you want to complete this truck session? It will be locked as read-only.', style: TextStyle(color: Colors.white70)),
+            const Text(
+                'Are you sure you want to complete this truck session? It will be locked as read-only.',
+                style: TextStyle(color: Colors.white70)),
             const SizedBox(height: 16),
             _buildMetricSub('Total Layers', '${truck.totalLayers}'),
             const SizedBox(height: 8),
             _buildMetricSub('Total Cartons', '${truck.totalCartons}'),
             const SizedBox(height: 8),
-            _buildMetricSub('Total Defects', '${truck.totalDefects}', isAlert: truck.totalDefects > 0),
+            _buildMetricSub('Total Defects', '${truck.totalDefects}',
+                isAlert: truck.totalDefects > 0),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Continue Loading')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Continue Loading')),
           ElevatedButton(
             onPressed: () async {
-              await sessionNotifier.completeSession(); // This auto-updates the truck status
+              await sessionNotifier
+                  .completeSession(); // This auto-updates the truck status
               if (context.mounted) Navigator.pop(ctx);
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.successColor),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.successColor),
             child: const Text('Complete'),
           ),
         ],
@@ -550,11 +526,16 @@ class TruckDetailsScreen extends ConsumerWidget {
       context: context,
       builder: (ctx) => ActionWarningDialog(
         title: 'Archive Session?',
-        content: 'The truck session will be moved to archives. No further edits will be possible.',
+        content:
+            'This truck will be removed from the active loading view and shown only in Digital Registers. No further edits will be possible.',
         actionLabel: 'Archive',
         actionColor: AppTheme.textSecondary,
         onConfirm: () {
-          notifier.archiveTruck(truck.id);
+          notifier.archiveTruck(truck.id).then((_) {
+            if (context.mounted) {
+              context.go('/wagons');
+            }
+          });
         },
       ),
     );
@@ -573,29 +554,21 @@ class TruckDetailsScreen extends ConsumerWidget {
           'This will soft-delete the truck from active logs. An administrator can restore this record if needed.',
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () {
               notifier.deleteTruck(truck.id);
               Navigator.pop(ctx);
               context.go('/wagons');
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+            style:
+                ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
             child: const Text('Remove'),
           ),
         ],
       ),
     );
-  }
-
-  String _formatDateTime(DateTime dt) {
-    final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-    ];
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '${dt.day} ${months[dt.month - 1]} ${dt.year}  $h:$m';
   }
 }
 
@@ -606,7 +579,8 @@ class _SectionHeader extends StatelessWidget {
   final String title;
   final String? trailing;
 
-  const _SectionHeader({required this.icon, required this.title, this.trailing});
+  const _SectionHeader(
+      {required this.icon, required this.title, this.trailing});
 
   @override
   Widget build(BuildContext context) {
@@ -633,11 +607,60 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-class _EmptyLayersState extends StatelessWidget {
-  final bool isReadOnly;
-  final VoidCallback onCapture;
+class _ReportFormatButton extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final Color color;
+  final VoidCallback onPressed;
 
-  const _EmptyLayersState({required this.isReadOnly, required this.onCapture});
+  const _ReportFormatButton({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.color,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onPressed,
+      borderRadius: BorderRadius.circular(14),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: color.withOpacity(0.09),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: color, size: 25),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: const TextStyle(
+                          color: AppTheme.textSecondary, fontSize: 11)),
+                ],
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios_rounded, color: color, size: 15),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyLayersState extends StatelessWidget {
+  const _EmptyLayersState();
 
   @override
   Widget build(BuildContext context) {
@@ -651,30 +674,21 @@ class _EmptyLayersState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.warehouse_outlined, size: 64, color: AppTheme.primaryColor.withOpacity(0.4)),
+          Icon(Icons.warehouse_outlined,
+              size: 64, color: AppTheme.primaryColor.withOpacity(0.4)),
           const SizedBox(height: 16),
           const Text(
             'No Layers Captured',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+                fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 8),
           const Text(
             'Start your first AI scan to begin the\nloading session.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, height: 1.5),
+            style: TextStyle(
+                color: AppTheme.textSecondary, fontSize: 13, height: 1.5),
           ),
-          if (!isReadOnly) ...[
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: onCapture,
-              icon: const Icon(Icons.camera_alt_outlined),
-              label: const Text('Capture First Layer'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.primaryColor,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -684,18 +698,18 @@ class _EmptyLayersState extends StatelessWidget {
 class _StickyBottomBar extends StatelessWidget {
   final bool isReadOnly;
   final bool hasActiveSession;
-  final bool isAnotherSessionActive;
   final VoidCallback? onStartSession;
   final VoidCallback? onCapture;
-  final VoidCallback onReport;
+  final VoidCallback? onComplete;
+  final VoidCallback? onArchive;
 
   const _StickyBottomBar({
     required this.isReadOnly,
     required this.hasActiveSession,
-    required this.isAnotherSessionActive,
     required this.onStartSession,
     required this.onCapture,
-    required this.onReport,
+    required this.onComplete,
+    required this.onArchive,
   });
 
   @override
@@ -718,42 +732,84 @@ class _StickyBottomBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Expanded(
-            flex: 3,
-            child: ElevatedButton.icon(
-              onPressed: isReadOnly || isAnotherSessionActive ? null : (hasActiveSession ? onCapture : onStartSession),
-              icon: Icon(hasActiveSession ? Icons.camera_alt_outlined : Icons.play_circle_outline, size: 20),
-              label: Text(
-                isReadOnly ? 'Session Closed' : (hasActiveSession ? 'Capture Layer' : 'Start Loading'),
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+      child: onArchive != null
+          ? SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onArchive,
+                icon: const Icon(Icons.archive_outlined),
+                label: const Text('Archive Truck',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.textSecondary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
               ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: isReadOnly || isAnotherSessionActive ? AppTheme.dividerColor : AppTheme.primaryColor,
-                foregroundColor: isReadOnly || isAnotherSessionActive ? AppTheme.textSecondary : Colors.white,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
+            )
+          : Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: isReadOnly
+                        ? null
+                        : (hasActiveSession ? onCapture : onStartSession),
+                    icon: Icon(
+                        hasActiveSession
+                            ? Icons.camera_alt_outlined
+                            : Icons.play_circle_outline,
+                        size: 20),
+                    label: Text(
+                      isReadOnly
+                          ? 'Session Closed'
+                          : (hasActiveSession
+                              ? 'Capture Layer'
+                              : 'Start Loading'),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: isReadOnly
+                          ? AppTheme.dividerColor
+                          : AppTheme.primaryColor,
+                      foregroundColor:
+                          isReadOnly ? AppTheme.textSecondary : Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                SizedBox(
+                  width: 54,
+                  height: 54,
+                  child: IconButton(
+                    onPressed: onComplete,
+                    tooltip: 'Complete Loading Session',
+                    icon: const Icon(Icons.check_rounded, size: 27),
+                    style: IconButton.styleFrom(
+                      backgroundColor: onComplete == null
+                          ? AppTheme.dividerColor
+                          : AppTheme.successColor,
+                      foregroundColor: onComplete == null
+                          ? AppTheme.textSecondary
+                          : Colors.white,
+                      side: BorderSide(
+                        color: onComplete == null
+                            ? AppTheme.textSecondary.withOpacity(0.55)
+                            : AppTheme.successColor,
+                        width: 1.2,
+                      ),
+                      shape: const CircleBorder(),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            flex: 2,
-            child: OutlinedButton.icon(
-              onPressed: onReport,
-              icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
-              label: const Text('Report', style: TextStyle(fontWeight: FontWeight.bold)),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.successColor,
-                side: BorderSide(color: AppTheme.successColor.withOpacity(0.5)),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

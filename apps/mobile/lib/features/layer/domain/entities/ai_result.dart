@@ -6,6 +6,9 @@ import '../../../camera/domain/entities/detection.dart';
 class AIResult {
   final List<Detection> detections;
   final int count;
+
+  /// Number of defective cartons, included in [count].
+  final int defectCount;
   final double averageConfidence;
   final double processingTimeMs;
   final String modelVersion;
@@ -16,6 +19,7 @@ class AIResult {
   const AIResult({
     required this.detections,
     required this.count,
+    this.defectCount = 0,
     required this.averageConfidence,
     required this.processingTimeMs,
     required this.modelVersion,
@@ -27,6 +31,7 @@ class AIResult {
   AIResult copyWith({
     List<Detection>? detections,
     int? count,
+    int? defectCount,
     double? averageConfidence,
     double? processingTimeMs,
     String? modelVersion,
@@ -37,6 +42,7 @@ class AIResult {
     return AIResult(
       detections: detections ?? this.detections,
       count: count ?? this.count,
+      defectCount: defectCount ?? this.defectCount,
       averageConfidence: averageConfidence ?? this.averageConfidence,
       processingTimeMs: processingTimeMs ?? this.processingTimeMs,
       modelVersion: modelVersion ?? this.modelVersion,

@@ -24,6 +24,7 @@ class TruckListScreen extends ConsumerWidget {
     final (loadingCount, completedCount, totalCartons) = stats;
 
     return Scaffold(
+      drawerScrimColor: Colors.black.withValues(alpha: 0.86),
       endDrawer: const AppDrawer(),
       appBar: AppBar(
         leadingWidth: 52,
@@ -44,7 +45,10 @@ class TruckListScreen extends ConsumerWidget {
             ),
             Text(
               'Powered by Vinayak Logistics',
-              style: TextStyle(fontSize: 10, color: Color(0xFFBDBDBD), fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFFBDBDBD),
+                  fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -68,7 +72,7 @@ class TruckListScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: listState.isLoading
+      body: listState.isLoading && listState.trucks.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: () => notifier.refresh(),
@@ -77,18 +81,21 @@ class TruckListScreen extends ConsumerWidget {
                   // Dashboard Greeting & Header Title
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 20.0, bottom: 8.0),
+                      padding: const EdgeInsets.only(
+                          left: 16.0, right: 16.0, top: 20.0, bottom: 8.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Operations Dashboard',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                            'Trucks',
+                            style: TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             _getFormattedDate(),
-                            style: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 13),
+                            style: const TextStyle(
+                                color: Color(0xFFBDBDBD), fontSize: 13),
                           ),
                         ],
                       ),
@@ -102,19 +109,19 @@ class TruckListScreen extends ConsumerWidget {
                       child: Row(
                         children: [
                           StatsCard(
-                            icon: '🚚',
+                            icon: Icons.local_shipping_outlined,
                             value: '$loadingCount',
                             title: 'Active Trucks',
                           ),
                           const SizedBox(width: 12),
                           StatsCard(
-                            icon: '✅',
+                            icon: Icons.check_circle_outline,
                             value: '$completedCount',
                             title: 'Completed',
                           ),
                           const SizedBox(width: 12),
                           StatsCard(
-                            icon: '📦',
+                            icon: Icons.inventory_2_outlined,
                             value: '$totalCartons',
                             title: 'Total Cartons',
                           ),
@@ -141,19 +148,27 @@ class TruckListScreen extends ConsumerWidget {
                               DropdownButtonHideUnderline(
                                 child: DropdownButton<String>(
                                   value: listState.sortBy,
-                                  icon: const Icon(Icons.arrow_drop_down, size: 20),
+                                  icon: const Icon(Icons.arrow_drop_down,
+                                      size: 20),
                                   style: TextStyle(
                                     color: Theme.of(context).primaryColor,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
                                   ),
                                   onChanged: (val) {
-                                    if (val != null) notifier.setSortOption(val);
+                                    if (val != null)
+                                      notifier.setSortOption(val);
                                   },
                                   items: const [
-                                    DropdownMenuItem(value: 'date', child: Text('Created Date')),
-                                    DropdownMenuItem(value: 'number', child: Text('License Plate')),
-                                    DropdownMenuItem(value: 'cartons', child: Text('Cartons Total')),
+                                    DropdownMenuItem(
+                                        value: 'date',
+                                        child: Text('Created Date')),
+                                    DropdownMenuItem(
+                                        value: 'number',
+                                        child: Text('License Plate')),
+                                    DropdownMenuItem(
+                                        value: 'cartons',
+                                        child: Text('Cartons Total')),
                                   ],
                                 ),
                               ),
@@ -168,20 +183,28 @@ class TruckListScreen extends ConsumerWidget {
                                     children: [
                                       ChoiceChip(
                                         label: const Text('All'),
-                                        selected: listState.statusFilter == null,
-                                        onSelected: (_) => notifier.setStatusFilter(null),
+                                        selected:
+                                            listState.statusFilter == null,
+                                        onSelected: (_) =>
+                                            notifier.setStatusFilter(null),
                                       ),
                                       const SizedBox(width: 6),
                                       ChoiceChip(
                                         label: const Text('Active'),
-                                        selected: listState.statusFilter == TruckStatus.loading,
-                                        onSelected: (_) => notifier.setStatusFilter(TruckStatus.loading),
+                                        selected: listState.statusFilter ==
+                                            TruckStatus.loading,
+                                        onSelected: (_) =>
+                                            notifier.setStatusFilter(
+                                                TruckStatus.loading),
                                       ),
                                       const SizedBox(width: 6),
                                       ChoiceChip(
                                         label: const Text('Closed'),
-                                        selected: listState.statusFilter == TruckStatus.completed,
-                                        onSelected: (_) => notifier.setStatusFilter(TruckStatus.completed),
+                                        selected: listState.statusFilter ==
+                                            TruckStatus.completed,
+                                        onSelected: (_) =>
+                                            notifier.setStatusFilter(
+                                                TruckStatus.completed),
                                       ),
                                     ],
                                   ),
@@ -203,7 +226,8 @@ class TruckListScreen extends ConsumerWidget {
                       child: Center(
                         child: EmptyStateWidget(
                           title: 'No Loading Activity',
-                          subtitle: 'Register a truck or continue an active loading session.',
+                          subtitle:
+                              'Register a truck or continue an active loading session.',
                         ),
                       ),
                     )
@@ -223,7 +247,8 @@ class TruckListScreen extends ConsumerWidget {
                         ),
                       ),
                     ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 80)), // Space for FAB
+                  const SliverToBoxAdapter(
+                      child: SizedBox(height: 80)), // Space for FAB
                 ],
               ),
             ),
@@ -263,7 +288,10 @@ class TruckListScreen extends ConsumerWidget {
               Expanded(
                 child: Text(
                   truck.vehicleNumber,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 0.5),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      letterSpacing: 0.5),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -293,7 +321,8 @@ class TruckListScreen extends ConsumerWidget {
                 '${truck.totalDefects}',
                 isAlert: truck.totalDefects > 0,
               ),
-              const Icon(Icons.chevron_right, color: Color(0xFFBDBDBD), size: 20),
+              const Icon(Icons.chevron_right,
+                  color: Color(0xFFBDBDBD), size: 20),
             ],
           )
         ],
@@ -307,7 +336,11 @@ class TruckListScreen extends ConsumerWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(fontSize: 10, color: Color(0xFFBDBDBD), fontWeight: FontWeight.bold, letterSpacing: 0.5),
+          style: const TextStyle(
+              fontSize: 10,
+              color: Color(0xFFBDBDBD),
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5),
         ),
         const SizedBox(height: 4),
         Text(
@@ -325,8 +358,18 @@ class TruckListScreen extends ConsumerWidget {
   String _getFormattedDate() {
     final now = DateTime.now();
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${now.day} ${months[now.month - 1]} ${now.year}';
   }

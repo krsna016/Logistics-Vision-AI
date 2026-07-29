@@ -45,8 +45,9 @@ class RegisterListScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
+      drawerScrimColor: Colors.black.withValues(alpha: 0.86),
       endDrawer: const AppDrawer(),
-      body: state.isLoading
+      body: state.isLoading && state.registers.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: () => notifier.refresh(),
@@ -55,18 +56,21 @@ class RegisterListScreen extends ConsumerWidget {
                   // Section Header
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 20.0, bottom: 8.0),
+                      padding: const EdgeInsets.only(
+                          left: 16.0, right: 16.0, top: 20.0, bottom: 8.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
                             'Digital Registers',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             'Official operational loading logs & manifest archives',
-                            style: TextStyle(color: Colors.grey.shade400, fontSize: 13),
+                            style: TextStyle(
+                                color: Colors.grey.shade400, fontSize: 13),
                           ),
                         ],
                       ),
@@ -91,41 +95,79 @@ class RegisterListScreen extends ConsumerWidget {
                                 // Date Filters
                                 ChoiceChip(
                                   label: const Text('All Dates'),
-                                  selected: state.dateFilter == RegisterDateFilter.all,
-                                  onSelected: (_) => notifier.setDateFilter(RegisterDateFilter.all),
+                                  selected: state.dateFilter ==
+                                      RegisterDateFilter.all,
+                                  onSelected: (_) => notifier
+                                      .setDateFilter(RegisterDateFilter.all),
                                 ),
                                 const SizedBox(width: 6),
                                 ChoiceChip(
                                   label: const Text('Today'),
-                                  selected: state.dateFilter == RegisterDateFilter.today,
-                                  onSelected: (_) => notifier.setDateFilter(RegisterDateFilter.today),
+                                  selected: state.dateFilter ==
+                                      RegisterDateFilter.today,
+                                  onSelected: (_) => notifier
+                                      .setDateFilter(RegisterDateFilter.today),
                                 ),
                                 const SizedBox(width: 6),
                                 ChoiceChip(
                                   label: const Text('This Week'),
-                                  selected: state.dateFilter == RegisterDateFilter.thisWeek,
-                                  onSelected: (_) => notifier.setDateFilter(RegisterDateFilter.thisWeek),
+                                  selected: state.dateFilter ==
+                                      RegisterDateFilter.thisWeek,
+                                  onSelected: (_) => notifier.setDateFilter(
+                                      RegisterDateFilter.thisWeek),
                                 ),
                                 const SizedBox(width: 6),
                                 ChoiceChip(
                                   label: const Text('This Month'),
-                                  selected: state.dateFilter == RegisterDateFilter.thisMonth,
-                                  onSelected: (_) => notifier.setDateFilter(RegisterDateFilter.thisMonth),
+                                  selected: state.dateFilter ==
+                                      RegisterDateFilter.thisMonth,
+                                  onSelected: (_) => notifier.setDateFilter(
+                                      RegisterDateFilter.thisMonth),
                                 ),
                                 const SizedBox(width: 12),
-                                Container(width: 1, height: 20, color: Colors.grey.shade700),
+                                Container(
+                                    width: 1,
+                                    height: 20,
+                                    color: Colors.grey.shade700),
                                 const SizedBox(width: 12),
                                 // Status Filters
                                 FilterChip(
+                                  label: const Text('All Statuses'),
+                                  selected: state.statusFilter == null,
+                                  onSelected: (_) =>
+                                      notifier.setStatusFilter(null),
+                                ),
+                                const SizedBox(width: 6),
+                                FilterChip(
+                                  label: const Text('Planning'),
+                                  selected: state.statusFilter ==
+                                      WagonStatus.planning,
+                                  onSelected: (val) => notifier.setStatusFilter(
+                                      val ? WagonStatus.planning : null),
+                                ),
+                                const SizedBox(width: 6),
+                                FilterChip(
+                                  label: const Text('Loading'),
+                                  selected:
+                                      state.statusFilter == WagonStatus.loading,
+                                  onSelected: (val) => notifier.setStatusFilter(
+                                      val ? WagonStatus.loading : null),
+                                ),
+                                const SizedBox(width: 6),
+                                FilterChip(
                                   label: const Text('Completed'),
-                                  selected: state.statusFilter == WagonStatus.completed,
-                                  onSelected: (val) => notifier.setStatusFilter(val ? WagonStatus.completed : null),
+                                  selected: state.statusFilter ==
+                                      WagonStatus.completed,
+                                  onSelected: (val) => notifier.setStatusFilter(
+                                      val ? WagonStatus.completed : null),
                                 ),
                                 const SizedBox(width: 6),
                                 FilterChip(
                                   label: const Text('Archived'),
-                                  selected: state.statusFilter == WagonStatus.archived,
-                                  onSelected: (val) => notifier.setStatusFilter(val ? WagonStatus.archived : null),
+                                  selected: state.statusFilter ==
+                                      WagonStatus.archived,
+                                  onSelected: (val) => notifier.setStatusFilter(
+                                      val ? WagonStatus.archived : null),
                                 ),
                               ],
                             ),
@@ -142,7 +184,8 @@ class RegisterListScreen extends ConsumerWidget {
                       child: Center(
                         child: EmptyStateWidget(
                           title: 'No Registers Yet',
-                          subtitle: 'Complete a wagon loading session to generate your first digital register.',
+                          subtitle:
+                              'Complete a wagon loading session to generate your first digital register.',
                         ),
                       ),
                     )

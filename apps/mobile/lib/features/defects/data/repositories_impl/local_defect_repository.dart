@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../domain/entities/defect.dart';
 import '../../domain/repositories/defect_repository.dart';
 import '../models/defect_model.dart';
-import '../../../../camera/domain/entities/detection.dart';
+import '../../../camera/domain/entities/detection.dart';
 import '../../../../utils/logger.dart';
 
 class LocalDefectRepository implements DefectRepository {
@@ -33,7 +33,7 @@ class LocalDefectRepository implements DefectRepository {
         await _writeToCache(defaultMocks);
         return defaultMocks;
       }
-      final List<dynamic> rawList = json.decode(cachedStr);
+      final rawList = json.decode(cachedStr) as List<dynamic>;
       return rawList.map((e) => DefectModel.fromJson(e as Map<String, dynamic>)).toList();
     } catch (e, stack) {
       AppLogger.error('Failed reading defects list', e, stack);

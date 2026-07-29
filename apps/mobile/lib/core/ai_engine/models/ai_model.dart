@@ -11,6 +11,7 @@ class AIModel {
   final double expectedPrecision;
   final double expectedRecall;
   final String developerNotes;
+  final String assetPath;
 
   const AIModel({
     required this.id,
@@ -25,22 +26,24 @@ class AIModel {
     required this.expectedPrecision,
     required this.expectedRecall,
     this.developerNotes = '',
+    required this.assetPath,
   });
 
-  factory AIModel.yolo11s() {
+  factory AIModel.yolo11n() {
     return AIModel(
-      id: 'yolo11s_v1',
-      name: 'YOLO11s',
+      id: 'yolo11n_carton_v1',
+      name: 'YOLO11n Carton Detector',
       version: '1.0.0',
       trainingDate: DateTime(2026, 6, 1),
       deploymentDate: DateTime(2026, 7, 1),
       inputWidth: 640,
       inputHeight: 640,
       outputClasses: const ['carton'],
-      expectedMap: 0.92,
-      expectedPrecision: 0.94,
-      expectedRecall: 0.90,
-      developerNotes: 'Standard YOLO11s optimized for edge.',
+      expectedMap: 0.995,
+      expectedPrecision: 1.0,
+      expectedRecall: 1.0,
+      assetPath: 'assets/models/carton_yolo11n.onnx',
+      developerNotes: 'Validated YOLO11n carton detector exported to ONNX.',
     );
   }
 }

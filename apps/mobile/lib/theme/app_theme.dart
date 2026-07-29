@@ -21,7 +21,8 @@ class AppTheme {
   static const double spacingL = 24.0;
   static const double spacingXL = 32.0;
 
-  static ThemeData get lightTheme => darkTheme; // Force dark theme everywhere per design goals
+  static ThemeData get lightTheme =>
+      darkTheme; // Force dark theme everywhere per design goals
 
   static ThemeData get darkTheme {
     return ThemeData(
@@ -43,30 +44,24 @@ class AppTheme {
         color: cardColor,
         margin: EdgeInsets.zero,
       ),
-      inputDecorationTheme: InputDecorationTheme(
+      inputDecorationTheme: const InputDecorationTheme(
         filled: true,
         fillColor: cardColor,
         labelStyle: const TextStyle(color: textSecondary),
         hintStyle: const TextStyle(color: textSecondary),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: dividerColor),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: dividerColor),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: const BorderSide(color: primaryColor, width: 2),
-        ),
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        errorBorder: InputBorder.none,
+        focusedErrorBorder: InputBorder.none,
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: primaryColor,
           foregroundColor: textPrimary,
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 2,
         ),
       ),
@@ -74,18 +69,24 @@ class AppTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: textPrimary,
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          side: const BorderSide(color: dividerColor),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          side: BorderSide.none,
         ),
       ),
       textTheme: const TextTheme(
-        headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary),
-        headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: textPrimary),
-        titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: textPrimary),
-        titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary),
+        headlineLarge: TextStyle(
+            fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary),
+        headlineMedium: TextStyle(
+            fontSize: 24, fontWeight: FontWeight.bold, color: textPrimary),
+        titleLarge: TextStyle(
+            fontSize: 20, fontWeight: FontWeight.bold, color: textPrimary),
+        titleMedium: TextStyle(
+            fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary),
         bodyLarge: TextStyle(fontSize: 14, color: textPrimary),
         bodyMedium: TextStyle(fontSize: 13, color: textSecondary),
-        labelLarge: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary),
+        labelLarge: TextStyle(
+            fontSize: 12, fontWeight: FontWeight.bold, color: textSecondary),
       ),
       chipTheme: const ChipThemeData(
         side: BorderSide.none,

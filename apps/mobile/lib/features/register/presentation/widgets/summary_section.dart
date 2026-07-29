@@ -24,18 +24,23 @@ class SummarySection extends StatelessWidget {
         children: [
           const Text(
             'Operational Summary',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            style: TextStyle(
+                fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 14),
           Row(
             children: [
-              _buildMetricCard('Total Trucks', '${register.totalTrucks}', Icons.local_shipping_outlined, AppTheme.primaryColor),
+              _buildMetricCard('Total Trucks', '${register.totalTrucks}',
+                  Icons.local_shipping_outlined, AppTheme.primaryColor),
               const SizedBox(width: 8),
-              _buildMetricCard('Total Layers', '${register.totalLayers}', Icons.layers_outlined, AppTheme.warningColor),
+              _buildMetricCard('Total Layers', '${register.totalLayers}',
+                  Icons.layers_outlined, AppTheme.warningColor),
               const SizedBox(width: 8),
-              _buildMetricCard('Total Cartons', '${register.totalCartons}', Icons.inventory_2_outlined, AppTheme.successColor),
+              _buildMetricCard('Total Cartons', '${register.totalCartons}',
+                  Icons.inventory_2_outlined, AppTheme.successColor),
               const SizedBox(width: 8),
-              _buildMetricCard('Defects', '${register.totalDefects}', Icons.warning_amber_outlined, AppTheme.errorColor),
+              _buildMetricCard('Defects', '${register.totalDefects}',
+                  Icons.warning_amber_outlined, AppTheme.errorColor),
             ],
           ),
           const SizedBox(height: 14),
@@ -44,8 +49,10 @@ class SummarySection extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildMetaRow(Icons.timer_outlined, 'Loading Duration', durationStr),
-              _buildMetaRow(Icons.history_toggle_off, 'Generated', _formatDateTime(register.generatedAt)),
+              _buildMetaRow(
+                  Icons.timer_outlined, 'Loading Duration', durationStr),
+              _buildMetaRow(Icons.history_toggle_off, 'Generated',
+                  _formatDateTime(register.generatedAt)),
             ],
           ),
         ],
@@ -53,14 +60,14 @@ class SummarySection extends StatelessWidget {
     );
   }
 
-  Widget _buildMetricCard(String label, String value, IconData icon, Color color) {
+  Widget _buildMetricCard(
+      String label, String value, IconData icon, Color color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 4),
         decoration: BoxDecoration(
           color: color.withOpacity(0.1),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(
           children: [
@@ -68,12 +75,16 @@ class SummarySection extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               value,
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+              style: TextStyle(
+                  fontSize: 18, fontWeight: FontWeight.bold, color: color),
             ),
             const SizedBox(height: 2),
             Text(
               label.toUpperCase(),
-              style: const TextStyle(fontSize: 8, color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  fontSize: 8,
+                  color: AppTheme.textSecondary,
+                  fontWeight: FontWeight.bold),
               textAlign: TextAlign.center,
             ),
           ],
@@ -87,14 +98,33 @@ class SummarySection extends StatelessWidget {
       children: [
         Icon(icon, size: 14, color: AppTheme.textSecondary),
         const SizedBox(width: 4),
-        Text('$label: ', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        Text('$label: ',
+            style:
+                const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+        Text(value,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold)),
       ],
     );
   }
 
   String _formatDateTime(DateTime dt) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
     return '${dt.day} ${months[dt.month - 1]} $h:$m';

@@ -1,4 +1,5 @@
 import 'package:csv/csv.dart';
+import 'package:flutter/foundation.dart';
 void main() {
-  print(const ListToCsvConverter().convert([['a', 'b'], ['c', 'd']]));
+  debugPrint(Csv().encode([['a', 'b'], ['c', 'd']]));
 }

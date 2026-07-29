@@ -3,12 +3,14 @@ import 'dart:io';
 abstract class PdfReportService {
   Future<File> generateTruckReport({required String truckId});
   Future<File> generateWagonReport({required String wagonId});
+  Future<File> generateDigitalRegisterReport({required String wagonId});
   Future<File> generateAnalyticsReport();
 }
 
 abstract class ExcelReportService {
   Future<File> generateTruckReport({required String truckId});
   Future<File> generateWagonReport({required String wagonId});
+  Future<File> generateDigitalRegisterReport({required String wagonId});
   Future<File> generateAnalyticsReport();
 }
 

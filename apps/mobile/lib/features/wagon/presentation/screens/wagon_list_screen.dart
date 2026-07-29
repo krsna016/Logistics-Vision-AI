@@ -26,26 +26,39 @@ class WagonListScreen extends ConsumerWidget {
     final truckState = ref.watch(truckListProvider);
 
     ref.listen(activeSessionProvider, (previous, next) {
-      if (previous?.isRecovering == true && next.isRecovering == false && next.activeSession != null) {
+      if (previous?.isRecovering == true &&
+          next.isRecovering == false &&
+          next.activeSession != null) {
         // Find the vehicle number to show in the dialog if possible
         final truck = ref.read(truckListProvider).trucks.firstWhere(
-          (t) => t.id == next.activeSession!.truckId,
-          orElse: () => Truck(id: '', truckNumber: '', vehicleNumber: 'Unknown Truck', driverName: '', company: '', warehouse: '', status: TruckStatus.loading, createdDate: DateTime.now(), updatedDate: DateTime.now()),
-        );
+              (t) => t.id == next.activeSession!.truckId,
+              orElse: () => Truck(
+                  id: '',
+                  truckNumber: '',
+                  vehicleNumber: 'Unknown Truck',
+                  driverName: '',
+                  company: '',
+                  warehouse: '',
+                  status: TruckStatus.loading,
+                  createdDate: DateTime.now(),
+                  updatedDate: DateTime.now()),
+            );
 
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
             title: const Text('Continue Loading?'),
-            content: Text('An unfinished loading session for truck ${truck.vehicleNumber} was found. Do you want to resume?'),
+            content: Text(
+                'An unfinished loading session for truck ${truck.vehicleNumber} was found. Do you want to resume?'),
             actions: [
               TextButton(
                 onPressed: () {
                   ref.read(activeSessionProvider.notifier).cancelSession();
                   Navigator.of(ctx).pop();
                 },
-                child: const Text('Discard', style: TextStyle(color: Colors.red)),
+                child:
+                    const Text('Discard', style: TextStyle(color: Colors.red)),
               ),
               ElevatedButton(
                 onPressed: () {
@@ -63,6 +76,7 @@ class WagonListScreen extends ConsumerWidget {
     final (activeCount, completedCount, totalCartons, totalTrucks) = stats;
 
     return Scaffold(
+      drawerScrimColor: Colors.black.withValues(alpha: 0.86),
       endDrawer: const AppDrawer(),
       appBar: AppBar(
         leadingWidth: 52,
@@ -83,7 +97,10 @@ class WagonListScreen extends ConsumerWidget {
             ),
             Text(
               'Powered by Vinayak Logistics',
-              style: TextStyle(fontSize: 10, color: Color(0xFFBDBDBD), fontWeight: FontWeight.w500),
+              style: TextStyle(
+                  fontSize: 10,
+                  color: Color(0xFFBDBDBD),
+                  fontWeight: FontWeight.w500),
             ),
           ],
         ),
@@ -96,7 +113,7 @@ class WagonListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: state.isLoading
+      body: state.isLoading && state.wagons.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : RefreshIndicator(
               onRefresh: () async {
@@ -108,18 +125,21 @@ class WagonListScreen extends ConsumerWidget {
                   // Operations Header
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.only(left: 16.0, right: 16.0, top: 20.0, bottom: 8.0),
+                      padding: const EdgeInsets.only(
+                          left: 16.0, right: 16.0, top: 20.0, bottom: 8.0),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
                             'Wagon Control Center',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                                fontSize: 24, fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             _getFormattedDate(),
-                            style: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 13),
+                            style: const TextStyle(
+                                color: Color(0xFFBDBDBD), fontSize: 13),
                           ),
                         ],
                       ),
@@ -133,19 +153,19 @@ class WagonListScreen extends ConsumerWidget {
                       child: Row(
                         children: [
                           StatsCard(
-                            icon: '🚋',
+                            icon: Icons.train_outlined,
                             value: '$activeCount',
                             title: 'Active Wagons',
                           ),
                           const SizedBox(width: 12),
                           StatsCard(
-                            icon: '🚚',
+                            icon: Icons.local_shipping_outlined,
                             value: '$totalTrucks',
                             title: 'Total Trucks',
                           ),
                           const SizedBox(width: 12),
                           StatsCard(
-                            icon: '📦',
+                            icon: Icons.inventory_2_outlined,
                             value: '$totalCartons',
                             title: 'Total Cartons',
                           ),
@@ -173,25 +193,32 @@ class WagonListScreen extends ConsumerWidget {
                                 ChoiceChip(
                                   label: const Text('All'),
                                   selected: state.statusFilter == null,
-                                  onSelected: (_) => notifier.setStatusFilter(null),
+                                  onSelected: (_) =>
+                                      notifier.setStatusFilter(null),
                                 ),
                                 const SizedBox(width: 6),
                                 ChoiceChip(
                                   label: const Text('Planning'),
-                                  selected: state.statusFilter == WagonStatus.planning,
-                                  onSelected: (_) => notifier.setStatusFilter(WagonStatus.planning),
+                                  selected: state.statusFilter ==
+                                      WagonStatus.planning,
+                                  onSelected: (_) => notifier
+                                      .setStatusFilter(WagonStatus.planning),
                                 ),
                                 const SizedBox(width: 6),
                                 ChoiceChip(
                                   label: const Text('Loading'),
-                                  selected: state.statusFilter == WagonStatus.loading,
-                                  onSelected: (_) => notifier.setStatusFilter(WagonStatus.loading),
+                                  selected:
+                                      state.statusFilter == WagonStatus.loading,
+                                  onSelected: (_) => notifier
+                                      .setStatusFilter(WagonStatus.loading),
                                 ),
                                 const SizedBox(width: 6),
                                 ChoiceChip(
                                   label: const Text('Completed'),
-                                  selected: state.statusFilter == WagonStatus.completed,
-                                  onSelected: (_) => notifier.setStatusFilter(WagonStatus.completed),
+                                  selected: state.statusFilter ==
+                                      WagonStatus.completed,
+                                  onSelected: (_) => notifier
+                                      .setStatusFilter(WagonStatus.completed),
                                 ),
                               ],
                             ),
@@ -210,7 +237,8 @@ class WagonListScreen extends ConsumerWidget {
                       child: Center(
                         child: EmptyStateWidget(
                           title: 'No Wagon Activity',
-                          subtitle: 'Create a new wagon to start cargo planning.',
+                          subtitle:
+                              'Create a new wagon to start cargo planning.',
                         ),
                       ),
                     )
@@ -221,12 +249,17 @@ class WagonListScreen extends ConsumerWidget {
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {
                             final wagon = state.processedWagons[index];
-                            
+
                             // Calculate computed metrics
-                            final wagonTrucks = truckState.trucks.where((t) => t.wagonId == wagon.id && !t.isDeleted);
-                            final cartons = wagonTrucks.fold(0, (sum, t) => sum + t.totalCartons);
-                            final defects = wagonTrucks.fold(0, (sum, t) => sum + t.totalDefects);
-                            final completedCount = wagonTrucks.where((t) => t.status == TruckStatus.completed).length;
+                            final wagonTrucks = truckState.trucks.where(
+                                (t) => t.wagonId == wagon.id && !t.isDeleted);
+                            final cartons = wagonTrucks.fold(
+                                0, (sum, t) => sum + t.totalCartons);
+                            final defects = wagonTrucks.fold(
+                                0, (sum, t) => sum + t.totalDefects);
+                            final completedCount = wagonTrucks
+                                .where((t) => t.status == TruckStatus.completed)
+                                .length;
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
@@ -236,7 +269,8 @@ class WagonListScreen extends ConsumerWidget {
                                 totalDefects: defects,
                                 completedTrucks: completedCount,
                                 totalTrucks: wagon.expectedTruckCount,
-                                onTap: () => context.push('/wagons/${wagon.id}'),
+                                onTap: () =>
+                                    context.push('/wagons/${wagon.id}'),
                               ),
                             );
                           },
@@ -269,8 +303,18 @@ class WagonListScreen extends ConsumerWidget {
   String _getFormattedDate() {
     final now = DateTime.now();
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${now.day} ${months[now.month - 1]} ${now.year}';
   }

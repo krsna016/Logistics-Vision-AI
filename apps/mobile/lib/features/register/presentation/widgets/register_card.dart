@@ -41,7 +41,8 @@ class RegisterCard extends StatelessWidget {
                           color: AppTheme.primaryColor.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: const Icon(Icons.description_outlined, color: AppTheme.primaryColor, size: 20),
+                        child: const Icon(Icons.description_outlined,
+                            color: AppTheme.primaryColor, size: 20),
                       ),
                       const SizedBox(width: 10),
                       Column(
@@ -81,7 +82,8 @@ class RegisterCard extends StatelessWidget {
                   Expanded(
                     child: Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, size: 14, color: AppTheme.textSecondary),
+                        const Icon(Icons.location_on_outlined,
+                            size: 14, color: AppTheme.textSecondary),
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
@@ -99,7 +101,8 @@ class RegisterCard extends StatelessWidget {
                   ),
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today_outlined, size: 13, color: AppTheme.textSecondary),
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 13, color: AppTheme.textSecondary),
                       const SizedBox(width: 4),
                       Text(
                         _formatDate(register.loadingDate),
@@ -116,7 +119,8 @@ class RegisterCard extends StatelessWidget {
 
               // Bottom Stats Banner
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
                   color: AppTheme.surfaceColor,
                   borderRadius: BorderRadius.circular(10),
@@ -125,9 +129,10 @@ class RegisterCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildStatCol('TRUCKS', '${register.totalTrucks}'),
+                    _buildStatCol('LAYERS', '${register.totalLayers}'),
                     _buildStatCol('CARTONS', '${register.totalCartons}'),
-                    _buildStatCol('DEFECTS', '${register.totalDefects}', isAlert: register.totalDefects > 0),
-                    _buildStatCol('EXPORTS', '${register.exportCount}'),
+                    _buildStatCol('DEFECTS', '${register.totalDefects}',
+                        isAlert: register.totalDefects > 0),
                   ],
                 ),
               ),
@@ -181,7 +186,20 @@ class RegisterCard extends StatelessWidget {
   }
 
   String _formatDate(DateTime dt) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 }

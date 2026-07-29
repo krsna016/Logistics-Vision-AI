@@ -7,7 +7,7 @@ This document defines the core business entities forming the Logistics Vision AI
 ## 1. Domain Entities
 
 ### Entity: Warehouse
-*   **Purpose**: Represents a physical logistics node or warehouse where trucks are loaded.
+*   **Purpose**: Represents a physical destination warehouse that receives cartons from dispatched trucks.
 *   **Responsibilities**: Groups dock doors, manages local device registration lists, and links active loading operations.
 *   **Lifecycle**: Created by admin, remains active, modified when layout changes, deactivated on shutdown.
 *   **Relationships**: Owns many Dock Doors and Trucks.

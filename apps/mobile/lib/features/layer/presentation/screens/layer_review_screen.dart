@@ -7,6 +7,7 @@ import '../../../../theme/app_theme.dart';
 import '../../../../presentation/widgets/app_card.dart';
 import '../providers/layer_providers.dart';
 import '../../domain/entities/ai_result.dart';
+import '../../domain/entities/layer.dart';
 import '../../../camera/presentation/widgets/detection_overlay_widget.dart';
 import '../../../../utils/logger.dart';
 
@@ -14,12 +15,14 @@ class LayerReviewScreen extends ConsumerStatefulWidget {
   final String truckId;
   final AIResult aiResult;
   final String? photoPath;
+  final String? initialNotes;
 
   const LayerReviewScreen({
     super.key,
     required this.truckId,
     required this.aiResult,
     this.photoPath,
+    this.initialNotes,
   });
 
   @override
@@ -36,25 +39,14 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   late int _correctedCount;
   String? _correctionReason;
 
-  late AnimationController _successController;
   late AnimationController _countController;
-  late Animation<double> _successScale;
   late Animation<int> _countAnim;
-  bool _showSuccess = false;
 
   @override
   void initState() {
     super.initState();
+    _notesCtrl.text = widget.initialNotes ?? '';
     _correctedCount = widget.aiResult.count;
-
-    _successController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    );
-    _successScale = CurvedAnimation(
-      parent: _successController,
-      curve: Curves.elasticOut,
-    );
 
     _countController = AnimationController(
       vsync: this,
@@ -69,7 +61,6 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   @override
   void dispose() {
     _notesCtrl.dispose();
-    _successController.dispose();
     _countController.dispose();
     super.dispose();
   }
@@ -77,8 +68,10 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   void _adjustCount(int delta) {
     setState(() {
       _correctedCount = (_correctedCount + delta).clamp(0, 9999);
-      _countAnim = IntTween(begin: _correctedCount - delta, end: _correctedCount)
-          .animate(CurvedAnimation(parent: _countController, curve: Curves.easeOut));
+      _countAnim = IntTween(
+              begin: _correctedCount - delta, end: _correctedCount)
+          .animate(
+              CurvedAnimation(parent: _countController, curve: Curves.easeOut));
       _countController.reset();
       _countController.forward();
     });
@@ -93,16 +86,20 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
 
     try {
       final noteText = [
+        if (widget.aiResult.modelVersion == 'MANUAL_COUNT')
+          'Count method: Manual operator entry',
         if (_notesCtrl.text.isNotEmpty) _notesCtrl.text.trim(),
         if (_correctionReason != null) 'Correction: $_correctionReason',
       ].join(' | ');
 
-      final error = await ref.read(layerListProvider(widget.truckId).notifier).saveLayer(
-            cartonCount: _correctedCount,
-            confidence: widget.aiResult.averageConfidence,
-            notes: noteText.isEmpty ? null : noteText,
-            photoPath: widget.photoPath,
-          );
+      final error =
+          await ref.read(layerListProvider(widget.truckId).notifier).saveLayer(
+                cartonCount: _correctedCount,
+                defectCount: widget.aiResult.defectCount,
+                confidence: widget.aiResult.averageConfidence,
+                notes: noteText.isEmpty ? null : noteText,
+                photoPath: widget.photoPath,
+              );
 
       if (mounted) {
         setState(() {
@@ -112,11 +109,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
 
         if (error == null) {
           AppLogger.info('Layer saved: $_correctedCount cartons.');
-          setState(() => _showSuccess = true);
-          _successController.forward();
-
-          await Future.delayed(const Duration(milliseconds: 1800));
-          if (mounted) context.go('/trucks/${widget.truckId}');
+          context.go('/trucks/${widget.truckId}');
         }
       }
     } catch (e, stack) {
@@ -132,9 +125,12 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   Widget build(BuildContext context) {
     final layerState = ref.watch(layerListProvider(widget.truckId));
     final currentLayerNum = layerState.layers.length + 1;
-    final confPct = (widget.aiResult.averageConfidence * 100).toStringAsFixed(0);
+    final confPct =
+        (widget.aiResult.averageConfidence * 100).toStringAsFixed(0);
     final aiCount = widget.aiResult.count;
+    final isManual = widget.aiResult.modelVersion == 'MANUAL_COUNT';
     final hasCorrection = _correctedCount != aiCount;
+    final defectCount = widget.aiResult.defectCount;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -142,7 +138,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
         backgroundColor: AppTheme.surfaceColor,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go('/trucks/${widget.truckId}/camera'),
+          onPressed: () => context.pop(),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,18 +146,13 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
           children: [
             const Text('Review Layer Scan',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            Text('Layer #$currentLayerNum  •  Truck ${widget.truckId.substring(0, 6)}…',
-                style: const TextStyle(fontSize: 10, color: AppTheme.textSecondary)),
+            Text(
+                'Layer #$currentLayerNum  •  Truck ${widget.truckId.substring(0, 6)}…',
+                style: const TextStyle(
+                    fontSize: 10, color: AppTheme.textSecondary)),
           ],
         ),
-        actions: [
-          TextButton.icon(
-            icon: const Icon(Icons.camera_alt_outlined, color: Colors.white, size: 16),
-            label: const Text('Retake', style: TextStyle(color: Colors.white)),
-            onPressed: () => context.go('/trucks/${widget.truckId}/camera'),
-          ),
-          const SizedBox(width: 4),
-        ],
+        actions: [],
       ),
       body: Stack(
         children: [
@@ -188,11 +179,36 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                         aiCount: aiCount,
                         correctedCount: _correctedCount,
                         confidence: double.parse(confPct),
+                        isManual: isManual,
                         layerNumber: currentLayerNum,
                         countAnimation: _countAnim,
                         countController: _countController,
                       ),
                       const SizedBox(height: 12),
+
+                      if (isManual || defectCount > 0) ...[
+                        AppCard(
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_outlined,
+                                  color: AppTheme.warningColor),
+                              const SizedBox(width: 10),
+                              const Expanded(
+                                child: Text(
+                                    'Defective boxes\nIncluded in total boxes',
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.w600)),
+                              ),
+                              Text('$defectCount',
+                                  style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppTheme.warningColor)),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
 
                       // ── 3. Layer History ──────────────────────────────────
                       _LayerHistoryCard(
@@ -202,22 +218,25 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                       ),
                       const SizedBox(height: 12),
 
-                      // ── 4. Manual Correction ──────────────────────────────
-                      _ManualCorrectionCard(
-                        aiCount: aiCount,
-                        correctedCount: _correctedCount,
-                        hasCorrection: hasCorrection,
-                        correctionReason: _correctionReason,
-                        isExpanded: _showManualCorrection,
-                        onToggle: () => setState(
-                          () => _showManualCorrection = !_showManualCorrection,
+                      if (!isManual) ...[
+                        // ── 4. Manual Correction ────────────────────────────
+                        _ManualCorrectionCard(
+                          aiCount: aiCount,
+                          correctedCount: _correctedCount,
+                          hasCorrection: hasCorrection,
+                          correctionReason: _correctionReason,
+                          isExpanded: _showManualCorrection,
+                          onToggle: () => setState(
+                            () =>
+                                _showManualCorrection = !_showManualCorrection,
+                          ),
+                          onIncrease: () => _adjustCount(1),
+                          onDecrease: () => _adjustCount(-1),
+                          onReasonSelected: (r) =>
+                              setState(() => _correctionReason = r),
                         ),
-                        onIncrease: () => _adjustCount(1),
-                        onDecrease: () => _adjustCount(-1),
-                        onReasonSelected: (r) =>
-                            setState(() => _correctionReason = r),
-                      ),
-                      const SizedBox(height: 12),
+                        const SizedBox(height: 12),
+                      ],
 
                       // ── 5. Notes ──────────────────────────────────────────
                       AppCard(
@@ -231,7 +250,8 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                                 SizedBox(width: 8),
                                 Text('Verification Notes',
                                     style: TextStyle(
-                                        fontWeight: FontWeight.bold, fontSize: 14)),
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14)),
                               ],
                             ),
                             const SizedBox(height: 12),
@@ -254,8 +274,6 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                           decoration: BoxDecoration(
                             color: AppTheme.errorColor.withOpacity(0.15),
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                                color: AppTheme.errorColor.withOpacity(0.5)),
                           ),
                           child: Row(
                             children: [
@@ -289,19 +307,8 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
               isSaving: _isSaving,
               correctedCount: _correctedCount,
               onConfirm: _onSave,
-              onRetake: () => context.go('/trucks/${widget.truckId}/camera'),
-              onViewTruck: () => context.go('/trucks/${widget.truckId}'),
             ),
           ),
-
-          // ── Success Overlay ─────────────────────────────────────────────
-          if (_showSuccess)
-            Positioned.fill(
-              child: _SuccessOverlay(
-                scaleAnimation: _successScale,
-                cartonCount: _correctedCount,
-              ),
-            ),
         ],
       ),
     );
@@ -403,7 +410,6 @@ class _ImagePreviewSection extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.7),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white24),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -418,7 +424,8 @@ class _ImagePreviewSection extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       showBoxes ? 'Hide Boxes' : 'Show Boxes',
-                      style: const TextStyle(color: Colors.white70, fontSize: 11),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                   ],
                 ),
@@ -431,8 +438,7 @@ class _ImagePreviewSection extends StatelessWidget {
             bottom: 16,
             left: 16,
             child: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: AppTheme.primaryColor.withOpacity(0.9),
                 borderRadius: BorderRadius.circular(12),
@@ -459,6 +465,7 @@ class _CountSummaryCard extends StatelessWidget {
   final int layerNumber;
   final Animation<int> countAnimation;
   final AnimationController countController;
+  final bool isManual;
 
   const _CountSummaryCard({
     required this.aiCount,
@@ -467,11 +474,12 @@ class _CountSummaryCard extends StatelessWidget {
     required this.layerNumber,
     required this.countAnimation,
     required this.countController,
+    required this.isManual,
   });
 
   @override
   Widget build(BuildContext context) {
-    final hasCorrection = correctedCount != aiCount;
+    final hasCorrection = !isManual && correctedCount != aiCount;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -514,16 +522,17 @@ class _CountSummaryCard extends StatelessWidget {
                 if (hasCorrection)
                   Container(
                     margin: const EdgeInsets.only(top: 4),
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: AppTheme.warningColor.withOpacity(0.2),
                       borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: AppTheme.warningColor.withOpacity(0.5)),
                     ),
                     child: Text(
                       'AI: $aiCount  →  Corrected: $correctedCount',
                       style: const TextStyle(
-                          color: AppTheme.warningColor, fontSize: 11,
+                          color: AppTheme.warningColor,
+                          fontSize: 11,
                           fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -537,7 +546,8 @@ class _CountSummaryCard extends StatelessWidget {
             children: [
               _StatBadge('LAYER', '#$layerNumber', AppTheme.primaryColor),
               const SizedBox(height: 8),
-              _StatBadge('CONF', '$confidence%', AppTheme.successColor),
+              if (!isManual)
+                _StatBadge('CONF', '$confidence%', AppTheme.successColor),
             ],
           ),
         ],
@@ -560,7 +570,6 @@ class _StatBadge extends StatelessWidget {
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         children: [
@@ -581,7 +590,7 @@ class _StatBadge extends StatelessWidget {
 }
 
 class _LayerHistoryCard extends StatelessWidget {
-  final dynamic layers;
+  final List<LayerRecord> layers;
   final int currentCount;
   final int currentLayerNum;
 
@@ -593,7 +602,7 @@ class _LayerHistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final layerList = layers as List;
+    final layerList = layers;
     if (layerList.isEmpty) return const SizedBox.shrink();
 
     return AppCard(
@@ -602,7 +611,8 @@ class _LayerHistoryCard extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.history_outlined, size: 16, color: AppTheme.textSecondary),
+              Icon(Icons.history_outlined,
+                  size: 16, color: AppTheme.textSecondary),
               SizedBox(width: 8),
               Text('Layer History',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -659,10 +669,6 @@ class _LayerHistoryChip extends StatelessWidget {
             ? AppTheme.primaryColor.withOpacity(0.2)
             : AppTheme.cardColor,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-            color: isCurrent
-                ? AppTheme.primaryColor.withOpacity(0.6)
-                : AppTheme.dividerColor),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -671,7 +677,9 @@ class _LayerHistoryChip extends StatelessWidget {
               style: TextStyle(
                   fontSize: 10,
                   fontWeight: FontWeight.bold,
-                  color: isCurrent ? AppTheme.primaryColor : AppTheme.textSecondary,
+                  color: isCurrent
+                      ? AppTheme.primaryColor
+                      : AppTheme.textSecondary,
                   letterSpacing: 0.5)),
           const SizedBox(height: 2),
           Text('$count',
@@ -728,14 +736,17 @@ class _ManualCorrectionCard extends StatelessWidget {
             onTap: onToggle,
             child: Row(
               children: [
-                const Icon(Icons.tune_outlined, size: 16, color: AppTheme.textSecondary),
+                const Icon(Icons.tune_outlined,
+                    size: 16, color: AppTheme.textSecondary),
                 const SizedBox(width: 8),
                 const Text('Manual Correction',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 const Spacer(),
                 if (hasCorrection)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
                       color: AppTheme.warningColor.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(6),
@@ -778,7 +789,9 @@ class _ManualCorrectionCard extends StatelessWidget {
                     Text(
                       '$correctedCount',
                       style: const TextStyle(
-                          fontSize: 40, fontWeight: FontWeight.w900, color: Colors.white),
+                          fontSize: 40,
+                          fontWeight: FontWeight.w900,
+                          color: Colors.white),
                     ),
                     const SizedBox(width: 24),
                     _CounterButton(
@@ -814,10 +827,6 @@ class _ManualCorrectionCard extends StatelessWidget {
                               ? AppTheme.warningColor.withOpacity(0.2)
                               : AppTheme.cardColor,
                           borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                              color: selected
-                                  ? AppTheme.warningColor
-                                  : AppTheme.dividerColor),
                         ),
                         child: Text(
                           reason,
@@ -850,7 +859,8 @@ class _CounterButton extends StatelessWidget {
   final VoidCallback onTap;
   final Color color;
 
-  const _CounterButton({required this.icon, required this.onTap, required this.color});
+  const _CounterButton(
+      {required this.icon, required this.onTap, required this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -862,7 +872,6 @@ class _CounterButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: color.withOpacity(0.15),
           shape: BoxShape.circle,
-          border: Border.all(color: color.withOpacity(0.5), width: 2),
         ),
         child: Icon(icon, color: color, size: 24),
       ),
@@ -874,15 +883,11 @@ class _ReviewBottomBar extends StatelessWidget {
   final bool isSaving;
   final int correctedCount;
   final VoidCallback onConfirm;
-  final VoidCallback onRetake;
-  final VoidCallback onViewTruck;
 
   const _ReviewBottomBar({
     required this.isSaving,
     required this.correctedCount,
     required this.onConfirm,
-    required this.onRetake,
-    required this.onViewTruck,
   });
 
   @override
@@ -905,149 +910,27 @@ class _ReviewBottomBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          // Secondary: Retake
-          SizedBox(
-            width: 56,
-            height: 56,
-            child: OutlinedButton(
-              onPressed: onRetake,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white70,
-                side: const BorderSide(color: AppTheme.dividerColor),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                padding: EdgeInsets.zero,
-              ),
-              child: const Icon(Icons.camera_alt_outlined, size: 20),
-            ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton.icon(
+          onPressed: isSaving ? null : onConfirm,
+          icon: isSaving
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white))
+              : const Icon(Icons.check_circle_outline, size: 22),
+          label: Text(
+            isSaving ? 'Saving…' : 'Confirm  $correctedCount Cartons',
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
-          const SizedBox(width: 10),
-
-          // Secondary: View Truck
-          SizedBox(
-            width: 56,
-            height: 56,
-            child: OutlinedButton(
-              onPressed: onViewTruck,
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.white70,
-                side: const BorderSide(color: AppTheme.dividerColor),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                padding: EdgeInsets.zero,
-              ),
-              child: const Icon(Icons.local_shipping_outlined, size: 20),
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // Primary: Confirm
-          Expanded(
-            child: SizedBox(
-              height: 56,
-              child: ElevatedButton.icon(
-                onPressed: isSaving ? null : onConfirm,
-                icon: isSaving
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.check_circle_outline, size: 22),
-                label: Text(
-                  isSaving
-                      ? 'Saving…'
-                      : 'Confirm  $correctedCount Cartons',
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.successColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SuccessOverlay extends StatelessWidget {
-  final Animation<double> scaleAnimation;
-  final int cartonCount;
-
-  const _SuccessOverlay({
-    required this.scaleAnimation,
-    required this.cartonCount,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black.withOpacity(0.85),
-      child: Center(
-        child: ScaleTransition(
-          scale: scaleAnimation,
-          child: Container(
-            margin: const EdgeInsets.all(40),
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: const Color(0xFF0D1B2A),
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(
-                  color: AppTheme.successColor.withOpacity(0.5), width: 2),
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.successColor.withOpacity(0.3),
-                  blurRadius: 40,
-                  spreadRadius: 8,
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    color: AppTheme.successColor.withOpacity(0.15),
-                    shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.successColor, width: 2),
-                  ),
-                  child: const Icon(Icons.check_rounded,
-                      color: AppTheme.successColor, size: 44),
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Layer Saved',
-                  style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w900,
-                      color: Colors.white),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '$cartonCount Cartons Added',
-                  style: const TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.successColor,
-                      fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Truck Total Updated  •  Continue to Next Layer',
-                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppTheme.successColor,
+            foregroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
         ),
       ),

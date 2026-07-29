@@ -11,6 +11,7 @@ import '../widgets/trend_chart.dart';
 import '../widgets/alert_banner.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
+import '../../../reports/presentation/widgets/generate_report_dialog.dart';
 
 class AnalyticsDashboardScreen extends ConsumerWidget {
   const AnalyticsDashboardScreen({super.key});
@@ -40,14 +41,9 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
         title: const Text('Analytics & Operations'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf),
-            tooltip: 'Export PDF Report',
-            onPressed: () => _exportReport(context, ref, 'PDF'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.table_chart, color: Colors.green),
-            tooltip: 'Export Excel Report',
-            onPressed: () => _exportReport(context, ref, 'Excel'),
+            icon: const Icon(Icons.assessment_outlined),
+            tooltip: 'Generate Report',
+            onPressed: () => _showUnifiedReportDialog(context, ref),
           ),
           Builder(
             builder: (context) => IconButton(
@@ -57,6 +53,7 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
           ),
         ],
       ),
+      drawerScrimColor: Colors.black.withValues(alpha: 0.86),
       endDrawer: const AppDrawer(),
       body: RefreshIndicator(
         onRefresh: () async {
@@ -81,18 +78,23 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
                       label: Text(filter.displayName),
                       selected: isSelected,
                       onSelected: (val) {
-                        if (val) ref.read(timeFilterProvider.notifier).state = filter;
+                        if (val)
+                          ref.read(timeFilterProvider.notifier).state = filter;
                       },
-                      selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+                      selectedColor: AppTheme.warningColor,
                       backgroundColor: AppTheme.surfaceColor,
                       labelStyle: TextStyle(
-                        color: isSelected ? AppTheme.primaryColor : AppTheme.textSecondary,
-                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color:
+                            isSelected ? Colors.black : AppTheme.textSecondary,
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
                       ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                         side: BorderSide(
-                          color: isSelected ? AppTheme.primaryColor : Colors.white10,
+                          color: isSelected
+                              ? AppTheme.warningColor
+                              : Colors.white10,
                         ),
                       ),
                     ),
@@ -108,7 +110,8 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
                 if (health.storageUsedMB > 4500) {
                   return const AlertBanner(
                     title: 'Storage Capacity Warning',
-                    message: 'Device storage is almost full. Please run a synchronization cycle.',
+                    message:
+                        'Device storage is almost full. Please run a synchronization cycle.',
                     icon: Icons.storage,
                   );
                 }
@@ -123,7 +126,8 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
                 if (ai.averageConfidence < 0.75) {
                   return const AlertBanner(
                     title: 'Low AI Confidence',
-                    message: 'The model confidence is dropping. A manual review is recommended.',
+                    message:
+                        'The model confidence is dropping. A manual review is recommended.',
                     icon: Icons.warning_amber,
                   );
                 }
@@ -133,7 +137,12 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
               error: (_, __) => const SizedBox.shrink(),
             ),
 
-            const Text('OVERVIEW', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            const Text('OVERVIEW',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2)),
             const SizedBox(height: 12),
 
             // Summary Grid
@@ -149,9 +158,14 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (err, _) => Center(child: Text('Error: $err')),
             ),
-            
+
             const SizedBox(height: 32),
-            const Text('LOADING TRENDS', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            const Text('LOADING TRENDS',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2)),
             const SizedBox(height: 12),
 
             loadAsync.when(
@@ -166,7 +180,12 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: 32),
-            const Text('DATASET CAPTURE', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            const Text('DATASET CAPTURE',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2)),
             const SizedBox(height: 12),
 
             healthAsync.when(
@@ -181,7 +200,12 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: 32),
-            const Text('PRODUCTIVITY', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            const Text('PRODUCTIVITY',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2)),
             const SizedBox(height: 12),
 
             prodAsync.when(
@@ -207,38 +231,129 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          _ProdRow('Average Operator Score', '${(prod.averageOperatorPerformance * 100).toStringAsFixed(1)}%'),
+          _ProdRow('Average Operator Score',
+              '${(prod.averageOperatorPerformance * 100).toStringAsFixed(1)}%'),
           const Divider(color: Colors.white10, height: 24),
-          _ProdRow('Truck Throughput', '${prod.truckThroughput.toStringAsFixed(1)} / day'),
+          _ProdRow('Truck Throughput',
+              '${prod.truckThroughput.toStringAsFixed(1)} / day'),
           const Divider(color: Colors.white10, height: 24),
-          _ProdRow('Layers Per Hour', prod.averageLayersPerHour.toStringAsFixed(1)),
+          _ProdRow(
+              'Layers Per Hour', prod.averageLayersPerHour.toStringAsFixed(1)),
           const Divider(color: Colors.white10, height: 24),
-          _ProdRow('Cartons Per Hour', prod.averageCartonsPerHour.toStringAsFixed(1)),
+          _ProdRow('Cartons Per Hour',
+              prod.averageCartonsPerHour.toStringAsFixed(1)),
         ],
       ),
     );
   }
 
-  void _exportReport(BuildContext context, WidgetRef ref, String type) async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Generating $type report...')),
-    );
-    
+  Future<void> _exportReport(
+      BuildContext context, WidgetRef ref, String type) async {
     try {
       if (type == 'PDF') {
-        final file = await ref.read(pdfReportServiceProvider).generateAnalyticsReport();
-        await ref.read(shareServiceProvider).shareFile(file, subject: 'Analytics PDF Report');
+        final file =
+            await ref.read(pdfReportServiceProvider).generateAnalyticsReport();
+        await ref
+            .read(shareServiceProvider)
+            .shareFile(file, subject: 'Analytics PDF Report');
       } else {
-        final file = await ref.read(excelReportServiceProvider).generateAnalyticsReport();
-        await ref.read(shareServiceProvider).shareFile(file, subject: 'Analytics Excel Report');
+        final file = await ref
+            .read(excelReportServiceProvider)
+            .generateAnalyticsReport();
+        await ref
+            .read(shareServiceProvider)
+            .shareFile(file, subject: 'Analytics Excel Report');
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to generate report: $e'), backgroundColor: Colors.red),
+          SnackBar(
+              content: Text('Failed to generate report: $e'),
+              backgroundColor: Colors.red),
         );
       }
     }
+  }
+
+  void _showUnifiedReportDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.72),
+      builder: (_) => GenerateReportDialog(
+        title: 'Generate Operations Report',
+        subtitle:
+            'Export the current analytics summary, loading trends, and operational metrics.',
+        onPdf: () => _exportReport(context, ref, 'PDF'),
+        onExcel: () => _exportReport(context, ref, 'Excel'),
+      ),
+    );
+  }
+
+  void _showReportDialog(BuildContext context, WidgetRef ref) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.72),
+      builder: (ctx) => Dialog(
+        backgroundColor: AppTheme.surfaceColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(22),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppTheme.primaryColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.assessment_outlined,
+                        color: AppTheme.primaryColor),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Text('Generate Operations Report',
+                        style: TextStyle(
+                            fontSize: 19, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                  'Export the current analytics summary, loading trends, and operational metrics.',
+                  style: TextStyle(color: AppTheme.textSecondary, height: 1.4)),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _exportReport(context, ref, 'PDF');
+                  },
+                  icon: const Icon(Icons.picture_as_pdf_outlined),
+                  label: const Text('Export PDF'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _exportReport(context, ref, 'Excel');
+                  },
+                  icon: const Icon(Icons.table_chart_outlined),
+                  label: const Text('Export Excel'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -252,8 +367,14 @@ class _ProdRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+        Text(label,
+            style:
+                const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+        Text(value,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.bold)),
       ],
     );
   }

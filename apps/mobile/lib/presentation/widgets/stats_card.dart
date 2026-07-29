@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'app_card.dart';
 
 class StatsCard extends StatelessWidget {
-  final String icon;
+  final IconData icon;
   final String value;
   final String title;
 
@@ -20,10 +20,7 @@ class StatsCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
         child: Column(
           children: [
-            Text(
-              icon,
-              style: const TextStyle(fontSize: 26),
-            ),
+            Icon(icon, size: 26, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 8),
             Text(
               value,

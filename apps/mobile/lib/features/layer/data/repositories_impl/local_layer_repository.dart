@@ -16,13 +16,15 @@ class LocalLayerRepository implements LayerRepository {
       truckId: data.truckId,
       layerNumber: data.layerNumber,
       cartonCount: data.cartonCount,
+      defectCount: data.defectCount,
       timestamp: data.timestamp ?? DateTime.now(),
       operatorId: data.operatorId ?? '',
       photoPath: data.photoPath,
       notes: data.notes,
       modelVersion: data.modelVersion ?? '',
       averageConfidence: data.averageConfidence,
-      syncStatus: SyncStatus.values.firstWhere((e) => e.name == data.syncStatus, orElse: () => SyncStatus.pending),
+      syncStatus: SyncStatus.values.firstWhere((e) => e.name == data.syncStatus,
+          orElse: () => SyncStatus.pending),
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       isDeleted: data.isDeleted,
@@ -32,7 +34,10 @@ class LocalLayerRepository implements LayerRepository {
   @override
   Future<List<LayerRecord>> getLayersByTruck(String truckId) async {
     try {
-      final rows = await (_db.select(_db.layers)..where((t) => t.truckId.equals(truckId) & t.isDeleted.equals(false))).get();
+      final rows = await (_db.select(_db.layers)
+            ..where(
+                (t) => t.truckId.equals(truckId) & t.isDeleted.equals(false)))
+          .get();
       return rows.map(_map).toList();
     } catch (e, stack) {
       AppLogger.error('Failed reading layer records', e, stack);
@@ -44,39 +49,42 @@ class LocalLayerRepository implements LayerRepository {
   Future<void> saveLayer(LayerRecord layer) async {
     await _db.transaction(() async {
       await _db.into(_db.layers).insert(LayersCompanion.insert(
-        id: layer.id,
-        truckId: layer.truckId,
-        layerNumber: layer.layerNumber,
-        cartonCount: layer.cartonCount,
-        defectCount: const drift.Value(0), // LayerRecord domain entity has no defectCount property currently? Wait it does? Ah, let me check. No, it doesn't. We'll set to 0.
-        photoPath: drift.Value(layer.photoPath),
-        notes: drift.Value(layer.notes),
-        averageConfidence: drift.Value(layer.averageConfidence),
-        timestamp: drift.Value(layer.timestamp),
-        operatorId: drift.Value(layer.operatorId),
-        modelVersion: drift.Value(layer.modelVersion),
-        createdAt: drift.Value(layer.createdAt),
-        updatedAt: drift.Value(layer.updatedAt),
-      ));
+            id: layer.id,
+            truckId: layer.truckId,
+            layerNumber: layer.layerNumber,
+            cartonCount: layer.cartonCount,
+            defectCount: drift.Value(layer.defectCount),
+            photoPath: drift.Value(layer.photoPath),
+            notes: drift.Value(layer.notes),
+            averageConfidence: drift.Value(layer.averageConfidence),
+            timestamp: drift.Value(layer.timestamp),
+            operatorId: drift.Value(layer.operatorId),
+            modelVersion: drift.Value(layer.modelVersion),
+            createdAt: drift.Value(layer.createdAt),
+            updatedAt: drift.Value(layer.updatedAt),
+          ));
 
       await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-        id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
-        entityId: layer.id,
-        entityType: 'Layer',
-        operation: 'INSERT',
-        payloadData: '{}',
-      ));
+            id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
+            entityId: layer.id,
+            entityType: 'Layer',
+            operation: 'INSERT',
+            payloadData: '{}',
+          ));
     });
-    AppLogger.info('Saved layer number ${layer.layerNumber} for truck ${layer.truckId}');
+    AppLogger.info(
+        'Saved layer number ${layer.layerNumber} for truck ${layer.truckId}');
   }
 
   @override
   Future<void> updateLayer(LayerRecord layer) async {
     await _db.transaction(() async {
-      await (_db.update(_db.layers)..where((t) => t.id.equals(layer.id))).write(LayersCompanion(
+      await (_db.update(_db.layers)..where((t) => t.id.equals(layer.id)))
+          .write(LayersCompanion(
         truckId: drift.Value(layer.truckId),
         layerNumber: drift.Value(layer.layerNumber),
         cartonCount: drift.Value(layer.cartonCount),
+        defectCount: drift.Value(layer.defectCount),
         photoPath: drift.Value(layer.photoPath),
         notes: drift.Value(layer.notes),
         averageConfidence: drift.Value(layer.averageConfidence),
@@ -87,12 +95,12 @@ class LocalLayerRepository implements LayerRepository {
       ));
 
       await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-        id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
-        entityId: layer.id,
-        entityType: 'Layer',
-        operation: 'UPDATE',
-        payloadData: '{}',
-      ));
+            id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
+            entityId: layer.id,
+            entityType: 'Layer',
+            operation: 'UPDATE',
+            payloadData: '{}',
+          ));
     });
     AppLogger.info('Updated layer record: ${layer.id}');
   }
@@ -100,24 +108,27 @@ class LocalLayerRepository implements LayerRepository {
   @override
   Future<void> softDeleteLayer(String id) async {
     await _db.transaction(() async {
-      await (_db.update(_db.layers)..where((t) => t.id.equals(id))).write(
-        const LayersCompanion(isDeleted: drift.Value(true))
-      );
+      await (_db.update(_db.layers)..where((t) => t.id.equals(id)))
+          .write(const LayersCompanion(isDeleted: drift.Value(true)));
 
       await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-        id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
-        entityId: id,
-        entityType: 'Layer',
-        operation: 'DELETE',
-        payloadData: '{}',
-      ));
+            id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
+            entityId: id,
+            entityType: 'Layer',
+            operation: 'DELETE',
+            payloadData: '{}',
+          ));
     });
     AppLogger.info('Soft deleted layer: $id');
   }
 
   @override
   Future<bool> isLayerNumberExists(String truckId, int layerNumber) async {
-    final query = _db.select(_db.layers)..where((t) => t.truckId.equals(truckId) & t.layerNumber.equals(layerNumber) & t.isDeleted.equals(false));
+    final query = _db.select(_db.layers)
+      ..where((t) =>
+          t.truckId.equals(truckId) &
+          t.layerNumber.equals(layerNumber) &
+          t.isDeleted.equals(false));
     final rows = await query.get();
     return rows.isNotEmpty;
   }
@@ -130,47 +141,242 @@ class LocalLayerRepository implements LayerRepository {
   @override
   Future<void> loadDemoData() async {
     await _db.transaction(() async {
-      final now = DateTime.now();
-      
-      await _db.into(_db.layers).insert(LayersCompanion.insert(
-        id: 'mock_l1',
-        truckId: 'mock_t1',
-        layerNumber: 1,
-        cartonCount: 24,
-        timestamp: drift.Value(now.subtract(const Duration(hours: 3))),
-        operatorId: const drift.Value('usr_loader_01'),
-        modelVersion: const drift.Value('1.0.0-YOLOv8n'),
-        averageConfidence: const drift.Value(0.94),
-        createdAt: drift.Value(now.subtract(const Duration(hours: 3))),
-        updatedAt: drift.Value(now.subtract(const Duration(hours: 3))),
-      ));
-      
-      await _db.into(_db.layers).insert(LayersCompanion.insert(
-        id: 'mock_l2',
-        truckId: 'mock_t1',
-        layerNumber: 2,
-        cartonCount: 24,
-        timestamp: drift.Value(now.subtract(const Duration(hours: 2))),
-        operatorId: const drift.Value('usr_loader_01'),
-        modelVersion: const drift.Value('1.0.0-YOLOv8n'),
-        averageConfidence: const drift.Value(0.96),
-        createdAt: drift.Value(now.subtract(const Duration(hours: 2))),
-        updatedAt: drift.Value(now.subtract(const Duration(hours: 2))),
-      ));
-      
-      await _db.into(_db.layers).insert(LayersCompanion.insert(
-        id: 'mock_l3',
-        truckId: 'mock_t1',
-        layerNumber: 3,
-        cartonCount: 24,
-        timestamp: drift.Value(now.subtract(const Duration(hours: 1))),
-        operatorId: const drift.Value('usr_loader_01'),
-        modelVersion: const drift.Value('1.0.0-YOLOv8n'),
-        averageConfidence: const drift.Value(0.91),
-        notes: const drift.Value('Slight carton slip corrected manually'),
-        createdAt: drift.Value(now.subtract(const Duration(hours: 1))),
-        updatedAt: drift.Value(now.subtract(const Duration(hours: 1))),
-      ));
+      final now = DateTime(2026, 7, 21, 18, 0);
+      Future<void> insertLayer({
+        required String id,
+        required String truckId,
+        required int layerNumber,
+        required int cartons,
+        required Duration age,
+        required double confidence,
+        String? notes,
+      }) async {
+        final timestamp = now.subtract(age);
+        await _db.into(_db.layers).insert(LayersCompanion.insert(
+              id: id,
+              truckId: truckId,
+              layerNumber: layerNumber,
+              cartonCount: cartons,
+              timestamp: drift.Value(timestamp),
+              operatorId: const drift.Value('operator_demo'),
+              modelVersion: const drift.Value('carton-yolo11n-v1'),
+              averageConfidence: drift.Value(confidence),
+              notes: drift.Value(notes),
+              createdAt: drift.Value(timestamp),
+              updatedAt: drift.Value(timestamp),
+            ));
+      }
+
+      const truckData =
+          <({String id, List<int> quantities, List<String> items})>[
+        (
+          id: 'sheet_truck_1965',
+          quantities: [
+            55,
+            55,
+            55,
+            55,
+            55,
+            55,
+            55,
+            55,
+            55,
+            56,
+            35,
+            35,
+            35,
+            35,
+            69
+          ],
+          items: [
+            'Mango PP',
+            'Mango PP',
+            'Mango PP',
+            'Mango PP',
+            'Mango PP',
+            'Mango PP',
+            'Mango PP',
+            'Mango PP',
+            'Mango PP',
+            'Mango PP',
+            'Saffron',
+            'Saffron',
+            'Saffron',
+            'Saffron',
+            'Saffron'
+          ]
+        ),
+        (
+          id: 'sheet_truck_3459',
+          quantities: [
+            54,
+            54,
+            54,
+            54,
+            54,
+            54,
+            54,
+            54,
+            54,
+            54,
+            54,
+            54,
+            54,
+            54,
+            54,
+            30
+          ],
+          items: [
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju',
+            'P.P. Kaju'
+          ]
+        ),
+        (
+          id: 'sheet_truck_4076',
+          quantities: [
+            40,
+            40,
+            40,
+            40,
+            40,
+            76,
+            70,
+            70,
+            70,
+            70,
+            70,
+            70,
+            70,
+            70,
+            70,
+            94
+          ],
+          items: [
+            'Saffron',
+            'Saffron',
+            'Saffron',
+            'Saffron',
+            'Saffron',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango'
+          ]
+        ),
+        (
+          id: 'sheet_truck_1671',
+          quantities: [
+            57,
+            57,
+            57,
+            57,
+            57,
+            57,
+            57,
+            57,
+            57,
+            57,
+            57,
+            57,
+            57,
+            37,
+            37,
+            135
+          ],
+          items: [
+            'New Kaju',
+            'New Kaju',
+            'New Kaju',
+            'New Kaju',
+            'Sample PP',
+            'Sample PP',
+            'Sample PP',
+            'Sample PP',
+            'Sample PP',
+            'Sample PP',
+            'Sample PP',
+            'Sample PP',
+            'Sample PP',
+            'Saffron',
+            'Saffron',
+            'Saffron'
+          ]
+        ),
+        (
+          id: 'sheet_truck_628',
+          quantities: [
+            70,
+            70,
+            70,
+            70,
+            70,
+            70,
+            70,
+            70,
+            70,
+            45,
+            65,
+            27,
+            50,
+            50,
+            75,
+            63
+          ],
+          items: [
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Mango',
+            'Sample PP',
+            'Sample PP',
+            'Sample PP',
+            'Sample PP',
+            'Sample PP',
+            'Mango',
+            'Mango'
+          ]
+        ),
+      ];
+      var layerIndex = 1;
+      for (final truck in truckData) {
+        for (var index = 0; index < truck.quantities.length; index++) {
+          await insertLayer(
+            id: 'sheet_layer_${layerIndex++}',
+            truckId: truck.id,
+            layerNumber: index + 1,
+            cartons: truck.quantities[index],
+            age: Duration(minutes: (truckData.length * 20) - layerIndex),
+            confidence: 0.90 + ((index % 5) * 0.02),
+            notes: truck.items[index],
+          );
+        }
+      }
     });
   }
 }

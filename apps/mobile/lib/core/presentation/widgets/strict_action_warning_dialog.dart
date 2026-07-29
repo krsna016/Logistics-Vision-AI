@@ -22,7 +22,8 @@ class StrictActionWarningDialog extends StatefulWidget {
   });
 
   @override
-  State<StrictActionWarningDialog> createState() => _StrictActionWarningDialogState();
+  State<StrictActionWarningDialog> createState() =>
+      _StrictActionWarningDialogState();
 }
 
 class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
@@ -45,6 +46,8 @@ class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: AppTheme.surfaceColor,
+      insetAnimationDuration: const Duration(milliseconds: 180),
+      insetAnimationCurve: Curves.easeOutCubic,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -82,7 +85,10 @@ class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
             const SizedBox(height: 24),
             Text(
               'Type "${widget.expectedConfirmationText}" to confirm:',
-              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.white),
+              style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
             ),
             const SizedBox(height: 8),
             TextField(
@@ -93,18 +99,19 @@ class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
                 hintText: widget.expectedConfirmationText,
                 filled: true,
                 fillColor: AppTheme.cardColor,
-                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   borderSide: const BorderSide(color: AppTheme.dividerColor),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   borderSide: const BorderSide(color: AppTheme.dividerColor),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: widget.actionColor),
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide(color: widget.actionColor, width: 1.5),
                 ),
               ),
             ),
@@ -122,7 +129,8 @@ class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
                     ),
                     child: const Text(
                       'Cancel',
-                      style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
+                      style: TextStyle(
+                          fontSize: 16, color: AppTheme.textSecondary),
                     ),
                   ),
                 ),
@@ -137,8 +145,10 @@ class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
                         : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: widget.actionColor,
-                      disabledBackgroundColor: widget.actionColor.withValues(alpha: 0.3),
-                      disabledForegroundColor: Colors.white.withValues(alpha: 0.3),
+                      disabledBackgroundColor:
+                          widget.actionColor.withValues(alpha: 0.3),
+                      disabledForegroundColor:
+                          Colors.white.withValues(alpha: 0.3),
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -146,7 +156,8 @@ class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
                     ),
                     child: Text(
                       widget.actionLabel,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),

@@ -25,13 +25,15 @@ class BackupManagementScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh),
             onPressed: () {
               ref.read(syncEngineProvider).forceSync();
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Forcing Sync...')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Forcing Sync...')));
             },
           ),
           IconButton(
             icon: const Icon(Icons.settings),
             onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sync Settings coming soon')));
+              ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Sync Settings coming soon')));
             },
           ),
           Builder(
@@ -42,6 +44,7 @@ class BackupManagementScreen extends ConsumerWidget {
           ),
         ],
       ),
+      drawerScrimColor: Colors.black.withValues(alpha: 0.86),
       endDrawer: const AppDrawer(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -59,29 +62,40 @@ class BackupManagementScreen extends ConsumerWidget {
                   child: ElevatedButton.icon(
                     onPressed: isCreatingBackup
                         ? null
-                        : () => ref.read(backupNotifierProvider.notifier).triggerManualBackup(),
+                        : () => ref
+                            .read(backupNotifierProvider.notifier)
+                            .triggerManualBackup(),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.primaryColor,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     icon: isCreatingBackup
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                color: Colors.white, strokeWidth: 2))
                         : const Icon(Icons.backup),
-                    label: Text(isCreatingBackup ? 'Creating Archive...' : 'Create Local Backup'),
+                    label: Text(isCreatingBackup
+                        ? 'Creating Archive...'
+                        : 'Create Local Backup'),
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: OutlinedButton.icon(
                     onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Exporting backup to external storage...')));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content:
+                              Text('Exporting backup to external storage...')));
                     },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: const BorderSide(color: AppTheme.primaryColor),
                     ),
                     icon: const Icon(Icons.usb, color: AppTheme.primaryColor),
-                    label: const Text('Export to USB', style: TextStyle(color: AppTheme.primaryColor)),
+                    label: const Text('Export to USB',
+                        style: TextStyle(color: AppTheme.primaryColor)),
                   ),
                 ),
               ],
@@ -89,50 +103,74 @@ class BackupManagementScreen extends ConsumerWidget {
             const SizedBox(height: 32),
 
             // Sync Queue (Future Cloud Prep)
-            const Text('PENDING SYNCHRONIZATION', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            const Text('PENDING SYNCHRONIZATION',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2)),
             const SizedBox(height: 12),
             syncQueueAsync.when(
               data: (queue) {
                 if (queue.isEmpty) {
-                  return const Center(child: Text('All data is synced globally.', style: TextStyle(color: AppTheme.textSecondary)));
+                  return const Center(
+                      child: Text('All data is synced globally.',
+                          style: TextStyle(color: AppTheme.textSecondary)));
                 }
                 return Column(
-                  children: queue.map((item) => SyncQueueCard(
-                    item: item,
-                    onResolveConflict: () {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Resolving conflict for ${item.entityId}')));
-                    },
-                  )).toList(),
+                  children: queue
+                      .map((item) => SyncQueueCard(
+                            item: item,
+                            onResolveConflict: () {
+                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                  content: Text(
+                                      'Resolving conflict for ${item.entityId}')));
+                            },
+                          ))
+                      .toList(),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Text('Error loading sync queue', style: TextStyle(color: AppTheme.errorColor)),
+              error: (_, __) => const Text('Error loading sync queue',
+                  style: TextStyle(color: AppTheme.errorColor)),
             ),
             const SizedBox(height: 32),
 
             // Local Backups
-            const Text('LOCAL BACKUP ARCHIVES', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            const Text('LOCAL BACKUP ARCHIVES',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2)),
             const SizedBox(height: 12),
             backupsAsync.when(
               data: (backups) {
                 if (backups.isEmpty) {
-                  return const Center(child: Text('No local backups found.', style: TextStyle(color: AppTheme.textSecondary)));
+                  return const Center(
+                      child: Text('No local backups found.',
+                          style: TextStyle(color: AppTheme.textSecondary)));
                 }
                 return Column(
-                  children: backups.map((backup) => BackupCard(
-                    backup: backup,
-                    onDelete: () {
-                      ref.read(backupRepositoryProvider).deleteBackup(backup.id);
-                      ref.invalidate(backupListProvider);
-                    },
-                    onRestore: () {
-                      _showRestoreWarning(context, backup.id);
-                    },
-                  )).toList(),
+                  children: backups
+                      .map((backup) => BackupCard(
+                            backup: backup,
+                            onDelete: () {
+                              ref
+                                  .read(backupRepositoryProvider)
+                                  .deleteBackup(backup.id);
+                              ref.invalidate(backupListProvider);
+                            },
+                            onRestore: () {
+                              _showRestoreWarning(context, backup.id);
+                            },
+                          ))
+                      .toList(),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Text('Error loading backups', style: TextStyle(color: AppTheme.errorColor)),
+              error: (_, __) => const Text('Error loading backups',
+                  style: TextStyle(color: AppTheme.errorColor)),
             ),
           ],
         ),
@@ -167,18 +205,29 @@ class BackupManagementScreen extends ConsumerWidget {
                 onPressed: () async {
                   Navigator.pop(ctx);
                   if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Restoring backup...'), backgroundColor: AppTheme.warningColor));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Restoring backup...'),
+                        backgroundColor: AppTheme.warningColor));
                   }
-                  final success = await ref.read(backupRepositoryProvider).restoreBackup(backupId);
+                  final success = await ref
+                      .read(backupRepositoryProvider)
+                      .restoreBackup(backupId);
                   if (context.mounted) {
                     if (success) {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Backup restored successfully! Restart app to apply changes.'), backgroundColor: AppTheme.successColor, duration: Duration(seconds: 5)));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text(
+                              'Backup restored successfully! Restart app to apply changes.'),
+                          backgroundColor: AppTheme.successColor,
+                          duration: Duration(seconds: 5)));
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to restore backup.'), backgroundColor: AppTheme.errorColor));
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                          content: Text('Failed to restore backup.'),
+                          backgroundColor: AppTheme.errorColor));
                     }
                   }
                 },
-                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.errorColor),
                 child: const Text('OVERWRITE DATA'),
               );
             },

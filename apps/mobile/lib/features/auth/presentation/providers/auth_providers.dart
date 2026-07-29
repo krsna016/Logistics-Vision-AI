@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -42,7 +43,6 @@ final authServiceProvider = Provider((ref) {
   return AuthenticationServiceImpl(offlineAuth, sessionManager);
 });
 
-
 final dioProvider = Provider((ref) {
   // Uses environment configuration to fetch the correct base URL
   // Development: Local IP | Production: Cloud URL (e.g., Render)
@@ -78,29 +78,81 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 // Provides the currently active user, or null if logged out.
 final authProvider = StateNotifierProvider<AuthNotifier, User?>((ref) {
-  return AuthNotifier(ref.watch(authRepositoryProvider));
+  return AuthNotifier(
+    ref.watch(authRepositoryProvider),
+    ref.watch(secureStorageProvider),
+  );
 });
 
 class AuthNotifier extends StateNotifier<User?> {
   final AuthRepository _repository;
+  final FlutterSecureStorage _storage;
   Timer? _pollingTimer;
+  static const _cachedUserKey = 'cached_authenticated_user';
 
-  AuthNotifier(this._repository) : super(null) {
+  AuthNotifier(this._repository, this._storage) : super(null) {
     _init();
   }
 
   Future<void> _init() async {
-    final user = await _repository.getCurrentUser();
-    
+    final remoteUser = await _repository.getCurrentUser();
+    if (_sessionWasRevoked) {
+      await logout();
+      return;
+    }
+    final user = remoteUser ?? await _restoreCachedUser();
+
     // Prevent overriding a demo login if it happened while we were fetching
-    if (state != null) return; 
-    
+    if (state != null) return;
+
     if (user != null && !user.isActive) {
       await logout(); // Kill switch triggered, clear token
     } else {
       state = user;
       _startPolling();
     }
+  }
+
+  Future<void> _cacheUser(User user) async {
+    await _storage.write(
+      key: _cachedUserKey,
+      value: jsonEncode({
+        'id': user.id,
+        'employeeId': user.employeeId,
+        'name': user.name,
+        'role': user.role.name,
+        'warehouse': user.warehouse,
+        'isActive': user.isActive,
+      }),
+    );
+  }
+
+  Future<User?> _restoreCachedUser() async {
+    try {
+      final encoded = await _storage.read(key: _cachedUserKey);
+      if (encoded == null || encoded.isEmpty) return null;
+      final data = jsonDecode(encoded) as Map<String, dynamic>;
+      final roleName = data['role'] as String? ?? Role.operator.name;
+      return User(
+        id: data['id'] as String? ?? '',
+        employeeId: data['employeeId'] as String? ?? '',
+        name: data['name'] as String? ?? '',
+        role: Role.values.firstWhere(
+          (role) => role.name == roleName,
+          orElse: () => Role.operator,
+        ),
+        warehouse: data['warehouse'] as String?,
+        isActive: data['isActive'] as bool? ?? true,
+      );
+    } catch (_) {
+      await _storage.delete(key: _cachedUserKey);
+      return null;
+    }
+  }
+
+  bool get _sessionWasRevoked {
+    return _repository is RemoteAuthRepository &&
+        (_repository as RemoteAuthRepository).sessionWasRevoked;
   }
 
   void _startPolling() {
@@ -111,19 +163,24 @@ class AuthNotifier extends StateNotifier<User?> {
         return;
       }
       final updatedUser = await _repository.getCurrentUser();
-      if (updatedUser == null) {
-        await logout(); // Token expired or account was revoked server-side.
-      } else if (!updatedUser.isActive) {
+      if (_sessionWasRevoked) {
+        await logout(); // The server explicitly rejected or revoked access.
+      } else if (updatedUser != null && !updatedUser.isActive) {
         await logout(); // Account was revoked on the dashboard.
+      } else if (updatedUser != null) {
+        await _cacheUser(updatedUser);
       }
     });
   }
 
-  Future<bool> login(String employeeId, String password, {bool offline = false}) async {
+  Future<bool> login(String employeeId, String password,
+      {bool offline = false}) async {
     try {
-      final user = await _repository.login(employeeId, password, offline: offline);
+      final user =
+          await _repository.login(employeeId, password, offline: offline);
       state = user;
       if (user != null) {
+        await _cacheUser(user);
         _startPolling();
       }
       return user != null;
@@ -132,15 +189,14 @@ class AuthNotifier extends StateNotifier<User?> {
     }
   }
 
-
-
   Future<void> logout() async {
     _pollingTimer?.cancel();
     _pollingTimer = null;
     await _repository.logout();
+    await _storage.delete(key: _cachedUserKey);
     state = null;
   }
-  
+
   @override
   void dispose() {
     _pollingTimer?.cancel();

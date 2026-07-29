@@ -7,6 +7,9 @@ class LayerRecord {
   final String truckId;
   final int layerNumber;
   final int cartonCount;
+
+  /// Number of defective cartons, included in [cartonCount].
+  final int defectCount;
   final DateTime timestamp;
   final String operatorId;
   final String? photoPath;
@@ -23,6 +26,7 @@ class LayerRecord {
     required this.truckId,
     required this.layerNumber,
     required this.cartonCount,
+    this.defectCount = 0,
     required this.timestamp,
     required this.operatorId,
     this.photoPath,
@@ -40,6 +44,7 @@ class LayerRecord {
     String? truckId,
     int? layerNumber,
     int? cartonCount,
+    int? defectCount,
     DateTime? timestamp,
     String? operatorId,
     String? photoPath,
@@ -56,6 +61,7 @@ class LayerRecord {
       truckId: truckId ?? this.truckId,
       layerNumber: layerNumber ?? this.layerNumber,
       cartonCount: cartonCount ?? this.cartonCount,
+      defectCount: defectCount ?? this.defectCount,
       timestamp: timestamp ?? this.timestamp,
       operatorId: operatorId ?? this.operatorId,
       photoPath: photoPath ?? this.photoPath,

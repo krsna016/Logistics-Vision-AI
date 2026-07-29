@@ -18,7 +18,8 @@ class LocalWagonRepository implements WagonRepository {
       loadingDate: data.loadingDate ?? DateTime.now(),
       expectedTruckCount: data.expectedTruckCount,
       completedTruckCount: data.completedTruckCount,
-      status: WagonStatus.values.firstWhere((e) => e.name == data.status, orElse: () => WagonStatus.planning),
+      status: WagonStatus.values.firstWhere((e) => e.name == data.status,
+          orElse: () => WagonStatus.planning),
       remarks: data.remarks,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
@@ -28,7 +29,9 @@ class LocalWagonRepository implements WagonRepository {
   @override
   Future<List<Wagon>> getActiveWagons() async {
     try {
-      final rows = await (_db.select(_db.wagons)..where((t) => t.isDeleted.equals(false))).get();
+      final rows = await (_db.select(_db.wagons)
+            ..where((t) => t.isDeleted.equals(false)))
+          .get();
       return rows.map(_map).toList();
     } catch (e, stack) {
       AppLogger.error('Failed reading wagon records', e, stack);
@@ -39,7 +42,8 @@ class LocalWagonRepository implements WagonRepository {
   @override
   Future<Wagon?> getWagonById(String id) async {
     try {
-      final row = await (_db.select(_db.wagons)..where((t) => t.id.equals(id))).getSingleOrNull();
+      final row = await (_db.select(_db.wagons)..where((t) => t.id.equals(id)))
+          .getSingleOrNull();
       return row != null && !row.isDeleted ? _map(row) : null;
     } catch (_) {
       return null;
@@ -50,26 +54,26 @@ class LocalWagonRepository implements WagonRepository {
   Future<void> createWagon(Wagon wagon) async {
     await _db.transaction(() async {
       await _db.into(_db.wagons).insert(db.WagonsCompanion.insert(
-        id: wagon.id,
-        wagonNumber: wagon.wagonNumber,
-        status: wagon.status.name,
-        expectedTruckCount: wagon.expectedTruckCount,
-        origin: drift.Value(wagon.origin),
-        destination: drift.Value(wagon.destination),
-        loadingDate: drift.Value(wagon.loadingDate),
-        remarks: drift.Value(wagon.remarks),
-        completedTruckCount: drift.Value(wagon.completedTruckCount),
-        createdAt: drift.Value(wagon.createdAt),
-        updatedAt: drift.Value(wagon.updatedAt),
-      ));
-      
+            id: wagon.id,
+            wagonNumber: wagon.wagonNumber,
+            status: wagon.status.name,
+            expectedTruckCount: wagon.expectedTruckCount,
+            origin: drift.Value(wagon.origin),
+            destination: drift.Value(wagon.destination),
+            loadingDate: drift.Value(wagon.loadingDate),
+            remarks: drift.Value(wagon.remarks),
+            completedTruckCount: drift.Value(wagon.completedTruckCount),
+            createdAt: drift.Value(wagon.createdAt),
+            updatedAt: drift.Value(wagon.updatedAt),
+          ));
+
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-        id: 'sync_w_${DateTime.now().millisecondsSinceEpoch}',
-        entityId: wagon.id,
-        entityType: 'Wagon',
-        operation: 'INSERT',
-        payloadData: '{}',
-      ));
+            id: 'sync_w_${DateTime.now().millisecondsSinceEpoch}',
+            entityId: wagon.id,
+            entityType: 'Wagon',
+            operation: 'INSERT',
+            payloadData: '{}',
+          ));
     });
     AppLogger.info('Created new wagon record locally: ${wagon.wagonNumber}');
   }
@@ -77,7 +81,8 @@ class LocalWagonRepository implements WagonRepository {
   @override
   Future<void> updateWagon(Wagon wagon) async {
     await _db.transaction(() async {
-      await (_db.update(_db.wagons)..where((t) => t.id.equals(wagon.id))).write(db.WagonsCompanion(
+      await (_db.update(_db.wagons)..where((t) => t.id.equals(wagon.id)))
+          .write(db.WagonsCompanion(
         wagonNumber: drift.Value(wagon.wagonNumber),
         status: drift.Value(wagon.status.name),
         expectedTruckCount: drift.Value(wagon.expectedTruckCount),
@@ -88,14 +93,14 @@ class LocalWagonRepository implements WagonRepository {
         completedTruckCount: drift.Value(wagon.completedTruckCount),
         updatedAt: drift.Value(DateTime.now()),
       ));
-      
+
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-        id: 'sync_w_${DateTime.now().millisecondsSinceEpoch}',
-        entityId: wagon.id,
-        entityType: 'Wagon',
-        operation: 'UPDATE',
-        payloadData: '{}',
-      ));
+            id: 'sync_w_${DateTime.now().millisecondsSinceEpoch}',
+            entityId: wagon.id,
+            entityType: 'Wagon',
+            operation: 'UPDATE',
+            payloadData: '{}',
+          ));
     });
     AppLogger.info('Updated wagon record: ${wagon.wagonNumber}');
   }
@@ -104,23 +109,30 @@ class LocalWagonRepository implements WagonRepository {
   Future<void> deleteWagon(String id) async {
     await _db.transaction(() async {
       await (_db.update(_db.wagons)..where((t) => t.id.equals(id))).write(
-        db.WagonsCompanion(isDeleted: const drift.Value(true), updatedAt: drift.Value(DateTime.now())) // soft delete
-      );
-      
+          db.WagonsCompanion(
+              isDeleted: const drift.Value(true),
+              updatedAt: drift.Value(DateTime.now())) // soft delete
+          );
+
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-        id: 'sync_w_${DateTime.now().millisecondsSinceEpoch}',
-        entityId: id,
-        entityType: 'Wagon',
-        operation: 'DELETE',
-        payloadData: '{}',
-      ));
+            id: 'sync_w_${DateTime.now().millisecondsSinceEpoch}',
+            entityId: id,
+            entityType: 'Wagon',
+            operation: 'DELETE',
+            payloadData: '{}',
+          ));
     });
     AppLogger.info('Deleted wagon record locally: $id');
   }
 
   @override
-  Future<bool> isWagonNumberExists(String wagonNumber, {String? excludeId}) async {
-    final query = _db.select(_db.wagons)..where((t) => t.wagonNumber.lower().equals(wagonNumber.toLowerCase()));
+  Future<bool> isWagonNumberExists(String wagonNumber,
+      {String? excludeId}) async {
+    final normalizedWagonNumber = wagonNumber.trim().toLowerCase();
+    final query = _db.select(_db.wagons)
+      ..where((t) => t.wagonNumber.lower().equals(normalizedWagonNumber))
+      ..where((t) => t.isDeleted.equals(false))
+      ..where((t) => t.status.isNotValue(WagonStatus.archived.name));
     if (excludeId != null) {
       query.where((t) => t.id.isNotValue(excludeId));
     }
@@ -136,33 +148,20 @@ class LocalWagonRepository implements WagonRepository {
   @override
   Future<void> loadDemoData() async {
     await _db.transaction(() async {
-      final now = DateTime.now();
+      final now = DateTime(2026, 7, 21, 18, 0);
       await _db.into(_db.wagons).insert(db.WagonsCompanion.insert(
-        id: 'mock_w1',
-        wagonNumber: 'W-1002-IND',
-        status: WagonStatus.loading.name,
-        expectedTruckCount: 3,
-        origin: const drift.Value('Austin Fulfillment South'),
-        destination: const drift.Value('Dallas Logistics Hub'),
-        loadingDate: drift.Value(now),
-        remarks: const drift.Value('Priority cargo load'),
-        completedTruckCount: const drift.Value(1),
-        createdAt: drift.Value(now.subtract(const Duration(hours: 12))),
-        updatedAt: drift.Value(now.subtract(const Duration(hours: 2))),
-      ));
-      
-      await _db.into(_db.wagons).insert(db.WagonsCompanion.insert(
-        id: 'mock_w2',
-        wagonNumber: 'W-3004-TEX',
-        status: WagonStatus.planning.name,
-        expectedTruckCount: 5,
-        origin: const drift.Value('Austin Fulfillment South'),
-        destination: const drift.Value('Houston Rail Terminal'),
-        loadingDate: drift.Value(now.add(const Duration(days: 1))),
-        remarks: const drift.Value('Bulk materials loading planned'),
-        createdAt: drift.Value(now.subtract(const Duration(hours: 4))),
-        updatedAt: drift.Value(now.subtract(const Duration(hours: 4))),
-      ));
+            id: 'sheet_wagon_10866',
+            wagonNumber: '10866',
+            status: WagonStatus.loading.name,
+            expectedTruckCount: 5,
+            origin: const drift.Value('CGS'),
+            destination: const drift.Value('PAMOHI'),
+            loadingDate: drift.Value(now),
+            remarks: const drift.Value('Sheet-style loading register demo'),
+            completedTruckCount: const drift.Value(0),
+            createdAt: drift.Value(now.subtract(const Duration(hours: 8))),
+            updatedAt: drift.Value(now.subtract(const Duration(minutes: 20))),
+          ));
     });
   }
 }

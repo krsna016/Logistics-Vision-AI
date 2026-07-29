@@ -92,14 +92,17 @@ class SummaryGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: 1.5,
+    return GridView.builder(
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 190,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 1.5,
+      ),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      children: [
+      itemCount: 6,
+      itemBuilder: (context, index) => [
         MetricTile(
           title: 'Wagons',
           value: totalWagons.toString(),
@@ -135,7 +138,7 @@ class SummaryGrid extends StatelessWidget {
           icon: Icons.timer,
           iconColor: Colors.blueAccent,
         ),
-      ],
+      ][index],
     );
   }
 }

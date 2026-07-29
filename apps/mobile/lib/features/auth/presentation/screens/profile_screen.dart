@@ -39,6 +39,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
         ],
       ),
+      drawerScrimColor: Colors.black.withValues(alpha: 0.86),
       endDrawer: const AppDrawer(),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
@@ -63,21 +64,30 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(
                     user.name,
-                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     user.employeeId,
-                    style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
+                    style: const TextStyle(
+                        color: AppTheme.textSecondary, fontSize: 14),
                   ),
                   const SizedBox(height: 12),
                   RoleChip(role: user.role),
                 ],
               ),
             ),
-            
+
             const SizedBox(height: 24),
-            const Text('CURRENT SESSION', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            const Text('CURRENT SESSION',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2)),
             const SizedBox(height: 12),
 
             sessionAsync.when(
@@ -92,11 +102,18 @@ class ProfileScreen extends ConsumerWidget {
                   ),
                   child: Column(
                     children: [
-                      _buildInfoRow('Device', session.deviceName, Icons.smartphone),
+                      _buildInfoRow(
+                          'Device', session.deviceName, Icons.smartphone),
                       const Divider(color: Colors.white10, height: 24),
-                      _buildInfoRow('Login Time', '${session.loginTime.hour}:${session.loginTime.minute}', Icons.access_time),
+                      _buildInfoRow(
+                          'Login Time',
+                          '${session.loginTime.hour}:${session.loginTime.minute}',
+                          Icons.access_time),
                       const Divider(color: Colors.white10, height: 24),
-                      _buildInfoRow('Status', session.isLocked ? 'Locked' : 'Active', Icons.security),
+                      _buildInfoRow(
+                          'Status',
+                          session.isLocked ? 'Locked' : 'Active',
+                          Icons.security),
                     ],
                   ),
                 );
@@ -106,7 +123,12 @@ class ProfileScreen extends ConsumerWidget {
             ),
 
             const SizedBox(height: 32),
-            const Text('RECENT ACTIVITY', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            const Text('RECENT ACTIVITY',
+                style: TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2)),
             const SizedBox(height: 16),
 
             logsAsync.when(
@@ -125,9 +147,15 @@ class ProfileScreen extends ConsumerWidget {
       children: [
         Icon(icon, color: AppTheme.textSecondary, size: 20),
         const SizedBox(width: 12),
-        Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+        Text(label,
+            style:
+                const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
         const Spacer(),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+        Text(value,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w600)),
       ],
     );
   }

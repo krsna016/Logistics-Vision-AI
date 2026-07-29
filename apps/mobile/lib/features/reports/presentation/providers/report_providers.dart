@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../data/repositories_impl/local_report_repository.dart';
 import '../../domain/repositories/report_repository.dart';
 import '../../domain/services/report_services.dart';
@@ -16,11 +17,19 @@ final reportRepositoryProvider = Provider<ReportRepository>((ref) {
 });
 
 final pdfReportServiceProvider = Provider<PdfReportService>((ref) {
-  return PdfReportServiceImpl(ref.watch(databaseProvider));
+  final user = ref.watch(authProvider);
+  return PdfReportServiceImpl(
+    ref.watch(databaseProvider),
+    supervisorName: user?.name,
+  );
 });
 
 final excelReportServiceProvider = Provider<ExcelReportService>((ref) {
-  return ExcelReportServiceImpl(ref.watch(databaseProvider));
+  final user = ref.watch(authProvider);
+  return ExcelReportServiceImpl(
+    ref.watch(databaseProvider),
+    supervisorName: user?.name,
+  );
 });
 
 final csvExportServiceProvider = Provider<CsvExportService>((ref) {

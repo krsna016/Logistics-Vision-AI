@@ -25,3 +25,9 @@ apps/backend/*.sqlite
 .DS_Store?
 ehthumbs.db
 Thumbs.db
+.vercel
+
+# Local AI model-audit environment and generated validation outputs
+ai/model_audit/.venv/
+ai/model_audit/**/labels.cache
+runs/

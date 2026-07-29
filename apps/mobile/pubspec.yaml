@@ -67,3 +67,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/models/carton_yolo11n.onnx

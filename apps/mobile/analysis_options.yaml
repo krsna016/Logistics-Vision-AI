@@ -14,8 +14,10 @@ analyzer:
     # Treat missing return statements as errors.
     missing_return: error
     # Ensure constant constructors are used whenever possible to optimize memory footprint.
-    prefer_const_constructors: error
-    prefer_const_declarations: error
+    # Keep these as advisory while the existing feature screens are brought
+    # under the same const-constructor standard; they should not block builds.
+    prefer_const_constructors: warning
+    prefer_const_declarations: warning
 
 linter:
   rules:

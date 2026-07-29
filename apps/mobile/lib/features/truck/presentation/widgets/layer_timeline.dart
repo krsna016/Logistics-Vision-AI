@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../layer/domain/entities/layer.dart';
@@ -53,10 +55,13 @@ class _TimelineItem extends StatelessWidget {
     required this.onDelete,
   });
 
-  bool get _hasDefects => layer.notes != null && layer.notes!.toLowerCase().contains('defect');
-  Color get _statusColor => _hasDefects ? AppTheme.warningColor : AppTheme.successColor;
-  IconData get _statusIcon => _hasDefects ? Icons.warning_amber_rounded : Icons.check_circle_rounded;
-  String get _confidencePct => '${(layer.averageConfidence * 100).toStringAsFixed(0)}%';
+  bool get _hasDefects =>
+      layer.defectCount > 0 ||
+      (layer.notes != null && layer.notes!.toLowerCase().contains('defect'));
+  Color get _statusColor =>
+      _hasDefects ? AppTheme.warningColor : AppTheme.successColor;
+  IconData get _statusIcon =>
+      _hasDefects ? Icons.warning_amber_rounded : Icons.check_circle_rounded;
 
   @override
   Widget build(BuildContext context) {
@@ -68,8 +73,8 @@ class _TimelineItem extends StatelessWidget {
           Column(
             children: [
               Container(
-                width: 40,
-                height: 40,
+                width: 30,
+                height: 30,
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withOpacity(0.15),
                   shape: BoxShape.circle,
@@ -95,20 +100,15 @@ class _TimelineItem extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
 
           // Content card
           Expanded(
             child: Container(
-              margin: EdgeInsets.only(bottom: isLast ? 0 : 16),
+              margin: EdgeInsets.only(bottom: isLast ? 0 : 7),
               decoration: BoxDecoration(
                 color: AppTheme.cardColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: _hasDefects
-                      ? AppTheme.warningColor.withOpacity(0.3)
-                      : AppTheme.dividerColor,
-                ),
               ),
               child: Material(
                 color: Colors.transparent,
@@ -117,7 +117,8 @@ class _TimelineItem extends StatelessWidget {
                   borderRadius: BorderRadius.circular(12),
                   onTap: isReadOnly ? null : onEditNotes,
                   child: Padding(
-                    padding: const EdgeInsets.all(14),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 9, vertical: 7),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -129,28 +130,61 @@ class _TimelineItem extends StatelessWidget {
                               'Layer ${layer.layerNumber}',
                               style: const TextStyle(
                                 fontWeight: FontWeight.bold,
-                                fontSize: 15,
+                                fontSize: 14,
                                 color: Colors.white,
                               ),
                             ),
                             Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(_statusIcon, size: 16, color: _statusColor),
-                                const SizedBox(width: 4),
-                                Text(
-                                  _hasDefects ? 'Defect' : 'OK',
-                                  style: TextStyle(
-                                    color: _statusColor,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
+                                if (!isReadOnly) ...[
+                                  IconButton(
+                                    onPressed: onEditNotes,
+                                    tooltip: 'Edit layer notes',
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                        minWidth: 27, minHeight: 27),
+                                    icon: const Icon(Icons.edit_note_outlined,
+                                        size: 17,
+                                        color: AppTheme.textSecondary),
+                                  ),
+                                  IconButton(
+                                    onPressed: onDelete,
+                                    tooltip: 'Delete layer',
+                                    visualDensity: VisualDensity.compact,
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                        minWidth: 27, minHeight: 27),
+                                    icon: const Icon(Icons.delete_outline,
+                                        size: 17, color: AppTheme.errorColor),
+                                  ),
+                                ],
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: _statusColor.withOpacity(0.12),
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(_statusIcon,
+                                          size: 12, color: _statusColor),
+                                      const SizedBox(width: 3),
+                                      Text(_hasDefects ? 'Defect' : 'OK',
+                                          style: TextStyle(
+                                              color: _statusColor,
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold)),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 5),
 
                         // Stats row
                         Row(
@@ -160,13 +194,15 @@ class _TimelineItem extends StatelessWidget {
                               label: '${layer.cartonCount} Cartons',
                               color: AppTheme.primaryColor,
                             ),
-                            const SizedBox(width: 8),
-                            _ChipLabel(
-                              icon: Icons.analytics_outlined,
-                              label: 'AI: $_confidencePct',
-                              color: AppTheme.successColor,
-                            ),
-                            const SizedBox(width: 8),
+                            if (layer.defectCount > 0) ...[
+                              const SizedBox(width: 6),
+                              _ChipLabel(
+                                icon: Icons.warning_amber_outlined,
+                                label: '${layer.defectCount} Defective',
+                                color: AppTheme.warningColor,
+                              ),
+                            ],
+                            const SizedBox(width: 6),
                             _ChipLabel(
                               icon: Icons.access_time_outlined,
                               label: _formatTime(layer.timestamp),
@@ -175,18 +211,24 @@ class _TimelineItem extends StatelessWidget {
                           ],
                         ),
 
+                        if (layer.photoPath != null) ...[
+                          const SizedBox(height: 7),
+                          _LayerPhotoThumbnail(path: layer.photoPath!),
+                        ],
+
                         if (layer.notes != null) ...[
-                          const SizedBox(height: 8),
+                          const SizedBox(height: 6),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 10, vertical: 6),
                             decoration: BoxDecoration(
                               color: AppTheme.warningColor.withOpacity(0.08),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppTheme.warningColor.withOpacity(0.3)),
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.note_outlined, size: 12, color: AppTheme.warningColor),
+                                const Icon(Icons.note_outlined,
+                                    size: 12, color: AppTheme.warningColor),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
@@ -200,45 +242,6 @@ class _TimelineItem extends StatelessWidget {
                                 ),
                               ],
                             ),
-                          ),
-                        ],
-
-                        // Operator row + actions
-                        if (!isReadOnly) ...[
-                          const SizedBox(height: 10),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                'Operator: ${layer.operatorId}',
-                                style: const TextStyle(
-                                  color: AppTheme.textSecondary,
-                                  fontSize: 11,
-                                ),
-                              ),
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  InkWell(
-                                    onTap: onEditNotes,
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(4),
-                                      child: Icon(Icons.edit_note_outlined, size: 18, color: AppTheme.textSecondary),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  InkWell(
-                                    onTap: onDelete,
-                                    borderRadius: BorderRadius.circular(6),
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(4),
-                                      child: Icon(Icons.delete_outline, size: 18, color: AppTheme.errorColor),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
                           ),
                         ],
                       ],
@@ -260,17 +263,97 @@ class _TimelineItem extends StatelessWidget {
   }
 }
 
+class _LayerPhotoThumbnail extends StatelessWidget {
+  final String path;
+
+  const _LayerPhotoThumbnail({required this.path});
+
+  Future<void> _openPhoto(BuildContext context) async {
+    final file = File(path);
+    if (!await file.exists() || !context.mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: const EdgeInsets.all(16),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 0.8,
+              maxScale: 4,
+              child: Image.file(file, fit: BoxFit.contain),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                icon: const Icon(Icons.close, color: Colors.white),
+                style: IconButton.styleFrom(backgroundColor: Colors.black54),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<bool>(
+      future: File(path).exists(),
+      builder: (context, snapshot) {
+        if (snapshot.data != true) return const SizedBox.shrink();
+        return InkWell(
+          onTap: () => _openPhoto(context),
+          borderRadius: BorderRadius.circular(10),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: Stack(
+              alignment: Alignment.bottomLeft,
+              children: [
+                SizedBox(
+                  height: 68,
+                  width: double.infinity,
+                  child: Image.file(File(path), fit: BoxFit.cover),
+                ),
+                Container(
+                  width: double.infinity,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  color: Colors.black54,
+                  child: const Row(
+                    children: [
+                      Icon(Icons.photo_outlined, size: 15, color: Colors.white),
+                      SizedBox(width: 6),
+                      Text('Layer reference photo',
+                          style: TextStyle(color: Colors.white, fontSize: 12)),
+                      Spacer(),
+                      Icon(Icons.open_in_full, size: 15, color: Colors.white70),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _ChipLabel extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
 
-  const _ChipLabel({required this.icon, required this.label, required this.color});
+  const _ChipLabel(
+      {required this.icon, required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
         color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(6),
@@ -278,9 +361,11 @@ class _ChipLabel extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 4),
-          Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 3),
+          Text(label,
+              style: TextStyle(
+                  color: color, fontSize: 10, fontWeight: FontWeight.w600)),
         ],
       ),
     );

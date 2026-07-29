@@ -29,8 +29,7 @@ class ONNXInferenceRepository implements InferenceRepository {
 
   @override
   Future<void> loadModel() async {
-    // Load the default YOLO11s edge model via ModelManager
-    await _pipeline.modelManager.loadModel(AIModel.yolo11s());
+    await _pipeline.modelManager.loadModel(AIModel.yolo11n());
   }
 
   @override

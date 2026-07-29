@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Custom brand navy launch screen background with centered scaled logo -->
+<!-- Centered native launch logo aligned with the Flutter splash screen. -->
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:drawable="@color/brand_navy" />
 

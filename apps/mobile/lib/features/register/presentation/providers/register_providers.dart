@@ -5,8 +5,8 @@ import '../../domain/repositories/register_repository.dart';
 import '../../data/repositories_impl/local_register_repository.dart';
 import '../../../wagon/domain/entities/wagon.dart';
 import '../../../wagon/presentation/providers/wagon_providers.dart';
-import '../../../truck/domain/entities/truck.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 
 enum RegisterDateFilter {
   all,
@@ -31,7 +31,12 @@ enum RegisterDateFilter {
 final registerRepositoryProvider = Provider<RegisterRepository>((ref) {
   final wagonRepo = ref.watch(wagonRepositoryProvider);
   final truckRepo = ref.watch(truckRepositoryProvider);
-  return LocalRegisterRepository(wagonRepo: wagonRepo, truckRepo: truckRepo);
+  final user = ref.watch(authProvider);
+  return LocalRegisterRepository(
+    wagonRepo: wagonRepo,
+    truckRepo: truckRepo,
+    supervisorName: user?.name,
+  );
 });
 
 class RegisterListState {
@@ -61,9 +66,14 @@ class RegisterListState {
         final matchesWagon = r.wagonNumber.toLowerCase().contains(query);
         final matchesOrigin = r.origin.toLowerCase().contains(query);
         final matchesDest = r.destination.toLowerCase().contains(query);
-        final matchesTruck = r.trucks.any((t) => t.truckNumber.toLowerCase().contains(query));
+        final matchesTruck =
+            r.trucks.any((t) => t.truckNumber.toLowerCase().contains(query));
         final matchesDate = r.loadingDate.toString().contains(query);
-        return matchesWagon || matchesOrigin || matchesDest || matchesTruck || matchesDate;
+        return matchesWagon ||
+            matchesOrigin ||
+            matchesDest ||
+            matchesTruck ||
+            matchesDate;
       }).toList();
     }
 
@@ -75,19 +85,21 @@ class RegisterListState {
     // 3. Date filter
     final now = DateTime.now();
     if (dateFilter == RegisterDateFilter.today) {
-      list = list.where((r) =>
-        r.loadingDate.year == now.year &&
-        r.loadingDate.month == now.month &&
-        r.loadingDate.day == now.day
-      ).toList();
+      list = list
+          .where((r) =>
+              r.loadingDate.year == now.year &&
+              r.loadingDate.month == now.month &&
+              r.loadingDate.day == now.day)
+          .toList();
     } else if (dateFilter == RegisterDateFilter.thisWeek) {
       final weekAgo = now.subtract(const Duration(days: 7));
       list = list.where((r) => r.loadingDate.isAfter(weekAgo)).toList();
     } else if (dateFilter == RegisterDateFilter.thisMonth) {
-      list = list.where((r) =>
-        r.loadingDate.year == now.year &&
-        r.loadingDate.month == now.month
-      ).toList();
+      list = list
+          .where((r) =>
+              r.loadingDate.year == now.year &&
+              r.loadingDate.month == now.month)
+          .toList();
     }
 
     // Sort: Latest generated first
@@ -108,7 +120,8 @@ class RegisterListState {
       registers: registers ?? this.registers,
       searchQuery: searchQuery ?? this.searchQuery,
       dateFilter: dateFilter ?? this.dateFilter,
-      statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
+      statusFilter:
+          clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
     );
@@ -123,14 +136,17 @@ class RegisterListNotifier extends StateNotifier<RegisterListState> {
   }
 
   Future<void> refresh() async {
-    state = state.copyWith(isLoading: true);
+    final hasExistingData = state.registers.isNotEmpty;
+    if (!hasExistingData) state = state.copyWith(isLoading: true);
     try {
       final list = await _repository.getAllRegisters();
       if (!mounted) return;
-      state = state.copyWith(registers: list, isLoading: false, errorMessage: null);
+      state =
+          state.copyWith(registers: list, isLoading: false, errorMessage: null);
     } catch (e) {
       if (!mounted) return;
-      state = state.copyWith(isLoading: false, errorMessage: 'Failed to read digital registers.');
+      state = state.copyWith(
+          isLoading: false, errorMessage: 'Failed to read digital registers.');
     }
   }
 
@@ -166,10 +182,9 @@ class RegisterListNotifier extends StateNotifier<RegisterListState> {
   }
 }
 
-final registerListProvider = StateNotifierProvider.autoDispose<RegisterListNotifier, RegisterListState>((ref) {
+final registerListProvider =
+    StateNotifierProvider.autoDispose<RegisterListNotifier, RegisterListState>(
+        (ref) {
   final repo = ref.watch(registerRepositoryProvider);
-  // Re-fetch when wagon or truck providers update!
-  ref.watch(wagonListProvider);
-  ref.watch(truckListProvider);
   return RegisterListNotifier(repo);
 });

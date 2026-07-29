@@ -42,17 +42,28 @@ class TruckHeader extends StatelessWidget {
           const SizedBox(height: 14),
 
           // Metadata Grid
-          _MetaRow(icon: Icons.person_outline, label: 'Driver', value: truck.driverName),
+          _MetaRow(
+              icon: Icons.person_outline,
+              label: 'Driver',
+              value: truck.driverName),
           if (truck.driverMobile != null && truck.driverMobile!.isNotEmpty) ...[
             const SizedBox(height: 8),
-            _MetaRow(icon: Icons.phone_outlined, label: 'Driver Mobile', value: truck.driverMobile!),
+            _MetaRow(
+                icon: Icons.phone_outlined,
+                label: 'Driver Mobile',
+                value: truck.driverMobile!),
           ],
           const SizedBox(height: 8),
-          _MetaRow(icon: Icons.business_outlined, label: 'Carrier', value: truck.company),
+          _MetaRow(
+              icon: Icons.business_outlined,
+              label: 'Carrier',
+              value: truck.company),
           const SizedBox(height: 8),
 
-
-          _MetaRow(icon: Icons.warehouse_outlined, label: 'Warehouse', value: truck.warehouse),
+          _MetaRow(
+              icon: Icons.warehouse_outlined,
+              label: 'Warehouse',
+              value: truck.warehouse),
 
           const SizedBox(height: 8),
           _MetaRow(
@@ -67,8 +78,18 @@ class TruckHeader extends StatelessWidget {
 
   String _formatDate(DateTime dt) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
@@ -134,7 +155,8 @@ class _MetaRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _MetaRow({required this.icon, required this.label, required this.value});
+  const _MetaRow(
+      {required this.icon, required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +171,8 @@ class _MetaRow extends StatelessWidget {
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
             overflow: TextOverflow.ellipsis,
           ),
         ),

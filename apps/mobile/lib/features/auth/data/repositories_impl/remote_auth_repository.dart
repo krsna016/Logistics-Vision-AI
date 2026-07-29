@@ -12,13 +12,17 @@ class RemoteAuthRepository implements AuthRepository {
   final Dio _dio;
   final FlutterSecureStorage _storage;
   bool _locked = false;
+  bool _sessionWasRevoked = false;
   String? _activeEmployeeId;
   User? _cachedUser;
+
+  bool get sessionWasRevoked => _sessionWasRevoked;
 
   RemoteAuthRepository(this._dio, this._storage);
 
   @override
-  Future<User?> login(String employeeId, String password, {bool offline = false}) async {
+  Future<User?> login(String employeeId, String password,
+      {bool offline = false}) async {
     try {
       final response = await _dio.post(
         '/auth/login',
@@ -53,6 +57,7 @@ class RemoteAuthRepository implements AuthRepository {
     await _storage.delete(key: 'jwt_token');
     _activeEmployeeId = null;
     _locked = false;
+    _sessionWasRevoked = false;
     _cachedUser = null;
   }
 
@@ -64,7 +69,7 @@ class RemoteAuthRepository implements AuthRepository {
       _cachedUser = null;
       return null;
     }
-    
+
     final decoded = JwtDecoder.decode(token);
     final employeeId = decoded['sub'];
     if (employeeId is! String) return null;
@@ -80,6 +85,7 @@ class RemoteAuthRepository implements AuthRepository {
 
   @override
   Future<User?> getCurrentUser() async {
+    _sessionWasRevoked = false;
     final token = await _storage.read(key: 'jwt_token');
     if (token == null || JwtDecoder.isExpired(token)) {
       await _storage.delete(key: 'jwt_token');
@@ -90,18 +96,22 @@ class RemoteAuthRepository implements AuthRepository {
     final decoded = JwtDecoder.decode(token);
     final employeeId = decoded['sub'];
     if (employeeId is! String) return null;
-    
+
     try {
       final response = await _dio.get('/users/$employeeId');
       final data = response.data as Map<String, dynamic>;
-      
+
       Role parseRole(String roleStr) {
-        switch(roleStr.toLowerCase()) {
-          case 'admin': return Role.administrator;
-          case 'manager': return Role.manager;
-          case 'supervisor': return Role.supervisor;
+        switch (roleStr.toLowerCase()) {
+          case 'admin':
+            return Role.administrator;
+          case 'manager':
+            return Role.manager;
+          case 'supervisor':
+            return Role.supervisor;
           case 'operator':
-          default: return Role.operator;
+          default:
+            return Role.operator;
         }
       }
 
@@ -118,6 +128,7 @@ class RemoteAuthRepository implements AuthRepository {
     } on DioException catch (error) {
       final status = error.response?.statusCode;
       if (status == 401 || status == 403) {
+        _sessionWasRevoked = true;
         await _storage.delete(key: 'jwt_token');
         _cachedUser = null;
         return null;
@@ -138,11 +149,13 @@ class RemoteAuthRepository implements AuthRepository {
     final employeeId = _activeEmployeeId;
     if (employeeId == null) return false;
     try {
-      await _dio.post('/auth/login', data: {
-        'grant_type': 'password',
-        'username': employeeId,
-        'password': pinOrPassword,
-      }, options: Options(contentType: Headers.formUrlEncodedContentType));
+      await _dio.post('/auth/login',
+          data: {
+            'grant_type': 'password',
+            'username': employeeId,
+            'password': pinOrPassword,
+          },
+          options: Options(contentType: Headers.formUrlEncodedContentType));
       _locked = false;
       return true;
     } on DioException {
@@ -151,7 +164,12 @@ class RemoteAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> logAction(String action, {bool isSuccess = true, String details = '', String? userId, String? userName, Role? userRole}) async {}
+  Future<void> logAction(String action,
+      {bool isSuccess = true,
+      String details = '',
+      String? userId,
+      String? userName,
+      Role? userRole}) async {}
 
   @override
   Future<List<AuditLog>> getAuditLogs() async => [];

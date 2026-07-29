@@ -37,7 +37,8 @@ class WagonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _getStatusColor(wagon.status);
-    final double progress = totalTrucks > 0 ? completedTrucks / totalTrucks : 0.0;
+    final double progress =
+        totalTrucks > 0 ? completedTrucks / totalTrucks : 0.0;
     final int progressPct = (progress * 100).toInt();
 
     return AppCard(
@@ -54,25 +55,51 @@ class WagonCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   wagon.wagonNumber,
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, letterSpacing: 0.5),
+                  style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      letterSpacing: 0.5),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
                   wagon.status.displayName.toUpperCase(),
-                  style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+                  style: TextStyle(
+                      color: statusColor,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 0.8),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
+          Row(
+            children: [
+              const Icon(Icons.fingerprint_outlined,
+                  size: 13, color: Color(0xFF7E8A99)),
+              const SizedBox(width: 4),
+              Expanded(
+                child: Text(
+                  'ID: ${wagon.id}',
+                  style: const TextStyle(
+                      color: Color(0xFF7E8A99),
+                      fontSize: 10,
+                      fontFamily: 'monospace'),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
 
           // Route Details
           Text(
@@ -96,7 +123,10 @@ class WagonCard extends StatelessWidget {
             children: [
               Text(
                 'Truck Progress: $completedTrucks / $totalTrucks expected ($progressPct%)',
-                style: const TextStyle(fontSize: 12, color: Color(0xFFBDBDBD), fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFFBDBDBD),
+                    fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -107,7 +137,9 @@ class WagonCard extends StatelessWidget {
               value: progress,
               backgroundColor: const Color(0xFF3A3A3A),
               valueColor: AlwaysStoppedAnimation<Color>(
-                wagon.status == WagonStatus.completed ? AppTheme.successColor : AppTheme.primaryColor,
+                wagon.status == WagonStatus.completed
+                    ? AppTheme.successColor
+                    : AppTheme.primaryColor,
               ),
               minHeight: 6,
             ),
@@ -119,8 +151,10 @@ class WagonCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildMetric('Cartons', '$totalCartons'),
-              _buildMetric('Defects', '$totalDefects', isAlert: totalDefects > 0),
-              const Icon(Icons.arrow_forward, color: Color(0xFFBDBDBD), size: 20),
+              _buildMetric('Defects', '$totalDefects',
+                  isAlert: totalDefects > 0),
+              const Icon(Icons.arrow_forward,
+                  color: Color(0xFFBDBDBD), size: 20),
             ],
           )
         ],
@@ -134,7 +168,11 @@ class WagonCard extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(fontSize: 10, color: Color(0xFFBDBDBD), fontWeight: FontWeight.bold, letterSpacing: 0.5),
+          style: const TextStyle(
+              fontSize: 10,
+              color: Color(0xFFBDBDBD),
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5),
         ),
         const SizedBox(height: 2),
         Text(
@@ -151,8 +189,18 @@ class WagonCard extends StatelessWidget {
 
   String _formatDate(DateTime dt) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
     ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }

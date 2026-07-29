@@ -21,12 +21,12 @@ Historically, warehouse operators had to manually count cartons, track trucks on
 
 Before using the app, it's crucial to understand the three main tiers of the workflow:
 
-1. **Wagon**: The highest level of operation. A Wagon represents a massive bulk shipment heading to a destination. For example, a train wagon or a massive freight order. It requires multiple trucks to fill it.
-2. **Truck (Vehicle)**: Trucks are the individual vehicles that carry goods from the warehouse out to the Wagon. Each Truck requires multiple *Layers* of cartons to fill.
+1. **Wagon**: The highest level of operation. A Wagon represents the bulk shipment that has arrived and is being unloaded into trucks for delivery to a warehouse.
+2. **Truck (Vehicle)**: Trucks are the receiving vehicles that take cartons from the arrived Wagon to the warehouse. Each Truck requires multiple *Layers* of cartons to fill.
 3. **Layer**: A physical stack/row of cartons placed into the back of a Truck. Instead of counting individual boxes by hand, the operator snaps a photo of each "Layer" using the AI Camera, which counts the cartons instantly.
 
 **The Workflow:**
-`Create Wagon` ➡️ `Add Truck to Wagon` ➡️ `Capture AI Layers for Truck` ➡️ `Complete Truck` ➡️ `Complete Wagon` ➡️ `Generate Digital Register`
+`Register Arrived Wagon` ➡️ `Add Receiving Truck` ➡️ `Start Loading Session` ➡️ `Capture AI Layers for Truck` ➡️ `Complete Truck` ➡️ `Send Truck to Warehouse` ➡️ `Complete Wagon` ➡️ `Generate Digital Register`
 
 ---
 
@@ -35,9 +35,9 @@ Before using the app, it's crucial to understand the three main tiers of the wor
 Throughout the app, you will see various colored tags or "chips" indicating the current state of a Wagon, Truck, or Loading Session. Here is exactly what each means:
 
 ### Wagon Status Tags
-- **PLANNING (Grey)**: The wagon has been created, and trucks are being assigned, but no physical loading has commenced yet.
+- **PLANNING (Grey)**: The wagon has arrived and been registered. Trucks are being assigned, but physical loading has not started yet.
 - **LOADING (Blue)**: Active loading is happening right now. At least one truck assigned to this wagon is currently being loaded.
-- **COMPLETED (Green)**: The wagon is completely full. All expected trucks have been loaded and finalized. The Wagon is now locked and ready for digital register generation.
+- **COMPLETED (Green)**: All cartons have been transferred from the arrived wagon, and all expected trucks have been loaded and finalized. The Wagon is now locked and ready for digital register generation.
 
 ### Truck Status Tags
 - **LOADING (Blue)**: The truck is actively receiving goods. The AI camera can be used to scan new layers.
@@ -57,18 +57,19 @@ Throughout the app, you will see various colored tags or "chips" indicating the 
 ### A. Authentication & Security
 - **Secure Login**: Enter your Employee ID and password.
 - **Kill-Switch Security**: If an administrator disables your account from the Web Admin Dashboard, the mobile app will instantly detect it, lock the screen, and purge your security token.
+- **Saved Login Session**: Closing and reopening the app keeps you signed in on this device. You only need to log in again after choosing **Logout** or if an administrator revokes your access.
+- **Logout Safely**: Open the app drawer and tap **Logout**. SmartLoad first shows a warning. Tap **Cancel** to stay signed in, or tap **Log out** to end the current login session and return to the login screen. Logging out does not delete wagons, trucks, layers, photos, or reports saved on the device.
 
 ### B. The App Drawer & Global Navigation
 Tap the **Vinayak Logistics Logo** in the top-left corner of the dashboard, or swipe from the left edge of the screen, to open the **App Navigation Drawer**. This drawer contains:
-- **Wagon Control Center**: The main dashboard.
-- **Digital Registers**: Access the completed, exportable PDF reports.
-- **Refresh Data**: Force the app to synchronize with the database.
-- **Dataset Developer Mode**: A tool for engineers to review raw image captures.
-- **Load Demo Data**: Injects mock data for training and testing.
+- **Digital Registers**: View wagon history, including planning, loading, completed, and archived records, and generate PDF/Excel reports.
+- **Documentation**: Open this user manual and workflow guidance.
+- **Load Demo Data**: Replace current local data with mock data for training and testing. Use this only when you intentionally want to clear the current test records.
+- **Logout**: End the current user session after confirming the warning.
 
 ### C. The Wagon Control Center (Dashboard)
 This is your main operational hub.
-- **View Active Operations**: The top cards show you exactly how many Wagons are active, how many Trucks are in the system, and the total number of Cartons loaded today.
+- **View Loading Summary**: The dashboard shows the current wagon list and loading status. Open a wagon to see its trucks, layers, carton totals, defects, and history.
 - **Filter**: Use the chips (`All`, `Planning`, `Loading`, `Completed`) to filter the list of Wagons.
 - **Create a New Wagon**: Tap the large floating `+ Create Wagon` button at the bottom. Enter the Wagon Number (e.g., `W-1002-IND`), Origin, Destination, and Expected Trucks.
 
@@ -92,9 +93,10 @@ This is the flagship feature of SmartLoad. You use this screen while standing at
 5. Every confirmed layer is permanently logged to the truck, and the total carton count goes up automatically!
 
 ### G. Completing the Process
-1. **Complete the Truck**: Once the truck is fully packed, go back to the Truck Workspace and tap **Complete Loading Session**. It will show you a strict summary of your layers and cartons before locking the truck.
-2. **Complete the Wagon**: Once all expected trucks for a Wagon are Complete, go back to the Wagon Details and tap **Complete Wagon**. If you try to complete a wagon before the expected trucks are loaded, the app will issue a strict warning!
-3. **Digital Registers**: Once the Wagon is completed, it automatically generates a professional exportable report of the Wagon, listing every single Truck, Driver, Time, and exact Carton counts—ready to be printed or emailed. No paper required!
+1. **Complete the Truck**: Once the truck is fully packed, go back to the Truck Workspace and tap **Complete Loading Session**. It will show you a strict summary of your layers and cartons before locking the truck. The truck is then ready to be sent to the warehouse.
+2. **Send the Truck to the Warehouse**: Move the completed truck to the destination warehouse according to your transport process. SmartLoad keeps the loading record and carton count for that truck.
+3. **Complete the Wagon**: Once all expected trucks for a Wagon are Complete, go back to the Wagon Details and tap **Complete Wagon**. If you try to complete a wagon before the expected trucks are loaded, the app will issue a strict warning!
+4. **Digital Registers**: Once the Wagon is completed, it automatically generates a professional exportable report of the Wagon, listing every single Truck, Driver, Time, and exact Carton counts—ready to be printed or emailed. No paper required!
 
 ---
 *End of User Manual. Property of Vinayak Logistics.*
@@ -123,12 +125,12 @@ const String userManualHindiMarkdown = '''
 
 ऐप का उपयोग करने से पहले, वर्कफ़्लो के तीन मुख्य स्तरों को समझना महत्वपूर्ण है:
 
-1. **वैगन (Wagon)**: संचालन का उच्चतम स्तर। एक वैगन एक गंतव्य की ओर जाने वाले बड़े थोक शिपमेंट का प्रतिनिधित्व करता है। उदाहरण के लिए, एक ट्रेन का डिब्बा या एक बड़ा माल ढुलाई आदेश। इसे भरने के लिए कई ट्रकों की आवश्यकता होती है।
-2. **ट्रक (वाहन)**: ट्रक वे व्यक्तिगत वाहन हैं जो वेयरहाउस से वैगन तक माल ले जाते हैं। प्रत्येक ट्रक को भरने के लिए डिब्बों की कई *लेयर्स* (परतों) की आवश्यकता होती है।
+1. **वैगन (Wagon)**: संचालन का उच्चतम स्तर। वैगन वह थोक शिपमेंट है जो आ चुका है और जिसके कार्टन ट्रकों में लोड किए जा रहे हैं, ताकि उन्हें वेयरहाउस भेजा जा सके।
+2. **ट्रक (वाहन)**: ट्रक वे प्राप्त करने वाले वाहन हैं जो आए हुए वैगन से कार्टन लेकर वेयरहाउस तक जाते हैं। प्रत्येक ट्रक को भरने के लिए कार्टन की कई *लेयर्स* (परतों) की आवश्यकता होती है।
 3. **लेयर (Layer)**: ट्रक के पीछे रखे गए डिब्बों का एक भौतिक स्टैक/पंक्ति। डिब्बों को हाथ से गिनने के बजाय, ऑपरेटर AI कैमरे का उपयोग करके प्रत्येक "लेयर" की एक तस्वीर लेता है, जो तुरंत डिब्बों की गिनती कर लेता है।
 
 **वर्कफ़्लो:**
-`नया वैगन बनाएँ` ➡️ `वैगन में ट्रक जोड़ें` ➡️ `ट्रक के लिए AI लेयर्स कैप्चर करें` ➡️ `ट्रक को पूरा करें` ➡️ `वैगन को पूरा करें` ➡️ `डिजिटल रजिस्टर जनरेट करें`
+`आया हुआ वैगन रजिस्टर करें` ➡️ `प्राप्त करने वाला ट्रक जोड़ें` ➡️ `लोडिंग सत्र शुरू करें` ➡️ `ट्रक के लिए AI लेयर्स कैप्चर करें` ➡️ `ट्रक को पूरा करें` ➡️ `ट्रक को वेयरहाउस भेजें` ➡️ `वैगन को पूरा करें` ➡️ `डिजिटल रजिस्टर जनरेट करें`
 
 ---
 
@@ -137,9 +139,9 @@ const String userManualHindiMarkdown = '''
 पूरे ऐप में, आप विभिन्न रंगीन टैग या "चिप्स" देखेंगे जो वैगन, ट्रक या लोडिंग सत्र की वर्तमान स्थिति का संकेत देते हैं। यहां बताया गया है कि प्रत्येक का क्या अर्थ है:
 
 ### वैगन स्टेटस टैग्स
-- **PLANNING (ग्रे)**: वैगन बना दिया गया है, और ट्रकों को सौंपा जा रहा है, लेकिन अभी तक कोई भौतिक लोडिंग शुरू नहीं हुई है।
+- **PLANNING (ग्रे)**: वैगन आ चुका है और रजिस्टर हो गया है। ट्रकों को सौंपा जा रहा है, लेकिन अभी तक भौतिक लोडिंग शुरू नहीं हुई है।
 - **LOADING (नीला)**: वर्तमान में सक्रिय लोडिंग हो रही है। इस वैगन को सौंपा गया कम से कम एक ट्रक वर्तमान में लोड किया जा रहा है।
-- **COMPLETED (हरा)**: वैगन पूरी तरह से भर गया है। सभी अपेक्षित ट्रकों को लोड और अंतिम रूप दे दिया गया है। वैगन अब लॉक है और डिजिटल रजिस्टर जनरेशन के लिए तैयार है।
+- **COMPLETED (हरा)**: आए हुए वैगन से सभी कार्टन ट्रकों में स्थानांतरित कर दिए गए हैं और सभी अपेक्षित ट्रकों को लोड करके अंतिम रूप दे दिया गया है। वैगन अब लॉक है और डिजिटल रजिस्टर जनरेशन के लिए तैयार है।
 
 ### ट्रक स्टेटस टैग्स
 - **LOADING (नीला)**: ट्रक में सक्रिय रूप से माल प्राप्त हो रहा है। AI कैमरे का उपयोग नई लेयर्स को स्कैन करने के लिए किया जा सकता है।
@@ -194,9 +196,10 @@ const String userManualHindiMarkdown = '''
 5. प्रत्येक पुष्ट लेयर स्थायी रूप से ट्रक में लॉग इन हो जाती है, और कुल कार्टन गिनती स्वचालित रूप से बढ़ जाती है!
 
 ### G. प्रक्रिया को पूरा करना (Completing the Process)
-1. **ट्रक को पूरा करें**: एक बार जब ट्रक पूरी तरह से पैक हो जाता है, तो ट्रक वर्कस्पेस पर वापस जाएं और **Complete Loading Session** पर टैप करें। यह आपको ट्रक को लॉक करने से पहले आपकी लेयर्स और डिब्बों का एक सख्त सारांश दिखाएगा।
-2. **वैगन को पूरा करें**: वैगन के लिए सभी अपेक्षित ट्रकों के पूरा हो जाने के बाद, वैगन विवरण पर वापस जाएं और **Complete Wagon** पर टैप करें। यदि आप अपेक्षित ट्रकों के लोड होने से पहले एक वैगन को पूरा करने का प्रयास करते हैं, तो ऐप एक सख्त चेतावनी जारी करेगा!
-3. **डिजिटल रजिस्टर**: वैगन पूरा हो जाने के बाद, यह स्वचालित रूप से वैगन की एक पेशेवर निर्यात योग्य रिपोर्ट उत्पन्न करता है, जिसमें प्रत्येक ट्रक, ड्राइवर, समय और सटीक कार्टन की गिनती सूचीबद्ध होती है - जो प्रिंट करने या ईमेल करने के लिए तैयार होती है। किसी कागज की आवश्यकता नहीं!
+1. **ट्रक को पूरा करें**: एक बार जब ट्रक पूरी तरह से पैक हो जाता है, तो ट्रक वर्कस्पेस पर वापस जाएं और **Complete Loading Session** पर टैप करें। यह आपको ट्रक को लॉक करने से पहले आपकी लेयर्स और डिब्बों का एक सख्त सारांश दिखाएगा। इसके बाद ट्रक को वेयरहाउस भेजा जा सकता है।
+2. **ट्रक को वेयरहाउस भेजें**: पूरा हुआ ट्रक आपकी परिवहन प्रक्रिया के अनुसार गंतव्य वेयरहाउस भेजें। SmartLoad उस ट्रक का लोडिंग रिकॉर्ड और कार्टन की संख्या सुरक्षित रखता है।
+3. **वैगन को पूरा करें**: वैगन के लिए सभी अपेक्षित ट्रकों के पूरा हो जाने के बाद, वैगन विवरण पर वापस जाएं और **Complete Wagon** पर टैप करें। यदि आप अपेक्षित ट्रकों के लोड होने से पहले एक वैगन को पूरा करने का प्रयास करते हैं, तो ऐप एक सख्त चेतावनी जारी करेगा!
+4. **डिजिटल रजिस्टर**: वैगन पूरा हो जाने के बाद, यह स्वचालित रूप से वैगन की एक पेशेवर निर्यात योग्य रिपोर्ट उत्पन्न करता है, जिसमें प्रत्येक ट्रक, ड्राइवर, समय और सटीक कार्टन की गिनती सूचीबद्ध होती है - जो प्रिंट करने या ईमेल करने के लिए तैयार होती है। किसी कागज की आवश्यकता नहीं!
 
 ---
 *उपयोगकर्ता मैनुअल का अंत। विनायक लॉजिस्टिक्स की संपत्ति।*

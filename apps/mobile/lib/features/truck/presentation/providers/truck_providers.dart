@@ -31,15 +31,16 @@ class TruckListState {
 
   List<Truck> get processedTrucks {
     var list = [...trucks];
-    
+
     // 1. Apply Search Query
     if (searchQuery.isNotEmpty) {
       final query = searchQuery.toLowerCase();
-      list = list.where((t) =>
-        t.truckNumber.toLowerCase().contains(query) ||
-        t.driverName.toLowerCase().contains(query) ||
-        t.company.toLowerCase().contains(query)
-      ).toList();
+      list = list
+          .where((t) =>
+              t.truckNumber.toLowerCase().contains(query) ||
+              t.driverName.toLowerCase().contains(query) ||
+              t.company.toLowerCase().contains(query))
+          .toList();
     }
 
     // 2. Apply Status Filter
@@ -51,9 +52,11 @@ class TruckListState {
     if (sortBy == 'number') {
       list.sort((a, b) => a.truckNumber.compareTo(b.truckNumber));
     } else if (sortBy == 'cartons') {
-      list.sort((a, b) => b.totalCartons.compareTo(a.totalCartons)); // Descending total cartons
+      list.sort((a, b) =>
+          b.totalCartons.compareTo(a.totalCartons)); // Descending total cartons
     } else {
-      list.sort((a, b) => b.createdDate.compareTo(a.createdDate)); // Descending chronological
+      list.sort((a, b) =>
+          b.createdDate.compareTo(a.createdDate)); // Descending chronological
     }
 
     return list;
@@ -71,7 +74,8 @@ class TruckListState {
     return TruckListState(
       trucks: trucks ?? this.trucks,
       searchQuery: searchQuery ?? this.searchQuery,
-      statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
+      statusFilter:
+          clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
       sortBy: sortBy ?? this.sortBy,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
@@ -87,12 +91,17 @@ class TruckListNotifier extends StateNotifier<TruckListState> {
   }
 
   Future<void> refresh() async {
-    state = state.copyWith(isLoading: true);
+    final hasExistingData = state.trucks.isNotEmpty;
+    if (!hasExistingData) state = state.copyWith(isLoading: true);
     try {
-      final list = await _repository.getActiveTrucks();
-      state = state.copyWith(trucks: list, isLoading: false, errorMessage: null);
+      final list = (await _repository.getActiveTrucks())
+          .where((truck) => !truck.isArchived)
+          .toList();
+      state =
+          state.copyWith(trucks: list, isLoading: false, errorMessage: null);
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: 'Failed to read truck list.');
+      state = state.copyWith(
+          isLoading: false, errorMessage: 'Failed to read truck list.');
     }
   }
 
@@ -108,8 +117,9 @@ class TruckListNotifier extends StateNotifier<TruckListState> {
   }) async {
     final cleanNum = truckNumber.trim();
     if (cleanNum.isEmpty) return 'Truck number is required.';
-    
-    final exists = await _repository.isTruckNumberExists(cleanNum);
+
+    final exists =
+        await _repository.isTruckNumberExists(cleanNum, wagonId: wagonId);
     if (exists) return 'Truck number already exists.';
 
     final newTruck = Truck(
@@ -134,9 +144,9 @@ class TruckListNotifier extends StateNotifier<TruckListState> {
 
   Future<String?> editTruck(Truck updated) async {
     if (updated.isArchived) return 'Cannot edit archived trucks.';
-    if (updated.status == TruckStatus.completed) return 'Completed trucks are read-only.';
 
-    final exists = await _repository.isTruckNumberExists(updated.truckNumber, excludeId: updated.id);
+    final exists = await _repository.isTruckNumberExists(updated.truckNumber,
+        excludeId: updated.id, wagonId: updated.wagonId);
     if (exists) return 'Truck number already in use by another session.';
 
     await _repository.updateTruck(updated);
@@ -171,7 +181,8 @@ class TruckListNotifier extends StateNotifier<TruckListState> {
   }
 }
 
-final truckListProvider = StateNotifierProvider.autoDispose<TruckListNotifier, TruckListState>((ref) {
+final truckListProvider =
+    StateNotifierProvider.autoDispose<TruckListNotifier, TruckListState>((ref) {
   final repo = ref.watch(truckRepositoryProvider);
   return TruckListNotifier(repo);
 });
@@ -180,9 +191,11 @@ final truckListProvider = StateNotifierProvider.autoDispose<TruckListNotifier, T
 final truckStatsProvider = Provider.autoDispose<(int, int, int)>((ref) {
   final listState = ref.watch(truckListProvider);
   final activeList = listState.trucks;
-  
-  final int loadingCount = activeList.where((t) => t.status == TruckStatus.loading).length;
-  final int completedCount = activeList.where((t) => t.status == TruckStatus.completed).length;
+
+  final int loadingCount =
+      activeList.where((t) => t.status == TruckStatus.loading).length;
+  final int completedCount =
+      activeList.where((t) => t.status == TruckStatus.completed).length;
   final int totalCartons = activeList.fold(0, (sum, t) => sum + t.totalCartons);
 
   return (loadingCount, completedCount, totalCartons);

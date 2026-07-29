@@ -6,6 +6,7 @@ import '../../../features/wagon/presentation/providers/wagon_providers.dart';
 import '../../../features/truck/presentation/providers/truck_providers.dart';
 import '../../../features/layer/presentation/providers/layer_providers.dart';
 import '../../../features/auth/presentation/providers/auth_providers.dart';
+import '../../../features/auth/domain/entities/user.dart';
 import 'action_warning_dialog.dart';
 
 class AppDrawer extends ConsumerWidget {
@@ -14,7 +15,7 @@ class AppDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authProvider);
-    
+
     return Drawer(
       backgroundColor: AppTheme.backgroundColor,
       shape: const RoundedRectangleBorder(
@@ -28,112 +29,56 @@ class AppDrawer extends ConsumerWidget {
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(vertical: 16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-
-                  
-                  const SizedBox(height: 4),
-                  _buildSectionLabel('CORE OPERATIONS'),
-                  _buildSection([
-                    _buildTile(
-                      icon: Icons.analytics_outlined,
-                      title: 'Analytics & Operations',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/wagons');
-                        context.push('/dashboard');
-                      },
-                    ),
-                    _buildDivider(),
-                    _buildTile(
-                      icon: Icons.dashboard_rounded,
-                      title: 'Wagon Control Center',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/wagons');
-                      },
-                    ),
-                    _buildDivider(),
-                    _buildTile(
-                      icon: Icons.description_outlined,
-                      title: 'Digital Registers',
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/wagons');
-                        context.push('/registers');
-                      },
-                    ),
-                  ]),
-                  
-                  const SizedBox(height: 4),
-                  _buildSectionLabel('RESOURCES'),
-                  _buildSection([
-                    _buildTile(
-                      icon: Icons.menu_book_rounded,
-                      title: 'Documentation',
-                      subtitle: 'User manuals & workflow guides',
-                      iconColor: AppTheme.primaryColor,
-                      onTap: () {
-                        Navigator.pop(context);
-                        context.go('/wagons');
-                        context.push('/manual');
-                      },
-                    ),
-                  ]),
-
-                  const SizedBox(height: 4),
-                  _buildSectionLabel('DEVELOPER & TOOLS'),
-                  _buildSection([
-                    _buildTile(
-                      icon: Icons.refresh_rounded,
-                      title: 'Sync & Refresh Data',
-                      onTap: () async {
-                        Navigator.pop(context);
-                        await ref.read(truckListProvider.notifier).refresh();
-                        await ref.read(wagonListProvider.notifier).refresh();
-                        if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Data refreshed successfully.')));
-                      },
-                    ),
-
-                    _buildDivider(),
-                    _buildTile(
-                      icon: Icons.bug_report_rounded,
-                      title: 'Load Demo Data',
-                      subtitle: 'Inject mock data for testing',
-                      iconColor: Colors.redAccent,
-                      textColor: Colors.redAccent,
-                      onTap: () {
-                        _confirmDemoDataLoad(context, ref);
-                      },
-                    ),
-                  ]),
-                  
-
-                  const SizedBox(height: 4),
-                  _buildSectionLabel('ACCOUNT'),
-                  _buildSection([
-                    _buildTile(
-                      icon: Icons.logout_rounded,
-                      title: 'Logout',
-                      iconColor: Colors.redAccent,
-                      textColor: Colors.redAccent,
-                      onTap: () async {
-                        await ref.read(authProvider.notifier).logout();
-                        if (context.mounted) {
-                          Navigator.pop(context); // close drawer
-                          context.go('/login');
-                        }
-                      },
-                    ),
-                  ]),
-                  
+                  const SizedBox(height: 8),
+                  _buildTile(
+                    icon: Icons.description_outlined,
+                    title: 'Digital Registers',
+                    subtitle: 'Wagon history and loading records',
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/wagons');
+                      context.push('/registers');
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTile(
+                    icon: Icons.menu_book_rounded,
+                    title: 'Documentation',
+                    subtitle: 'User manuals and workflow guides',
+                    iconColor: AppTheme.primaryColor,
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/wagons');
+                      context.push('/manual');
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTile(
+                    icon: Icons.bug_report_rounded,
+                    title: 'Load Demo Data',
+                    subtitle: 'Inject mock data for testing',
+                    iconColor: Colors.redAccent,
+                    textColor: Colors.redAccent,
+                    onTap: () => _confirmDemoDataLoad(context, ref),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildTile(
+                    icon: Icons.logout_rounded,
+                    title: 'Logout',
+                    iconColor: Colors.redAccent,
+                    textColor: Colors.redAccent,
+                    onTap: () => _confirmLogout(context, ref),
+                  ),
                   const SizedBox(height: 32),
                   const Padding(
                     padding: EdgeInsets.all(16.0),
                     child: Center(
                       child: Text(
                         'Vinayak SmartLoad v1.0.0\nSecure Enterprise Release',
-                        style: TextStyle(color: Colors.white30, fontSize: 11, height: 1.5),
+                        style: TextStyle(
+                            color: Colors.white30, fontSize: 11, height: 1.5),
                         textAlign: TextAlign.center,
                       ),
                     ),
@@ -147,7 +92,7 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context, user) {
+  Widget _buildHeader(BuildContext context, User? user) {
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 24,
@@ -191,7 +136,10 @@ class AppDrawer extends ConsumerWidget {
                     const SizedBox(height: 4),
                     Text(
                       'Enterprise Warehouse System',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, fontWeight: FontWeight.w500),
+                      style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.7),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500),
                     ),
                   ],
                 ),
@@ -205,16 +153,19 @@ class AppDrawer extends ConsumerWidget {
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
               ),
               child: Row(
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
+                    backgroundColor:
+                        AppTheme.primaryColor.withValues(alpha: 0.2),
                     child: Text(
                       user.name.isNotEmpty ? user.name[0].toUpperCase() : 'U',
-                      style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold, fontSize: 14),
+                      style: const TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -224,11 +175,16 @@ class AppDrawer extends ConsumerWidget {
                       children: [
                         Text(
                           user.name,
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13),
                         ),
                         Text(
                           user.role.displayName.toUpperCase(),
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.5), fontSize: 10),
+                          style: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              fontSize: 10),
                         ),
                       ],
                     ),
@@ -241,44 +197,6 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
-  Widget _buildSectionLabel(String label) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 24, bottom: 8, top: 8),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: Colors.white.withValues(alpha: 0.4),
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSection(List<Widget> children) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: Column(
-          children: children,
-        ),
-      ),
-    );
-  }
-
   Widget _buildTile({
     required IconData icon,
     required String title,
@@ -287,29 +205,45 @@ class AppDrawer extends ConsumerWidget {
     Color? textColor,
     required VoidCallback onTap,
   }) {
-    return ListTile(
-      leading: Icon(icon, color: iconColor ?? Colors.white.withValues(alpha: 0.7), size: 22),
-      title: Text(
-        title,
-        style: TextStyle(
-          color: textColor ?? Colors.white,
-          fontWeight: FontWeight.w600,
-          fontSize: 15,
-        ),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceColor,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
-      subtitle: subtitle != null
-          ? Text(subtitle, style: TextStyle(color: textColor?.withValues(alpha: 0.7) ?? Colors.white.withValues(alpha: 0.5), fontSize: 11))
-          : null,
-      trailing: const Icon(Icons.chevron_right_rounded, color: Colors.white24, size: 18),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
-      visualDensity: const VisualDensity(horizontal: 0, vertical: -2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onTap: onTap,
+      child: ListTile(
+        leading: Icon(icon,
+            color: iconColor ?? Colors.white.withValues(alpha: 0.7), size: 22),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: textColor ?? Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 15,
+          ),
+        ),
+        subtitle: subtitle != null
+            ? Text(subtitle,
+                style: TextStyle(
+                    color: textColor?.withValues(alpha: 0.7) ??
+                        Colors.white.withValues(alpha: 0.5),
+                    fontSize: 11))
+            : null,
+        trailing: const Icon(Icons.chevron_right_rounded,
+            color: Colors.white24, size: 18),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+        visualDensity: const VisualDensity(horizontal: 0, vertical: -1),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        onTap: onTap,
+      ),
     );
-  }
-
-  Widget _buildDivider() {
-    return const Divider(height: 1, color: AppTheme.dividerColor, indent: 48, endIndent: 12);
   }
 
   void _confirmDemoDataLoad(BuildContext context, WidgetRef ref) {
@@ -325,13 +259,14 @@ class AppDrawer extends ConsumerWidget {
       context: context,
       builder: (ctx) => ActionWarningDialog(
         title: 'Load Demo Data?',
-        content: 'WARNING: This will permanently DELETE all current local data (wagons, trucks, layers) and replace them with mock data for testing. This action cannot be undone.',
+        content:
+            'WARNING: This will permanently DELETE all current local data (wagons, trucks, layers) and replace them with mock data for testing. This action cannot be undone.',
         actionLabel: 'Inject Demo Data',
         actionColor: Colors.redAccent,
         icon: Icons.bug_report_rounded,
         onConfirm: () async {
           Navigator.of(context).pop(); // close drawer
-          
+
           // Clear data (must delete children before parents to avoid FK errors)
           await layerRepo.clearAllData();
           await truckRepo.clearAllData();
@@ -345,7 +280,29 @@ class AppDrawer extends ConsumerWidget {
           wagonNotifier.refresh();
           truckNotifier.refresh();
           if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Demo Data Loaded successfully.')));
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Demo Data Loaded successfully.')));
+          }
+        },
+      ),
+    );
+  }
+
+  void _confirmLogout(BuildContext context, WidgetRef ref) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => ActionWarningDialog(
+        title: 'Log out of SmartLoad?',
+        content:
+            'You will return to the login screen. Your wagons, trucks, layers, reports, and saved local data will stay on this device. Choose Cancel to remain signed in.',
+        actionLabel: 'Log out',
+        actionColor: Colors.redAccent,
+        icon: Icons.logout_rounded,
+        onConfirm: () async {
+          await ref.read(authProvider.notifier).logout();
+          if (context.mounted) {
+            Navigator.pop(context); // close the navigation drawer
+            context.go('/login');
           }
         },
       ),

@@ -12,7 +12,8 @@ import '../../../../utils/logger.dart';
 
 import '../../../../core/providers/database_provider.dart';
 
-final loadingSessionRepositoryProvider = Provider<LoadingSessionRepository>((ref) {
+final loadingSessionRepositoryProvider =
+    Provider<LoadingSessionRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return LocalLoadingSessionRepository(db);
 });
@@ -45,7 +46,8 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
   final LoadingSessionRepository _repository;
   final Ref _ref;
 
-  ActiveSessionNotifier(this._repository, this._ref) : super(const ActiveSessionState()) {
+  ActiveSessionNotifier(this._repository, this._ref)
+      : super(const ActiveSessionState()) {
     autoRecoverSession();
   }
 
@@ -55,14 +57,18 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
     try {
       final recovered = await _repository.recoverLastActiveSession();
       if (recovered != null) {
-        AppLogger.info('Auto-recovered unclosed loading session: ${recovered.id}');
-        state = ActiveSessionState(activeSession: recovered, isRecovering: false);
+        AppLogger.info(
+            'Auto-recovered unclosed loading session: ${recovered.id}');
+        state =
+            ActiveSessionState(activeSession: recovered, isRecovering: false);
       } else {
         state = state.copyWith(isRecovering: false);
       }
     } catch (e, stack) {
       AppLogger.error('Error recovering session', e, stack);
-      state = state.copyWith(isRecovering: false, errorMessage: 'Failed to recover active session.');
+      state = state.copyWith(
+          isRecovering: false,
+          errorMessage: 'Failed to recover active session.');
     }
   }
 
@@ -71,10 +77,13 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
     required String warehouseId,
   }) async {
     try {
-      // Rule: Verify no other truck session is active
-      final existingActive = await _repository.getActiveSessionForTruck(truckId);
+      // Each truck may have its own active session. If this truck already has
+      // one, make it the current working session instead of blocking the user.
+      final existingActive =
+          await _repository.getActiveSessionForTruck(truckId);
       if (existingActive != null) {
-        return 'A loading session is already active for this truck.';
+        state = ActiveSessionState(activeSession: existingActive);
+        return null;
       }
 
       final newSession = LoadingSession(
@@ -89,8 +98,10 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
 
       await _repository.saveSession(newSession);
       state = ActiveSessionState(activeSession: newSession);
-      AppLogger.info('Started loading session ${newSession.id} for truck $truckId');
-      AuditLogger.log(AuditEvent.truckCreated, 'Started loading session for truck $truckId');
+      AppLogger.info(
+          'Started loading session ${newSession.id} for truck $truckId');
+      AuditLogger.log(AuditEvent.truckCreated,
+          'Started loading session for truck $truckId');
       return null;
     } catch (e, stack) {
       AppLogger.error('Failed to start session', e, stack);
@@ -155,7 +166,8 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
       _ref.read(truckListProvider.notifier).refresh();
     }
     AppLogger.info('Completed loading session: ${session.id}');
-    AuditLogger.log(AuditEvent.truckCompleted, 'Completed loading session for truck ${session.truckId} with ${session.totalCartons} cartons.');
+    AuditLogger.log(AuditEvent.truckCompleted,
+        'Completed loading session for truck ${session.truckId} with ${session.totalCartons} cartons.');
   }
 
   Future<void> cancelSession() async {
@@ -173,7 +185,8 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
   }
 }
 
-final activeSessionProvider = StateNotifierProvider<ActiveSessionNotifier, ActiveSessionState>((ref) {
+final activeSessionProvider =
+    StateNotifierProvider<ActiveSessionNotifier, ActiveSessionState>((ref) {
   final repo = ref.watch(loadingSessionRepositoryProvider);
   return ActiveSessionNotifier(repo, ref);
 });

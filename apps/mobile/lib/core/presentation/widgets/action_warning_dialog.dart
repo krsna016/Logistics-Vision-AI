@@ -23,6 +23,8 @@ class ActionWarningDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       backgroundColor: AppTheme.surfaceColor,
+      insetAnimationDuration: const Duration(milliseconds: 180),
+      insetAnimationCurve: Curves.easeOutCubic,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       child: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -71,7 +73,8 @@ class ActionWarningDialog extends StatelessWidget {
                     ),
                     child: const Text(
                       'Cancel',
-                      style: TextStyle(fontSize: 16, color: AppTheme.textSecondary),
+                      style: TextStyle(
+                          fontSize: 16, color: AppTheme.textSecondary),
                     ),
                   ),
                 ),
@@ -91,7 +94,8 @@ class ActionWarningDialog extends StatelessWidget {
                     ),
                     child: Text(
                       actionLabel,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),

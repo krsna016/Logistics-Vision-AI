@@ -9,6 +9,7 @@ import 'package:image_picker/image_picker.dart';
 import '../providers/camera_notifier.dart';
 import '../providers/camera_state.dart';
 import '../providers/inference_notifier.dart';
+import '../providers/inference_state.dart';
 import '../providers/decision_providers.dart';
 import '../../domain/entities/decision_state.dart';
 import '../../domain/entities/detection.dart';
@@ -19,6 +20,7 @@ import '../../../truck/domain/entities/truck.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../wagon/presentation/providers/wagon_providers.dart';
+import '../../../wagon/domain/entities/wagon.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../utils/logger.dart';
 
@@ -60,21 +62,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       if (image != null) {
         setState(() => _pickedImagePath = image.path);
         AppLogger.info('Custom photo loaded for analysis: ${image.path}');
-        final List<Detection> simulatedDetections = [];
-        const int cols = 9;
-        const int rows = 8;
-        for (int r = 0; r < rows; r++) {
-          for (int c = 0; c < cols; c++) {
-            simulatedDetections.add(dynamicDetection(
-              id: 'picked_carton_${r}_$c',
-              xMin: 0.14 + c * 0.082,
-              yMin: 0.22 + r * 0.080,
-              xMax: 0.22 + c * 0.082,
-              yMax: 0.29 + r * 0.080,
-            ));
-          }
-        }
-        ref.read(countingDecisionProvider.notifier).analyzeFrameDetections(simulatedDetections);
+        // Gallery inference is not wired to the CameraImage pipeline yet.
+        // Do not fabricate detections; only the live camera path may publish
+        // boxes until still-image inference is implemented.
+        ref.read(countingDecisionProvider.notifier).resetAnalyzer();
       }
     } catch (e, stack) {
       AppLogger.error('Failed to import photo', e, stack);
@@ -97,9 +88,15 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     final truck = truckState.trucks.firstWhere(
       (t) => t.id == truckId,
       orElse: () => Truck(
-        id: '', truckNumber: '------', vehicleNumber: '', driverName: '',
-        company: '', warehouse: '', status: TruckStatus.loading,
-        createdDate: DateTime.now(), updatedDate: DateTime.now(),
+        id: '',
+        truckNumber: '------',
+        vehicleNumber: '',
+        driverName: '',
+        company: '',
+        warehouse: '',
+        status: TruckStatus.loading,
+        createdDate: DateTime.now(),
+        updatedDate: DateTime.now(),
       ),
     );
     final layerState = ref.watch(layerListProvider(truckId));
@@ -143,16 +140,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
             ),
           ),
 
-          // ── Layer 2: Alignment Guide Overlay (only while collecting) ──
-          if (decisionState.status == CountingDecisionState.collecting ||
-              decisionState.status == CountingDecisionState.analyzing)
-            Positioned.fill(
-              child: _AlignmentGuide(
-                isVisible: !isReadyForReview,
-              ),
-            ),
-
-          // ── Layer 3: AI Status Panel (top-right, below top bar) ───────
+          // ── Layer 2: AI Status Panel (top-right, below top bar) ───────
           Positioned(
             top: 100,
             right: 12,
@@ -230,28 +218,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   void _navigateToReview(
     BuildContext context,
     String truckId,
-    dynamic inferenceState,
+    InferenceState inferenceState,
     DecisionState decisionState,
   ) {
-    final List<Detection> finalDetections = [];
-    if (_pickedImagePath != null) {
-      const int cols = 9;
-      const int rows = 8;
-      for (int r = 0; r < rows; r++) {
-        for (int c = 0; c < cols; c++) {
-          finalDetections.add(dynamicDetection(
-            id: 'review_carton_${r}_$c',
-            xMin: 0.14 + c * 0.082,
-            yMin: 0.22 + r * 0.080,
-            xMax: 0.22 + c * 0.082,
-            yMax: 0.29 + r * 0.080,
-          ));
-        }
-      }
-    }
-
     final aiResult = AIResult(
-      detections: _pickedImagePath != null ? finalDetections : inferenceState.detections,
+      detections: inferenceState.detections,
       count: decisionState.stableCount,
       averageConfidence: 0.96,
       processingTimeMs: 15.0,
@@ -260,7 +231,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       frameSize: const Size(720, 1280),
     );
 
-    context.go('/trucks/$truckId/review', extra: {
+    context.push('/trucks/$truckId/review', extra: {
       'aiResult': aiResult,
       'photoPath': _pickedImagePath,
     });
@@ -302,7 +273,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
         return _CameraErrorState(
           icon: Icons.error_outline,
           title: 'Camera Error',
-          subtitle: state.errorMessage ?? 'An unexpected hardware error occurred.',
+          subtitle:
+              state.errorMessage ?? 'An unexpected hardware error occurred.',
           buttonLabel: 'Retry',
           onRetry: () => notifier.initialize(),
         );
@@ -312,16 +284,28 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
 
       case CameraStatus.disposed:
         return const Center(
-          child: Text('Camera disconnected.', style: TextStyle(color: Colors.white54)),
+          child: Text('Camera disconnected.',
+              style: TextStyle(color: Colors.white54)),
         );
     }
   }
 
   // ignore: prefer_const_constructors
-  dynamic _emptyWagon() {
+  Wagon _emptyWagon() {
     // Returns a placeholder when wagon lookup fails
     // Using dynamic to avoid importing wagon entity here
-    return _WagonPlaceholder();
+    return Wagon(
+      id: '',
+      wagonNumber: '------',
+      origin: '',
+      destination: '',
+      loadingDate: DateTime.now(),
+      expectedTruckCount: 0,
+      completedTruckCount: 0,
+      status: WagonStatus.loading,
+      createdAt: DateTime.now(),
+      updatedAt: DateTime.now(),
+    );
   }
 }
 
@@ -367,10 +351,21 @@ class _CameraTopBar extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           child: Row(
             children: [
+              IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                tooltip: 'Back',
+                padding: EdgeInsets.zero,
+                constraints:
+                    const BoxConstraints.tightFor(width: 32, height: 32),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go('/wagons'),
+              ),
+              const SizedBox(width: 4),
               // Brand
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
-                child: Image.asset('assets/images/logo.png', width: 18, height: 18, fit: BoxFit.contain),
+                child: Image.asset('assets/images/logo.png',
+                    width: 18, height: 18, fit: BoxFit.contain),
               ),
               const SizedBox(width: 6),
               const Column(
@@ -379,7 +374,9 @@ class _CameraTopBar extends StatelessWidget {
                 children: [
                   Text('Vinayak SmartLoad',
                       style: TextStyle(
-                          color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
                   Text('AI Scanning Mode',
                       style: TextStyle(color: Colors.white54, fontSize: 9)),
                 ],
@@ -394,7 +391,9 @@ class _CameraTopBar extends StatelessWidget {
               const SizedBox(width: 8),
               _TopChip(label: 'TRUCK', value: truckNumber),
               const SizedBox(width: 8),
-              _TopChip(label: 'LAYER', value: '#$layerNumber',
+              _TopChip(
+                  label: 'LAYER',
+                  value: '#$layerNumber',
                   valueColor: AppTheme.warningColor),
 
               const Spacer(),
@@ -403,9 +402,11 @@ class _CameraTopBar extends StatelessWidget {
               _TopChip(
                 label: isOnline ? 'ONLINE' : 'OFFLINE',
                 value: '',
-                valueColor: isOnline ? AppTheme.successColor : AppTheme.errorColor,
+                valueColor:
+                    isOnline ? AppTheme.successColor : AppTheme.errorColor,
                 compact: true,
-                dotColor: isOnline ? AppTheme.successColor : AppTheme.errorColor,
+                dotColor:
+                    isOnline ? AppTheme.successColor : AppTheme.errorColor,
               ),
               const SizedBox(width: 8),
               const Icon(Icons.battery_full, color: Colors.white70, size: 16),
@@ -451,7 +452,8 @@ class _TopChip extends StatelessWidget {
             Container(
               width: 6,
               height: 6,
-              decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
+              decoration:
+                  BoxDecoration(color: dotColor, shape: BoxShape.circle),
             ),
             const SizedBox(width: 4),
           ],
@@ -461,7 +463,9 @@ class _TopChip extends StatelessWidget {
             children: [
               Text(label,
                   style: const TextStyle(
-                      color: Colors.white54, fontSize: 8, fontWeight: FontWeight.bold,
+                      color: Colors.white54,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: 0.5)),
               if (value.isNotEmpty)
                 Text(value,
@@ -482,7 +486,8 @@ class _AIStatusPanel extends StatelessWidget {
   final dynamic inferenceState;
   final DecisionState decisionState;
 
-  const _AIStatusPanel({required this.inferenceState, required this.decisionState});
+  const _AIStatusPanel(
+      {required this.inferenceState, required this.decisionState});
 
   String get _statusLabel {
     switch (decisionState.status) {
@@ -538,26 +543,43 @@ class _AIStatusPanel extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: _statusColor,
                   shape: BoxShape.circle,
-                  boxShadow: [BoxShadow(color: _statusColor.withOpacity(0.6), blurRadius: 4)],
+                  boxShadow: [
+                    BoxShadow(
+                        color: _statusColor.withOpacity(0.6), blurRadius: 4)
+                  ],
                 ),
               ),
               const SizedBox(width: 6),
               const Text('AI ENGINE',
                   style: TextStyle(
-                      color: Colors.white54, fontSize: 8, fontWeight: FontWeight.bold,
+                      color: Colors.white54,
+                      fontSize: 8,
+                      fontWeight: FontWeight.bold,
                       letterSpacing: 0.8)),
               const Spacer(),
               const Text('YOLO11s',
                   style: TextStyle(
-                      color: AppTheme.primaryColor, fontSize: 9, fontWeight: FontWeight.bold)),
+                      color: AppTheme.primaryColor,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold)),
             ],
           ),
           const Divider(height: 10, color: Color(0xFF2A3F52)),
           Row(
             children: [
-              _AIMetric(label: 'CONF', value: '$conf%', color: conf > 85 ? AppTheme.successColor : AppTheme.warningColor),
+              _AIMetric(
+                  label: 'CONF',
+                  value: '$conf%',
+                  color: conf > 85
+                      ? AppTheme.successColor
+                      : AppTheme.warningColor),
               const SizedBox(width: 8),
-              _AIMetric(label: 'STAB', value: '$stability%', color: stability > 80 ? AppTheme.successColor : AppTheme.warningColor),
+              _AIMetric(
+                  label: 'STAB',
+                  value: '$stability%',
+                  color: stability > 80
+                      ? AppTheme.successColor
+                      : AppTheme.warningColor),
             ],
           ),
           const SizedBox(height: 6),
@@ -565,7 +587,8 @@ class _AIStatusPanel extends StatelessWidget {
             children: [
               _AIMetric(label: 'MODEL', value: 'v1.0'),
               const SizedBox(width: 8),
-              _AIMetric(label: 'STATUS', value: _statusLabel, color: _statusColor),
+              _AIMetric(
+                  label: 'STATUS', value: _statusLabel, color: _statusColor),
             ],
           ),
         ],
@@ -589,11 +612,16 @@ class _AIMetric extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(label,
-              style: const TextStyle(color: Colors.white38, fontSize: 8,
-                  fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+              style: const TextStyle(
+                  color: Colors.white38,
+                  fontSize: 8,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5)),
           Text(value,
               style: TextStyle(
-                  color: color ?? Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  color: color ?? Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold),
               overflow: TextOverflow.ellipsis),
         ],
       ),
@@ -652,11 +680,23 @@ class _LiveCounterBar extends StatelessWidget {
               color: AppTheme.errorColor.withOpacity(0.9),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: Text(
-              '⚠  ${warnings.first}',
-              style: const TextStyle(color: Colors.white, fontSize: 12,
-                  fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.warning_amber_rounded,
+                    color: Colors.white, size: 16),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    warnings.first,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
             ),
           ),
 
@@ -665,7 +705,8 @@ class _LiveCounterBar extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xEE0D1B2A),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _borderColor.withOpacity(0.5), width: 1.5),
+            border:
+                Border.all(color: _borderColor.withOpacity(0.5), width: 1.5),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -676,8 +717,7 @@ class _LiveCounterBar extends StatelessWidget {
                   _CountCol('DETECTED', '$detectedCount',
                       color: Colors.white, large: true),
                   _vDivider(),
-                  _CountCol('CONFIDENCE',
-                      '$confPct%',
+                  _CountCol('CONFIDENCE', '$confPct%',
                       color: confPct > 85
                           ? AppTheme.successColor
                           : confPct > 60
@@ -689,8 +729,7 @@ class _LiveCounterBar extends StatelessWidget {
                           ? AppTheme.successColor
                           : AppTheme.warningColor),
                   _vDivider(),
-                  _CountCol('MODEL', 'YOLO11s',
-                      color: AppTheme.primaryColor),
+                  _CountCol('MODEL', 'YOLO11s', color: AppTheme.primaryColor),
                 ],
               ),
               const SizedBox(height: 8),
@@ -717,7 +756,9 @@ class _LiveCounterBar extends StatelessWidget {
   }
 
   Widget _vDivider() => Container(
-        width: 1, height: 32, color: Colors.white12,
+        width: 1,
+        height: 32,
+        color: Colors.white12,
         margin: const EdgeInsets.symmetric(horizontal: 4),
       );
 }
@@ -737,7 +778,9 @@ class _CountCol extends StatelessWidget {
       children: [
         Text(label,
             style: const TextStyle(
-                color: Colors.white54, fontSize: 9, fontWeight: FontWeight.bold,
+                color: Colors.white54,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
                 letterSpacing: 0.5)),
         const SizedBox(height: 2),
         AnimatedSwitcher(
@@ -778,7 +821,8 @@ class _AlignmentGuide extends StatelessWidget {
             right: 0,
             child: Center(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(
                   color: Colors.black.withOpacity(0.6),
                   borderRadius: BorderRadius.circular(20),
@@ -837,14 +881,20 @@ class _GuidePainter extends CustomPainter {
     canvas.drawLine(rect.topLeft, rect.topLeft.translate(cLen, 0), cornerPaint);
     canvas.drawLine(rect.topLeft, rect.topLeft.translate(0, cLen), cornerPaint);
     // Top-right
-    canvas.drawLine(rect.topRight, rect.topRight.translate(-cLen, 0), cornerPaint);
-    canvas.drawLine(rect.topRight, rect.topRight.translate(0, cLen), cornerPaint);
+    canvas.drawLine(
+        rect.topRight, rect.topRight.translate(-cLen, 0), cornerPaint);
+    canvas.drawLine(
+        rect.topRight, rect.topRight.translate(0, cLen), cornerPaint);
     // Bottom-left
-    canvas.drawLine(rect.bottomLeft, rect.bottomLeft.translate(cLen, 0), cornerPaint);
-    canvas.drawLine(rect.bottomLeft, rect.bottomLeft.translate(0, -cLen), cornerPaint);
+    canvas.drawLine(
+        rect.bottomLeft, rect.bottomLeft.translate(cLen, 0), cornerPaint);
+    canvas.drawLine(
+        rect.bottomLeft, rect.bottomLeft.translate(0, -cLen), cornerPaint);
     // Bottom-right
-    canvas.drawLine(rect.bottomRight, rect.bottomRight.translate(-cLen, 0), cornerPaint);
-    canvas.drawLine(rect.bottomRight, rect.bottomRight.translate(0, -cLen), cornerPaint);
+    canvas.drawLine(
+        rect.bottomRight, rect.bottomRight.translate(-cLen, 0), cornerPaint);
+    canvas.drawLine(
+        rect.bottomRight, rect.bottomRight.translate(0, -cLen), cornerPaint);
   }
 
   void _drawDashedRect(Canvas canvas, Rect rect, Paint paint) {
@@ -867,7 +917,8 @@ class _GuidePainter extends CustomPainter {
         if (draw) {
           canvas.drawLine(
             Offset(start.dx + nx * pos, start.dy + ny * pos),
-            Offset(start.dx + nx * (pos + segLen), start.dy + ny * (pos + segLen)),
+            Offset(
+                start.dx + nx * (pos + segLen), start.dy + ny * (pos + segLen)),
             paint,
           );
         }
@@ -885,8 +936,6 @@ class _GuidePainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
-
-
 
 // ─── CAPTURE CONTROLS DOCK ───────────────────────────────────────────────────
 class _CaptureControlsDock extends StatelessWidget {
@@ -941,7 +990,9 @@ class _CaptureControlsDock extends StatelessWidget {
                 onTap: onGallery,
               ),
               _IconControl(
-                icon: isGallery ? Icons.camera_alt_outlined : Icons.flip_camera_ios_outlined,
+                icon: isGallery
+                    ? Icons.camera_alt_outlined
+                    : Icons.flip_camera_ios_outlined,
                 label: isGallery ? 'Camera' : 'Flip',
                 onTap: onFlipCamera,
               ),
@@ -951,7 +1002,8 @@ class _CaptureControlsDock extends StatelessWidget {
                 onTap: onReset,
               ),
               _IconControl(
-                icon: isDebugMode ? Icons.bug_report : Icons.bug_report_outlined,
+                icon:
+                    isDebugMode ? Icons.bug_report : Icons.bug_report_outlined,
                 label: 'Debug',
                 onTap: onDebugToggle,
                 iconColor: isDebugMode ? Colors.greenAccent : Colors.white70,
@@ -970,7 +1022,8 @@ class _CaptureControlsDock extends StatelessWidget {
                         borderRadius: BorderRadius.circular(18),
                         boxShadow: [
                           BoxShadow(
-                            color: AppTheme.successColor.withOpacity(pulseAnimation.value * 0.6),
+                            color: AppTheme.successColor
+                                .withOpacity(pulseAnimation.value * 0.6),
                             blurRadius: 20,
                             spreadRadius: 4,
                           ),
@@ -983,20 +1036,22 @@ class _CaptureControlsDock extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: onReview,
                     icon: Icon(
-                      isReadyForReview ? Icons.rate_review : Icons.hourglass_bottom_outlined,
+                      isReadyForReview
+                          ? Icons.rate_review
+                          : Icons.hourglass_bottom_outlined,
                       size: 22,
                     ),
                     label: Text(
                       isReadyForReview ? 'Review Count  →' : 'Scanning…',
-                      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: isReadyForReview
                           ? AppTheme.successColor
                           : Colors.white12,
-                      foregroundColor: isReadyForReview
-                          ? Colors.white
-                          : Colors.white38,
+                      foregroundColor:
+                          isReadyForReview ? Colors.white : Colors.white38,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18)),
                       elevation: isReadyForReview ? 4 : 0,
@@ -1079,11 +1134,14 @@ class _CameraErrorState extends StatelessWidget {
             const SizedBox(height: 20),
             Text(title,
                 style: const TextStyle(
-                    color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center),
             const SizedBox(height: 12),
             Text(subtitle,
-                style: const TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
+                style: const TextStyle(
+                    color: Colors.white60, fontSize: 14, height: 1.5),
                 textAlign: TextAlign.center),
             const SizedBox(height: 28),
             ElevatedButton.icon(
@@ -1091,7 +1149,8 @@ class _CameraErrorState extends StatelessWidget {
               icon: const Icon(Icons.refresh),
               label: Text(buttonLabel),
               style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
               ),
             ),
           ],
@@ -1110,34 +1169,7 @@ class _GalleryPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final List<Detection> simList = [];
-    const int cols = 9;
-    const int rows = 8;
-    for (int r = 0; r < rows; r++) {
-      for (int c = 0; c < cols; c++) {
-        simList.add(dynamicDetection(
-          id: 'p_$r$c',
-          xMin: 0.14 + c * 0.082,
-          yMin: 0.22 + r * 0.080,
-          xMax: 0.22 + c * 0.082,
-          yMax: 0.29 + r * 0.080,
-        ));
-      }
-    }
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Image.file(File(path), fit: BoxFit.cover),
-        Positioned.fill(
-          child: DetectionOverlayWidget(
-            detections: simList,
-            cameraSize: const Size(720, 1280),
-            fit: BoxFit.cover,
-          ),
-        ),
-      ],
-    );
+    return Image.file(File(path), fit: BoxFit.cover);
   }
 }
 
@@ -1205,40 +1237,26 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
   Widget build(BuildContext context) {
     final inferenceState = ref.watch(inferenceNotifierProvider);
     final size = widget.controller.value.previewSize;
-    final cameraSize =
-        size != null ? Size(size.height, size.width) : const Size(720, 1280);
+    final cameraSize = size == null
+        ? const Size(720, 1280)
+        : size.width > size.height
+            ? Size(size.height, size.width)
+            : Size(size.width, size.height);
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        AspectRatio(
-          aspectRatio: 1 / widget.controller.value.aspectRatio,
-          child: CameraPreview(widget.controller),
-        ),
-        Positioned.fill(
+    // CameraPreview applies the platform-specific rotation and aspect-ratio
+    // transform internally. Keep the overlay as its child so its canvas is
+    // exactly the same rectangle as the displayed camera frame.
+    return Center(
+      child: CameraPreview(
+        widget.controller,
+        child: Positioned.fill(
           child: DetectionOverlayWidget(
             detections: inferenceState.detections,
             cameraSize: cameraSize,
-            fit: BoxFit.cover,
+            fit: BoxFit.fill,
           ),
         ),
-      ],
+      ),
     );
   }
-}
-
-// ─── Global helper (must stay at file level for router references) ────────────
-dynamic dynamicDetection({
-  required String id,
-  required double xMin,
-  required double yMin,
-  required double xMax,
-  required double yMax,
-}) {
-  return Detection(
-    id: id,
-    boundingBox: BoundingBox(xMin: xMin, yMin: yMin, xMax: xMax, yMax: yMax),
-    label: 'carton',
-    confidence: 0.96,
-  );
 }

@@ -13,7 +13,8 @@ void main() async {
 
   // Setup Global Exception Handlers
   FlutterError.onError = (details) {
-    AppLogger.fatal('Unhandled Flutter UI Exception', details.exception, details.stack);
+    AppLogger.fatal(
+        'Unhandled Flutter UI Exception', details.exception, details.stack);
   };
 
   PlatformDispatcher.instance.onError = (error, stack) {
@@ -21,7 +22,8 @@ void main() async {
     return true;
   };
 
-  AppLogger.info('Initializing Logistics Vision AI (${Environment.current.name.toUpperCase()})');
+  AppLogger.info(
+      'Initializing Logistics Vision AI (${Environment.current.name.toUpperCase()})');
 
   runApp(
     const ProviderScope(
@@ -39,12 +41,26 @@ class LogisticsVisionApp extends ConsumerWidget {
 
     return MaterialApp.router(
       title: 'Vinayak SmartLoad',
-      debugShowCheckedModeBanner: Environment.current == Environment.development,
-      
+      debugShowCheckedModeBanner:
+          Environment.current == Environment.development,
+
       // Theme settings
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
+
+      // Keep layouts usable when a device has an unusually large display or
+      // font setting. Individual screens still use responsive constraints.
+      builder: (context, child) {
+        final textScale =
+            MediaQuery.textScalerOf(context).scale(1).clamp(0.9, 1.2);
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(textScale),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
 
       // GoRouter navigation bindings
       routerConfig: router,

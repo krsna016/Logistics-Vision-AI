@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/decision_state.dart';
+import '../../domain/entities/detection.dart';
 import '../../domain/services/stability_analyzer.dart';
 import 'inference_notifier.dart';
 
@@ -30,7 +31,7 @@ class CountingDecisionNotifier extends StateNotifier<DecisionState> {
 
   CountingDecisionNotifier(this._analyzer) : super(const DecisionState(status: CountingDecisionState.collecting));
 
-  void analyzeFrameDetections(dynamic detections) {
+  void analyzeFrameDetections(List<Detection> detections) {
     final nextState = _analyzer.addFrame(detections);
     state = nextState;
   }
