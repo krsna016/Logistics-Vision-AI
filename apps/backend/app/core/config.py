@@ -1,6 +1,7 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
+
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Vinayak SmartLoad Backend"
     API_V1_STR: str = "/api"

@@ -1,12 +1,14 @@
-from fastapi import FastAPI
+# FastAPI dependency declarations intentionally use Depends in defaults.
+# ruff: noqa: B008
+
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Depends, HTTPException
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from .core.config import settings
-from .db.database import engine, Base
+from .db.database import Base, engine, get_db
 from .routers import auth, users
-from .db.database import get_db
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -22,10 +24,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-from sqlalchemy import text
 from sqlalchemy.future import select
-from .models.user import User
+
 from .core.security import get_password_hash
+from .models.user import User
+
 
 @app.on_event("startup")
 async def startup_event():

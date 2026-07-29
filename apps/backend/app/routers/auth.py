@@ -1,13 +1,18 @@
+# FastAPI dependency declarations intentionally use Depends in defaults.
+# ruff: noqa: B008
+
+from datetime import datetime, timedelta, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from datetime import datetime, timedelta, timezone
+
+from ..core.config import settings
+from ..core.security import create_access_token, verify_password
 from ..db.database import get_db
 from ..models.user import User
 from ..schemas.user import Token
-from ..core.security import verify_password, create_access_token
-from ..core.config import settings
 
 router = APIRouter()
 
