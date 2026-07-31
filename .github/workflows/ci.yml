@@ -38,18 +38,12 @@ jobs:
       - name: Execute Linter Checks
         run: |
           cd apps/mobile
-          # Keep warnings and informational guidance visible without blocking
-          # the build; compiler/analyzer errors still fail the workflow.
-          flutter analyze --no-fatal-warnings --no-fatal-infos
+          flutter analyze
 
       - name: Execute Automated Tests
         run: |
           cd apps/mobile
-          if [ -d "test" ]; then
-            flutter test
-          else
-            echo "No Flutter test directory found; skipping mobile tests."
-          fi
+          flutter test
 
   backend_ci:
     name: FastAPI Lint & Python Audits
