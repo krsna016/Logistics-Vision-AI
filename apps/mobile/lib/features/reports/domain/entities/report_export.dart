@@ -11,17 +11,9 @@ enum ReportType {
   backup
 }
 
-enum ExportFormat {
-  pdf,
-  excel,
-  csv
-}
+enum ExportFormat { pdf, excel, csv }
 
-enum ExportStatus {
-  pending,
-  success,
-  failed
-}
+enum ExportStatus { pending, success, failed }
 
 class ReportExport {
   final String id;

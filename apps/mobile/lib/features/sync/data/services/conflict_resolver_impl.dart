@@ -3,16 +3,17 @@ import '../../domain/entities/sync_operation.dart';
 import '../../domain/services/conflict_resolver.dart';
 
 class ConflictResolverImpl implements ConflictResolver {
-  
   /// Resolves conflict by returning the payload of the newest version based on timestamp.
   /// If timestamps are unavailable, defaults to Local Wins.
   @override
-  Future<String> resolveConflict(SyncOperation localOp, String remotePayload) async {
+  Future<String> resolveConflict(
+      SyncOperation localOp, String remotePayload) async {
     try {
       final localMap = jsonDecode(localOp.payload) as Map<String, dynamic>;
       final remoteMap = jsonDecode(remotePayload) as Map<String, dynamic>;
 
-      final localUpdatedAt = _parseDate(localMap['updatedAt']) ?? localOp.updatedAt;
+      final localUpdatedAt =
+          _parseDate(localMap['updatedAt']) ?? localOp.updatedAt;
       final remoteUpdatedAt = _parseDate(remoteMap['updatedAt']);
 
       if (remoteUpdatedAt == null) return localOp.payload;

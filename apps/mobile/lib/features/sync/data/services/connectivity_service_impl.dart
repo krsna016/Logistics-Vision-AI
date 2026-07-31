@@ -9,7 +9,8 @@ class ConnectivityServiceImpl implements ConnectivityService {
   bool _lastStatus = false;
 
   ConnectivityServiceImpl(this._connectivity) {
-    _connectivity.onConnectivityChanged.listen((List<ConnectivityResult> results) async {
+    _connectivity.onConnectivityChanged
+        .listen((List<ConnectivityResult> results) async {
       final isReachable = await hasInternetAccess();
       if (_lastStatus != isReachable) {
         _lastStatus = isReachable;
@@ -27,10 +28,11 @@ class ConnectivityServiceImpl implements ConnectivityService {
     if (results.contains(ConnectivityResult.none)) {
       return false;
     }
-    
+
     // Check actual internet reachability to avoid Captive Portal / Local Network drops
     try {
-      final result = await InternetAddress.lookup('example.com').timeout(const Duration(seconds: 3));
+      final result = await InternetAddress.lookup('example.com')
+          .timeout(const Duration(seconds: 3));
       return result.isNotEmpty && result[0].rawAddress.isNotEmpty;
     } on SocketException catch (_) {
       return false;

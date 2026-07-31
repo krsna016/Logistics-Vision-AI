@@ -24,9 +24,11 @@ class AIStatusCard extends StatelessWidget {
     // Assuming standard naming convention from the prompt.
     if (s.toString().contains('collecting')) return 'Collecting';
     if (s.toString().contains('analyzing')) return 'Analyzing';
-    if (s.toString().contains('stable') || s.toString().contains('readyForReview')) return 'Ready';
+    if (s.toString().contains('stable') ||
+        s.toString().contains('readyForReview')) return 'Ready';
     if (s.toString().contains('unstable')) return 'Unstable';
-    if (s.toString().contains('rejected') || s.toString().contains('error')) return 'Error';
+    if (s.toString().contains('rejected') || s.toString().contains('error'))
+      return 'Error';
     return 'Unknown';
   }
 
@@ -36,7 +38,11 @@ class AIStatusCard extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: const TextStyle(color: Colors.grey, fontSize: 9)),
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(value,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -66,22 +72,34 @@ class AIStatusCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 6),
-              const Text('AI ENGINE', style: TextStyle(color: Colors.grey, fontSize: 9, fontWeight: FontWeight.bold)),
+              const Text('AI ENGINE',
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold)),
               const Spacer(),
-              const Text('YOLO11s v1', style: TextStyle(color: Colors.blue, fontSize: 10, fontWeight: FontWeight.bold)),
+              const Text('YOLO11s v1',
+                  style: TextStyle(
+                      color: Colors.blue,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold)),
             ],
           ),
           const Divider(height: 12, color: Color(0xFF2A3F52)),
           Row(
             children: [
-              Expanded(child: _Stat('Inference', '${inferenceTimeMs.toInt()} ms')),
-              Expanded(child: _Stat('Confidence', '${(confidence * 100).toInt()}%')),
+              Expanded(
+                  child: _Stat('Inference', '${inferenceTimeMs.toInt()} ms')),
+              Expanded(
+                  child: _Stat('Confidence', '${(confidence * 100).toInt()}%')),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(child: _Stat('Stability', '${(stabilityScore * 100).toInt()}%')),
+              Expanded(
+                  child:
+                      _Stat('Stability', '${(stabilityScore * 100).toInt()}%')),
               Expanded(child: _Stat('Status', _statusLabel(aiStatus))),
             ],
           ),

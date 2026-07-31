@@ -9,7 +9,9 @@ class LoadingSessionModel {
       warehouseId: json['warehouseId'] as String,
       operatorId: json['operatorId'] as String,
       startTime: DateTime.parse(json['startTime'] as String),
-      endTime: json['endTime'] != null ? DateTime.parse(json['endTime'] as String) : null,
+      endTime: json['endTime'] != null
+          ? DateTime.parse(json['endTime'] as String)
+          : null,
       status: SessionStatus.values.firstWhere(
         (e) => e.name == (json['status'] as String),
         orElse: () => SessionStatus.created,

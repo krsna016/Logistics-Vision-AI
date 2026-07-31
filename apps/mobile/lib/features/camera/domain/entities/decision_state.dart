@@ -16,7 +16,7 @@ class DecisionState {
   final int stableCount;
   final double averageConfidence;
   final double stabilityScore; // Range: 0.0 to 1.0
-  final double qualityScore;   // Range: 0.0 to 1.0
+  final double qualityScore; // Range: 0.0 to 1.0
   final String recommendedAction; // e.g. "Hold Camera Steady"
   final List<String> warnings;
   final int processedFramesCount;

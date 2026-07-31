@@ -34,7 +34,11 @@ class StorageCard extends ConsumerWidget {
                 children: [
                   Icon(Icons.storage, color: AppTheme.primaryColor),
                   SizedBox(width: 8),
-                  Text('Storage Health', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text('Storage Health',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 24),
@@ -42,10 +46,21 @@ class StorageCard extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: Row(
                   children: [
-                    Expanded(flex: (dbSize / totalStorage * 1000).toInt(), child: Container(height: 12, color: AppTheme.primaryColor)),
-                    Expanded(flex: (imagesSize / totalStorage * 1000).toInt(), child: Container(height: 12, color: AppTheme.warningColor)),
-                    Expanded(flex: (backupsSize / totalStorage * 1000).toInt(), child: Container(height: 12, color: Colors.purpleAccent)),
-                    Expanded(flex: (freeSpace / totalStorage * 1000).toInt(), child: Container(height: 12, color: Colors.white10)),
+                    Expanded(
+                        flex: (dbSize / totalStorage * 1000).toInt(),
+                        child: Container(
+                            height: 12, color: AppTheme.primaryColor)),
+                    Expanded(
+                        flex: (imagesSize / totalStorage * 1000).toInt(),
+                        child: Container(
+                            height: 12, color: AppTheme.warningColor)),
+                    Expanded(
+                        flex: (backupsSize / totalStorage * 1000).toInt(),
+                        child:
+                            Container(height: 12, color: Colors.purpleAccent)),
+                    Expanded(
+                        flex: (freeSpace / totalStorage * 1000).toInt(),
+                        child: Container(height: 12, color: Colors.white10)),
                   ],
                 ),
               ),
@@ -61,15 +76,20 @@ class StorageCard extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Available Storage', style: TextStyle(color: AppTheme.textSecondary)),
-                  Text('${(freeSpace / 1024).toStringAsFixed(1)} GB Free', style: const TextStyle(color: AppTheme.successColor, fontWeight: FontWeight.bold)),
+                  const Text('Available Storage',
+                      style: TextStyle(color: AppTheme.textSecondary)),
+                  Text('${(freeSpace / 1024).toStringAsFixed(1)} GB Free',
+                      style: const TextStyle(
+                          color: AppTheme.successColor,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
             ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Text('Failed to load stats', style: TextStyle(color: AppTheme.errorColor)),
+        error: (_, __) => const Text('Failed to load stats',
+            style: TextStyle(color: AppTheme.errorColor)),
       ),
     );
   }
@@ -77,13 +97,19 @@ class StorageCard extends ConsumerWidget {
   Widget _buildLegend(String label, double valueMB, Color color) {
     return Row(
       children: [
-        Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+        Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
         const SizedBox(width: 8),
         Text(label, style: const TextStyle(color: Colors.white)),
         const Spacer(),
         Text(
-          valueMB > 1024 ? '${(valueMB / 1024).toStringAsFixed(2)} GB' : '${valueMB.toStringAsFixed(1)} MB',
-          style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
+          valueMB > 1024
+              ? '${(valueMB / 1024).toStringAsFixed(2)} GB'
+              : '${valueMB.toStringAsFixed(1)} MB',
+          style: const TextStyle(
+              color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
         ),
       ],
     );

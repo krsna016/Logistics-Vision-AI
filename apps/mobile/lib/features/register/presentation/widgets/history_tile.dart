@@ -20,11 +20,15 @@ class HistoryTile extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.history_outlined, size: 18, color: AppTheme.primaryColor),
+              Icon(Icons.history_outlined,
+                  size: 18, color: AppTheme.primaryColor),
               SizedBox(width: 8),
               Text(
                 'Register Audit & Activity History',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white),
               ),
             ],
           ),
@@ -34,9 +38,12 @@ class HistoryTile extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildHistoryItem('Created Date', _formatDateTime(register.generatedAt)),
-              _buildHistoryItem('Last Opened', _formatDateTime(register.lastOpenedAt)),
-              _buildHistoryItem('Export Count', '${register.exportCount} Times'),
+              _buildHistoryItem(
+                  'Created Date', _formatDateTime(register.generatedAt)),
+              _buildHistoryItem(
+                  'Last Opened', _formatDateTime(register.lastOpenedAt)),
+              _buildHistoryItem(
+                  'Export Count', '${register.exportCount} Times'),
               _buildHistoryItem('Status', register.status.displayName),
             ],
           ),
@@ -51,19 +58,36 @@ class HistoryTile extends StatelessWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: const TextStyle(fontSize: 9, color: AppTheme.textSecondary, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+              fontSize: 9,
+              color: AppTheme.textSecondary,
+              fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 2),
         Text(
           value,
-          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
+          style: const TextStyle(
+              fontSize: 12, fontWeight: FontWeight.w600, color: Colors.white),
         ),
       ],
     );
   }
 
   String _formatDateTime(DateTime dt) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
     return '${dt.day} ${months[dt.month - 1]} $h:$m';

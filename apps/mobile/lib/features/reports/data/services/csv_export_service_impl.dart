@@ -21,9 +21,19 @@ class CsvExportServiceImpl implements CsvExportService {
     // We can export image metadata for the given dataset/wagon/truck
     // Fetch all metadata
     final metadata = await _db.select(_db.imageMetadata).get();
-    
+
     final List<List<dynamic>> rows = [
-      ['Image ID', 'Filename', 'Capture Time', 'Model Version', 'Inference Time (ms)', 'Confidence', 'Detected Count', 'Manual Count', 'Final Count']
+      [
+        'Image ID',
+        'Filename',
+        'Capture Time',
+        'Model Version',
+        'Inference Time (ms)',
+        'Confidence',
+        'Detected Count',
+        'Manual Count',
+        'Final Count'
+      ]
     ];
 
     for (final m in metadata) {
@@ -49,9 +59,17 @@ class CsvExportServiceImpl implements CsvExportService {
   @override
   Future<File> exportAuditLogs() async {
     final logs = await _db.select(_db.auditLogs).get();
-    
+
     final List<List<dynamic>> rows = [
-      ['Log ID', 'Timestamp', 'User ID', 'Action', 'Entity Type', 'Entity ID', 'Details']
+      [
+        'Log ID',
+        'Timestamp',
+        'User ID',
+        'Action',
+        'Entity Type',
+        'Entity ID',
+        'Details'
+      ]
     ];
 
     for (final l in logs) {

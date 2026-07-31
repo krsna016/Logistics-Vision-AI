@@ -34,7 +34,7 @@ class Detection {
   final double confidence;
   final Color color;
   final String? trackingId;
-  
+
   /// Extensibility hook for future computer vision layers (rotated boxes, keypoints, segmentation points).
   final Map<String, dynamic> metadata;
 

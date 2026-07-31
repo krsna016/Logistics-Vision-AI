@@ -27,16 +27,21 @@ class RemarkCard extends StatelessWidget {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.edit_note_outlined, color: AppTheme.warningColor, size: 20),
+                  Icon(Icons.edit_note_outlined,
+                      color: AppTheme.warningColor, size: 20),
                   SizedBox(width: 8),
                   Text(
                     'Operational Remarks',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white),
                   ),
                 ],
               ),
               IconButton(
-                icon: const Icon(Icons.edit, size: 18, color: AppTheme.primaryColor),
+                icon: const Icon(Icons.edit,
+                    size: 18, color: AppTheme.primaryColor),
                 onPressed: onEdit,
                 tooltip: 'Edit Remarks',
               ),
@@ -44,10 +49,16 @@ class RemarkCard extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
-            remarks != null && remarks!.isNotEmpty ? remarks! : 'No remarks recorded for this wagon session.',
+            remarks != null && remarks!.isNotEmpty
+                ? remarks!
+                : 'No remarks recorded for this wagon session.',
             style: TextStyle(
-              color: remarks != null && remarks!.isNotEmpty ? Colors.white : AppTheme.textSecondary,
-              fontStyle: remarks != null && remarks!.isNotEmpty ? FontStyle.normal : FontStyle.italic,
+              color: remarks != null && remarks!.isNotEmpty
+                  ? Colors.white
+                  : AppTheme.textSecondary,
+              fontStyle: remarks != null && remarks!.isNotEmpty
+                  ? FontStyle.normal
+                  : FontStyle.italic,
               fontSize: 13,
             ),
           ),

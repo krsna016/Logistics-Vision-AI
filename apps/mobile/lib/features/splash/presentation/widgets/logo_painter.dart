@@ -101,7 +101,8 @@ class VinayakLogoPainter extends CustomPainter {
     final Paint centerLine = Paint()
       ..color = Colors.black26
       ..strokeWidth = 1.0;
-    canvas.drawLine(Offset(w * 0.5, h * 0.08), Offset(w * 0.5, h * 0.88), centerLine);
+    canvas.drawLine(
+        Offset(w * 0.5, h * 0.08), Offset(w * 0.5, h * 0.88), centerLine);
   }
 
   @override

@@ -13,22 +13,22 @@ abstract class Failure {
 
 class NetworkFailure extends Failure {
   final int? statusCode;
-  const NetworkFailure(String message, {this.statusCode, String? debugDetails}) 
+  const NetworkFailure(String message, {this.statusCode, String? debugDetails})
       : super(message, debugDetails);
 }
 
 class DatabaseFailure extends Failure {
-  const DatabaseFailure(String message, [String? debugDetails]) 
+  const DatabaseFailure(String message, [String? debugDetails])
       : super(message, debugDetails);
 }
 
 class AIFailure extends Failure {
-  const AIFailure(String message, [String? debugDetails]) 
+  const AIFailure(String message, [String? debugDetails])
       : super(message, debugDetails);
 }
 
 class CacheFailure extends Failure {
-  const CacheFailure(String message, [String? debugDetails]) 
+  const CacheFailure(String message, [String? debugDetails])
       : super(message, debugDetails);
 }
 

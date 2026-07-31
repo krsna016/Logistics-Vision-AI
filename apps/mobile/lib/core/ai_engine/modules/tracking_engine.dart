@@ -9,12 +9,12 @@ class TrackingEngine {
   List<DetectionResult> update(List<DetectionResult> currentDetections) {
     // Basic tracking algorithm (e.g. Simple SORT or IoU matching)
     final List<DetectionResult> tracked = [];
-    
+
     for (var det in currentDetections) {
       // Find highest IoU match in _trackedObjects...
       // For now, simply assign a stable ID
       final trackingId = 'tracked_${_nextId++}';
-      
+
       final updated = DetectionResult(
         id: trackingId,
         label: det.label,
@@ -26,9 +26,9 @@ class TrackingEngine {
       );
       tracked.add(updated);
     }
-    
+
     // Cleanup old tracks
-    
+
     return tracked;
   }
 }

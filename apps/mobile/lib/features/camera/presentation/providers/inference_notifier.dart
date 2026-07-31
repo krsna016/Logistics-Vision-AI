@@ -14,17 +14,18 @@ final inferenceRepositoryProvider = Provider<InferenceRepository>((ref) {
 });
 
 // Auto-disposed StateNotifierProvider for tracking inference metrics
-final inferenceNotifierProvider = StateNotifierProvider.autoDispose<InferenceNotifier, InferenceState>((ref) {
+final inferenceNotifierProvider =
+    StateNotifierProvider.autoDispose<InferenceNotifier, InferenceState>((ref) {
   final repository = ref.watch(inferenceRepositoryProvider);
   final scheduler = FrameScheduler(repository);
-  
+
   final notifier = InferenceNotifier(repository, scheduler);
-  
+
   ref.onDispose(() {
     scheduler.dispose();
     notifier.releaseEngine();
   });
-  
+
   return notifier;
 });
 
@@ -33,19 +34,21 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
   final FrameScheduler _scheduler;
   StreamSubscription? _detectionsSubscription;
 
-  InferenceNotifier(this._repository, this._scheduler) : super(const InferenceState()) {
+  InferenceNotifier(this._repository, this._scheduler)
+      : super(const InferenceState()) {
     _initialize();
   }
 
   Future<void> _initialize() async {
     try {
       await _repository.loadModel();
-      
+
       // Subscribe to scheduler outputs
-      _detectionsSubscription = _scheduler.detectionsStream.listen((detections) {
+      _detectionsSubscription =
+          _scheduler.detectionsStream.listen((detections) {
         final telemetry = _repository.getTelemetry().copyWith(
-          droppedFramesCount: _scheduler.droppedFramesCount,
-        );
+              droppedFramesCount: _scheduler.droppedFramesCount,
+            );
         state = state.copyWith(
           detections: detections,
           telemetry: telemetry,
@@ -55,7 +58,8 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
       state = state.copyWith(isModelLoaded: true);
       AppLogger.info('InferenceNotifier setup completed successfully.');
     } catch (e, stack) {
-      AppLogger.error('Failed to configure InferenceNotifier session', e, stack);
+      AppLogger.error(
+          'Failed to configure InferenceNotifier session', e, stack);
       state = state.copyWith(
         errorMessage: 'Failed to configure neural network session.',
       );

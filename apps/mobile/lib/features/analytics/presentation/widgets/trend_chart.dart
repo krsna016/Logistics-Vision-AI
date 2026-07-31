@@ -56,11 +56,16 @@ class TrendChart extends StatelessWidget {
                 ),
                 titlesData: FlTitlesData(
                   show: true,
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  bottomTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
+                  bottomTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false)),
                   leftTitles: AxisTitles(
-                    axisNameWidget: Text(yAxisTitle, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
+                    axisNameWidget: Text(yAxisTitle,
+                        style: const TextStyle(
+                            color: AppTheme.textSecondary, fontSize: 10)),
                     sideTitles: const SideTitles(showTitles: false),
                   ),
                 ),
@@ -71,7 +76,11 @@ class TrendChart extends StatelessWidget {
                 maxY: (maxVal * 1.2).ceilToDouble(),
                 lineBarsData: [
                   LineChartBarData(
-                    spots: dataPoints.asMap().entries.map((e) => FlSpot(e.key.toDouble(), e.value)).toList(),
+                    spots: dataPoints
+                        .asMap()
+                        .entries
+                        .map((e) => FlSpot(e.key.toDouble(), e.value))
+                        .toList(),
                     isCurved: true,
                     color: lineColor,
                     barWidth: 3,

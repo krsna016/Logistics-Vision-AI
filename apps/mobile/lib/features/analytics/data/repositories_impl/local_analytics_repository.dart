@@ -64,7 +64,8 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
   Future<AnalyticsSummary> getSummary(TimeFilter filter) async {
     final wagons = await _wagonRepo.getActiveWagons();
     final cutoff = _cutoff(filter);
-    final filteredWagons = wagons.where((w) => w.createdAt.isAfter(cutoff)).toList();
+    final filteredWagons =
+        wagons.where((w) => w.createdAt.isAfter(cutoff)).toList();
 
     final trucks = await _trucksInRange(filter);
     final layers = await _allLayersForTrucks(trucks);
@@ -74,16 +75,20 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
     // Average confidence across all layers
     double avgConfidence = 0.0;
     if (layers.isNotEmpty) {
-      avgConfidence = layers.fold<double>(0.0, (sum, l) => sum + l.averageConfidence) / layers.length;
+      avgConfidence =
+          layers.fold<double>(0.0, (sum, l) => sum + l.averageConfidence) /
+              layers.length;
     }
 
     // Average loading time (time between truck creation and completion)
     Duration avgLoadTime = Duration.zero;
-    final completedTrucks = trucks.where((t) => t.completedDate != null).toList();
+    final completedTrucks =
+        trucks.where((t) => t.completedDate != null).toList();
     if (completedTrucks.isNotEmpty) {
       final totalMs = completedTrucks.fold<int>(
         0,
-        (sum, t) => sum + t.completedDate!.difference(t.createdDate).inMilliseconds,
+        (sum, t) =>
+            sum + t.completedDate!.difference(t.createdDate).inMilliseconds,
       );
       avgLoadTime = Duration(milliseconds: totalMs ~/ completedTrucks.length);
     }
@@ -108,7 +113,9 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
 
     double avgConfidence = 0.0;
     if (layers.isNotEmpty) {
-      avgConfidence = layers.fold<double>(0.0, (sum, l) => sum + l.averageConfidence) / layers.length;
+      avgConfidence =
+          layers.fold<double>(0.0, (sum, l) => sum + l.averageConfidence) /
+              layers.length;
     }
 
     return AIPerformanceMetrics(
@@ -127,7 +134,8 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
   // LOADING PERFORMANCE
   // ──────────────────────────────────────────
   @override
-  Future<LoadingPerformanceMetrics> getLoadingPerformance(TimeFilter filter) async {
+  Future<LoadingPerformanceMetrics> getLoadingPerformance(
+      TimeFilter filter) async {
     final trucks = await _trucksInRange(filter);
     final layers = await _allLayersForTrucks(trucks);
     final totalCartons = layers.fold<int>(0, (sum, l) => sum + l.cartonCount);
@@ -146,11 +154,13 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
 
     // Avg truck completion time
     Duration avgTruckTime = Duration.zero;
-    final completedTrucks = trucks.where((t) => t.completedDate != null).toList();
+    final completedTrucks =
+        trucks.where((t) => t.completedDate != null).toList();
     if (completedTrucks.isNotEmpty) {
       final totalMs = completedTrucks.fold<int>(
         0,
-        (sum, t) => sum + t.completedDate!.difference(t.createdDate).inMilliseconds,
+        (sum, t) =>
+            sum + t.completedDate!.difference(t.createdDate).inMilliseconds,
       );
       avgTruckTime = Duration(milliseconds: totalMs ~/ completedTrucks.length);
     }
@@ -168,13 +178,15 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
 
     // Cartons per hour (total cartons / hours elapsed today, min 1)
     final hoursElapsed = now.hour + 1;
-    final cartonsPerHour = layers.isNotEmpty ? totalCartons / hoursElapsed : 0.0;
+    final cartonsPerHour =
+        layers.isNotEmpty ? totalCartons / hoursElapsed : 0.0;
 
     return LoadingPerformanceMetrics(
       cartonsLoadedPerHour: cartonsPerHour,
       averageLayersPerTruck: avgLayersPerTruck,
       averageTruckCompletionTime: avgTruckTime,
-      averageWagonCompletionTime: Duration.zero, // Requires deeper wagon tracking
+      averageWagonCompletionTime:
+          Duration.zero, // Requires deeper wagon tracking
       averageCartonsPerLayer: avgCartonsPerLayer,
       hourlyCartonTrend: hourlyTrend,
     );
@@ -199,7 +211,9 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
     }
 
     // Count images (layers with photoPath)
-    final withPhoto = layers.where((l) => l.photoPath != null && l.photoPath!.isNotEmpty).length;
+    final withPhoto = layers
+        .where((l) => l.photoPath != null && l.photoPath!.isNotEmpty)
+        .length;
 
     return DatasetHealthMetrics(
       imagesCaptured: withPhoto,
@@ -232,22 +246,28 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
 
     // Avg session duration from completed trucks
     Duration avgSession = Duration.zero;
-    final completedTrucks = trucks.where((t) => t.completedDate != null).toList();
+    final completedTrucks =
+        trucks.where((t) => t.completedDate != null).toList();
     if (completedTrucks.isNotEmpty) {
       final totalMs = completedTrucks.fold<int>(
         0,
-        (sum, t) => sum + t.completedDate!.difference(t.createdDate).inMilliseconds,
+        (sum, t) =>
+            sum + t.completedDate!.difference(t.createdDate).inMilliseconds,
       );
       avgSession = Duration(milliseconds: totalMs ~/ completedTrucks.length);
     }
 
     // Avg layers & cartons per hour
-    final hoursWorked = (avgSession.inMinutes * completedTrucks.length / 60.0).clamp(1.0, 100000.0);
-    final avgLayersPerHour = layers.isNotEmpty ? layers.length / hoursWorked : 0.0;
-    final avgCartonsPerHour = totalCartons > 0 ? totalCartons / hoursWorked : 0.0;
+    final hoursWorked = (avgSession.inMinutes * completedTrucks.length / 60.0)
+        .clamp(1.0, 100000.0);
+    final avgLayersPerHour =
+        layers.isNotEmpty ? layers.length / hoursWorked : 0.0;
+    final avgCartonsPerHour =
+        totalCartons > 0 ? totalCartons / hoursWorked : 0.0;
 
     // Operator performance score (simple: completed trucks / total trucks ratio)
-    final opPerformance = trucks.isNotEmpty ? completedTrucks.length / trucks.length : 0.0;
+    final opPerformance =
+        trucks.isNotEmpty ? completedTrucks.length / trucks.length : 0.0;
 
     return ProductivityMetrics(
       averageOperatorPerformance: opPerformance,

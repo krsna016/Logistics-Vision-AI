@@ -26,12 +26,15 @@ class DeviceManagementScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(child: Text('Failed to load devices', style: TextStyle(color: AppTheme.errorColor))),
+        error: (_, __) => const Center(
+            child: Text('Failed to load devices',
+                style: TextStyle(color: AppTheme.errorColor))),
       ),
     );
   }
 
-  Widget _buildDeviceCard(BuildContext context, WidgetRef ref, DeviceSession device) {
+  Widget _buildDeviceCard(
+      BuildContext context, WidgetRef ref, DeviceSession device) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -47,7 +50,9 @@ class DeviceManagementScreen extends ConsumerWidget {
         ),
         title: Row(
           children: [
-            Text(device.deviceName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            Text(device.deviceName,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold)),
             const SizedBox(width: 8),
             if (!device.isActive)
               Container(
@@ -56,7 +61,11 @@ class DeviceManagementScreen extends ConsumerWidget {
                   color: AppTheme.errorColor.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(4),
                 ),
-                child: const Text('REVOKED', style: TextStyle(color: AppTheme.errorColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                child: const Text('REVOKED',
+                    style: TextStyle(
+                        color: AppTheme.errorColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold)),
               ),
           ],
         ),
@@ -65,9 +74,13 @@ class DeviceManagementScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('${device.deviceModel} • ${device.osVersion}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+              Text('${device.deviceModel} • ${device.osVersion}',
+                  style: const TextStyle(
+                      color: AppTheme.textSecondary, fontSize: 12)),
               const SizedBox(height: 2),
-              Text('Last Sync: ${device.lastSync.toLocal().toString().split('.')[0]}', style: const TextStyle(color: Colors.white54, fontSize: 11)),
+              Text(
+                  'Last Sync: ${device.lastSync.toLocal().toString().split('.')[0]}',
+                  style: const TextStyle(color: Colors.white54, fontSize: 11)),
             ],
           ),
         ),
@@ -77,7 +90,8 @@ class DeviceManagementScreen extends ConsumerWidget {
                 onPressed: () {
                   ref.read(authRepositoryProvider).revokeDevice(device.id);
                   ref.invalidate(deviceListProvider);
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Revoked ${device.deviceName}')));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Revoked ${device.deviceName}')));
                 },
               )
             : null,

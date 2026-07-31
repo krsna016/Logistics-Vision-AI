@@ -7,7 +7,8 @@ class SecureCredentialStorage implements CredentialStorage {
   const SecureCredentialStorage(this._storage);
 
   @override
-  Future<void> storeCredentials(String employeeId, String hashedPassword, String salt) async {
+  Future<void> storeCredentials(
+      String employeeId, String hashedPassword, String salt) async {
     await _storage.write(key: 'pwd_hash_$employeeId', value: hashedPassword);
     await _storage.write(key: 'pwd_salt_$employeeId', value: salt);
   }

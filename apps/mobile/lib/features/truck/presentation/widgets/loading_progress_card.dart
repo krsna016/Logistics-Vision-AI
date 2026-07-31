@@ -33,7 +33,9 @@ class _LoadingProgressCardState extends State<LoadingProgressCard>
   }
 
   void _updateAnimation(double from) {
-    final target = widget.totalLayers > 0 ? widget.completedLayers / widget.totalLayers : 0.0;
+    final target = widget.totalLayers > 0
+        ? widget.completedLayers / widget.totalLayers
+        : 0.0;
     _progressAnimation = Tween<double>(begin: from, end: target).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
     );
@@ -42,7 +44,8 @@ class _LoadingProgressCardState extends State<LoadingProgressCard>
   @override
   void didUpdateWidget(LoadingProgressCard oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.completedLayers != widget.completedLayers || oldWidget.totalLayers != widget.totalLayers) {
+    if (oldWidget.completedLayers != widget.completedLayers ||
+        oldWidget.totalLayers != widget.totalLayers) {
       final currentValue = _progressAnimation.value;
       _controller.reset();
       _updateAnimation(currentValue);
@@ -58,7 +61,9 @@ class _LoadingProgressCardState extends State<LoadingProgressCard>
 
   @override
   Widget build(BuildContext context) {
-    final progress = widget.totalLayers > 0 ? widget.completedLayers / widget.totalLayers : 0.0;
+    final progress = widget.totalLayers > 0
+        ? widget.completedLayers / widget.totalLayers
+        : 0.0;
     final pct = (progress * 100).toInt();
     final Color progressColor = pct >= 100
         ? AppTheme.successColor
@@ -80,7 +85,8 @@ class _LoadingProgressCardState extends State<LoadingProgressCard>
             children: [
               const Row(
                 children: [
-                  Icon(Icons.stacked_bar_chart, size: 16, color: AppTheme.textSecondary),
+                  Icon(Icons.stacked_bar_chart,
+                      size: 16, color: AppTheme.textSecondary),
                   SizedBox(width: 8),
                   Text(
                     'LOADING PROGRESS',

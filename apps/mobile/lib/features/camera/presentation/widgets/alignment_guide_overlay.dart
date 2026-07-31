@@ -12,13 +12,16 @@ class AlignmentGuideOverlay extends StatefulWidget {
   State<AlignmentGuideOverlay> createState() => _AlignmentGuideOverlayState();
 }
 
-class _AlignmentGuideOverlayState extends State<AlignmentGuideOverlay> with SingleTickerProviderStateMixin {
+class _AlignmentGuideOverlayState extends State<AlignmentGuideOverlay>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat();
+    _controller =
+        AnimationController(vsync: this, duration: const Duration(seconds: 2))
+          ..repeat();
   }
 
   @override
@@ -47,7 +50,8 @@ class _AlignmentGuideOverlayState extends State<AlignmentGuideOverlay> with Sing
                 right: 0,
                 child: Center(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.7),
                       borderRadius: BorderRadius.circular(20),
@@ -75,7 +79,10 @@ class _AlignmentGuidePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final width = size.width * 0.82;
     final height = size.height * 0.52;
-    final rect = Rect.fromCenter(center: Offset(size.width / 2, size.height / 2), width: width, height: height);
+    final rect = Rect.fromCenter(
+        center: Offset(size.width / 2, size.height / 2),
+        width: width,
+        height: height);
 
     // Semi-transparent fill
     final fillPaint = Paint()
@@ -88,7 +95,7 @@ class _AlignmentGuidePainter extends CustomPainter {
       ..color = const Color(0xFF1565C0).withOpacity(0.7)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
-    
+
     // Draw dashed rectangle using path metrics
     final dashWidth = 8.0;
     final dashSpace = 4.0;
@@ -97,7 +104,8 @@ class _AlignmentGuidePainter extends CustomPainter {
     for (ui.PathMetric pathMetric in path.computeMetrics()) {
       while (distance < pathMetric.length) {
         final length = min(dashWidth, pathMetric.length - distance);
-        canvas.drawPath(pathMetric.extractPath(distance, distance + length), borderPaint);
+        canvas.drawPath(
+            pathMetric.extractPath(distance, distance + length), borderPaint);
         distance += dashWidth + dashSpace;
       }
       distance = 0;
@@ -108,32 +116,40 @@ class _AlignmentGuidePainter extends CustomPainter {
       ..color = Colors.white
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke;
-    
+
     const double bracketLen = 20;
-    
+
     // Top-left
-    canvas.drawPath(Path()
-      ..moveTo(rect.left, rect.top + bracketLen)
-      ..lineTo(rect.left, rect.top)
-      ..lineTo(rect.left + bracketLen, rect.top), cornerPaint);
-      
+    canvas.drawPath(
+        Path()
+          ..moveTo(rect.left, rect.top + bracketLen)
+          ..lineTo(rect.left, rect.top)
+          ..lineTo(rect.left + bracketLen, rect.top),
+        cornerPaint);
+
     // Top-right
-    canvas.drawPath(Path()
-      ..moveTo(rect.right - bracketLen, rect.top)
-      ..lineTo(rect.right, rect.top)
-      ..lineTo(rect.right, rect.top + bracketLen), cornerPaint);
+    canvas.drawPath(
+        Path()
+          ..moveTo(rect.right - bracketLen, rect.top)
+          ..lineTo(rect.right, rect.top)
+          ..lineTo(rect.right, rect.top + bracketLen),
+        cornerPaint);
 
     // Bottom-right
-    canvas.drawPath(Path()
-      ..moveTo(rect.right, rect.bottom - bracketLen)
-      ..lineTo(rect.right, rect.bottom)
-      ..lineTo(rect.right - bracketLen, rect.bottom), cornerPaint);
+    canvas.drawPath(
+        Path()
+          ..moveTo(rect.right, rect.bottom - bracketLen)
+          ..lineTo(rect.right, rect.bottom)
+          ..lineTo(rect.right - bracketLen, rect.bottom),
+        cornerPaint);
 
     // Bottom-left
-    canvas.drawPath(Path()
-      ..moveTo(rect.left + bracketLen, rect.bottom)
-      ..lineTo(rect.left, rect.bottom)
-      ..lineTo(rect.left, rect.bottom - bracketLen), cornerPaint);
+    canvas.drawPath(
+        Path()
+          ..moveTo(rect.left + bracketLen, rect.bottom)
+          ..lineTo(rect.left, rect.bottom)
+          ..lineTo(rect.left, rect.bottom - bracketLen),
+        cornerPaint);
   }
 
   @override

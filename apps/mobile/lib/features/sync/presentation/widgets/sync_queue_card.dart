@@ -6,7 +6,8 @@ class SyncQueueCard extends StatelessWidget {
   final SyncOperation item;
   final VoidCallback onResolveConflict;
 
-  const SyncQueueCard({super.key, required this.item, required this.onResolveConflict});
+  const SyncQueueCard(
+      {super.key, required this.item, required this.onResolveConflict});
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +58,9 @@ class SyncQueueCard extends StatelessWidget {
               shape: BoxShape.circle,
             ),
             child: Icon(
-              item.operation == SyncOperationType.delete ? Icons.delete_outline : Icons.cloud_upload_outlined,
+              item.operation == SyncOperationType.delete
+                  ? Icons.delete_outline
+                  : Icons.cloud_upload_outlined,
               color: statusColor,
               size: 20,
             ),
@@ -69,7 +72,10 @@ class SyncQueueCard extends StatelessWidget {
               children: [
                 Text(
                   '${item.entityType} • ${item.entityId}',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14),
                 ),
                 const SizedBox(height: 2),
                 Row(
@@ -80,12 +86,14 @@ class SyncQueueCard extends StatelessWidget {
                       item.status.subtext,
                       style: TextStyle(color: statusColor, fontSize: 11),
                     ),
-                    if (item.errorMessage != null && item.errorMessage!.isNotEmpty) ...[
+                    if (item.errorMessage != null &&
+                        item.errorMessage!.isNotEmpty) ...[
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
                           '- ${item.errorMessage}',
-                          style: const TextStyle(color: AppTheme.errorColor, fontSize: 11),
+                          style: const TextStyle(
+                              color: AppTheme.errorColor, fontSize: 11),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -107,7 +115,8 @@ class SyncQueueCard extends StatelessWidget {
               ),
               child: const Text('Resolve'),
             )
-          else if (item.status == SyncStatus.failed || item.status == SyncStatus.queued)
+          else if (item.status == SyncStatus.failed ||
+              item.status == SyncStatus.queued)
             const Icon(Icons.more_vert, color: Colors.white24),
         ],
       ),

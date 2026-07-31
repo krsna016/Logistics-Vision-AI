@@ -301,13 +301,16 @@ class PdfReportServiceImpl implements PdfReportService {
               pw.Image(logo, width: 28, height: 28),
               pw.SizedBox(width: 7),
             ],
-            pw.Column(crossAxisAlignment: pw.CrossAxisAlignment.start, children: [
-              pw.Text('VINAYAK LOGISTICS',
-                  style: pw.TextStyle(
-                      fontSize: 13, fontWeight: pw.FontWeight.bold)),
-              pw.Text('SmartLoad System',
-                  style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
-            ]),
+            pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Text('VINAYAK LOGISTICS',
+                      style: pw.TextStyle(
+                          fontSize: 13, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('SmartLoad System',
+                      style: const pw.TextStyle(
+                          fontSize: 8, color: PdfColors.grey700)),
+                ]),
           ]),
           pw.SizedBox(height: 5),
           pw.Container(

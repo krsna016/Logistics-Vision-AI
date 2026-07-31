@@ -22,15 +22,17 @@ class Wagons extends Table with SyncMetadata {
   Set<Column> get primaryKey => {id};
   TextColumn get warehouseId => text().references(Warehouses, #id).nullable()();
   TextColumn get wagonNumber => text()();
-  TextColumn get status => text()(); // e.g. planning, loading, completed, archived
+  TextColumn get status =>
+      text()(); // e.g. planning, loading, completed, archived
   IntColumn get expectedTruckCount => integer()();
-  
+
   // Fields for existing domain entity mapping
   TextColumn get origin => text().nullable()();
   TextColumn get destination => text().nullable()();
   DateTimeColumn get loadingDate => dateTime().nullable()();
   TextColumn get remarks => text().nullable()();
-  IntColumn get completedTruckCount => integer().withDefault(const Constant(0))();
+  IntColumn get completedTruckCount =>
+      integer().withDefault(const Constant(0))();
 }
 
 class Trucks extends Table with SyncMetadata {
@@ -131,12 +133,14 @@ class SyncQueues extends Table {
   TextColumn get operation => text()(); // INSERT, UPDATE, DELETE
   TextColumn get payloadData => text()(); // JSON string
   IntColumn get version => integer().withDefault(const Constant(1))();
-  IntColumn get priority => integer().withDefault(const Constant(0))(); // Higher is more important
+  IntColumn get priority =>
+      integer().withDefault(const Constant(0))(); // Higher is more important
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get queuedAt => dateTime().withDefault(currentDateAndTime)();
   IntColumn get retryCount => integer().withDefault(const Constant(0))();
-  TextColumn get status => text().withDefault(const Constant('queued'))(); // queued, syncing, completed, failed, cancelled, conflict
+  TextColumn get status => text().withDefault(const Constant(
+      'queued'))(); // queued, syncing, completed, failed, cancelled, conflict
   TextColumn get errorMessage => text().nullable()();
 }
 
@@ -147,16 +151,17 @@ class DatasetImages extends Table with SyncMetadata {
   TextColumn get truckId => text().nullable()();
   TextColumn get wagonId => text().nullable()();
   IntColumn get layerNumber => integer().nullable()();
-  
+
   TextColumn get originalPath => text()(); // internal sandbox relative path
   TextColumn get annotatedPath => text().nullable()();
   TextColumn get thumbnailPath => text().nullable()();
   IntColumn get fileSize => integer()();
-  
+
   // Review Status
-  TextColumn get approvalStatus => text().withDefault(const Constant('pending'))(); // pending, approved, rejected, manual_correction
+  TextColumn get approvalStatus => text().withDefault(const Constant(
+      'pending'))(); // pending, approved, rejected, manual_correction
   TextColumn get rejectReason => text().nullable()();
-  
+
   // Tracking
   TextColumn get operatorId => text().nullable()();
   DateTimeColumn get timestamp => dateTime().nullable()();
@@ -166,12 +171,13 @@ class DatasetImages extends Table with SyncMetadata {
 class ImageMetadata extends Table {
   @override
   Set<Column> get primaryKey => {imageId};
-  TextColumn get imageId => text().references(DatasetImages, #id, onDelete: KeyAction.cascade)();
+  TextColumn get imageId =>
+      text().references(DatasetImages, #id, onDelete: KeyAction.cascade)();
   TextColumn get filename => text()();
   DateTimeColumn get captureTime => dateTime()();
   TextColumn get deviceModel => text().nullable()();
   TextColumn get cameraResolution => text().nullable()();
-  
+
   // Telemetry
   TextColumn get modelVersion => text().nullable()();
   RealColumn get inferenceTimeMs => real().withDefault(const Constant(0.0))();
@@ -184,14 +190,16 @@ class ImageMetadata extends Table {
 class Annotations extends Table with SyncMetadata {
   @override
   Set<Column> get primaryKey => {id};
-  TextColumn get imageId => text().references(DatasetImages, #id, onDelete: KeyAction.cascade)();
+  TextColumn get imageId =>
+      text().references(DatasetImages, #id, onDelete: KeyAction.cascade)();
   RealColumn get boundingBoxX => real()();
   RealColumn get boundingBoxY => real()();
   RealColumn get boundingBoxW => real()();
   RealColumn get boundingBoxH => real()();
   TextColumn get label => text()(); // e.g., 'carton', 'defect'
   RealColumn get confidence => real()();
-  BoolColumn get isManualCorrection => boolean().withDefault(const Constant(false))();
+  BoolColumn get isManualCorrection =>
+      boolean().withDefault(const Constant(false))();
   TextColumn get correctionReason => text().nullable()();
 }
 
@@ -202,15 +210,18 @@ class DatasetExports extends Table {
   TextColumn get exportPath => text()(); // zip file path
   TextColumn get format => text()(); // 'yolo', 'zip'
   DateTimeColumn get timestamp => dateTime().withDefault(currentDateAndTime)();
-  TextColumn get status => text().withDefault(const Constant('pending'))(); // pending, processing, completed, failed
+  TextColumn get status => text().withDefault(
+      const Constant('pending'))(); // pending, processing, completed, failed
   IntColumn get totalImages => integer().withDefault(const Constant(0))();
-  TextColumn get manifestJson => text().nullable()(); // stores configurations used
+  TextColumn get manifestJson =>
+      text().nullable()(); // stores configurations used
 }
 
 class ImageQuality extends Table {
   @override
   Set<Column> get primaryKey => {imageId};
-  TextColumn get imageId => text().references(DatasetImages, #id, onDelete: KeyAction.cascade)();
+  TextColumn get imageId =>
+      text().references(DatasetImages, #id, onDelete: KeyAction.cascade)();
   RealColumn get blurScore => real().withDefault(const Constant(1.0))();
   RealColumn get brightness => real().withDefault(const Constant(128.0))();
   RealColumn get contrast => real().withDefault(const Constant(1.0))();
@@ -253,7 +264,8 @@ class Users extends Table with SyncMetadata {
   TextColumn get warehouseId => text().nullable()();
   TextColumn get token => text().nullable()(); // Future auth
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
-  IntColumn get failedLoginAttempts => integer().withDefault(const Constant(0))();
+  IntColumn get failedLoginAttempts =>
+      integer().withDefault(const Constant(0))();
   DateTimeColumn get lockedUntil => dateTime().nullable()();
 }
 
@@ -268,7 +280,8 @@ class Settings extends Table {
 class ReportExports extends Table with SyncMetadata {
   @override
   Set<Column> get primaryKey => {id};
-  TextColumn get reportType => text()(); // e.g. 'Wagon Report', 'Daily Loading Report'
+  TextColumn get reportType =>
+      text()(); // e.g. 'Wagon Report', 'Daily Loading Report'
   TextColumn get exportType => text()(); // e.g. 'PDF', 'EXCEL', 'CSV'
   TextColumn get userId => text()();
   DateTimeColumn get exportedAt => dateTime().withDefault(currentDateAndTime)();

@@ -12,7 +12,8 @@ class ImagePreprocessor {
   /// Handles Resize, Normalize, RGB Conversion, Padding, Aspect Ratio.
   Float32List process(CameraImage image) {
     final output = Float32List(3 * targetHeight * targetWidth);
-    final scale = math.min(targetWidth / image.width, targetHeight / image.height);
+    final scale =
+        math.min(targetWidth / image.width, targetHeight / image.height);
     final resizedWidth = (image.width * scale).round();
     final resizedHeight = (image.height * scale).round();
     final padX = (targetWidth - resizedWidth) / 2.0;
@@ -20,10 +21,19 @@ class ImagePreprocessor {
 
     for (var y = 0; y < targetHeight; y++) {
       for (var x = 0; x < targetWidth; x++) {
-        final inside = x >= padX && x < padX + resizedWidth && y >= padY && y < padY + resizedHeight;
-        final sourceX = inside ? (((x - padX) / scale).floor()).clamp(0, image.width - 1) : 0;
-        final sourceY = inside ? (((y - padY) / scale).floor()).clamp(0, image.height - 1) : 0;
-        final rgb = inside ? _readRgb(image, sourceX, sourceY) : const [114.0, 114.0, 114.0];
+        final inside = x >= padX &&
+            x < padX + resizedWidth &&
+            y >= padY &&
+            y < padY + resizedHeight;
+        final sourceX = inside
+            ? (((x - padX) / scale).floor()).clamp(0, image.width - 1)
+            : 0;
+        final sourceY = inside
+            ? (((y - padY) / scale).floor()).clamp(0, image.height - 1)
+            : 0;
+        final rgb = inside
+            ? _readRgb(image, sourceX, sourceY)
+            : const [114.0, 114.0, 114.0];
         final index = y * targetWidth + x;
         output[index] = rgb[0] / 255.0;
         output[targetWidth * targetHeight + index] = rgb[1] / 255.0;

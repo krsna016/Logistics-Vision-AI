@@ -38,7 +38,8 @@ class DefectListNotifier extends StateNotifier<DefectListState> {
   final DefectRepository _repository;
   final String _layerId;
 
-  DefectListNotifier(this._repository, this._layerId) : super(const DefectListState()) {
+  DefectListNotifier(this._repository, this._layerId)
+      : super(const DefectListState()) {
     refresh();
   }
 
@@ -46,9 +47,11 @@ class DefectListNotifier extends StateNotifier<DefectListState> {
     state = state.copyWith(isLoading: true);
     try {
       final list = await _repository.getDefectsByLayer(_layerId);
-      state = state.copyWith(defects: list, isLoading: false, errorMessage: null);
+      state =
+          state.copyWith(defects: list, isLoading: false, errorMessage: null);
     } catch (e) {
-      state = state.copyWith(isLoading: false, errorMessage: 'Failed to read defects list.');
+      state = state.copyWith(
+          isLoading: false, errorMessage: 'Failed to read defects list.');
     }
   }
 
@@ -61,9 +64,11 @@ class DefectListNotifier extends StateNotifier<DefectListState> {
     }
   }
 
-  Future<void> verifyDefect(String id, {required bool confirmed, String? notes}) async {
+  Future<void> verifyDefect(String id,
+      {required bool confirmed, String? notes}) async {
     try {
-      await _repository.verifyDefect(id, confirmedByOperator: confirmed, notes: notes);
+      await _repository.verifyDefect(id,
+          confirmedByOperator: confirmed, notes: notes);
       await refresh();
       AppLogger.info('Operator verified defect $id: confirmed=$confirmed');
     } catch (e) {
@@ -73,18 +78,21 @@ class DefectListNotifier extends StateNotifier<DefectListState> {
 }
 
 // Auto-disposed StateNotifierProvider parameterized by layerId
-final defectListProvider = StateNotifierProvider.family.autoDispose<DefectListNotifier, DefectListState, String>((ref, layerId) {
+final defectListProvider = StateNotifierProvider.family
+    .autoDispose<DefectListNotifier, DefectListState, String>((ref, layerId) {
   final repo = ref.watch(defectRepositoryProvider);
   return DefectListNotifier(repo, layerId);
 });
 
 // Provider to compute QualitySummary of a layer
-final layerQualityProvider = Provider.family.autoDispose<QualitySummary, (int, String)>((ref, arg) {
+final layerQualityProvider =
+    Provider.family.autoDispose<QualitySummary, (int, String)>((ref, arg) {
   final (cartonCount, layerId) = arg;
   final defectState = ref.watch(defectListProvider(layerId));
-  
-  final confirmedDefectsCount = defectState.defects.where((d) => d.confirmedByOperator).length;
-  
+
+  final confirmedDefectsCount =
+      defectState.defects.where((d) => d.confirmedByOperator).length;
+
   return QualitySummary(
     totalCartons: cartonCount,
     defectiveCartons: confirmedDefectsCount,

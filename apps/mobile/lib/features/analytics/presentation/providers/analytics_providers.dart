@@ -30,7 +30,8 @@ final aiPerformanceProvider = FutureProvider<AIPerformanceMetrics>((ref) async {
   return repo.getAIPerformance(filter);
 });
 
-final loadingPerformanceProvider = FutureProvider<LoadingPerformanceMetrics>((ref) async {
+final loadingPerformanceProvider =
+    FutureProvider<LoadingPerformanceMetrics>((ref) async {
   final filter = ref.watch(timeFilterProvider);
   final repo = ref.watch(analyticsRepositoryProvider);
   return repo.getLoadingPerformance(filter);

@@ -62,13 +62,7 @@ class SyncOperation {
   }
 }
 
-enum SyncOperationType {
-  insert,
-  update,
-  delete,
-  archive,
-  restore
-}
+enum SyncOperationType { insert, update, delete, archive, restore }
 
 enum SyncStatus {
   queued('Queued', 'In Queue'),

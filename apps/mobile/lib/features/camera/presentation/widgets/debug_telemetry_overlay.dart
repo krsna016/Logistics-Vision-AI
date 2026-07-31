@@ -28,14 +28,21 @@ class DebugTelemetryOverlay extends StatelessWidget {
         children: [
           _buildTelemetryRow('Model Version', telemetry.modelVersion),
           const Divider(color: Colors.white24, height: 8),
-          _buildTelemetryRow('Engine FPS', '${telemetry.fps.toStringAsFixed(1)} FPS'),
-          _buildTelemetryRow('Detections', '${telemetry.totalDetectionsCount} boxes'),
-          _buildTelemetryRow('Dropped Frames', '${telemetry.droppedFramesCount} frames'),
+          _buildTelemetryRow(
+              'Engine FPS', '${telemetry.fps.toStringAsFixed(1)} FPS'),
+          _buildTelemetryRow(
+              'Detections', '${telemetry.totalDetectionsCount} boxes'),
+          _buildTelemetryRow(
+              'Dropped Frames', '${telemetry.droppedFramesCount} frames'),
           const Divider(color: Colors.white24, height: 8),
-          _buildTelemetryRow('Prep Latency', '${telemetry.preprocessingTimeMs.toStringAsFixed(1)} ms'),
-          _buildTelemetryRow('Model Latency', '${telemetry.inferenceTimeMs.toStringAsFixed(1)} ms'),
-          _buildTelemetryRow('Post Latency', '${telemetry.postprocessingTimeMs.toStringAsFixed(1)} ms'),
-          _buildTelemetryRow('Total Latency', '${totalLatency.toStringAsFixed(1)} ms'),
+          _buildTelemetryRow('Prep Latency',
+              '${telemetry.preprocessingTimeMs.toStringAsFixed(1)} ms'),
+          _buildTelemetryRow('Model Latency',
+              '${telemetry.inferenceTimeMs.toStringAsFixed(1)} ms'),
+          _buildTelemetryRow('Post Latency',
+              '${telemetry.postprocessingTimeMs.toStringAsFixed(1)} ms'),
+          _buildTelemetryRow(
+              'Total Latency', '${totalLatency.toStringAsFixed(1)} ms'),
         ],
       ),
     );

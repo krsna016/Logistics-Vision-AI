@@ -15,7 +15,8 @@ class LocalDefectRepository implements DefectRepository {
   Future<void> _writeToCache(List<DefectRecord> list) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final List<Map<String, dynamic>> rawMaps = list.map((e) => DefectModel.toJson(e)).toList();
+      final List<Map<String, dynamic>> rawMaps =
+          list.map((e) => DefectModel.toJson(e)).toList();
       final rawJson = json.encode(rawMaps);
       await prefs.setString(_storageKey, rawJson);
     } catch (e, stack) {
@@ -34,7 +35,9 @@ class LocalDefectRepository implements DefectRepository {
         return defaultMocks;
       }
       final rawList = json.decode(cachedStr) as List<dynamic>;
-      return rawList.map((e) => DefectModel.fromJson(e as Map<String, dynamic>)).toList();
+      return rawList
+          .map((e) => DefectModel.fromJson(e as Map<String, dynamic>))
+          .toList();
     } catch (e, stack) {
       AppLogger.error('Failed reading defects list', e, stack);
       return [];
@@ -46,7 +49,8 @@ class LocalDefectRepository implements DefectRepository {
     final list = await _readAllDefects();
     list.add(defect);
     await _writeToCache(list);
-    AppLogger.info('Saved defect record ${defect.id} (Type: ${defect.defectType.name})');
+    AppLogger.info(
+        'Saved defect record ${defect.id} (Type: ${defect.defectType.name})');
   }
 
   @override
@@ -64,7 +68,8 @@ class LocalDefectRepository implements DefectRepository {
   }
 
   @override
-  Future<void> verifyDefect(String id, {required bool confirmedByOperator, String? notes}) async {
+  Future<void> verifyDefect(String id,
+      {required bool confirmedByOperator, String? notes}) async {
     final list = await _readAllDefects();
     final index = list.indexWhere((element) => element.id == id);
     if (index != -1) {
@@ -84,7 +89,8 @@ class LocalDefectRepository implements DefectRepository {
         id: 'mock_d1',
         layerId: 'mock_l1',
         defectType: DefectType.crushed,
-        boundingBox: const BoundingBox(xMin: 0.15, yMin: 0.22, xMax: 0.35, yMax: 0.45),
+        boundingBox:
+            const BoundingBox(xMin: 0.15, yMin: 0.22, xMax: 0.35, yMax: 0.45),
         severity: DefectSeverity.medium,
         confidence: 0.88,
         modelVersion: '1.0.0-DefectNet',
@@ -94,7 +100,8 @@ class LocalDefectRepository implements DefectRepository {
         id: 'mock_d2',
         layerId: 'mock_l1',
         defectType: DefectType.torn,
-        boundingBox: const BoundingBox(xMin: 0.60, yMin: 0.40, xMax: 0.85, yMax: 0.70),
+        boundingBox:
+            const BoundingBox(xMin: 0.60, yMin: 0.40, xMax: 0.85, yMax: 0.70),
         severity: DefectSeverity.low,
         confidence: 0.79,
         modelVersion: '1.0.0-DefectNet',
@@ -104,7 +111,8 @@ class LocalDefectRepository implements DefectRepository {
         id: 'mock_d3',
         layerId: 'mock_l3',
         defectType: DefectType.wet,
-        boundingBox: const BoundingBox(xMin: 0.45, yMin: 0.35, xMax: 0.70, yMax: 0.65),
+        boundingBox:
+            const BoundingBox(xMin: 0.45, yMin: 0.35, xMax: 0.70, yMax: 0.65),
         severity: DefectSeverity.high,
         confidence: 0.92,
         notes: 'Wet stains visible on bottom flap',

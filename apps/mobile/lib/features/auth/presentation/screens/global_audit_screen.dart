@@ -24,17 +24,30 @@ class GlobalAuditScreen extends ConsumerWidget {
             onPressed: () async {
               final logs = await ref.read(globalAuditProvider.future);
               if (logs.isEmpty) {
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No logs to export')));
+                if (context.mounted)
+                  ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('No logs to export')));
                 return;
               }
-              
-              if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Exporting logs to CSV...')));
-              
+
+              if (context.mounted)
+                ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Exporting logs to CSV...')));
+
               try {
                 final List<List<dynamic>> rows = [
-                  ['Timestamp', 'User ID', 'User Name', 'Role', 'Action', 'Status', 'Details', 'Device']
+                  [
+                    'Timestamp',
+                    'User ID',
+                    'User Name',
+                    'Role',
+                    'Action',
+                    'Status',
+                    'Details',
+                    'Device'
+                  ]
                 ];
-                
+
                 for (final log in logs) {
                   rows.add([
                     log.timestamp.toIso8601String(),
@@ -47,17 +60,24 @@ class GlobalAuditScreen extends ConsumerWidget {
                     log.deviceName,
                   ]);
                 }
-                
+
                 final csvData = csv.encode(rows);
                 final dir = await getApplicationDocumentsDirectory();
-                final file = File('${dir.path}/audit_logs_${DateTime.now().millisecondsSinceEpoch}.csv');
+                final file = File(
+                    '${dir.path}/audit_logs_${DateTime.now().millisecondsSinceEpoch}.csv');
                 await file.writeAsString(csvData);
-                
+
                 if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Exported to: ${file.path}'), backgroundColor: AppTheme.successColor, duration: const Duration(seconds: 4)));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Exported to: ${file.path}'),
+                      backgroundColor: AppTheme.successColor,
+                      duration: const Duration(seconds: 4)));
                 }
               } catch (e) {
-                if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Export failed: $e'), backgroundColor: AppTheme.errorColor));
+                if (context.mounted)
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text('Export failed: $e'),
+                      backgroundColor: AppTheme.errorColor));
               }
             },
           ),
@@ -66,7 +86,9 @@ class GlobalAuditScreen extends ConsumerWidget {
       body: auditAsync.when(
         data: (logs) {
           if (logs.isEmpty) {
-            return const Center(child: Text('No audit logs available.', style: TextStyle(color: AppTheme.textSecondary)));
+            return const Center(
+                child: Text('No audit logs available.',
+                    style: TextStyle(color: AppTheme.textSecondary)));
           }
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -74,7 +96,9 @@ class GlobalAuditScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (_, __) => const Center(child: Text('Failed to load audit logs', style: TextStyle(color: AppTheme.errorColor))),
+        error: (_, __) => const Center(
+            child: Text('Failed to load audit logs',
+                style: TextStyle(color: AppTheme.errorColor))),
       ),
     );
   }

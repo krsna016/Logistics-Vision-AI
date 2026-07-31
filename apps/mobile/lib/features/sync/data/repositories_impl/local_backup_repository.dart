@@ -18,12 +18,12 @@ class LocalBackupRepository implements BackupRepository {
   Future<List<BackupArchive>> getBackups() async {
     final backupDir = await _getBackupDirectory();
     final List<BackupArchive> archives = [];
-    
+
     await for (final entity in backupDir.list()) {
       if (entity is File && entity.path.endsWith('.sqlite.bak')) {
         final stat = await entity.stat();
         final name = p.basenameWithoutExtension(entity.path);
-        
+
         archives.add(BackupArchive(
           id: name,
           createdAt: stat.modified,
@@ -35,27 +35,29 @@ class LocalBackupRepository implements BackupRepository {
         ));
       }
     }
-    
+
     archives.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return archives;
   }
 
   @override
-  Future<BackupArchive> createBackup({required bool isAutomatic, bool includeImages = false}) async {
+  Future<BackupArchive> createBackup(
+      {required bool isAutomatic, bool includeImages = false}) async {
     final backupDir = await _getBackupDirectory();
     final appDir = await getApplicationDocumentsDirectory();
-    
+
     final dbFile = File(p.join(appDir.path, 'smartload_offline.sqlite'));
     if (!await dbFile.exists()) {
       throw Exception('Database file not found');
     }
-    
+
     final prefix = isAutomatic ? 'auto' : 'manual';
     final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final backupFile = File(p.join(backupDir.path, 'backup_${prefix}_$timestamp.sqlite.bak'));
-    
+    final backupFile =
+        File(p.join(backupDir.path, 'backup_${prefix}_$timestamp.sqlite.bak'));
+
     await dbFile.copy(backupFile.path);
-    
+
     final stat = await backupFile.stat();
     return BackupArchive(
       id: p.basenameWithoutExtension(backupFile.path),
@@ -72,14 +74,14 @@ class LocalBackupRepository implements BackupRepository {
   Future<bool> restoreBackup(String backupId) async {
     final backupDir = await _getBackupDirectory();
     final backupFile = File(p.join(backupDir.path, '$backupId.sqlite.bak'));
-    
+
     if (!await backupFile.exists()) {
       return false;
     }
-    
+
     final appDir = await getApplicationDocumentsDirectory();
     final dbFile = File(p.join(appDir.path, 'smartload_offline.sqlite'));
-    
+
     // Copy the backup over the current DB
     await backupFile.copy(dbFile.path);
     return true;
@@ -104,7 +106,7 @@ class LocalBackupRepository implements BackupRepository {
   @override
   Future<Map<String, double>> getStorageStatistics() async {
     final appDir = await getApplicationDocumentsDirectory();
-    
+
     double getDirSizeMB(Directory dir) {
       if (!dir.existsSync()) return 0.0;
       int size = 0;
@@ -115,13 +117,14 @@ class LocalBackupRepository implements BackupRepository {
       }
       return size / (1024 * 1024);
     }
-    
+
     final dbFile = File(p.join(appDir.path, 'smartload_offline.sqlite'));
-    final dbSize = dbFile.existsSync() ? dbFile.lengthSync() / (1024 * 1024) : 0.0;
-    
+    final dbSize =
+        dbFile.existsSync() ? dbFile.lengthSync() / (1024 * 1024) : 0.0;
+
     final imagesDir = Directory(p.join(appDir.path, 'datasets'));
     final backupsDir = await _getBackupDirectory();
-    
+
     return {
       'dbSize': dbSize,
       'imagesSize': getDirSizeMB(imagesDir),

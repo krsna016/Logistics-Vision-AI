@@ -40,7 +40,9 @@ class RolePoliciesScreen extends StatelessWidget {
               children: [
                 RoleChip(role: role),
                 const Spacer(),
-                const Text('Static Policy', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                const Text('Static Policy',
+                    style:
+                        TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
               ],
             ),
           ),
@@ -77,7 +79,8 @@ class RolePoliciesScreen extends StatelessWidget {
             label,
             style: TextStyle(
               color: isGranted ? Colors.white : Colors.white54,
-              decoration: isGranted ? TextDecoration.none : TextDecoration.lineThrough,
+              decoration:
+                  isGranted ? TextDecoration.none : TextDecoration.lineThrough,
             ),
           ),
         ],

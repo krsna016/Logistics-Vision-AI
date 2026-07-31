@@ -18,10 +18,11 @@ class PerformanceMonitor {
   int _frameCount = 0;
   DateTime _lastFpsTime = DateTime.now();
   double _currentFps = 0.0;
-  
+
   final List<double> _inferenceHistory = [];
 
-  void recordFrame(double preTime, double infTime, double postTime, int detCount) {
+  void recordFrame(
+      double preTime, double infTime, double postTime, int detCount) {
     _frameCount++;
     _inferenceHistory.add(infTime);
     if (_inferenceHistory.length > 30) {
@@ -38,8 +39,8 @@ class PerformanceMonitor {
   }
 
   PerformanceMetrics getMetrics() {
-    final avgInf = _inferenceHistory.isEmpty 
-        ? 0.0 
+    final avgInf = _inferenceHistory.isEmpty
+        ? 0.0
         : _inferenceHistory.reduce((a, b) => a + b) / _inferenceHistory.length;
 
     return PerformanceMetrics(

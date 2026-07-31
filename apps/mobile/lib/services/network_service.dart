@@ -34,11 +34,13 @@ class NetworkService {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
-          AppLogger.debug('HTTP Request: [${options.method}] -> ${options.path}');
+          AppLogger.debug(
+              'HTTP Request: [${options.method}] -> ${options.path}');
           return handler.next(options);
         },
         onResponse: (response, handler) {
-          AppLogger.debug('HTTP Response: [${response.statusCode}] <- ${response.requestOptions.path}');
+          AppLogger.debug(
+              'HTTP Response: [${response.statusCode}] <- ${response.requestOptions.path}');
           return handler.next(response);
         },
         onError: (DioException error, handler) {

@@ -1,15 +1,8 @@
 import '../models/detection_result.dart';
 
-enum ConfidenceTier {
-  excellent,
-  veryHigh,
-  high,
-  medium,
-  needsReview
-}
+enum ConfidenceTier { excellent, veryHigh, high, medium, needsReview }
 
 class DetectionValidator {
-  
   ConfidenceTier evaluateConfidence(double confidence) {
     if (confidence >= 0.95) return ConfidenceTier.excellent;
     if (confidence >= 0.90) return ConfidenceTier.veryHigh;

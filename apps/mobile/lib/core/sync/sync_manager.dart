@@ -16,7 +16,8 @@ class SyncManager {
   }
 
   void _init() {
-    _connectionSub = _connectivityService.onConnectionChange.listen((isConnected) {
+    _connectionSub =
+        _connectivityService.onConnectionChange.listen((isConnected) {
       if (isConnected) {
         _logger.i('Network restored. Starting sync...');
         triggerSync();
@@ -44,7 +45,9 @@ class SyncManager {
     final pendingItems = await (_db.select(_db.syncQueues)
           ..where((q) => q.status.equals('pending') | q.status.equals('failed'))
           ..where((q) => q.retryCount.isSmallerThanValue(5))
-          ..orderBy([(q) => OrderingTerm(expression: q.queuedAt, mode: OrderingMode.asc)]))
+          ..orderBy([
+            (q) => OrderingTerm(expression: q.queuedAt, mode: OrderingMode.asc)
+          ]))
         .get();
 
     if (pendingItems.isEmpty) return;
@@ -67,19 +70,21 @@ class SyncManager {
 
         // On Success, mark as synced or delete from queue
         // We will just mark as synced for audit history or delete them. Let's delete to keep queue small.
-        await (_db.delete(_db.syncQueues)..where((q) => q.id.equals(item.id))).go();
+        await (_db.delete(_db.syncQueues)..where((q) => q.id.equals(item.id)))
+            .go();
 
         // Also update the local record's syncStatus to 'synced'
         await _updateEntitySyncStatus(item.entityType, item.entityId, 'synced');
       } catch (e) {
         _logger.e('Failed to sync item ${item.id}: $e');
-        
+
         // Handle Conflict Resolution Hooks here
         if (e.toString().contains('conflict')) {
-           await _handleConflict(item);
+          await _handleConflict(item);
         } else {
           // Increment retry count and mark failed
-          await (_db.update(_db.syncQueues)..where((q) => q.id.equals(item.id))).write(
+          await (_db.update(_db.syncQueues)..where((q) => q.id.equals(item.id)))
+              .write(
             SyncQueuesCompanion(
               status: const Value('failed'),
               retryCount: Value(item.retryCount + 1),
@@ -96,18 +101,22 @@ class SyncManager {
     await Future.delayed(const Duration(milliseconds: 300)); // Simulate latency
   }
 
-  Future<void> _updateEntitySyncStatus(String entityType, String entityId, String status) async {
+  Future<void> _updateEntitySyncStatus(
+      String entityType, String entityId, String status) async {
     // Dynamic update based on entity type.
     // Example:
     switch (entityType) {
       case 'Wagon':
-        await (_db.update(_db.wagons)..where((t) => t.id.equals(entityId))).write(WagonsCompanion(syncStatus: Value(status)));
+        await (_db.update(_db.wagons)..where((t) => t.id.equals(entityId)))
+            .write(WagonsCompanion(syncStatus: Value(status)));
         break;
       case 'Truck':
-        await (_db.update(_db.trucks)..where((t) => t.id.equals(entityId))).write(TrucksCompanion(syncStatus: Value(status)));
+        await (_db.update(_db.trucks)..where((t) => t.id.equals(entityId)))
+            .write(TrucksCompanion(syncStatus: Value(status)));
         break;
       case 'Layer':
-        await (_db.update(_db.layers)..where((t) => t.id.equals(entityId))).write(LayersCompanion(syncStatus: Value(status)));
+        await (_db.update(_db.layers)..where((t) => t.id.equals(entityId)))
+            .write(LayersCompanion(syncStatus: Value(status)));
         break;
     }
   }
@@ -115,8 +124,11 @@ class SyncManager {
   Future<void> _handleConflict(SyncQueue item) async {
     // Future server conflict policies (Duplicate updates, Version mismatch, Clock differences)
     // Mark the queue item as conflict
-    await (_db.update(_db.syncQueues)..where((q) => q.id.equals(item.id))).write(
-      const SyncQueuesCompanion(status: Value('conflict'), errorMessage: Value('Version mismatch conflict')),
+    await (_db.update(_db.syncQueues)..where((q) => q.id.equals(item.id)))
+        .write(
+      const SyncQueuesCompanion(
+          status: Value('conflict'),
+          errorMessage: Value('Version mismatch conflict')),
     );
     await _updateEntitySyncStatus(item.entityType, item.entityId, 'conflict');
   }

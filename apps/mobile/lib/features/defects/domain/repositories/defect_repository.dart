@@ -11,5 +11,6 @@ abstract class DefectRepository {
   Future<List<DefectRecord>> getDefectsByTruck(String truckId);
 
   /// Confirm or dismiss (false positive override) a defect status.
-  Future<void> verifyDefect(String id, {required bool confirmedByOperator, String? notes});
+  Future<void> verifyDefect(String id,
+      {required bool confirmedByOperator, String? notes});
 }

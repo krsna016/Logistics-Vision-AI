@@ -16,7 +16,8 @@ class DetectionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (detections.isEmpty || cameraSize.width == 0 || cameraSize.height == 0) return;
+    if (detections.isEmpty || cameraSize.width == 0 || cameraSize.height == 0)
+      return;
 
     // Calculate scaling metrics according to the BoxFit mode
     final double scaleX = size.width / cameraSize.width;
@@ -47,16 +48,20 @@ class DetectionPainter extends CustomPainter {
 
     for (final detection in detections) {
       final isSelected = detection.id == selectedId;
-      
+
       // Configure drawing color based on selection states
       boxPaint.color = isSelected ? Colors.yellow : detection.color;
       boxPaint.strokeWidth = isSelected ? 5.0 : 3.0;
 
       // Map normalized coordinates to scaled canvas positions
-      final double left = detection.boundingBox.xMin * cameraSize.width * scale + dx;
-      final double top = detection.boundingBox.yMin * cameraSize.height * scale + dy;
-      final double right = detection.boundingBox.xMax * cameraSize.width * scale + dx;
-      final double bottom = detection.boundingBox.yMax * cameraSize.height * scale + dy;
+      final double left =
+          detection.boundingBox.xMin * cameraSize.width * scale + dx;
+      final double top =
+          detection.boundingBox.yMin * cameraSize.height * scale + dy;
+      final double right =
+          detection.boundingBox.xMax * cameraSize.width * scale + dx;
+      final double bottom =
+          detection.boundingBox.yMax * cameraSize.height * scale + dy;
 
       final rect = Rect.fromLTRB(left, top, right, bottom);
       canvas.drawRect(rect, boxPaint);
@@ -64,14 +69,15 @@ class DetectionPainter extends CustomPainter {
       // Render Label banner overlay
       final confidencePct = (detection.confidence * 100).toStringAsFixed(0);
       final labelText = '${detection.label} ($confidencePct%)';
-      
+
       textPainter.text = TextSpan(
         text: labelText,
         style: TextStyle(
           color: isSelected ? Colors.black : Colors.white,
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          backgroundColor: isSelected ? Colors.yellow : detection.color.withOpacity(0.85),
+          backgroundColor:
+              isSelected ? Colors.yellow : detection.color.withOpacity(0.85),
         ),
       );
 

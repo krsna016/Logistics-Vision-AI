@@ -45,7 +45,8 @@ class QualityIndicator extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 label,
-                style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    color: color, fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ],
           ),
@@ -62,19 +63,25 @@ class QualityIndicator extends StatelessWidget {
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: warnings.take(2).map((w) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.warning, color: Colors.red, size: 12),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(w, style: const TextStyle(color: Colors.white, fontSize: 10)),
-                    ),
-                  ],
-                ),
-              )).toList(),
+              children: warnings
+                  .take(2)
+                  .map((w) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.warning,
+                                color: Colors.red, size: 12),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(w,
+                                  style: const TextStyle(
+                                      color: Colors.white, fontSize: 10)),
+                            ),
+                          ],
+                        ),
+                      ))
+                  .toList(),
             ),
           ),
         ]

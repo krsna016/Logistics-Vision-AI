@@ -9,7 +9,7 @@ class FrameScheduler {
   bool _isProcessing = false;
   CameraImage? _nextFrame;
   int _droppedFrames = 0;
-  
+
   final _detectionController = StreamController<List<Detection>>.broadcast();
 
   FrameScheduler(this._repository);
@@ -39,10 +39,11 @@ class FrameScheduler {
         _detectionController.add(results);
       }
     } catch (e, stack) {
-      AppLogger.error('Inference pipeline execution error in scheduler', e, stack);
+      AppLogger.error(
+          'Inference pipeline execution error in scheduler', e, stack);
     } finally {
       _isProcessing = false;
-      
+
       // If a newer frame arrived while we were busy, execute it now.
       final next = _nextFrame;
       if (next != null) {

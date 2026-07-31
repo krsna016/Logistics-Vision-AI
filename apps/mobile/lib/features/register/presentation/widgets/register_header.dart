@@ -22,7 +22,8 @@ class RegisterHeader extends StatelessWidget {
           // Branding Header
           Row(
             children: [
-              Image.asset('assets/images/logo.png', height: 38, width: 38, fit: BoxFit.contain),
+              Image.asset('assets/images/logo.png',
+                  height: 38, width: 38, fit: BoxFit.contain),
               const SizedBox(width: 12),
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -47,7 +48,8 @@ class RegisterHeader extends StatelessWidget {
               ),
               const Spacer(),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(8),
@@ -75,9 +77,11 @@ class RegisterHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildMetaItem('Wagon Number', register.wagonNumber, isAccent: true),
+                    _buildMetaItem('Wagon Number', register.wagonNumber,
+                        isAccent: true),
                     const SizedBox(height: 10),
-                    _buildMetaItem('Route', '${register.origin} ➔ ${register.destination}'),
+                    _buildMetaItem('Route',
+                        '${register.origin} ➔ ${register.destination}'),
                   ],
                 ),
               ),
@@ -85,7 +89,8 @@ class RegisterHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildMetaItem('Loading Date', _formatDate(register.loadingDate)),
+                    _buildMetaItem(
+                        'Loading Date', _formatDate(register.loadingDate)),
                     const SizedBox(height: 10),
                     _buildMetaItem('Supervisor', register.supervisor),
                   ],
@@ -124,7 +129,20 @@ class RegisterHeader extends StatelessWidget {
   }
 
   String _formatDate(DateTime dt) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 }

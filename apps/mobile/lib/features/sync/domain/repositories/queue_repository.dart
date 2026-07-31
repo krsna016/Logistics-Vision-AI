@@ -8,7 +8,8 @@ abstract class QueueRepository {
   Future<List<SyncOperation>> getPendingBatch(int batchSize);
 
   /// Updates the status of an operation (e.g., syncing, completed, failed).
-  Future<void> updateOperationStatus(String id, SyncStatus status, {String? errorMessage, int? retryCount});
+  Future<void> updateOperationStatus(String id, SyncStatus status,
+      {String? errorMessage, int? retryCount});
 
   /// Retrieves all items currently in the queue, regardless of status.
   Future<List<SyncOperation>> getAllOperations();

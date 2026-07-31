@@ -26,7 +26,10 @@ class TruckTable extends StatelessWidget {
             padding: EdgeInsets.all(16.0),
             child: Text(
               'Wagon Cargo Manifest',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+              style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white),
             ),
           ),
           SingleChildScrollView(
@@ -34,30 +37,65 @@ class TruckTable extends StatelessWidget {
             child: DataTable(
               headingRowColor: MaterialStateProperty.all(AppTheme.cardColor),
               columns: const [
-                DataColumn(label: Text('TRUCK NUMBER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('DRIVER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('CARRIER', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('LAYERS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('CARTONS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(numeric: true, label: Text('DEFECTS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('STATUS', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(label: Text('COMPLETED', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('TRUCK NUMBER',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('DRIVER',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('CARRIER',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.bold))),
+                DataColumn(
+                    numeric: true,
+                    label: Text('LAYERS',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.bold))),
+                DataColumn(
+                    numeric: true,
+                    label: Text('CARTONS',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.bold))),
+                DataColumn(
+                    numeric: true,
+                    label: Text('DEFECTS',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('STATUS',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.bold))),
+                DataColumn(
+                    label: Text('COMPLETED',
+                        style: TextStyle(
+                            fontSize: 11, fontWeight: FontWeight.bold))),
               ],
               rows: [
                 ...trucks.map((truck) {
                   return DataRow(
                     cells: [
-                      DataCell(Text(truck.truckNumber, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white))),
+                      DataCell(Text(truck.truckNumber,
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white))),
                       DataCell(Text(truck.driverName)),
                       DataCell(Text(truck.company)),
                       DataCell(Text('${truck.totalLayers}')),
-                      DataCell(Text('${truck.totalCartons}', style: const TextStyle(fontWeight: FontWeight.bold))),
+                      DataCell(Text('${truck.totalCartons}',
+                          style: const TextStyle(fontWeight: FontWeight.bold))),
                       DataCell(
                         Text(
                           '${truck.totalDefects}',
                           style: TextStyle(
-                            color: truck.totalDefects > 0 ? AppTheme.errorColor : AppTheme.textSecondary,
-                            fontWeight: truck.totalDefects > 0 ? FontWeight.bold : FontWeight.normal,
+                            color: truck.totalDefects > 0
+                                ? AppTheme.errorColor
+                                : AppTheme.textSecondary,
+                            fontWeight: truck.totalDefects > 0
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                         ),
                       ),
@@ -70,12 +108,26 @@ class TruckTable extends StatelessWidget {
                 DataRow(
                   color: MaterialStateProperty.all(AppTheme.cardColor),
                   cells: [
-                    const DataCell(Text('TOTALS', style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.warningColor))),
+                    const DataCell(Text('TOTALS',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.warningColor))),
                     const DataCell(Text('')),
                     const DataCell(Text('')),
-                    DataCell(Text('$totalLayers', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.warningColor))),
-                    DataCell(Text('$totalCartons', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.warningColor))),
-                    DataCell(Text('$totalDefects', style: TextStyle(fontWeight: FontWeight.bold, color: totalDefects > 0 ? AppTheme.errorColor : AppTheme.warningColor))),
+                    DataCell(Text('$totalLayers',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.warningColor))),
+                    DataCell(Text('$totalCartons',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.warningColor))),
+                    DataCell(Text('$totalDefects',
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: totalDefects > 0
+                                ? AppTheme.errorColor
+                                : AppTheme.warningColor))),
                     const DataCell(Text('')),
                     const DataCell(Text('')),
                   ],
@@ -97,7 +149,10 @@ class TruckTable extends StatelessWidget {
       ),
       child: Text(
         status,
-        style: const TextStyle(color: AppTheme.successColor, fontSize: 10, fontWeight: FontWeight.bold),
+        style: const TextStyle(
+            color: AppTheme.successColor,
+            fontSize: 10,
+            fontWeight: FontWeight.bold),
       ),
     );
   }

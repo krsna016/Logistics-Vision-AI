@@ -19,9 +19,11 @@ class ModelManager {
       ..setInterOpNumThreads(1)
       ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortEnableAll);
     final asset = await rootBundle.load(model.assetPath);
-    _session = OrtSession.fromBuffer(asset.buffer.asUint8List(), _sessionOptions!);
+    _session =
+        OrtSession.fromBuffer(asset.buffer.asUint8List(), _sessionOptions!);
     _activeModel = model;
-    AppLogger.info('Loaded ONNX model: ${model.name} v${model.version} (${_session!.inputNames} -> ${_session!.outputNames})');
+    AppLogger.info(
+        'Loaded ONNX model: ${model.name} v${model.version} (${_session!.inputNames} -> ${_session!.outputNames})');
   }
 
   Future<void> unloadModel() async {
@@ -48,13 +50,15 @@ class ModelManager {
   Future<dynamic> run(Float32List input) async {
     final session = _session;
     if (session == null) throw StateError('ONNX model is not loaded');
-    final inputOrt = OrtValueTensor.createTensorWithDataList(input, [1, 3, 640, 640]);
+    final inputOrt =
+        OrtValueTensor.createTensorWithDataList(input, [1, 3, 640, 640]);
     final runOptions = OrtRunOptions();
     try {
       final outputs = await session.runAsync(
-        runOptions,
-        {session.inputNames.first: inputOrt},
-      ) ?? const <OrtValue?>[];
+            runOptions,
+            {session.inputNames.first: inputOrt},
+          ) ??
+          const <OrtValue?>[];
       return outputs.isEmpty ? null : outputs.first?.value;
     } finally {
       inputOrt.release();

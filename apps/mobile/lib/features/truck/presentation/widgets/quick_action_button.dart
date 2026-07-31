@@ -36,7 +36,8 @@ class QuickActionButton extends StatelessWidget {
             foregroundColor: fgColor,
             side: BorderSide(color: bgColor.withOpacity(0.5)),
             padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -47,9 +48,13 @@ class QuickActionButton extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(label,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 14)),
                   if (subtitle != null)
-                    Text(subtitle!, style: TextStyle(fontSize: 11, color: fgColor.withOpacity(0.7))),
+                    Text(subtitle!,
+                        style: TextStyle(
+                            fontSize: 11, color: fgColor.withOpacity(0.7))),
                 ],
               ),
             ],
@@ -68,7 +73,8 @@ class QuickActionButton extends StatelessWidget {
           disabledBackgroundColor: AppTheme.dividerColor,
           disabledForegroundColor: AppTheme.textSecondary,
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           elevation: onPressed == null ? 0 : 2,
         ),
         child: Row(
@@ -80,11 +86,14 @@ class QuickActionButton extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                Text(label,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 14)),
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: TextStyle(fontSize: 11, color: fgColor.withOpacity(0.75)),
+                    style: TextStyle(
+                        fontSize: 11, color: fgColor.withOpacity(0.75)),
                   ),
               ],
             ),

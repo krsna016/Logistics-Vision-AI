@@ -10,14 +10,15 @@ class AuthenticationServiceImpl implements AuthenticationService {
   const AuthenticationServiceImpl(this._offlineAuth, this._sessionManager);
 
   @override
-  Future<User?> login(String employeeId, String password, {bool offline = false}) async {
+  Future<User?> login(String employeeId, String password,
+      {bool offline = false}) async {
     // For Vinayak SmartLoad offline-first architecture, all logins are validated locally first.
     final user = await _offlineAuth.authenticate(employeeId, password);
-    
+
     if (user != null) {
       await _sessionManager.startSession(user);
     }
-    
+
     return user;
   }
 

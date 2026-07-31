@@ -26,7 +26,7 @@ class LoadingPerformanceMetrics {
   final Duration averageTruckCompletionTime;
   final Duration averageWagonCompletionTime;
   final int averageCartonsPerLayer;
-  
+
   // For time-series trend chart
   final List<double> hourlyCartonTrend;
 
@@ -49,7 +49,7 @@ class DatasetHealthMetrics {
   final double storageUsedMB;
   final double blurPercentage;
   final double lightingIssues;
-  
+
   // For time-series trend
   final List<double> dailyCaptureTrend;
 

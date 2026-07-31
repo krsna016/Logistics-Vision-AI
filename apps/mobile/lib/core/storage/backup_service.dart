@@ -9,17 +9,19 @@ class BackupService {
   Future<void> createLocalBackup() async {
     try {
       final dbFolder = await getApplicationDocumentsDirectory();
-      final originalFile = File(p.join(dbFolder.path, 'smartload_offline.sqlite'));
-      
+      final originalFile =
+          File(p.join(dbFolder.path, 'smartload_offline.sqlite'));
+
       if (!await originalFile.exists()) {
         _logger.w('No database found to backup.');
         return;
       }
 
       final backupFolder = await _getBackupPath();
-      final backupFileName = 'backup_${DateTime.now().toIso8601String().replaceAll(':', '-')}.sqlite';
+      final backupFileName =
+          'backup_${DateTime.now().toIso8601String().replaceAll(':', '-')}.sqlite';
       final backupFile = File(p.join(backupFolder, backupFileName));
-      
+
       await originalFile.copy(backupFile.path);
       _logger.i('Local backup created successfully at: ${backupFile.path}');
     } catch (e) {
@@ -35,11 +37,13 @@ class BackupService {
       }
 
       final dbFolder = await getApplicationDocumentsDirectory();
-      final currentDbFile = File(p.join(dbFolder.path, 'smartload_offline.sqlite'));
-      
+      final currentDbFile =
+          File(p.join(dbFolder.path, 'smartload_offline.sqlite'));
+
       // Copy current to a safe place just in case
       if (await currentDbFile.exists()) {
-        await currentDbFile.copy(p.join(dbFolder.path, 'smartload_offline.sqlite.temp'));
+        await currentDbFile
+            .copy(p.join(dbFolder.path, 'smartload_offline.sqlite.temp'));
       }
 
       await backupFile.copy(currentDbFile.path);

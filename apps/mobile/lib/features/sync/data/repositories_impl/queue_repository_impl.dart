@@ -11,22 +11,22 @@ class QueueRepositoryImpl implements QueueRepository {
   @override
   Future<void> enqueue(SyncOperation operation) async {
     await _db.into(_db.syncQueues).insert(
-      SyncQueuesCompanion.insert(
-        id: operation.id,
-        entityId: operation.entityId,
-        entityType: operation.entityType,
-        operation: operation.operation.name,
-        payloadData: operation.payload,
-        version: Value(operation.version),
-        priority: Value(operation.priority),
-        status: Value(operation.status.name),
-        retryCount: Value(operation.retryCount),
-        createdAt: Value(operation.createdAt),
-        updatedAt: Value(operation.updatedAt),
-        queuedAt: Value(operation.queuedAt),
-      ),
-      mode: InsertMode.replace,
-    );
+          SyncQueuesCompanion.insert(
+            id: operation.id,
+            entityId: operation.entityId,
+            entityType: operation.entityType,
+            operation: operation.operation.name,
+            payloadData: operation.payload,
+            version: Value(operation.version),
+            priority: Value(operation.priority),
+            status: Value(operation.status.name),
+            retryCount: Value(operation.retryCount),
+            createdAt: Value(operation.createdAt),
+            updatedAt: Value(operation.updatedAt),
+            queuedAt: Value(operation.queuedAt),
+          ),
+          mode: InsertMode.replace,
+        );
   }
 
   @override
@@ -37,7 +37,8 @@ class QueueRepositoryImpl implements QueueRepository {
     final records = await (_db.select(_db.syncQueues)
           ..where((t) => t.status.isIn(['queued', 'failed']))
           ..orderBy([
-            (t) => OrderingTerm(expression: t.priority, mode: OrderingMode.desc),
+            (t) =>
+                OrderingTerm(expression: t.priority, mode: OrderingMode.desc),
             (t) => OrderingTerm(expression: t.queuedAt, mode: OrderingMode.asc),
           ])
           ..limit(batchSize))
@@ -47,12 +48,15 @@ class QueueRepositoryImpl implements QueueRepository {
   }
 
   @override
-  Future<void> updateOperationStatus(String id, SyncStatus status, {String? errorMessage, int? retryCount}) async {
+  Future<void> updateOperationStatus(String id, SyncStatus status,
+      {String? errorMessage, int? retryCount}) async {
     await (_db.update(_db.syncQueues)..where((t) => t.id.equals(id))).write(
       SyncQueuesCompanion(
         status: Value(status.name),
-        errorMessage: errorMessage != null ? Value(errorMessage) : const Value.absent(),
-        retryCount: retryCount != null ? Value(retryCount) : const Value.absent(),
+        errorMessage:
+            errorMessage != null ? Value(errorMessage) : const Value.absent(),
+        retryCount:
+            retryCount != null ? Value(retryCount) : const Value.absent(),
         updatedAt: Value(DateTime.now()),
       ),
     );
@@ -62,7 +66,8 @@ class QueueRepositoryImpl implements QueueRepository {
   Future<List<SyncOperation>> getAllOperations() async {
     final records = await (_db.select(_db.syncQueues)
           ..orderBy([
-            (t) => OrderingTerm(expression: t.queuedAt, mode: OrderingMode.desc),
+            (t) =>
+                OrderingTerm(expression: t.queuedAt, mode: OrderingMode.desc),
           ]))
         .get();
 
@@ -74,7 +79,9 @@ class QueueRepositoryImpl implements QueueRepository {
     // Delete completed and cancelled items older than 7 days
     final threshold = DateTime.now().subtract(const Duration(days: 7));
     await (_db.delete(_db.syncQueues)
-          ..where((t) => t.status.isIn(['completed', 'cancelled']) & t.updatedAt.isSmallerThanValue(threshold)))
+          ..where((t) =>
+              t.status.isIn(['completed', 'cancelled']) &
+              t.updatedAt.isSmallerThanValue(threshold)))
         .go();
   }
 
@@ -83,11 +90,14 @@ class QueueRepositoryImpl implements QueueRepository {
       id: r.id,
       entityType: r.entityType,
       entityId: r.entityId,
-      operation: SyncOperationType.values.firstWhere((e) => e.name == r.operation, orElse: () => SyncOperationType.insert),
+      operation: SyncOperationType.values.firstWhere(
+          (e) => e.name == r.operation,
+          orElse: () => SyncOperationType.insert),
       payload: r.payloadData,
       version: r.version,
       priority: r.priority,
-      status: SyncStatus.values.firstWhere((e) => e.name == r.status, orElse: () => SyncStatus.queued),
+      status: SyncStatus.values.firstWhere((e) => e.name == r.status,
+          orElse: () => SyncStatus.queued),
       retryCount: r.retryCount,
       errorMessage: r.errorMessage,
       createdAt: r.createdAt,

@@ -8,7 +8,7 @@ abstract class AnalyticsRepository {
   Future<LoadingPerformanceMetrics> getLoadingPerformance(TimeFilter filter);
   Future<DatasetHealthMetrics> getDatasetHealth(TimeFilter filter);
   Future<ProductivityMetrics> getProductivityMetrics(TimeFilter filter);
-  
+
   // Future reports generation placeholder
   Future<String> generatePdfReport(TimeFilter filter);
   Future<String> generateExcelReport(TimeFilter filter);

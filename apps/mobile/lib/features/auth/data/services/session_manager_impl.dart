@@ -5,7 +5,8 @@ import '../../domain/entities/user.dart';
 import '../../domain/services/session_manager.dart';
 
 class SessionManagerImpl implements SessionManager {
-  final ValueNotifier<Session?> _sessionNotifier = ValueNotifier<Session?>(null);
+  final ValueNotifier<Session?> _sessionNotifier =
+      ValueNotifier<Session?>(null);
   Timer? _idleTimer;
   static const Duration _idleTimeout = Duration(minutes: 15);
 
@@ -33,7 +34,8 @@ class SessionManagerImpl implements SessionManager {
   @override
   void recordActivity() {
     if (_sessionNotifier.value != null && !_sessionNotifier.value!.isLocked) {
-      _sessionNotifier.value = _sessionNotifier.value!.copyWith(lastActivity: DateTime.now());
+      _sessionNotifier.value =
+          _sessionNotifier.value!.copyWith(lastActivity: DateTime.now());
       _startIdleTimer();
     }
   }

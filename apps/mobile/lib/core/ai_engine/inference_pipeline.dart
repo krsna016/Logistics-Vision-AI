@@ -53,16 +53,18 @@ class InferencePipeline {
       tracked.length,
     );
 
-    return tracked.map((d) => Detection(
-      id: d.id,
-      label: d.label,
-      confidence: d.confidence,
-      boundingBox: BoundingBox(
-        xMin: d.xMin,
-        yMin: d.yMin,
-        xMax: d.xMax,
-        yMax: d.yMax,
-      ),
-    )).toList();
+    return tracked
+        .map((d) => Detection(
+              id: d.id,
+              label: d.label,
+              confidence: d.confidence,
+              boundingBox: BoundingBox(
+                xMin: d.xMin,
+                yMin: d.yMin,
+                xMax: d.xMax,
+                yMax: d.yMax,
+              ),
+            ))
+        .toList();
   }
 }

@@ -4,7 +4,7 @@ enum TruckStatus {
   loading,
   completed,
   dispatched;
-  
+
   String get displayName {
     switch (this) {
       case TruckStatus.loading:

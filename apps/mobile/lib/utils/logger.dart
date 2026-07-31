@@ -10,7 +10,9 @@ class AppLogger {
       colors: true,
       printEmojis: true,
     ),
-    level: Environment.current == Environment.production ? Level.warning : Level.debug,
+    level: Environment.current == Environment.production
+        ? Level.warning
+        : Level.debug,
   );
 
   static void debug(String message, [dynamic error, StackTrace? stackTrace]) {

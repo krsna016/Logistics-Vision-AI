@@ -23,7 +23,7 @@ class QualitySummary {
   /// Calculates an overall layer quality score between 0.0 (Worst) and 100.0 (Perfect)
   double get qualityScore {
     if (totalCartons == 0) return 100.0;
-    
+
     // Severity penalty factors
     double penalty = 0.0;
     for (final defect in defects) {
@@ -46,11 +46,12 @@ class QualitySummary {
           break;
       }
     }
-    
+
     return (100.0 - penalty).clamp(0.0, 100.0);
   }
 
   bool get hasCriticalIssues {
-    return defects.any((d) => d.confirmedByOperator && d.severity == DefectSeverity.critical);
+    return defects.any(
+        (d) => d.confirmedByOperator && d.severity == DefectSeverity.critical);
   }
 }

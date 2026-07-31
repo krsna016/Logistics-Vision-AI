@@ -48,18 +48,25 @@ class BackupCard extends StatelessWidget {
                       Row(
                         children: [
                           Text(
-                            backup.isAutomatic ? 'Auto Backup' : 'Manual Backup',
-                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                            backup.isAutomatic
+                                ? 'Auto Backup'
+                                : 'Manual Backup',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16),
                           ),
                           const SizedBox(width: 8),
                           if (backup.isEncrypted)
-                            const Icon(Icons.lock, size: 14, color: AppTheme.successColor),
+                            const Icon(Icons.lock,
+                                size: 14, color: AppTheme.successColor),
                         ],
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${backup.createdAt.toLocal().toString().split('.')[0]} • v${backup.version}',
-                        style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                        style: const TextStyle(
+                            color: AppTheme.textSecondary, fontSize: 12),
                       ),
                     ],
                   ),
@@ -69,21 +76,30 @@ class BackupCard extends StatelessWidget {
                   children: [
                     Text(
                       '${backup.sizeMB} MB',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16),
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         Icon(
-                          backup.status.isValid ? Icons.check_circle : Icons.error,
+                          backup.status.isValid
+                              ? Icons.check_circle
+                              : Icons.error,
                           size: 12,
-                          color: backup.status.isValid ? AppTheme.successColor : AppTheme.errorColor,
+                          color: backup.status.isValid
+                              ? AppTheme.successColor
+                              : AppTheme.errorColor,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           backup.status.label,
                           style: TextStyle(
-                            color: backup.status.isValid ? AppTheme.successColor : AppTheme.errorColor,
+                            color: backup.status.isValid
+                                ? AppTheme.successColor
+                                : AppTheme.errorColor,
                             fontSize: 11,
                           ),
                         ),
@@ -102,8 +118,10 @@ class BackupCard extends StatelessWidget {
               children: [
                 TextButton.icon(
                   onPressed: onDelete,
-                  icon: const Icon(Icons.delete_outline, size: 18, color: AppTheme.errorColor),
-                  label: const Text('Delete', style: TextStyle(color: AppTheme.errorColor)),
+                  icon: const Icon(Icons.delete_outline,
+                      size: 18, color: AppTheme.errorColor),
+                  label: const Text('Delete',
+                      style: TextStyle(color: AppTheme.errorColor)),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton.icon(

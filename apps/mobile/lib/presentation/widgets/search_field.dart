@@ -36,7 +36,8 @@ class _SearchFieldState extends State<SearchField> {
       decoration: InputDecoration(
         prefixIcon: const Icon(Icons.search, size: 20),
         hintText: 'Search Truck Number, Driver or Carrier',
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
           borderSide: BorderSide.none,

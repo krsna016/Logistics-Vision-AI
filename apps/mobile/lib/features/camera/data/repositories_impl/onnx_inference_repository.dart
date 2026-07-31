@@ -45,12 +45,12 @@ class ONNXInferenceRepository implements InferenceRepository {
   @override
   InferenceTelemetry getTelemetry() {
     final metrics = _pipeline.performanceMonitor.getMetrics();
-    
+
     return InferenceTelemetry(
       fps: metrics.fps,
       inferenceTimeMs: metrics.averageInferenceTime,
       totalDetectionsCount: metrics.totalDetections,
-      droppedFramesCount: 0, 
+      droppedFramesCount: 0,
     );
   }
 

@@ -17,7 +17,7 @@ class ImageStorageService {
     final basePath = await _storagePath;
     final fileName = '${prefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final destination = p.join(basePath, fileName);
-    
+
     await imageFile.copy(destination);
     // Returning relative path could be better, but absolute is fine for now as it's within AppDocs
     return destination;

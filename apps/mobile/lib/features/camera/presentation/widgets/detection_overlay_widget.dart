@@ -59,10 +59,14 @@ class DetectionOverlayWidget extends StatelessWidget {
     }
 
     for (final detection in detections) {
-      final double left = detection.boundingBox.xMin * cameraSize.width * scale + dx;
-      final double top = detection.boundingBox.yMin * cameraSize.height * scale + dy;
-      final double right = detection.boundingBox.xMax * cameraSize.width * scale + dx;
-      final double bottom = detection.boundingBox.yMax * cameraSize.height * scale + dy;
+      final double left =
+          detection.boundingBox.xMin * cameraSize.width * scale + dx;
+      final double top =
+          detection.boundingBox.yMin * cameraSize.height * scale + dy;
+      final double right =
+          detection.boundingBox.xMax * cameraSize.width * scale + dx;
+      final double bottom =
+          detection.boundingBox.yMax * cameraSize.height * scale + dy;
 
       final rect = Rect.fromLTRB(left, top, right, bottom);
       if (rect.contains(localPosition)) {

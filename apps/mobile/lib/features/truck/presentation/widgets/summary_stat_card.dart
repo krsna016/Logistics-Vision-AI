@@ -61,7 +61,8 @@ class _SummaryStatCardState extends State<SummaryStatCard>
 
   @override
   Widget build(BuildContext context) {
-    final effectiveColor = widget.isAlert && widget.value > 0 ? AppTheme.errorColor : widget.color;
+    final effectiveColor =
+        widget.isAlert && widget.value > 0 ? AppTheme.errorColor : widget.color;
 
     return Expanded(
       child: Container(

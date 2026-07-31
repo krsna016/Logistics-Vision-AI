@@ -4,9 +4,10 @@ import '../entities/decision_state.dart';
 
 class StabilityAnalyzer {
   final int windowSize;
-  final double stabilityThreshold; // Minimum stability score to confirm (e.g. 0.85)
+  final double
+      stabilityThreshold; // Minimum stability score to confirm (e.g. 0.85)
   final double confidenceThreshold; // Minimum average confidence (e.g. 0.75)
-  
+
   final List<List<Detection>> _frameHistory = [];
   final List<int> _countHistory = [];
 
@@ -53,7 +54,7 @@ class StabilityAnalyzer {
     for (final c in _countHistory) {
       countFrequencies[c] = (countFrequencies[c] ?? 0) + 1;
     }
-    
+
     int modeCount = _countHistory.last;
     int maxFrequency = 0;
     countFrequencies.forEach((count, freq) {

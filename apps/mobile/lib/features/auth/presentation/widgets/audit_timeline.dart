@@ -11,7 +11,8 @@ class AuditTimeline extends StatelessWidget {
   Widget build(BuildContext context) {
     if (logs.isEmpty) {
       return const Center(
-        child: Text('No recent activity.', style: TextStyle(color: AppTheme.textSecondary)),
+        child: Text('No recent activity.',
+            style: TextStyle(color: AppTheme.textSecondary)),
       );
     }
 
@@ -35,7 +36,9 @@ class AuditTimeline extends StatelessWidget {
                     margin: const EdgeInsets.only(top: 4),
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: log.isSuccess ? AppTheme.primaryColor : AppTheme.errorColor,
+                      color: log.isSuccess
+                          ? AppTheme.primaryColor
+                          : AppTheme.errorColor,
                     ),
                   ),
                   if (!isLast)
@@ -78,7 +81,8 @@ class AuditTimeline extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           log.details,
-                          style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                          style: const TextStyle(
+                              color: AppTheme.textSecondary, fontSize: 12),
                         ),
                       ]
                     ],

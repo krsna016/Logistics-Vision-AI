@@ -13,22 +13,25 @@ final cameraRepositoryProvider = Provider<CameraRepository>((ref) {
 });
 
 // StateNotifierProvider that exposes the camera controller state
-final cameraNotifierProvider = StateNotifierProvider.autoDispose<CameraNotifier, CameraState>((ref) {
+final cameraNotifierProvider =
+    StateNotifierProvider.autoDispose<CameraNotifier, CameraState>((ref) {
   final repository = ref.watch(cameraRepositoryProvider);
   final notifier = CameraNotifier(repository);
-  
+
   // Clean up when provider is disposed
   ref.onDispose(() {
     notifier.disposeCamera();
   });
-  
+
   return notifier;
 });
 
-class CameraNotifier extends StateNotifier<CameraState> with WidgetsBindingObserver {
+class CameraNotifier extends StateNotifier<CameraState>
+    with WidgetsBindingObserver {
   final CameraRepository _repository;
 
-  CameraNotifier(this._repository) : super(const CameraState(status: CameraStatus.initializing)) {
+  CameraNotifier(this._repository)
+      : super(const CameraState(status: CameraStatus.initializing)) {
     WidgetsBinding.instance.addObserver(this);
     initialize();
   }
@@ -83,14 +86,18 @@ class CameraNotifier extends StateNotifier<CameraState> with WidgetsBindingObser
   }
 
   Future<void> switchCamera() async {
-    if (state.status != CameraStatus.ready || state.availableCameras.length < 2) {
-      AppLogger.warning('Switching camera ignored: Not ready or insufficient camera hardware count.');
+    if (state.status != CameraStatus.ready ||
+        state.availableCameras.length < 2) {
+      AppLogger.warning(
+          'Switching camera ignored: Not ready or insufficient camera hardware count.');
       return;
     }
 
     final currentController = state.controller;
-    final nextIndex = (state.selectedCameraIndex + 1) % state.availableCameras.length;
-    AppLogger.info('Switching camera from index ${state.selectedCameraIndex} to $nextIndex');
+    final nextIndex =
+        (state.selectedCameraIndex + 1) % state.availableCameras.length;
+    AppLogger.info(
+        'Switching camera from index ${state.selectedCameraIndex} to $nextIndex');
 
     state = state.copyWith(status: CameraStatus.switching);
 
@@ -139,7 +146,8 @@ class CameraNotifier extends StateNotifier<CameraState> with WidgetsBindingObser
     final controller = state.controller;
     if (controller == null || !controller.value.isInitialized) return;
 
-    if (lifecycleState == AppLifecycleState.inactive || lifecycleState == AppLifecycleState.paused) {
+    if (lifecycleState == AppLifecycleState.inactive ||
+        lifecycleState == AppLifecycleState.paused) {
       AppLogger.info('App paused. Suspending camera hardware.');
       disposeCamera();
     } else if (lifecycleState == AppLifecycleState.resumed) {

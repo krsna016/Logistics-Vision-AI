@@ -11,12 +11,14 @@ final backupListProvider = FutureProvider<List<BackupArchive>>((ref) async {
   return ref.watch(backupRepositoryProvider).getBackups();
 });
 
-final storageStatisticsProvider = FutureProvider<Map<String, double>>((ref) async {
+final storageStatisticsProvider =
+    FutureProvider<Map<String, double>>((ref) async {
   return ref.watch(backupRepositoryProvider).getStorageStatistics();
 });
 
 // Provides a way to trigger manual backups
-final backupNotifierProvider = StateNotifierProvider<BackupNotifier, bool>((ref) {
+final backupNotifierProvider =
+    StateNotifierProvider<BackupNotifier, bool>((ref) {
   return BackupNotifier(ref.watch(backupRepositoryProvider), ref);
 });
 
@@ -26,10 +28,12 @@ class BackupNotifier extends StateNotifier<bool> {
 
   BackupNotifier(this._repository, this._ref) : super(false);
 
-  Future<BackupArchive?> triggerManualBackup({bool includeImages = false}) async {
+  Future<BackupArchive?> triggerManualBackup(
+      {bool includeImages = false}) async {
     state = true; // is loading
     try {
-      final backup = await _repository.createBackup(isAutomatic: false, includeImages: includeImages);
+      final backup = await _repository.createBackup(
+          isAutomatic: false, includeImages: includeImages);
       _ref.invalidate(backupListProvider);
       _ref.invalidate(storageStatisticsProvider);
       return backup;

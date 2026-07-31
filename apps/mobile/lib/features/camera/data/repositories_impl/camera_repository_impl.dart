@@ -31,7 +31,8 @@ class CameraRepositoryImpl implements CameraRepository {
       AppLogger.info('Found ${cameras.length} optical cameras.');
       return cameras;
     } on CameraException catch (e, stack) {
-      AppLogger.error('Camera Exception while listing devices', e.description, stack);
+      AppLogger.error(
+          'Camera Exception while listing devices', e.description, stack);
       throw DatabaseException('Listing cameras failed: ${e.description}');
     } catch (e, stack) {
       AppLogger.error('Unexpected error listing cameras', e, stack);
@@ -45,12 +46,14 @@ class CameraRepositoryImpl implements CameraRepository {
     required ResolutionPreset resolutionPreset,
   }) async {
     try {
-      AppLogger.info('Constructing camera controller for camera: ${description.name}');
+      AppLogger.info(
+          'Constructing camera controller for camera: ${description.name}');
       final controller = CameraController(
         description,
         resolutionPreset,
         enableAudio: false, // Audio disabled for carton counting requirements
-        imageFormatGroup: ImageFormatGroup.yuv420, // Prep for future ONNX NPU conversion
+        imageFormatGroup:
+            ImageFormatGroup.yuv420, // Prep for future ONNX NPU conversion
       );
 
       AppLogger.info('Initializing camera controller...');
@@ -58,10 +61,12 @@ class CameraRepositoryImpl implements CameraRepository {
       AppLogger.info('Camera initialization completed successfully.');
       return controller;
     } on CameraException catch (e, stack) {
-      AppLogger.error('Camera Exception during initialization', e.description, stack);
+      AppLogger.error(
+          'Camera Exception during initialization', e.description, stack);
       throw DatabaseException('Camera setup error: ${e.description}');
     } catch (e, stack) {
-      AppLogger.error('Unexpected error during camera initialization', e, stack);
+      AppLogger.error(
+          'Unexpected error during camera initialization', e, stack);
       throw DatabaseException('Failed to initialize camera controller');
     }
   }

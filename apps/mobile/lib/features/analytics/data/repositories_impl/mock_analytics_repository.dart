@@ -12,7 +12,7 @@ class MockAnalyticsRepository implements AnalyticsRepository {
   Future<AnalyticsSummary> getSummary(TimeFilter filter) async {
     await Future.delayed(const Duration(milliseconds: 300));
     final multiplier = _getMultiplier(filter);
-    
+
     return AnalyticsSummary(
       totalWagons: (2 * multiplier).round(),
       totalTrucks: (8 * multiplier).round(),
@@ -39,7 +39,8 @@ class MockAnalyticsRepository implements AnalyticsRepository {
   }
 
   @override
-  Future<LoadingPerformanceMetrics> getLoadingPerformance(TimeFilter filter) async {
+  Future<LoadingPerformanceMetrics> getLoadingPerformance(
+      TimeFilter filter) async {
     await Future.delayed(const Duration(milliseconds: 300));
     return LoadingPerformanceMetrics(
       cartonsLoadedPerHour: 185.0,
@@ -47,7 +48,8 @@ class MockAnalyticsRepository implements AnalyticsRepository {
       averageTruckCompletionTime: const Duration(minutes: 45),
       averageWagonCompletionTime: const Duration(hours: 4, minutes: 30),
       averageCartonsPerLayer: 55,
-      hourlyCartonTrend: List.generate(24, (i) => 120.0 + _rnd.nextDouble() * 80),
+      hourlyCartonTrend:
+          List.generate(24, (i) => 120.0 + _rnd.nextDouble() * 80),
     );
   }
 
@@ -94,12 +96,18 @@ class MockAnalyticsRepository implements AnalyticsRepository {
 
   double _getMultiplier(TimeFilter filter) {
     switch (filter) {
-      case TimeFilter.today: return 1.0;
-      case TimeFilter.yesterday: return 1.1;
-      case TimeFilter.last7Days: return 6.5;
-      case TimeFilter.last30Days: return 28.0;
-      case TimeFilter.thisMonth: return 15.0;
-      case TimeFilter.custom: return 10.0;
+      case TimeFilter.today:
+        return 1.0;
+      case TimeFilter.yesterday:
+        return 1.1;
+      case TimeFilter.last7Days:
+        return 6.5;
+      case TimeFilter.last30Days:
+        return 28.0;
+      case TimeFilter.thisMonth:
+        return 15.0;
+      case TimeFilter.custom:
+        return 10.0;
     }
   }
 }
