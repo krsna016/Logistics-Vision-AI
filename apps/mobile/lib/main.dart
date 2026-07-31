@@ -53,7 +53,7 @@ class LogisticsVisionApp extends ConsumerWidget {
       // font setting. Individual screens still use responsive constraints.
       builder: (context, child) {
         final textScale =
-            MediaQuery.textScalerOf(context).scale(1).clamp(0.9, 1.2);
+            MediaQuery.textScalerOf(context).scale(1).clamp(0.9, 1.1);
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(textScale),
