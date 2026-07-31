@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/presentation/layout/responsive.dart';
 
 class AppCard extends StatelessWidget {
   final Widget child;
@@ -17,7 +18,7 @@ class AppCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     Widget cardContent = Padding(
-      padding: padding ?? const EdgeInsets.all(20.0),
+      padding: padding ?? EdgeInsets.all(AppResponsive.cardPadding(context)),
       child: child,
     );
 

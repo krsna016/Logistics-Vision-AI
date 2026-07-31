@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../theme/app_theme.dart';
+import '../../../../core/presentation/layout/responsive.dart';
 
 class QualityIndicator extends StatelessWidget {
   final double qualityScore; // 0.0 to 1.0
@@ -54,7 +54,7 @@ class QualityIndicator extends StatelessWidget {
         if (label == 'POOR' && warnings.isNotEmpty) ...[
           const SizedBox(height: 8),
           Container(
-            width: 200,
+            width: AppResponsive.contentWidth(context, max: 200),
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: const Color(0xCC000000),

@@ -43,11 +43,11 @@ class LoginScreen extends StatelessWidget {
                         width: 80, height: 80, fit: BoxFit.contain),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Vinayak SmartLoad',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 32,
+                      fontSize: AppResponsive.text(context, 32, min: 0.88),
                       fontWeight: FontWeight.bold,
                       letterSpacing: -0.5,
                     ),
@@ -62,7 +62,7 @@ class LoginScreen extends StatelessWidget {
                       letterSpacing: 1.2,
                     ),
                   ),
-                  const SizedBox(height: 48),
+                  SizedBox(height: AppResponsive.isCompact(context) ? 32 : 48),
 
                   // Login Card
                   LoginCard(

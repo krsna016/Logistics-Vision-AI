@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/presentation/layout/responsive.dart';
 import '../../../../presentation/widgets/app_card.dart';
 import '../../../../theme/app_theme.dart';
 import '../../domain/entities/wagon.dart';
@@ -55,17 +56,19 @@ class WagonCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   wagon.wagonNumber,
-                  style: const TextStyle(
+                  style: TextStyle(
                       fontWeight: FontWeight.bold,
-                      fontSize: 18,
+                      fontSize: AppResponsive.text(context, 18),
                       letterSpacing: 0.5),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                padding: EdgeInsets.symmetric(
+                  horizontal: AppResponsive.isCompact(context) ? 8 : 12,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: statusColor.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(16),
@@ -74,7 +77,7 @@ class WagonCard extends StatelessWidget {
                   wagon.status.displayName.toUpperCase(),
                   style: TextStyle(
                       color: statusColor,
-                      fontSize: 10,
+                      fontSize: AppResponsive.text(context, 10, max: 1),
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.8),
                 ),
@@ -104,7 +107,12 @@ class WagonCard extends StatelessWidget {
           // Route Details
           Text(
             'Route: ${wagon.origin}  ➔  ${wagon.destination}',
-            style: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 13),
+            style: TextStyle(
+              color: const Color(0xFFBDBDBD),
+              fontSize: AppResponsive.text(context, 13),
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 4),
           Text(
@@ -121,12 +129,17 @@ class WagonCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Truck Progress: $completedTrucks / $totalTrucks expected ($progressPct%)',
-                style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFFBDBDBD),
-                    fontWeight: FontWeight.bold),
+              Flexible(
+                child: Text(
+                  'Truck Progress: $completedTrucks / $totalTrucks expected ($progressPct%)',
+                  style: TextStyle(
+                    fontSize: AppResponsive.text(context, 12),
+                    color: const Color(0xFFBDBDBD),
+                    fontWeight: FontWeight.bold,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ],
           ),

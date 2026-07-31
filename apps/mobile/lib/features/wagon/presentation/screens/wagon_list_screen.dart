@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/presentation/layout/responsive.dart';
 import '../../../../presentation/widgets/stats_card.dart';
 import '../../../../presentation/widgets/search_field.dart';
 import '../../../../presentation/widgets/empty_state_widget.dart';
@@ -125,8 +126,12 @@ class WagonListScreen extends ConsumerWidget {
                   // Operations Header
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.only(
-                          left: 16.0, right: 16.0, top: 20.0, bottom: 8.0),
+                      padding: EdgeInsets.only(
+                        left: AppResponsive.pagePadding(context),
+                        right: AppResponsive.pagePadding(context),
+                        top: 20,
+                        bottom: 8,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -149,7 +154,10 @@ class WagonListScreen extends ConsumerWidget {
                   // Section 1: Dashboard Stats Row
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppResponsive.pagePadding(context),
+                        vertical: 16,
+                      ),
                       child: Row(
                         children: [
                           StatsCard(
@@ -177,7 +185,9 @@ class WagonListScreen extends ConsumerWidget {
                   // Section 2: Search and Filters
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppResponsive.pagePadding(context),
+                      ),
                       child: Column(
                         children: [
                           SearchField(
@@ -244,7 +254,9 @@ class WagonListScreen extends ConsumerWidget {
                     )
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppResponsive.pagePadding(context),
+                      ),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {

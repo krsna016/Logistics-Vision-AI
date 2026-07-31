@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/presentation/layout/responsive.dart';
 import '../../domain/entities/truck.dart';
 import '../providers/truck_providers.dart';
 import '../widgets/truck_form_dialog.dart';
@@ -81,8 +82,12 @@ class TruckListScreen extends ConsumerWidget {
                   // Dashboard Greeting & Header Title
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.only(
-                          left: 16.0, right: 16.0, top: 20.0, bottom: 8.0),
+                      padding: EdgeInsets.only(
+                        left: AppResponsive.pagePadding(context),
+                        right: AppResponsive.pagePadding(context),
+                        top: 20,
+                        bottom: 8,
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -105,7 +110,10 @@ class TruckListScreen extends ConsumerWidget {
                   // Section 1: Dashboard Statistics Cards
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppResponsive.pagePadding(context),
+                        vertical: 16,
+                      ),
                       child: Row(
                         children: [
                           StatsCard(
@@ -133,7 +141,9 @@ class TruckListScreen extends ConsumerWidget {
                   // Section 2: Search & Filter Toolbar
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppResponsive.pagePadding(context),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -233,7 +243,9 @@ class TruckListScreen extends ConsumerWidget {
                     )
                   else
                     SliverPadding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: AppResponsive.pagePadding(context),
+                      ),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (context, index) {

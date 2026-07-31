@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/presentation/layout/responsive.dart';
 import '../../../../theme/app_theme.dart';
 
 class MetricTile extends StatelessWidget {
@@ -20,7 +21,7 @@ class MetricTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(AppResponsive.cardPadding(context)),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
@@ -50,9 +51,9 @@ class MetricTile extends StatelessWidget {
           const Spacer(),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 24,
+              fontSize: AppResponsive.text(context, 24),
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -93,11 +94,11 @@ class SummaryGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GridView.builder(
-      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-        maxCrossAxisExtent: 190,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.5,
+      gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: AppResponsive.isCompact(context) ? 170 : 190,
+        crossAxisSpacing: AppResponsive.gap(context),
+        mainAxisSpacing: AppResponsive.gap(context),
+        childAspectRatio: AppResponsive.isCompact(context) ? 1.25 : 1.5,
       ),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),

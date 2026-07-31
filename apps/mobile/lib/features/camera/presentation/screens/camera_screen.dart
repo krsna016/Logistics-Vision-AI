@@ -525,7 +525,9 @@ class _AIStatusPanel extends StatelessWidget {
     final stability = (decisionState.stabilityScore * 100).toInt();
 
     return Container(
-      width: 168,
+      width: MediaQuery.sizeOf(context).width *
+          (MediaQuery.sizeOf(context).width < 360 ? 0.42 : 0.46),
+      constraints: const BoxConstraints(maxWidth: 168),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xDD0D1B2A),

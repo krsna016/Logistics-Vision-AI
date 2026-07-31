@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/presentation/layout/responsive.dart';
 import '../../../../theme/app_theme.dart';
 
 /// A large full-width action button for the primary workspace actions.
@@ -35,7 +36,10 @@ class QuickActionButton extends StatelessWidget {
           style: OutlinedButton.styleFrom(
             foregroundColor: fgColor,
             side: BorderSide(color: bgColor.withOpacity(0.5)),
-            padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+            padding: EdgeInsets.symmetric(
+              vertical: AppResponsive.isCompact(context) ? 11 : 14,
+              horizontal: AppResponsive.isCompact(context) ? 12 : 20,
+            ),
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           ),
@@ -49,8 +53,10 @@ class QuickActionButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(label,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold, fontSize: 14)),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: AppResponsive.text(context, 14),
+                      )),
                   if (subtitle != null)
                     Text(subtitle!,
                         style: TextStyle(
@@ -72,7 +78,10 @@ class QuickActionButton extends StatelessWidget {
           foregroundColor: fgColor,
           disabledBackgroundColor: AppTheme.dividerColor,
           disabledForegroundColor: AppTheme.textSecondary,
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 20),
+          padding: EdgeInsets.symmetric(
+            vertical: AppResponsive.isCompact(context) ? 11 : 14,
+            horizontal: AppResponsive.isCompact(context) ? 12 : 20,
+          ),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           elevation: onPressed == null ? 0 : 2,
@@ -87,8 +96,10 @@ class QuickActionButton extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(label,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 14)),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: AppResponsive.text(context, 14),
+                    )),
                 if (subtitle != null)
                   Text(
                     subtitle!,

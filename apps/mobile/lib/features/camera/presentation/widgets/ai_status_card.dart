@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../theme/app_theme.dart';
+import '../../../../core/presentation/layout/responsive.dart';
 import '../../domain/entities/decision_state.dart';
 
 class AIStatusCard extends StatelessWidget {
@@ -50,8 +50,10 @@ class AIStatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 180,
-      padding: const EdgeInsets.all(12),
+      width: MediaQuery.sizeOf(context).width *
+          (AppResponsive.isCompact(context) ? 0.43 : 0.46),
+      constraints: const BoxConstraints(maxWidth: 180),
+      padding: EdgeInsets.all(AppResponsive.isCompact(context) ? 9 : 12),
       decoration: BoxDecoration(
         color: const Color(0xCC0D1B2A),
         borderRadius: BorderRadius.circular(12),

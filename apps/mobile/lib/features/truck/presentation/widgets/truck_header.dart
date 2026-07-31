@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/presentation/layout/responsive.dart';
 import '../../../../theme/app_theme.dart';
 import '../../domain/entities/truck.dart';
 
@@ -20,15 +21,15 @@ class TruckHeader extends StatelessWidget {
         ),
         borderRadius: BorderRadius.circular(20),
       ),
-      padding: const EdgeInsets.all(20),
+      padding: EdgeInsets.all(AppResponsive.cardPadding(context) + 2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Large Vehicle Number
           Text(
             truck.vehicleNumber,
-            style: const TextStyle(
-              fontSize: 36,
+            style: TextStyle(
+              fontSize: AppResponsive.text(context, 36, min: 0.82),
               fontWeight: FontWeight.w900,
               color: Colors.white,
               letterSpacing: 2,

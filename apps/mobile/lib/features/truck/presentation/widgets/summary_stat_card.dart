@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/presentation/layout/responsive.dart';
 import '../../../../theme/app_theme.dart';
 
 /// Animated counter card for prominent statistics display.
@@ -66,7 +67,10 @@ class _SummaryStatCardState extends State<SummaryStatCard>
 
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        padding: EdgeInsets.symmetric(
+          vertical: AppResponsive.isCompact(context) ? 12 : 16,
+          horizontal: AppResponsive.isCompact(context) ? 4 : 8,
+        ),
         decoration: BoxDecoration(
           color: effectiveColor.withOpacity(0.08),
           borderRadius: BorderRadius.circular(16),
@@ -79,7 +83,7 @@ class _SummaryStatCardState extends State<SummaryStatCard>
             Text(
               '$_displayedValue',
               style: TextStyle(
-                fontSize: 28,
+                fontSize: AppResponsive.text(context, 28, min: 0.85),
                 fontWeight: FontWeight.w900,
                 color: effectiveColor,
                 height: 1,

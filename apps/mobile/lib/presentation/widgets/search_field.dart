@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/presentation/layout/responsive.dart';
 
 class SearchField extends StatefulWidget {
   final ValueChanged<String> onChanged;
@@ -36,8 +37,10 @@ class _SearchFieldState extends State<SearchField> {
       decoration: InputDecoration(
         prefixIcon: const Icon(Icons.search, size: 20),
         hintText: 'Search Truck Number, Driver or Carrier',
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        contentPadding: EdgeInsets.symmetric(
+          horizontal: AppResponsive.isCompact(context) ? 14 : 20,
+          vertical: AppResponsive.isCompact(context) ? 10 : 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
           borderSide: BorderSide.none,

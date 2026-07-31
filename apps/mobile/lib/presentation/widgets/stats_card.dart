@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/presentation/layout/responsive.dart';
 import 'app_card.dart';
 
 class StatsCard extends StatelessWidget {
@@ -17,15 +18,18 @@ class StatsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: AppCard(
-        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+        padding: EdgeInsets.symmetric(
+          vertical: AppResponsive.isCompact(context) ? 12 : 16,
+          horizontal: AppResponsive.isCompact(context) ? 8 : 12,
+        ),
         child: Column(
           children: [
             Icon(icon, size: 26, color: Theme.of(context).colorScheme.primary),
             const SizedBox(height: 8),
             Text(
               value,
-              style: const TextStyle(
-                fontSize: 24,
+              style: TextStyle(
+                fontSize: AppResponsive.text(context, 24),
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
               ),
