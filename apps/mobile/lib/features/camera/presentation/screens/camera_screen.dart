@@ -21,6 +21,7 @@ import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../wagon/presentation/providers/wagon_providers.dart';
 import '../../../wagon/domain/entities/wagon.dart';
 import '../../../../theme/app_theme.dart';
+import '../../../../core/storage/image_storage_service.dart';
 import '../../../../utils/logger.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
@@ -36,6 +37,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   final ImagePicker _picker = ImagePicker();
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
+  final _streamKey = GlobalKey<_CameraStreamAdapterState>();
+  final _imageStorage = ImageStorageService();
 
   @override
   void initState() {
@@ -206,6 +209,14 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                           decisionState,
                         )
                     : null,
+                onCapture: !isGallery
+                    ? () => _captureLayerPhoto(
+                          context,
+                          truckId,
+                          inferenceState,
+                          decisionState,
+                        )
+                    : null,
                 pulseAnimation: _pulseAnim,
               ),
             ),
@@ -214,15 +225,12 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     );
   }
 
-  void _navigateToReview(
-    BuildContext context,
-    String truckId,
-    InferenceState inferenceState,
-    DecisionState decisionState,
-  ) {
+  void _navigateToReview(BuildContext context, String truckId,
+      InferenceState inferenceState, DecisionState decisionState,
+      {String? photoPath, int? capturedCount}) {
     final aiResult = AIResult(
       detections: inferenceState.detections,
-      count: decisionState.stableCount,
+      count: capturedCount ?? decisionState.stableCount,
       averageConfidence: 0.96,
       processingTimeMs: 15.0,
       modelVersion: '1.0.0-YOLOv8n',
@@ -232,8 +240,45 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
 
     context.push('/trucks/$truckId/review', extra: {
       'aiResult': aiResult,
-      'photoPath': _pickedImagePath,
+      'photoPath': photoPath ?? _pickedImagePath,
     });
+  }
+
+  Future<void> _captureLayerPhoto(
+    BuildContext context,
+    String truckId,
+    InferenceState inferenceState,
+    DecisionState decisionState,
+  ) async {
+    try {
+      final photo = await _streamKey.currentState?.capturePhoto();
+      if (photo == null || !context.mounted) return;
+
+      final savedPath = await _imageStorage.saveImage(
+        File(photo.path),
+        'ai_layer_$truckId',
+      );
+      if (!context.mounted) return;
+
+      final capturedCount = decisionState.stableCount > 0
+          ? decisionState.stableCount
+          : inferenceState.detections.length;
+      _navigateToReview(
+        context,
+        truckId,
+        inferenceState,
+        decisionState,
+        photoPath: savedPath,
+        capturedCount: capturedCount,
+      );
+    } catch (e, stack) {
+      AppLogger.error('Failed to capture layer photo', e, stack);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not capture the layer photo.')),
+        );
+      }
+    }
   }
 
   Widget _buildMainContent(
@@ -279,7 +324,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
         );
 
       case CameraStatus.ready:
-        return _CameraStreamAdapter(controller: state.controller!);
+        return _CameraStreamAdapter(
+          key: _streamKey,
+          controller: state.controller!,
+        );
 
       case CameraStatus.disposed:
         return const Center(
@@ -944,6 +992,7 @@ class _CaptureControlsDock extends StatelessWidget {
   final VoidCallback onFlipCamera;
   final VoidCallback onDebugToggle;
   final VoidCallback onReset;
+  final VoidCallback? onCapture;
   final VoidCallback? onReview;
   final Animation<double> pulseAnimation;
 
@@ -955,6 +1004,7 @@ class _CaptureControlsDock extends StatelessWidget {
     required this.onFlipCamera,
     required this.onDebugToggle,
     required this.onReset,
+    required this.onCapture,
     required this.onReview,
     required this.pulseAnimation,
   });
@@ -1032,24 +1082,25 @@ class _CaptureControlsDock extends StatelessWidget {
                   width: double.infinity,
                   height: 58,
                   child: ElevatedButton.icon(
-                    onPressed: onReview,
+                    onPressed: isGallery ? onReview : onCapture,
                     icon: Icon(
-                      isReadyForReview
-                          ? Icons.rate_review
-                          : Icons.hourglass_bottom_outlined,
+                      isGallery ? Icons.rate_review : Icons.camera_alt_outlined,
                       size: 22,
                     ),
                     label: Text(
-                      isReadyForReview ? 'Review Count  →' : 'Scanning…',
+                      isGallery ? 'Review Count  →' : 'Capture Layer',
                       style: const TextStyle(
                           fontSize: 17, fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: isReadyForReview
-                          ? AppTheme.successColor
-                          : Colors.white12,
-                      foregroundColor:
-                          isReadyForReview ? Colors.white : Colors.white38,
+                      backgroundColor: isGallery
+                          ? (isReadyForReview
+                              ? AppTheme.successColor
+                              : Colors.white12)
+                          : AppTheme.primaryColor,
+                      foregroundColor: isGallery && !isReadyForReview
+                          ? Colors.white38
+                          : Colors.white,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(18)),
                       elevation: isReadyForReview ? 4 : 0,
@@ -1175,7 +1226,7 @@ class _GalleryPreview extends StatelessWidget {
 class _CameraStreamAdapter extends ConsumerStatefulWidget {
   final CameraController controller;
 
-  const _CameraStreamAdapter({required this.controller});
+  const _CameraStreamAdapter({super.key, required this.controller});
 
   @override
   ConsumerState<_CameraStreamAdapter> createState() =>
@@ -1222,6 +1273,25 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
       _isStreaming = false;
     } catch (e, stack) {
       AppLogger.error('Failed to halt camera stream', e, stack);
+    }
+  }
+
+  Future<XFile?> capturePhoto() async {
+    final controller = widget.controller;
+    if (!controller.value.isInitialized) return null;
+
+    try {
+      if (_isStreaming) {
+        await controller.stopImageStream();
+        _isStreaming = false;
+      }
+      final photo = await controller.takePicture();
+      _startStream();
+      return photo;
+    } catch (e, stack) {
+      AppLogger.error('Failed to capture camera photo', e, stack);
+      _startStream();
+      return null;
     }
   }
 
