@@ -16,8 +16,9 @@ class DetectionPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (detections.isEmpty || cameraSize.width == 0 || cameraSize.height == 0)
+    if (detections.isEmpty || cameraSize.width == 0 || cameraSize.height == 0) {
       return;
+    }
 
     // Calculate scaling metrics according to the BoxFit mode
     final double scaleX = size.width / cameraSize.width;
@@ -76,8 +77,9 @@ class DetectionPainter extends CustomPainter {
           color: isSelected ? Colors.black : Colors.white,
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          backgroundColor:
-              isSelected ? Colors.yellow : detection.color.withOpacity(0.85),
+          backgroundColor: isSelected
+              ? Colors.yellow
+              : detection.color.withValues(alpha: 0.85),
         ),
       );
 

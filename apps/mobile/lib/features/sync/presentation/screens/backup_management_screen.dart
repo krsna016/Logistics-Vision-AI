@@ -179,7 +179,7 @@ class BackupManagementScreen extends ConsumerWidget {
   }
 
   void _showRestoreWarning(BuildContext context, String backupId) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surfaceColor,

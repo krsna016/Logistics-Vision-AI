@@ -10,7 +10,7 @@ class SyncEngineImpl implements SyncEngine {
   final QueueRepository _queueRepo;
   final SyncWorker _syncWorker;
 
-  StreamSubscription? _connectivitySubscription;
+  StreamSubscription<bool>? _connectivitySubscription;
   bool _isRunning = false;
   bool _isProcessing = false;
   bool _hasInternet = false;

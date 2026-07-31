@@ -3,6 +3,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/repositories/inference_repository.dart';
+import '../../domain/entities/detection.dart';
 import '../../data/repositories_impl/onnx_inference_repository.dart';
 import '../../data/services/frame_scheduler.dart';
 import 'inference_state.dart';
@@ -32,7 +33,7 @@ final inferenceNotifierProvider =
 class InferenceNotifier extends StateNotifier<InferenceState> {
   final InferenceRepository _repository;
   final FrameScheduler _scheduler;
-  StreamSubscription? _detectionsSubscription;
+  StreamSubscription<List<Detection>>? _detectionsSubscription;
 
   InferenceNotifier(this._repository, this._scheduler)
       : super(const InferenceState()) {

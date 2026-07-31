@@ -119,9 +119,6 @@ class LocalAuthRepository implements AuthRepository {
       Role? userRole}) async {
     final session = _sessionManager.currentSession.value;
     final uid = userId ?? session?.userId ?? 'guest';
-    final name = userName ?? 'Guest';
-    final role = userRole ?? Role.operator;
-
     await _db.into(_db.auditLogs).insert(
           AuditLogsCompanion.insert(
             id: 'log_${DateTime.now().millisecondsSinceEpoch}',

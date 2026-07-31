@@ -30,6 +30,7 @@ class BackupService {
   }
 
   Future<void> restoreBackup(String backupFilePath) async {
+    File? tempFile;
     try {
       final backupFile = File(backupFilePath);
       if (!await backupFile.exists()) {
@@ -40,15 +41,30 @@ class BackupService {
       final currentDbFile =
           File(p.join(dbFolder.path, 'smartload_offline.sqlite'));
 
-      // Copy current to a safe place just in case
+      // Stage the restore first. This prevents a failed copy from leaving a
+      // partially-written live database.
+      tempFile =
+          File(p.join(dbFolder.path, 'smartload_offline.sqlite.restore'));
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+      await backupFile.copy(tempFile.path);
+
+      // Keep a recoverable copy only for the duration of the replacement.
+      final previousFile =
+          File(p.join(dbFolder.path, 'smartload_offline.sqlite.previous'));
       if (await currentDbFile.exists()) {
-        await currentDbFile
-            .copy(p.join(dbFolder.path, 'smartload_offline.sqlite.temp'));
+        if (await previousFile.exists()) await previousFile.delete();
+        await currentDbFile.rename(previousFile.path);
       }
 
-      await backupFile.copy(currentDbFile.path);
+      await tempFile.rename(currentDbFile.path);
+      if (await previousFile.exists()) await previousFile.delete();
       _logger.i('Database restored successfully from $backupFilePath');
     } catch (e) {
+      if (tempFile != null && await tempFile.exists()) {
+        await tempFile.delete();
+      }
       _logger.e('Failed to restore backup: $e');
       throw Exception('Restore failed');
     }

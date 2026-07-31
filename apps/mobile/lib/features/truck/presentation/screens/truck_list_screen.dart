@@ -166,8 +166,9 @@ class TruckListScreen extends ConsumerWidget {
                                     fontSize: 14,
                                   ),
                                   onChanged: (val) {
-                                    if (val != null)
+                                    if (val != null) {
                                       notifier.setSortOption(val);
+                                    }
                                   },
                                   items: const [
                                     DropdownMenuItem(
@@ -266,7 +267,7 @@ class TruckListScreen extends ConsumerWidget {
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          showModalBottomSheet(
+          showModalBottomSheet<void>(
             context: context,
             isScrollControlled: true,
             shape: const RoundedRectangleBorder(

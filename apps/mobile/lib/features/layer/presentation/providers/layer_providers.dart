@@ -10,6 +10,7 @@ import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../session/presentation/providers/session_providers.dart';
 import '../../../../core/utils/audit_logger.dart';
 import '../../../../utils/logger.dart';
+import '../../../../services/storage_service.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 import '../../../../core/providers/database_provider.dart';
@@ -63,7 +64,8 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     }
 
     final db = _ref.read(databaseProvider);
-    final token = await const FlutterSecureStorage().read(key: 'jwt_token');
+    final token = await const FlutterSecureStorage()
+        .read(key: StorageService.keyJwtToken);
     String? employeeId;
     if (token != null && token.isNotEmpty && !JwtDecoder.isExpired(token)) {
       final claims = JwtDecoder.decode(token);

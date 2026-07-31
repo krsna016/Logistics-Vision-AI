@@ -17,7 +17,6 @@ import '../widgets/truck_form_dialog.dart';
 import '../widgets/truck_header.dart';
 import '../widgets/summary_stat_card.dart';
 import '../widgets/layer_timeline.dart';
-import '../widgets/quick_action_button.dart';
 
 class TruckDetailsScreen extends ConsumerWidget {
   final String truckId;
@@ -84,7 +83,7 @@ class TruckDetailsScreen extends ConsumerWidget {
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Edit Truck Details',
               onPressed: () {
-                showModalBottomSheet(
+                showModalBottomSheet<void>(
                   context: context,
                   isScrollControlled: true,
                   shape: const RoundedRectangleBorder(
@@ -105,7 +104,7 @@ class TruckDetailsScreen extends ConsumerWidget {
               icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
               tooltip: 'Delete Truck',
               onPressed: () {
-                showDialog(
+                showDialog<void>(
                   context: context,
                   builder: (BuildContext ctx) => StrictActionWarningDialog(
                     title: 'Delete Truck?',
@@ -188,7 +187,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                     onEditNotes: (layer) =>
                         _editLayerNotesDialog(context, layerNotifier, layer),
                     onDeleteLayer: (layer) {
-                      showDialog(
+                      showDialog<void>(
                         context: context,
                         builder: (ctx) => StrictActionWarningDialog(
                           title: 'Delete Layer ${layer.layerNumber}?',
@@ -226,9 +225,10 @@ class TruckDetailsScreen extends ConsumerWidget {
         onStartSession: () async {
           final error = await sessionNotifier.startSession(
               truckId: truckId, warehouseId: truck.warehouse);
-          if (error != null && context.mounted)
+          if (error != null && context.mounted) {
             ScaffoldMessenger.of(context)
                 .showSnackBar(SnackBar(content: Text(error)));
+          }
         },
         onCapture: isReadOnly
             ? null
@@ -243,18 +243,11 @@ class TruckDetailsScreen extends ConsumerWidget {
     );
   }
 
-  void _scrollToLayers(BuildContext context) {
-    // Scrolls user to the layer section — functional stub
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Scrolling to layer history...')),
-    );
-  }
-
   void _showUnifiedReportDialog(
       BuildContext context, WidgetRef ref, String truckId) {
-    showDialog(
+    showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.72),
+      barrierColor: Colors.black.withValues(alpha: 0.72),
       builder: (_) => GenerateReportDialog(
         title: 'Generate Truck Report',
         subtitle:
@@ -286,10 +279,11 @@ class TruckDetailsScreen extends ConsumerWidget {
     }
   }
 
+  // ignore: unused_element
   void _showReportDialog(BuildContext context, WidgetRef ref, String truckId) {
-    showDialog(
+    showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.72),
+      barrierColor: Colors.black.withValues(alpha: 0.72),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -299,7 +293,7 @@ class TruckDetailsScreen extends ConsumerWidget {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                  color: AppTheme.primaryColor.withOpacity(0.12),
+                  color: AppTheme.primaryColor.withValues(alpha: 0.12),
                   blurRadius: 28,
                   spreadRadius: 2),
             ],
@@ -320,7 +314,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(11),
                       decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.2),
+                          color: AppTheme.primaryColor.withValues(alpha: 0.2),
                           shape: BoxShape.circle),
                       child: const Icon(Icons.assessment_outlined,
                           color: AppTheme.primaryColor, size: 25),
@@ -372,9 +366,10 @@ class TruckDetailsScreen extends ConsumerWidget {
                           await ref.read(shareServiceProvider).shareFile(file,
                               subject: 'Truck Loading Report (Excel)');
                         } catch (e) {
-                          if (context.mounted)
+                          if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Failed: $e')));
+                          }
                         }
                       },
                     ),
@@ -393,9 +388,10 @@ class TruckDetailsScreen extends ConsumerWidget {
                           await ref.read(shareServiceProvider).shareFile(file,
                               subject: 'Truck Loading Report (PDF)');
                         } catch (e) {
-                          if (context.mounted)
+                          if (context.mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                                 SnackBar(content: Text('Failed: $e')));
+                          }
                         }
                       },
                     ),
@@ -415,7 +411,7 @@ class TruckDetailsScreen extends ConsumerWidget {
     LayerRecord layer,
   ) {
     final controller = TextEditingController(text: layer.notes);
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Notes — Layer #${layer.layerNumber}'),
@@ -478,7 +474,7 @@ class TruckDetailsScreen extends ConsumerWidget {
     ActiveSessionNotifier sessionNotifier,
     Truck truck,
   ) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Complete Loading Session?'),
@@ -522,7 +518,7 @@ class TruckDetailsScreen extends ConsumerWidget {
     TruckListNotifier notifier,
     Truck truck,
   ) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => ActionWarningDialog(
         title: 'Archive Session?',
@@ -537,36 +533,6 @@ class TruckDetailsScreen extends ConsumerWidget {
             }
           });
         },
-      ),
-    );
-  }
-
-  void _confirmDelete(
-    BuildContext context,
-    TruckListNotifier notifier,
-    Truck truck,
-  ) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Remove Truck?'),
-        content: const Text(
-          'This will soft-delete the truck from active logs. An administrator can restore this record if needed.',
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () {
-              notifier.deleteTruck(truck.id);
-              Navigator.pop(ctx);
-              context.go('/wagons');
-            },
-            style:
-                ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
-            child: const Text('Remove'),
-          ),
-        ],
       ),
     );
   }
@@ -630,7 +596,7 @@ class _ReportFormatButton extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.09),
+          color: color.withValues(alpha: 0.09),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -675,7 +641,7 @@ class _EmptyLayersState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.warehouse_outlined,
-              size: 64, color: AppTheme.primaryColor.withOpacity(0.4)),
+              size: 64, color: AppTheme.primaryColor.withValues(alpha: 0.4)),
           const SizedBox(height: 16),
           const Text(
             'No Layers Captured',
@@ -726,7 +692,7 @@ class _StickyBottomBar extends StatelessWidget {
         border: const Border(top: BorderSide(color: AppTheme.dividerColor)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),
@@ -800,7 +766,7 @@ class _StickyBottomBar extends StatelessWidget {
                           : Colors.white,
                       side: BorderSide(
                         color: onComplete == null
-                            ? AppTheme.textSecondary.withOpacity(0.55)
+                            ? AppTheme.textSecondary.withValues(alpha: 0.55)
                             : AppTheme.successColor,
                         width: 1.2,
                       ),

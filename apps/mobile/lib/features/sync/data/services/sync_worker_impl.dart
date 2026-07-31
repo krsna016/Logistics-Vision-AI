@@ -1,22 +1,17 @@
-import 'dart:async';
 import 'package:flutter/foundation.dart';
 import '../../domain/entities/sync_operation.dart';
 import '../../domain/repositories/queue_repository.dart';
-import '../../domain/services/conflict_resolver.dart';
 import '../../domain/services/retry_manager.dart';
 import '../../domain/services/sync_worker.dart';
 
 class SyncWorkerImpl implements SyncWorker {
   final QueueRepository _queueRepo;
   final RetryManager _retryManager;
-  final ConflictResolver _conflictResolver;
 
-  const SyncWorkerImpl(
-      this._queueRepo, this._retryManager, this._conflictResolver);
+  const SyncWorkerImpl(this._queueRepo, this._retryManager);
 
   @override
   Future<bool> processBatch(List<SyncOperation> operations) async {
-    bool hasMore = false;
     for (var op in operations) {
       // Before attempting, check if it's failed and needs to wait for backoff
       if (op.status == SyncStatus.failed) {
@@ -53,19 +48,11 @@ class SyncWorkerImpl implements SyncWorker {
 
   @override
   Future<bool> attemptOperation(SyncOperation operation) async {
-    try {
-      // Simulate fake backend API latency for the sake of the engine test
-      await Future.delayed(const Duration(milliseconds: 800));
-
-      // Simulate random network failure (10% chance) to trigger RetryManager logic
-      if (DateTime.now().millisecond % 10 == 0) {
-        throw Exception('Simulated network drop');
-      }
-
-      return true; // Success!
-    } catch (e) {
-      debugPrint('SyncWorker error: $e');
-      return false;
-    }
+    // There is no authenticated remote sync endpoint wired into this build.
+    // Never report success for a local-only operation: doing so would remove
+    // the queue item and falsely tell the operator that data reached a server.
+    debugPrint(
+        'Sync deferred: remote endpoint is not configured for ${operation.entityType}/${operation.entityId}');
+    return false;
   }
 }

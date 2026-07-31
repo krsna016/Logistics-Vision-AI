@@ -96,7 +96,7 @@ class WagonDetailsScreen extends ConsumerWidget {
               icon: const Icon(Icons.edit_outlined),
               tooltip: 'Edit Wagon Details',
               onPressed: () {
-                showModalBottomSheet(
+                showModalBottomSheet<void>(
                   context: context,
                   isScrollControlled: true,
                   shape: const RoundedRectangleBorder(
@@ -116,7 +116,7 @@ class WagonDetailsScreen extends ConsumerWidget {
             icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
             tooltip: 'Delete Wagon',
             onPressed: () {
-              showDialog(
+              showDialog<void>(
                 context: context,
                 builder: (ctx) => StrictActionWarningDialog(
                   title: 'Delete Wagon?',
@@ -280,13 +280,12 @@ class WagonDetailsScreen extends ConsumerWidget {
 
             // Associated Trucks List or Empty State
             if (wagonTrucks.isEmpty)
-              Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: AppCard(
                   child: Column(
                     children: [
-                      const EmptyStateWidget(
+                      EmptyStateWidget(
                         title: 'No Trucks Added',
                         subtitle: 'Register your first truck for this wagon.',
                       ),
@@ -333,9 +332,9 @@ class WagonDetailsScreen extends ConsumerWidget {
 
   void _showUnifiedReportDialog(
       BuildContext context, WidgetRef ref, String wagonId) {
-    showDialog(
+    showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.72),
+      barrierColor: Colors.black.withValues(alpha: 0.72),
       builder: (_) => GenerateReportDialog(
         title: 'Generate Wagon Report',
         subtitle:
@@ -367,11 +366,12 @@ class WagonDetailsScreen extends ConsumerWidget {
     }
   }
 
+  // ignore: unused_element
   void _showWagonReportDialog(
       BuildContext context, WidgetRef ref, String wagonId) {
-    showDialog(
+    showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.72),
+      barrierColor: Colors.black.withValues(alpha: 0.72),
       builder: (ctx) => Dialog(
         backgroundColor: Colors.transparent,
         insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
@@ -381,7 +381,7 @@ class WagonDetailsScreen extends ConsumerWidget {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: AppTheme.primaryColor.withOpacity(0.12),
+                color: AppTheme.primaryColor.withValues(alpha: 0.12),
                 blurRadius: 28,
                 spreadRadius: 2,
               ),
@@ -404,7 +404,7 @@ class WagonDetailsScreen extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.all(11),
                       decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withOpacity(0.2),
+                        color: AppTheme.primaryColor.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(
@@ -516,7 +516,7 @@ class WagonDetailsScreen extends ConsumerWidget {
 
   Future<void> _openAddTruckDialog(
       BuildContext context, WidgetRef ref, String wagonId) async {
-    await showModalBottomSheet(
+    await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
@@ -546,7 +546,7 @@ class WagonDetailsScreen extends ConsumerWidget {
     WagonListNotifier notifier,
     Wagon wagon,
   ) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => ActionWarningDialog(
         title: 'Archive Wagon?',
@@ -575,7 +575,7 @@ class WagonDetailsScreen extends ConsumerWidget {
     int completedCount,
   ) {
     final missingCount = wagon.expectedTruckCount - completedCount;
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Complete Wagon Session?'),
@@ -596,7 +596,7 @@ class WagonDetailsScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                    color: AppTheme.warningColor.withOpacity(0.1),
+                    color: AppTheme.warningColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8)),
                 child: Row(
                   children: [
@@ -636,10 +636,6 @@ class WagonDetailsScreen extends ConsumerWidget {
   }
 
   Widget _buildTruckRowCard(BuildContext context, Truck truck) {
-    final statusColor = truck.status == TruckStatus.completed
-        ? AppTheme.successColor
-        : AppTheme.warningColor;
-
     return AppCard(
       elevation: 1,
       onTap: () => context.push('/trucks/${truck.id}'),
@@ -782,7 +778,7 @@ class _WagonBottomBar extends StatelessWidget {
         border: const Border(top: BorderSide(color: AppTheme.dividerColor)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
+            color: Colors.black.withValues(alpha: 0.3),
             blurRadius: 12,
             offset: const Offset(0, -4),
           ),
@@ -846,7 +842,7 @@ class _WagonBottomBar extends StatelessWidget {
                       side: BorderSide(
                         color: canComplete
                             ? AppTheme.successColor
-                            : AppTheme.textSecondary.withOpacity(0.55),
+                            : AppTheme.textSecondary.withValues(alpha: 0.55),
                         width: 1.2,
                       ),
                       shape: const CircleBorder(),
@@ -882,7 +878,7 @@ class _WagonReportFormatButton extends StatelessWidget {
       child: Ink(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.09),
+          color: color.withValues(alpha: 0.09),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(

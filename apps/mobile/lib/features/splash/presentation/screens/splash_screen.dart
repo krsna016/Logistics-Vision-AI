@@ -115,7 +115,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             child: const Column(
               children: [
                 // Company Title
-                const Text(
+                Text(
                   'Vinayak SmartLoad',
                   style: TextStyle(
                     color: Colors.white,
@@ -124,7 +124,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
                     letterSpacing: 1.5,
                   ),
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
 
                 // Subtitle
                 Text(

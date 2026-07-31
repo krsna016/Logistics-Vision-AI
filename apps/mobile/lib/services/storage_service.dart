@@ -8,11 +8,14 @@ class StorageService {
 
   Future<void> init() async {
     // Database initialization, key extraction, and connection bootstrap.
-    // Encrypted SQLite via SQLCipher will load here.
+    // Authentication/session secrets are stored in platform secure storage.
+    // The Drift database itself is currently app-private plain SQLite.
   }
 
   // Secure Storage keys
-  static const String keyJwtToken = 'jwt_auth_token';
+  // Keep the token key in one place so every HTTP client uses the same value.
+  // Existing releases already persist the active token under this key.
+  static const String keyJwtToken = 'jwt_token';
   static const String keyUserRole = 'user_role_type';
 
   Future<String?> readSecureValue(String key) async {

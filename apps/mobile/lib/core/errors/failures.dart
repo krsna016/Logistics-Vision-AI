@@ -18,18 +18,15 @@ class NetworkFailure extends Failure {
 }
 
 class DatabaseFailure extends Failure {
-  const DatabaseFailure(String message, [String? debugDetails])
-      : super(message, debugDetails);
+  const DatabaseFailure(super.message, [super.debugDetails]);
 }
 
 class AIFailure extends Failure {
-  const AIFailure(String message, [String? debugDetails])
-      : super(message, debugDetails);
+  const AIFailure(super.message, [super.debugDetails]);
 }
 
 class CacheFailure extends Failure {
-  const CacheFailure(String message, [String? debugDetails])
-      : super(message, debugDetails);
+  const CacheFailure(super.message, [super.debugDetails]);
 }
 
 class ServerException implements Exception {

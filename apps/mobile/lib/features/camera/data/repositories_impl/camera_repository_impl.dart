@@ -36,7 +36,7 @@ class CameraRepositoryImpl implements CameraRepository {
       throw DatabaseException('Listing cameras failed: ${e.description}');
     } catch (e, stack) {
       AppLogger.error('Unexpected error listing cameras', e, stack);
-      throw DatabaseException('Failed to locate cameras');
+      throw const DatabaseException('Failed to locate cameras');
     }
   }
 
@@ -67,7 +67,7 @@ class CameraRepositoryImpl implements CameraRepository {
     } catch (e, stack) {
       AppLogger.error(
           'Unexpected error during camera initialization', e, stack);
-      throw DatabaseException('Failed to initialize camera controller');
+      throw const DatabaseException('Failed to initialize camera controller');
     }
   }
 

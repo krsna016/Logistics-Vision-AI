@@ -10,7 +10,7 @@ class MockAnalyticsRepository implements AnalyticsRepository {
 
   @override
   Future<AnalyticsSummary> getSummary(TimeFilter filter) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     final multiplier = _getMultiplier(filter);
 
     return AnalyticsSummary(
@@ -25,7 +25,7 @@ class MockAnalyticsRepository implements AnalyticsRepository {
 
   @override
   Future<AIPerformanceMetrics> getAIPerformance(TimeFilter filter) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     return AIPerformanceMetrics(
       averageConfidence: 0.91,
       inferenceTimeMs: 14.5,
@@ -41,7 +41,7 @@ class MockAnalyticsRepository implements AnalyticsRepository {
   @override
   Future<LoadingPerformanceMetrics> getLoadingPerformance(
       TimeFilter filter) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     return LoadingPerformanceMetrics(
       cartonsLoadedPerHour: 185.0,
       averageLayersPerTruck: 4.5,
@@ -55,7 +55,7 @@ class MockAnalyticsRepository implements AnalyticsRepository {
 
   @override
   Future<DatasetHealthMetrics> getDatasetHealth(TimeFilter filter) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     final multi = _getMultiplier(filter);
     return DatasetHealthMetrics(
       imagesCaptured: (500 * multi).round(),
@@ -72,7 +72,7 @@ class MockAnalyticsRepository implements AnalyticsRepository {
 
   @override
   Future<ProductivityMetrics> getProductivityMetrics(TimeFilter filter) async {
-    await Future.delayed(const Duration(milliseconds: 300));
+    await Future<void>.delayed(const Duration(milliseconds: 300));
     return const ProductivityMetrics(
       averageOperatorPerformance: 0.92,
       truckThroughput: 8.5,
@@ -84,13 +84,13 @@ class MockAnalyticsRepository implements AnalyticsRepository {
 
   @override
   Future<String> generatePdfReport(TimeFilter filter) async {
-    await Future.delayed(const Duration(seconds: 1));
+    await Future<void>.delayed(const Duration(seconds: 1));
     return '/mock/path/report.pdf';
   }
 
   @override
   Future<String> generateExcelReport(TimeFilter filter) async {
-    await Future.delayed(const Duration(seconds: 1));
+    await Future<void>.delayed(const Duration(seconds: 1));
     return '/mock/path/report.xlsx';
   }
 

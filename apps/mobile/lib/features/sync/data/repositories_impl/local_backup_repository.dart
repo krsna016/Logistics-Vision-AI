@@ -14,6 +14,17 @@ class LocalBackupRepository implements BackupRepository {
     return backupDir;
   }
 
+  File _backupFile(Directory directory, String backupId) {
+    final safeId = p.basename(backupId);
+    if (safeId != backupId ||
+        safeId.isEmpty ||
+        safeId.contains('/') ||
+        safeId.contains('\\')) {
+      throw ArgumentError('Invalid backup identifier');
+    }
+    return File(p.join(directory.path, '$safeId.sqlite.bak'));
+  }
+
   @override
   Future<List<BackupArchive>> getBackups() async {
     final backupDir = await _getBackupDirectory();
@@ -58,6 +69,8 @@ class LocalBackupRepository implements BackupRepository {
 
     await dbFile.copy(backupFile.path);
 
+    await _pruneBackups(backupDir, keep: 20);
+
     final stat = await backupFile.stat();
     return BackupArchive(
       id: p.basenameWithoutExtension(backupFile.path),
@@ -73,7 +86,7 @@ class LocalBackupRepository implements BackupRepository {
   @override
   Future<bool> restoreBackup(String backupId) async {
     final backupDir = await _getBackupDirectory();
-    final backupFile = File(p.join(backupDir.path, '$backupId.sqlite.bak'));
+    final backupFile = _backupFile(backupDir, backupId);
 
     if (!await backupFile.exists()) {
       return false;
@@ -90,14 +103,14 @@ class LocalBackupRepository implements BackupRepository {
   @override
   Future<bool> verifyBackup(String backupId) async {
     final backupDir = await _getBackupDirectory();
-    final backupFile = File(p.join(backupDir.path, '$backupId.sqlite.bak'));
+    final backupFile = _backupFile(backupDir, backupId);
     return await backupFile.exists();
   }
 
   @override
   Future<void> deleteBackup(String backupId) async {
     final backupDir = await _getBackupDirectory();
-    final backupFile = File(p.join(backupDir.path, '$backupId.sqlite.bak'));
+    final backupFile = _backupFile(backupDir, backupId);
     if (await backupFile.exists()) {
       await backupFile.delete();
     }
@@ -131,5 +144,19 @@ class LocalBackupRepository implements BackupRepository {
       'backupsSize': getDirSizeMB(backupsDir),
       'freeSpace': 10240.0, // 10GB mock
     };
+  }
+
+  Future<void> _pruneBackups(Directory backupDir, {required int keep}) async {
+    final files = <File>[];
+    await for (final entity in backupDir.list()) {
+      if (entity is File && entity.path.endsWith('.sqlite.bak')) {
+        files.add(entity);
+      }
+    }
+    files
+        .sort((a, b) => b.statSync().modified.compareTo(a.statSync().modified));
+    for (final file in files.skip(keep)) {
+      await file.delete();
+    }
   }
 }

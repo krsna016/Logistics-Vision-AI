@@ -56,7 +56,7 @@ class LoginScreen extends StatelessWidget {
                   Text(
                     'Powered by Vinayak Logistics',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       letterSpacing: 1.2,

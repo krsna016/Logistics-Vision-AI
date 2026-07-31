@@ -32,7 +32,7 @@ class BackupCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    color: AppTheme.primaryColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
@@ -127,7 +127,8 @@ class BackupCard extends StatelessWidget {
                 ElevatedButton.icon(
                   onPressed: backup.status.isValid ? onRestore : null,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.warningColor.withOpacity(0.2),
+                    backgroundColor:
+                        AppTheme.warningColor.withValues(alpha: 0.2),
                     foregroundColor: AppTheme.warningColor,
                     elevation: 0,
                   ),

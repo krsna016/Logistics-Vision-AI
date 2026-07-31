@@ -1,8 +1,6 @@
 import '../models/detection_result.dart';
 
 class TrackingEngine {
-  // Map of stable tracked object IDs to their last known position
-  final Map<String, DetectionResult> _trackedObjects = {};
   int _nextId = 0;
 
   /// Tracks boxes across frames using simple IoU matching to prevent flickering.

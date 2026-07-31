@@ -10,7 +10,6 @@ import '../../domain/services/sync_engine.dart';
 import '../../data/repositories_impl/queue_repository_impl.dart';
 import '../../data/services/connectivity_service_impl.dart';
 import '../../data/services/retry_manager_impl.dart';
-import '../../data/services/conflict_resolver_impl.dart';
 import '../../data/services/sync_worker_impl.dart';
 import '../../data/services/sync_engine_impl.dart';
 
@@ -28,8 +27,7 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
   final queueRepo = ref.watch(queueRepositoryProvider);
 
   final retryManager = RetryManagerImpl();
-  final conflictResolver = ConflictResolverImpl();
-  final worker = SyncWorkerImpl(queueRepo, retryManager, conflictResolver);
+  final worker = SyncWorkerImpl(queueRepo, retryManager);
 
   final engine = SyncEngineImpl(connService, queueRepo, worker);
 

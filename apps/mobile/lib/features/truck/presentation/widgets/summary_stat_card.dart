@@ -72,7 +72,7 @@ class _SummaryStatCardState extends State<SummaryStatCard>
           horizontal: AppResponsive.isCompact(context) ? 4 : 8,
         ),
         decoration: BoxDecoration(
-          color: effectiveColor.withOpacity(0.08),
+          color: effectiveColor.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(

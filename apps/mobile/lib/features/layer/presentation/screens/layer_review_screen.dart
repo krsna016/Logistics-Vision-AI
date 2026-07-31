@@ -152,7 +152,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                     fontSize: 10, color: AppTheme.textSecondary)),
           ],
         ),
-        actions: [],
+        actions: const [],
       ),
       body: Stack(
         children: [
@@ -272,7 +272,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: AppTheme.errorColor.withOpacity(0.15),
+                            color: AppTheme.errorColor.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -408,7 +408,7 @@ class _ImagePreviewSection extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
+                  color: Colors.black.withValues(alpha: 0.7),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -440,7 +440,7 @@ class _ImagePreviewSection extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withOpacity(0.9),
+                color: AppTheme.primaryColor.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -486,8 +486,8 @@ class _CountSummaryCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppTheme.primaryColor.withOpacity(0.15),
-            AppTheme.primaryColor.withOpacity(0.05),
+            AppTheme.primaryColor.withValues(alpha: 0.15),
+            AppTheme.primaryColor.withValues(alpha: 0.05),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -525,7 +525,7 @@ class _CountSummaryCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppTheme.warningColor.withOpacity(0.2),
+                      color: AppTheme.warningColor.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -568,7 +568,7 @@ class _StatBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Column(
@@ -666,7 +666,7 @@ class _LayerHistoryChip extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: isCurrent
-            ? AppTheme.primaryColor.withOpacity(0.2)
+            ? AppTheme.primaryColor.withValues(alpha: 0.2)
             : AppTheme.cardColor,
         borderRadius: BorderRadius.circular(10),
       ),
@@ -748,7 +748,7 @@ class _ManualCorrectionCard extends StatelessWidget {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppTheme.warningColor.withOpacity(0.15),
+                      color: AppTheme.warningColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -824,7 +824,7 @@ class _ManualCorrectionCard extends StatelessWidget {
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: selected
-                              ? AppTheme.warningColor.withOpacity(0.2)
+                              ? AppTheme.warningColor.withValues(alpha: 0.2)
                               : AppTheme.cardColor,
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -870,7 +870,7 @@ class _CounterButton extends StatelessWidget {
         width: 52,
         height: 52,
         decoration: BoxDecoration(
-          color: color.withOpacity(0.15),
+          color: color.withValues(alpha: 0.15),
           shape: BoxShape.circle,
         ),
         child: Icon(icon, color: color, size: 24),
@@ -904,7 +904,7 @@ class _ReviewBottomBar extends StatelessWidget {
         border: const Border(top: BorderSide(color: AppTheme.dividerColor)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.4),
+            color: Colors.black.withValues(alpha: 0.4),
             blurRadius: 16,
             offset: const Offset(0, -4),
           ),

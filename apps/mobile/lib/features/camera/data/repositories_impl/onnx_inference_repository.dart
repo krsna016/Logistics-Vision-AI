@@ -14,7 +14,6 @@ import '../../domain/repositories/inference_repository.dart';
 
 class ONNXInferenceRepository implements InferenceRepository {
   late final InferencePipeline _pipeline;
-  bool _isDebugEnabled = false;
 
   ONNXInferenceRepository() {
     _pipeline = InferencePipeline(
@@ -39,7 +38,8 @@ class ONNXInferenceRepository implements InferenceRepository {
 
   @override
   void setDebugMode(bool enabled) {
-    _isDebugEnabled = enabled;
+    // The current pipeline has no debug-only inference branch. Keep the API
+    // for the telemetry overlay without retaining unused mutable state.
   }
 
   @override

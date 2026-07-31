@@ -31,7 +31,6 @@ class QueueRepositoryImpl implements QueueRepository {
 
   @override
   Future<List<SyncOperation>> getPendingBatch(int batchSize) async {
-    final now = DateTime.now();
     // Fetch queued items OR items that failed but are eligible for retry (status == 'failed')
     // We will let the RetryManager decide if they are actually eligible, or we just fetch everything pending
     final records = await (_db.select(_db.syncQueues)

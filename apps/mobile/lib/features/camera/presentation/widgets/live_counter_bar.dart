@@ -17,11 +17,14 @@ class LiveCounterBar extends StatelessWidget {
 
   Color _getStatusColor() {
     final s = status.toString();
-    if (s.contains('stable') || s.contains('readyForReview'))
+    if (s.contains('stable') || s.contains('readyForReview')) {
       return Colors.green;
+    }
     if (s.contains('collecting') ||
         s.contains('analyzing') ||
-        s.contains('unstable')) return Colors.orange;
+        s.contains('unstable')) {
+      return Colors.orange;
+    }
     return Colors.red; // default or error
   }
 
@@ -31,7 +34,7 @@ class LiveCounterBar extends StatelessWidget {
     return Colors.red;
   }
 
-  Widget _CounterColumn(String label, String value, Color valueColor,
+  Widget _counterColumn(String label, String value, Color valueColor,
       {bool animate = false}) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -81,29 +84,29 @@ class LiveCounterBar extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            _CounterColumn('DETECTED', '$detectedCount', Colors.white,
+            _counterColumn('DETECTED', '$detectedCount', Colors.white,
                 animate: true),
             Container(
                 height: 30,
                 width: 1,
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
                 margin: const EdgeInsets.symmetric(horizontal: 12)),
-            _CounterColumn('CONFIDENCE', '${(confidence * 100).toInt()}%',
+            _counterColumn('CONFIDENCE', '${(confidence * 100).toInt()}%',
                 _getConfidenceColor()),
             Container(
                 height: 30,
                 width: 1,
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
                 margin: const EdgeInsets.symmetric(horizontal: 12)),
-            _CounterColumn('FPS', '$fps', Colors.white),
+            _counterColumn('FPS', '$fps', Colors.white),
             Container(
                 height: 30,
                 width: 1,
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
                 margin: const EdgeInsets.symmetric(horizontal: 12)),
-            Column(
+            const Column(
               mainAxisSize: MainAxisSize.min,
-              children: const [
+              children: [
                 Text('MODEL',
                     style: TextStyle(
                         color: Colors.grey,

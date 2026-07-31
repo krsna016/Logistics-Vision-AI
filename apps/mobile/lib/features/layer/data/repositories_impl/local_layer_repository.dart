@@ -3,10 +3,12 @@ import '../../domain/entities/layer.dart';
 import '../../domain/repositories/layer_repository.dart';
 import '../../../truck/domain/entities/truck.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../../core/storage/image_storage_service.dart';
 import '../../../../utils/logger.dart';
 
 class LocalLayerRepository implements LayerRepository {
   final AppDatabase _db;
+  final ImageStorageService _imageStorage = ImageStorageService();
 
   LocalLayerRepository(this._db);
 
@@ -78,6 +80,9 @@ class LocalLayerRepository implements LayerRepository {
 
   @override
   Future<void> updateLayer(LayerRecord layer) async {
+    final existing = await (_db.select(_db.layers)
+          ..where((t) => t.id.equals(layer.id)))
+        .getSingleOrNull();
     await _db.transaction(() async {
       await (_db.update(_db.layers)..where((t) => t.id.equals(layer.id)))
           .write(LayersCompanion(
@@ -102,11 +107,17 @@ class LocalLayerRepository implements LayerRepository {
             payloadData: '{}',
           ));
     });
+    if (existing?.photoPath != null && existing!.photoPath != layer.photoPath) {
+      await _imageStorage.deleteImage(existing.photoPath!);
+    }
     AppLogger.info('Updated layer record: ${layer.id}');
   }
 
   @override
   Future<void> softDeleteLayer(String id) async {
+    final existing = await (_db.select(_db.layers)
+          ..where((t) => t.id.equals(id)))
+        .getSingleOrNull();
     await _db.transaction(() async {
       await (_db.update(_db.layers)..where((t) => t.id.equals(id)))
           .write(const LayersCompanion(isDeleted: drift.Value(true)));
@@ -119,6 +130,9 @@ class LocalLayerRepository implements LayerRepository {
             payloadData: '{}',
           ));
     });
+    if (existing?.photoPath != null) {
+      await _imageStorage.deleteImage(existing!.photoPath!);
+    }
     AppLogger.info('Soft deleted layer: $id');
   }
 

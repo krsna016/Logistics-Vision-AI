@@ -130,7 +130,7 @@ class LocalTruckRepository implements TruckRepository {
   Future<void> softDeleteTruck(String id) async {
     await _db.transaction(() async {
       await (_db.update(_db.trucks)..where((t) => t.id.equals(id)))
-          .write(db.TrucksCompanion(isDeleted: const drift.Value(true)));
+          .write(const db.TrucksCompanion(isDeleted: drift.Value(true)));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
             id: 'sync_t_${DateTime.now().millisecondsSinceEpoch}',
@@ -147,7 +147,7 @@ class LocalTruckRepository implements TruckRepository {
   Future<void> archiveTruck(String id) async {
     await _db.transaction(() async {
       await (_db.update(_db.trucks)..where((t) => t.id.equals(id)))
-          .write(db.TrucksCompanion(isArchived: const drift.Value(true)));
+          .write(const db.TrucksCompanion(isArchived: drift.Value(true)));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
             id: 'sync_t_${DateTime.now().millisecondsSinceEpoch}',

@@ -35,7 +35,7 @@ class QuickActionButton extends StatelessWidget {
           onPressed: onPressed,
           style: OutlinedButton.styleFrom(
             foregroundColor: fgColor,
-            side: BorderSide(color: bgColor.withOpacity(0.5)),
+            side: BorderSide(color: bgColor.withValues(alpha: 0.5)),
             padding: EdgeInsets.symmetric(
               vertical: AppResponsive.isCompact(context) ? 11 : 14,
               horizontal: AppResponsive.isCompact(context) ? 12 : 20,
@@ -60,7 +60,8 @@ class QuickActionButton extends StatelessWidget {
                   if (subtitle != null)
                     Text(subtitle!,
                         style: TextStyle(
-                            fontSize: 11, color: fgColor.withOpacity(0.7))),
+                            fontSize: 11,
+                            color: fgColor.withValues(alpha: 0.7))),
                 ],
               ),
             ],
@@ -104,7 +105,7 @@ class QuickActionButton extends StatelessWidget {
                   Text(
                     subtitle!,
                     style: TextStyle(
-                        fontSize: 11, color: fgColor.withOpacity(0.75)),
+                        fontSize: 11, color: fgColor.withValues(alpha: 0.75)),
                   ),
               ],
             ),

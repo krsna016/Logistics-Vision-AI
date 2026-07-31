@@ -54,7 +54,7 @@ class SyncQueueCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(0.1),
+              color: statusColor.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -108,7 +108,7 @@ class SyncQueueCard extends StatelessWidget {
             ElevatedButton(
               onPressed: onResolveConflict,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.warningColor.withOpacity(0.2),
+                backgroundColor: AppTheme.warningColor.withValues(alpha: 0.2),
                 foregroundColor: AppTheme.warningColor,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(horizontal: 12),

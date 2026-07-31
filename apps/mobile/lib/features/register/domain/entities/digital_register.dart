@@ -30,7 +30,7 @@ class DigitalRegister {
     required this.origin,
     required this.destination,
     required this.loadingDate,
-    this.supervisor = 'Operations Supervisor',
+    this.supervisor = 'Not provided',
     this.remarks,
     required this.status,
     required this.totalTrucks,

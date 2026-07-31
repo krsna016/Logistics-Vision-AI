@@ -16,15 +16,8 @@ import '../features/register/presentation/screens/register_list_screen.dart';
 import '../features/register/presentation/screens/register_details_screen.dart';
 import '../core/presentation/screens/user_manual_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
-import '../features/auth/presentation/screens/profile_screen.dart';
-import '../features/auth/presentation/screens/admin_security_screen.dart';
-import '../features/auth/presentation/screens/user_management_screen.dart';
-import '../features/auth/presentation/screens/role_policies_screen.dart';
-import '../features/auth/presentation/screens/device_management_screen.dart';
-import '../features/auth/presentation/screens/global_audit_screen.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
 import '../features/auth/domain/entities/user.dart';
-import '../features/sync/presentation/screens/backup_management_screen.dart';
 
 // Router provider representing Riverpod-based dependency injection for GoRouter
 final routerProvider = Provider<GoRouter>((ref) {

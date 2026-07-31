@@ -6,7 +6,6 @@ import '../widgets/audit_timeline.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:csv/csv.dart';
-import '../../domain/entities/audit_log.dart';
 
 class GlobalAuditScreen extends ConsumerWidget {
   const GlobalAuditScreen({super.key});
@@ -24,15 +23,17 @@ class GlobalAuditScreen extends ConsumerWidget {
             onPressed: () async {
               final logs = await ref.read(globalAuditProvider.future);
               if (logs.isEmpty) {
-                if (context.mounted)
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('No logs to export')));
+                }
                 return;
               }
 
-              if (context.mounted)
+              if (context.mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Exporting logs to CSV...')));
+              }
 
               try {
                 final List<List<dynamic>> rows = [
@@ -74,10 +75,11 @@ class GlobalAuditScreen extends ConsumerWidget {
                       duration: const Duration(seconds: 4)));
                 }
               } catch (e) {
-                if (context.mounted)
+                if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                       content: Text('Export failed: $e'),
                       backgroundColor: AppTheme.errorColor));
+                }
               }
             },
           ),

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../config/environment.dart';
 import '../utils/logger.dart';
+import 'storage_service.dart';
 
 class NetworkService {
   final Dio _dio;
@@ -19,7 +20,7 @@ class NetworkService {
     _initializeInterceptors();
     _dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await storage.read(key: 'jwt_token');
+        final token = await storage.read(key: StorageService.keyJwtToken);
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }

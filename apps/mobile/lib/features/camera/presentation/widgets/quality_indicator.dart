@@ -34,7 +34,7 @@ class QualityIndicator extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.2),
+            color: color.withValues(alpha: 0.2),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: color),
           ),
@@ -59,7 +59,7 @@ class QualityIndicator extends StatelessWidget {
             decoration: BoxDecoration(
               color: const Color(0xCC000000),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: Colors.red.withOpacity(0.5)),
+              border: Border.all(color: Colors.red.withValues(alpha: 0.5)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

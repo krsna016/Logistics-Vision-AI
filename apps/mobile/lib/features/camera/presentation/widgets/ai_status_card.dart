@@ -25,14 +25,17 @@ class AIStatusCard extends StatelessWidget {
     if (s.toString().contains('collecting')) return 'Collecting';
     if (s.toString().contains('analyzing')) return 'Analyzing';
     if (s.toString().contains('stable') ||
-        s.toString().contains('readyForReview')) return 'Ready';
+        s.toString().contains('readyForReview')) {
+      return 'Ready';
+    }
     if (s.toString().contains('unstable')) return 'Unstable';
-    if (s.toString().contains('rejected') || s.toString().contains('error'))
+    if (s.toString().contains('rejected') || s.toString().contains('error')) {
       return 'Error';
+    }
     return 'Unknown';
   }
 
-  Widget _Stat(String label, String value) {
+  Widget _stat(String label, String value) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -57,7 +60,8 @@ class AIStatusCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xCC0D1B2A),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1565C0).withOpacity(0.4)),
+        border:
+            Border.all(color: const Color(0xFF1565C0).withValues(alpha: 0.4)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,9 +95,9 @@ class AIStatusCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                  child: _Stat('Inference', '${inferenceTimeMs.toInt()} ms')),
+                  child: _stat('Inference', '${inferenceTimeMs.toInt()} ms')),
               Expanded(
-                  child: _Stat('Confidence', '${(confidence * 100).toInt()}%')),
+                  child: _stat('Confidence', '${(confidence * 100).toInt()}%')),
             ],
           ),
           const SizedBox(height: 8),
@@ -101,8 +105,8 @@ class AIStatusCard extends StatelessWidget {
             children: [
               Expanded(
                   child:
-                      _Stat('Stability', '${(stabilityScore * 100).toInt()}%')),
-              Expanded(child: _Stat('Status', _statusLabel(aiStatus))),
+                      _stat('Stability', '${(stabilityScore * 100).toInt()}%')),
+              Expanded(child: _stat('Status', _statusLabel(aiStatus))),
             ],
           ),
         ],

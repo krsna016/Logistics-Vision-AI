@@ -7,6 +7,7 @@ import '../../domain/entities/audit_log.dart';
 import '../../domain/entities/role.dart';
 import '../../domain/entities/device_session.dart';
 import '../../domain/repositories/auth_repository.dart';
+import '../../../../services/storage_service.dart';
 
 class RemoteAuthRepository implements AuthRepository {
   final Dio _dio;
@@ -18,13 +19,18 @@ class RemoteAuthRepository implements AuthRepository {
 
   bool get sessionWasRevoked => _sessionWasRevoked;
 
+  Future<bool> hasValidToken() async {
+    final token = await _storage.read(key: StorageService.keyJwtToken);
+    return token != null && token.isNotEmpty && !JwtDecoder.isExpired(token);
+  }
+
   RemoteAuthRepository(this._dio, this._storage);
 
   @override
   Future<User?> login(String employeeId, String password,
       {bool offline = false}) async {
     try {
-      final response = await _dio.post(
+      final response = await _dio.post<Map<String, dynamic>>(
         '/auth/login',
         data: {
           'grant_type': 'password',
@@ -39,7 +45,7 @@ class RemoteAuthRepository implements AuthRepository {
       final responseData = response.data as Map<String, dynamic>;
       final token = responseData['access_token'] as String?;
       if (token != null) {
-        await _storage.write(key: 'jwt_token', value: token);
+        await _storage.write(key: StorageService.keyJwtToken, value: token);
         _activeEmployeeId = employeeId;
         _locked = false;
         return await getCurrentUser();
@@ -54,7 +60,7 @@ class RemoteAuthRepository implements AuthRepository {
 
   @override
   Future<void> logout() async {
-    await _storage.delete(key: 'jwt_token');
+    await _storage.delete(key: StorageService.keyJwtToken);
     _activeEmployeeId = null;
     _locked = false;
     _sessionWasRevoked = false;
@@ -63,9 +69,10 @@ class RemoteAuthRepository implements AuthRepository {
 
   @override
   Future<Session?> getCurrentSession() async {
-    final token = await _storage.read(key: 'jwt_token');
+    final token = await _storage.read(key: StorageService.keyJwtToken);
     if (token == null || JwtDecoder.isExpired(token)) {
-      await _storage.delete(key: 'jwt_token');
+      _sessionWasRevoked = token != null;
+      await _storage.delete(key: StorageService.keyJwtToken);
       _cachedUser = null;
       return null;
     }
@@ -86,9 +93,10 @@ class RemoteAuthRepository implements AuthRepository {
   @override
   Future<User?> getCurrentUser() async {
     _sessionWasRevoked = false;
-    final token = await _storage.read(key: 'jwt_token');
+    final token = await _storage.read(key: StorageService.keyJwtToken);
     if (token == null || JwtDecoder.isExpired(token)) {
-      await _storage.delete(key: 'jwt_token');
+      _sessionWasRevoked = token != null;
+      await _storage.delete(key: StorageService.keyJwtToken);
       _cachedUser = null;
       return null;
     }
@@ -98,7 +106,8 @@ class RemoteAuthRepository implements AuthRepository {
     if (employeeId is! String) return null;
 
     try {
-      final response = await _dio.get('/users/$employeeId');
+      final response =
+          await _dio.get<Map<String, dynamic>>('/users/$employeeId');
       final data = response.data as Map<String, dynamic>;
 
       Role parseRole(String roleStr) {
@@ -129,7 +138,7 @@ class RemoteAuthRepository implements AuthRepository {
       final status = error.response?.statusCode;
       if (status == 401 || status == 403) {
         _sessionWasRevoked = true;
-        await _storage.delete(key: 'jwt_token');
+        await _storage.delete(key: StorageService.keyJwtToken);
         _cachedUser = null;
         return null;
       }
@@ -149,7 +158,7 @@ class RemoteAuthRepository implements AuthRepository {
     final employeeId = _activeEmployeeId;
     if (employeeId == null) return false;
     try {
-      await _dio.post('/auth/login',
+      await _dio.post<Map<String, dynamic>>('/auth/login',
           data: {
             'grant_type': 'password',
             'username': employeeId,

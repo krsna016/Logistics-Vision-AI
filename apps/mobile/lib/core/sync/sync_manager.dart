@@ -97,8 +97,10 @@ class SyncManager {
   }
 
   Future<void> _simulateCloudSync(SyncQueue item) async {
-    // In the future, parse item.payloadData and push to Supabase/REST
-    await Future.delayed(const Duration(milliseconds: 300)); // Simulate latency
+    // This app has no configured authenticated sync endpoint yet. Keep the
+    // queue item failed instead of deleting it and claiming it was uploaded.
+    throw StateError(
+        'Remote sync endpoint is not configured for ${item.entityType}');
   }
 
   Future<void> _updateEntitySyncStatus(

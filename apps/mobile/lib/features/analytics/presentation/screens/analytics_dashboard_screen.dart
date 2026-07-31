@@ -9,7 +9,6 @@ import '../providers/analytics_providers.dart';
 import '../widgets/summary_grid.dart';
 import '../widgets/trend_chart.dart';
 import '../widgets/alert_banner.dart';
-import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
 import '../../../reports/presentation/widgets/generate_report_dialog.dart';
 
@@ -78,8 +77,9 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
                       label: Text(filter.displayName),
                       selected: isSelected,
                       onSelected: (val) {
-                        if (val)
+                        if (val) {
                           ref.read(timeFilterProvider.notifier).state = filter;
+                        }
                       },
                       selectedColor: AppTheme.warningColor,
                       backgroundColor: AppTheme.surfaceColor,
@@ -276,82 +276,15 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
   }
 
   void _showUnifiedReportDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
+    showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.72),
+      barrierColor: Colors.black.withValues(alpha: 0.72),
       builder: (_) => GenerateReportDialog(
         title: 'Generate Operations Report',
         subtitle:
             'Export the current analytics summary, loading trends, and operational metrics.',
         onPdf: () => _exportReport(context, ref, 'PDF'),
         onExcel: () => _exportReport(context, ref, 'Excel'),
-      ),
-    );
-  }
-
-  void _showReportDialog(BuildContext context, WidgetRef ref) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black.withOpacity(0.72),
-      builder: (ctx) => Dialog(
-        backgroundColor: AppTheme.surfaceColor,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        child: Padding(
-          padding: const EdgeInsets.all(22),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(Icons.assessment_outlined,
-                        color: AppTheme.primaryColor),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text('Generate Operations Report',
-                        style: TextStyle(
-                            fontSize: 19, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                  'Export the current analytics summary, loading trends, and operational metrics.',
-                  style: TextStyle(color: AppTheme.textSecondary, height: 1.4)),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _exportReport(context, ref, 'PDF');
-                  },
-                  icon: const Icon(Icons.picture_as_pdf_outlined),
-                  label: const Text('Export PDF'),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    _exportReport(context, ref, 'Excel');
-                  },
-                  icon: const Icon(Icons.table_chart_outlined),
-                  label: const Text('Export Excel'),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }

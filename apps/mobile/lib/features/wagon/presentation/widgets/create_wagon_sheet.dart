@@ -190,7 +190,8 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                     widget.existingWagon == null
                         ? 'Register New Wagon'
                         : 'Edit Wagon',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 20, fontWeight: FontWeight.bold),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 16),

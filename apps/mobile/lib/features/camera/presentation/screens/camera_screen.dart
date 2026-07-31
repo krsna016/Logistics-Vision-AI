@@ -12,7 +12,6 @@ import '../providers/inference_notifier.dart';
 import '../providers/inference_state.dart';
 import '../providers/decision_providers.dart';
 import '../../domain/entities/decision_state.dart';
-import '../../domain/entities/detection.dart';
 import '../widgets/detection_overlay_widget.dart';
 import '../widgets/debug_telemetry_overlay.dart';
 import '../../../layer/domain/entities/ai_result.dart';
@@ -309,12 +308,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   }
 }
 
-// ─── Placeholder for missing wagon ───────────────────────────────────────────
-class _WagonPlaceholder {
-  String get wagonNumber => '------';
-  String get id => '';
-}
-
 // ─── TOP INFORMATION BAR ─────────────────────────────────────────────────────
 class _CameraTopBar extends StatelessWidget {
   final String wagonNumber;
@@ -441,9 +434,9 @@ class _TopChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
+        color: Colors.white.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white.withOpacity(0.15)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -547,7 +540,8 @@ class _AIStatusPanel extends StatelessWidget {
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                        color: _statusColor.withOpacity(0.6), blurRadius: 4)
+                        color: _statusColor.withValues(alpha: 0.6),
+                        blurRadius: 4)
                   ],
                 ),
               ),
@@ -587,7 +581,7 @@ class _AIStatusPanel extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              _AIMetric(label: 'MODEL', value: 'v1.0'),
+              const _AIMetric(label: 'MODEL', value: 'v1.0'),
               const SizedBox(width: 8),
               _AIMetric(
                   label: 'STATUS', value: _statusLabel, color: _statusColor),
@@ -679,7 +673,7 @@ class _LiveCounterBar extends StatelessWidget {
             margin: const EdgeInsets.only(bottom: 6),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: AppTheme.errorColor.withOpacity(0.9),
+              color: AppTheme.errorColor.withValues(alpha: 0.9),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -707,8 +701,8 @@ class _LiveCounterBar extends StatelessWidget {
           decoration: BoxDecoration(
             color: const Color(0xEE0D1B2A),
             borderRadius: BorderRadius.circular(16),
-            border:
-                Border.all(color: _borderColor.withOpacity(0.5), width: 1.5),
+            border: Border.all(
+                color: _borderColor.withValues(alpha: 0.5), width: 1.5),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -731,7 +725,8 @@ class _LiveCounterBar extends StatelessWidget {
                           ? AppTheme.successColor
                           : AppTheme.warningColor),
                   _vDivider(),
-                  _CountCol('MODEL', 'YOLO11s', color: AppTheme.primaryColor),
+                  const _CountCol('MODEL', 'YOLO11s',
+                      color: AppTheme.primaryColor),
                 ],
               ),
               const SizedBox(height: 8),
@@ -802,6 +797,7 @@ class _CountCol extends StatelessWidget {
 }
 
 // ─── ALIGNMENT GUIDE ─────────────────────────────────────────────────────────
+// ignore: unused_element
 class _AlignmentGuide extends StatelessWidget {
   final bool isVisible;
 
@@ -826,7 +822,7 @@ class _AlignmentGuide extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
+                  color: Colors.black.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: const Row(
@@ -861,19 +857,19 @@ class _GuidePainter extends CustomPainter {
     // Semi-transparent fill
     canvas.drawRect(
       rect,
-      Paint()..color = const Color(0xFF1565C0).withOpacity(0.05),
+      Paint()..color = const Color(0xFF1565C0).withValues(alpha: 0.05),
     );
 
     // Dashed border
     final dashPaint = Paint()
-      ..color = const Color(0xFF1565C0).withOpacity(0.7)
+      ..color = const Color(0xFF1565C0).withValues(alpha: 0.7)
       ..strokeWidth = 1.5
       ..style = PaintingStyle.stroke;
     _drawDashedRect(canvas, rect, dashPaint);
 
     // Corner brackets
     final cornerPaint = Paint()
-      ..color = Colors.white.withOpacity(0.9)
+      ..color = Colors.white.withValues(alpha: 0.9)
       ..strokeWidth = 3
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;
@@ -1025,7 +1021,7 @@ class _CaptureControlsDock extends StatelessWidget {
                         boxShadow: [
                           BoxShadow(
                             color: AppTheme.successColor
-                                .withOpacity(pulseAnimation.value * 0.6),
+                                .withValues(alpha: pulseAnimation.value * 0.6),
                             blurRadius: 20,
                             spreadRadius: 4,
                           ),
@@ -1093,7 +1089,7 @@ class _IconControl extends StatelessWidget {
             width: 50,
             height: 50,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.12),
+              color: Colors.white.withValues(alpha: 0.12),
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white24),
             ),

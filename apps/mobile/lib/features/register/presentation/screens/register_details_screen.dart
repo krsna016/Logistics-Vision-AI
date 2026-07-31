@@ -98,7 +98,7 @@ class RegisterDetailsScreen extends ConsumerWidget {
 
   void _confirmDelete(
       BuildContext context, WidgetRef ref, DigitalRegister register) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => StrictActionWarningDialog(
         title: 'Delete Wagon Permanently?',
@@ -123,9 +123,9 @@ class RegisterDetailsScreen extends ConsumerWidget {
 
   void _showUnifiedReportDialog(
       BuildContext context, WidgetRef ref, String wagonId) {
-    showDialog(
+    showDialog<void>(
       context: context,
-      barrierColor: Colors.black.withOpacity(0.72),
+      barrierColor: Colors.black.withValues(alpha: 0.72),
       builder: (_) => GenerateReportDialog(
         title: 'Generate Digital Register Report',
         subtitle:
@@ -172,25 +172,25 @@ class RegisterDetailsScreen extends ConsumerWidget {
   void _showEditRemarksDialog(BuildContext context, String registerId,
       String? currentRemarks, RegisterListNotifier notifier) {
     final controller = TextEditingController(text: currentRemarks);
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Edit Operational Remarks'),
         content: TextField(
           controller: controller,
           maxLines: 3,
-          decoration: InputDecoration(
+          decoration: const InputDecoration(
             hintText:
                 'Enter notes (e.g. Delayed due to rain, Truck changed...)',
-            border: const OutlineInputBorder(
+            border: OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(10)),
               borderSide: BorderSide(color: AppTheme.dividerColor),
             ),
-            enabledBorder: const OutlineInputBorder(
+            enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(10)),
               borderSide: BorderSide(color: AppTheme.dividerColor),
             ),
-            focusedBorder: const OutlineInputBorder(
+            focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(10)),
               borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
             ),

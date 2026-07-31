@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/user.dart';
@@ -15,6 +14,7 @@ import 'package:dio/dio.dart';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/providers/database_provider.dart';
+import '../../../../services/storage_service.dart';
 import '../../data/services/password_hasher_impl.dart';
 import '../../data/services/secure_credential_storage.dart';
 import '../../data/services/offline_authentication_impl.dart';
@@ -50,7 +50,7 @@ final dioProvider = Provider((ref) {
   final storage = ref.watch(secureStorageProvider);
   dio.interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) async {
-      final token = await storage.read(key: 'jwt_token');
+      final token = await storage.read(key: StorageService.keyJwtToken);
       if (token != null && token.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $token';
       }
@@ -58,7 +58,7 @@ final dioProvider = Provider((ref) {
     },
     onError: (error, handler) async {
       if (error.response?.statusCode == 401) {
-        await storage.delete(key: 'jwt_token');
+        await storage.delete(key: StorageService.keyJwtToken);
       }
       handler.next(error);
     },
@@ -100,7 +100,11 @@ class AuthNotifier extends StateNotifier<User?> {
       await logout();
       return;
     }
-    final user = remoteUser ?? await _restoreCachedUser();
+    final canRestoreCachedSession = _repository is RemoteAuthRepository
+        ? await (_repository).hasValidToken()
+        : true;
+    final user = remoteUser ??
+        (canRestoreCachedSession ? await _restoreCachedUser() : null);
 
     // Prevent overriding a demo login if it happened while we were fetching
     if (state != null) return;
@@ -152,7 +156,7 @@ class AuthNotifier extends StateNotifier<User?> {
 
   bool get _sessionWasRevoked {
     return _repository is RemoteAuthRepository &&
-        (_repository as RemoteAuthRepository).sessionWasRevoked;
+        (_repository).sessionWasRevoked;
   }
 
   void _startPolling() {

@@ -60,7 +60,7 @@ class LocalRegisterRepository implements RegisterRepository {
           loadingDate: wagon.loadingDate,
           supervisor: supervisorName?.trim().isNotEmpty == true
               ? supervisorName!.trim()
-              : 'Operations Supervisor',
+              : 'Not provided',
           remarks: _customRemarks[wagon.id] ??
               wagon.remarks ??
               'Manual correction applied for Layer 3.',
@@ -72,7 +72,7 @@ class LocalRegisterRepository implements RegisterRepository {
           loadingDuration: duration,
           generatedAt: wagon.updatedAt,
           lastOpenedAt: _lastOpened[wagon.id] ?? wagon.updatedAt,
-          exportCount: _exportCounts[wagon.id] ?? 2,
+          exportCount: _exportCounts[wagon.id] ?? 0,
           trucks: wagonTrucks,
         ),
       );

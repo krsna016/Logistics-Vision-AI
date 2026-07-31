@@ -16,7 +16,9 @@ class PdfReportServiceImpl implements PdfReportService {
 
   String get _supervisor => supervisorName?.trim().isNotEmpty == true
       ? supervisorName!.trim()
-      : 'Operations Supervisor';
+      : 'Not provided';
+
+  String get _supervisorLabel => 'Supervisor: $_supervisor';
 
   Future<pw.ImageProvider?> _loadReportLogo() async {
     try {
@@ -185,7 +187,7 @@ class PdfReportServiceImpl implements PdfReportService {
               children: [
                 pw.Text(
                     'Loading Date: ${wagon.loadingDate.toString().split(' ')[0]}'),
-                pw.Text(_supervisor),
+                pw.Text(_supervisorLabel),
               ]),
           pw.SizedBox(height: 20),
           pw.Text('Truck Summary',
@@ -414,7 +416,7 @@ class PdfReportServiceImpl implements PdfReportService {
                   pw.Text('TOTAL DEFECTS: $totalDefects',
                       style: pw.TextStyle(
                           fontSize: 8, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(_supervisor,
+                  pw.Text(_supervisorLabel,
                       style: pw.TextStyle(
                           fontSize: 8, fontWeight: pw.FontWeight.bold)),
                 ]),

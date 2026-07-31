@@ -13,7 +13,9 @@ class ExcelReportServiceImpl implements ExcelReportService {
 
   String get _supervisor => supervisorName?.trim().isNotEmpty == true
       ? supervisorName!.trim()
-      : 'Operations Supervisor';
+      : 'Not provided';
+
+  String get _supervisorLabel => 'Supervisor: $_supervisor';
 
   Future<File> _saveExcel(Excel excel, String prefix) async {
     final dir = await getApplicationDocumentsDirectory();
@@ -64,7 +66,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
     sheet.cell(CellIndex.indexByString("D3")).value = TextCellValue(
         'Date: ${truck.completedDate?.toIso8601String() ?? 'N/A'}');
     sheet.cell(CellIndex.indexByString("D4")).value =
-        TextCellValue(_supervisor);
+        TextCellValue(_supervisorLabel);
 
     // Data Table Headers
     final headers = [
@@ -166,7 +168,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
     sheet.cell(CellIndex.indexByString('D3')).value = TextCellValue(
         'Loading Date: ${wagon.loadingDate.toString().split(' ')[0]}');
     sheet.cell(CellIndex.indexByString('D4')).value =
-        TextCellValue(_supervisor);
+        TextCellValue(_supervisorLabel);
     sheet.cell(CellIndex.indexByString('G3')).value =
         TextCellValue('Status: ${wagon.status}');
 
@@ -222,7 +224,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
         .value = TextCellValue('TOTAL DEFECTS: $totalDefects');
     sheet
         .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow))
-        .value = TextCellValue(_supervisor);
+        .value = TextCellValue(_supervisorLabel);
     currentRow += 2;
     sheet
         .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow))
@@ -342,12 +344,12 @@ class ExcelReportServiceImpl implements ExcelReportService {
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow))
-          .value = TextCellValue(_supervisor);
+          .value = TextCellValue(_supervisorLabel);
     } else {
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow))
-          .value = TextCellValue(_supervisor);
+          .value = TextCellValue(_supervisorLabel);
     }
     return _saveExcel(excel, 'WAGON_$wagonId');
   }

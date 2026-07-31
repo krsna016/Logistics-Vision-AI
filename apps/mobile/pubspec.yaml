@@ -51,6 +51,9 @@ dependencies:
   qr_flutter: ^4.1.0
   jwt_decoder: ^2.0.1
 
+  path: any
+  sqlite3: any
+  uuid: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

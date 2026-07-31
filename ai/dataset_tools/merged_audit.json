@@ -1,0 +1,17 @@
+{
+  "datasets": [
+    {
+      "dataset": "carton_detection_v1",
+      "path": "ai/datasets/carton_detection_v1",
+      "data_yaml": true,
+      "classes": [
+        "carton"
+      ],
+      "splits": {},
+      "errors": [],
+      "warnings": []
+    }
+  ],
+  "duplicate_images": {},
+  "split_leaks": {}
+}

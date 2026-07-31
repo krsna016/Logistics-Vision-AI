@@ -52,7 +52,7 @@ class ReportTemplateServiceImpl {
   }
 
   static pw.Widget buildSignatures({
-    String supervisorName = 'Operations Supervisor',
+    String supervisorName = 'Not provided',
   }) {
     return pw.Container(
         margin: const pw.EdgeInsets.only(top: 40),

@@ -58,7 +58,7 @@ class DeviceManagementScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppTheme.errorColor.withOpacity(0.2),
+                  color: AppTheme.errorColor.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: const Text('REVOKED',

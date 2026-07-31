@@ -4,7 +4,6 @@ import 'package:uuid/uuid.dart';
 import '../../domain/entities/loading_session.dart';
 import '../../domain/repositories/loading_session_repository.dart';
 import '../../data/repositories_impl/local_loading_session_repository.dart';
-import '../../data/repositories_impl/local_loading_session_repository.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
 import '../../../../core/utils/audit_logger.dart';

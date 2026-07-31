@@ -35,7 +35,7 @@ class TruckTable extends StatelessWidget {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: DataTable(
-              headingRowColor: MaterialStateProperty.all(AppTheme.cardColor),
+              headingRowColor: WidgetStateProperty.all(AppTheme.cardColor),
               columns: const [
                 DataColumn(
                     label: Text('TRUCK NUMBER',
@@ -106,7 +106,7 @@ class TruckTable extends StatelessWidget {
                 }),
                 // Total Summary Row
                 DataRow(
-                  color: MaterialStateProperty.all(AppTheme.cardColor),
+                  color: WidgetStateProperty.all(AppTheme.cardColor),
                   cells: [
                     const DataCell(Text('TOTALS',
                         style: TextStyle(
@@ -144,7 +144,7 @@ class TruckTable extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: AppTheme.successColor.withOpacity(0.15),
+        color: AppTheme.successColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(

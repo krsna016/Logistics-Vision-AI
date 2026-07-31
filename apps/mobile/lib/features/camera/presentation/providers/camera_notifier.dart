@@ -142,6 +142,9 @@ class CameraNotifier extends StateNotifier<CameraState>
 
   // Handle application lifecycle to suspend/resume camera feed
   @override
+  // The framework method uses the conventional parameter name `state`.
+  // Keep the descriptive local name to avoid shadowing StateNotifier.state.
+  // ignore: avoid_renaming_method_parameters
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
     final controller = state.controller;
     if (controller == null || !controller.value.isInitialized) return;

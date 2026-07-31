@@ -18,12 +18,20 @@ class _LoginCardState extends ConsumerState<LoginCard> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _employeeIdController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
   Future<void> _handleLogin() async {
     setState(() => _isLoading = true);
     final success = await ref.read(authProvider.notifier).login(
           _employeeIdController.text,
           _passwordController.text,
         );
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (success) {
@@ -51,7 +59,7 @@ class _LoginCardState extends ConsumerState<LoginCard> {
         border: Border.all(color: Colors.transparent),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 20,
             offset: const Offset(0, 10),
           )

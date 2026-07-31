@@ -72,7 +72,7 @@ class UserManagementScreen extends ConsumerWidget {
       ),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: AppTheme.primaryColor.withOpacity(0.2),
+          backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.2),
           child: Text(
             user.name.substring(0, 1).toUpperCase(),
             style: const TextStyle(
@@ -105,7 +105,7 @@ class UserManagementScreen extends ConsumerWidget {
   }
 
   void _showUserOptions(BuildContext context, WidgetRef ref, User user) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: AppTheme.surfaceColor,
       builder: (ctx) => SafeArea(
@@ -132,6 +132,7 @@ class UserManagementScreen extends ConsumerWidget {
                 await ref
                     .read(authRepositoryProvider)
                     .toggleUserStatus(user.id, newStatus);
+                if (!context.mounted) return;
                 ref.invalidate(userListProvider);
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                     content: Text(
@@ -150,7 +151,7 @@ class UserManagementScreen extends ConsumerWidget {
     final pwdCtrl = TextEditingController();
     Role selectedRole = Role.operator;
 
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surfaceColor,
@@ -178,7 +179,7 @@ class UserManagementScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<Role>(
-                  value: selectedRole,
+                  initialValue: selectedRole,
                   dropdownColor: AppTheme.surfaceColor,
                   items: Role.values
                       .map((r) => DropdownMenuItem(
@@ -205,7 +206,9 @@ class UserManagementScreen extends ConsumerWidget {
             onPressed: () async {
               if (nameCtrl.text.isEmpty ||
                   empIdCtrl.text.isEmpty ||
-                  pwdCtrl.text.isEmpty) return;
+                  pwdCtrl.text.isEmpty) {
+                return;
+              }
 
               final newUser = User(
                 id: const Uuid().v4(),

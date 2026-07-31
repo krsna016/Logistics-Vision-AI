@@ -39,9 +39,10 @@ class AdminSecurityScreen extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppTheme.errorColor.withOpacity(0.1),
+              color: AppTheme.errorColor.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppTheme.errorColor.withOpacity(0.5)),
+              border:
+                  Border.all(color: AppTheme.errorColor.withValues(alpha: 0.5)),
             ),
             child: const Row(
               children: [

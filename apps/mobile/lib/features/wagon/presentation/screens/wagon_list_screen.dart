@@ -10,7 +10,6 @@ import '../../domain/entities/wagon.dart';
 import '../providers/wagon_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
-import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../session/presentation/providers/session_providers.dart';
 import '../../../../core/presentation/widgets/app_drawer.dart';
 import '../widgets/wagon_card.dart';
@@ -45,7 +44,7 @@ class WagonListScreen extends ConsumerWidget {
                   updatedDate: DateTime.now()),
             );
 
-        showDialog(
+        showDialog<void>(
           context: context,
           barrierDismissible: false,
           builder: (ctx) => AlertDialog(
@@ -296,7 +295,7 @@ class WagonListScreen extends ConsumerWidget {
             ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          showModalBottomSheet(
+          showModalBottomSheet<void>(
             context: context,
             isScrollControlled: true,
             shape: const RoundedRectangleBorder(

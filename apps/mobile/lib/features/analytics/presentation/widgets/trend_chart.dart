@@ -88,7 +88,7 @@ class TrendChart extends StatelessWidget {
                     dotData: const FlDotData(show: false),
                     belowBarData: BarAreaData(
                       show: true,
-                      color: lineColor.withOpacity(0.15),
+                      color: lineColor.withValues(alpha: 0.15),
                     ),
                   ),
                 ],

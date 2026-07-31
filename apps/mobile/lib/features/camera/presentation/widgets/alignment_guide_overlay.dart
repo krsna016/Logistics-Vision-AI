@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../../../theme/app_theme.dart';
 import 'dart:ui' as ui;
 import 'dart:math';
 
@@ -53,7 +52,7 @@ class _AlignmentGuideOverlayState extends State<AlignmentGuideOverlay>
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.7),
+                      color: Colors.black.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
@@ -86,19 +85,19 @@ class _AlignmentGuidePainter extends CustomPainter {
 
     // Semi-transparent fill
     final fillPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.05)
+      ..color = Colors.blue.withValues(alpha: 0.05)
       ..style = PaintingStyle.fill;
     canvas.drawRect(rect, fillPaint);
 
     // Dashed border
     final borderPaint = Paint()
-      ..color = const Color(0xFF1565C0).withOpacity(0.7)
+      ..color = const Color(0xFF1565C0).withValues(alpha: 0.7)
       ..strokeWidth = 2
       ..style = PaintingStyle.stroke;
 
     // Draw dashed rectangle using path metrics
-    final dashWidth = 8.0;
-    final dashSpace = 4.0;
+    const dashWidth = 8.0;
+    const dashSpace = 4.0;
     double distance = 0;
     Path path = Path()..addRect(rect);
     for (ui.PathMetric pathMetric in path.computeMetrics()) {

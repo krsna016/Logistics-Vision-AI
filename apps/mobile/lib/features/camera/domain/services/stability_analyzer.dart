@@ -1,4 +1,3 @@
-import 'dart:math';
 import '../entities/detection.dart';
 import '../entities/decision_state.dart';
 

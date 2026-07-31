@@ -34,7 +34,6 @@ class AppTheme {
         primaryContainer: primaryContainer,
         secondary: warningColor,
         error: errorColor,
-        background: backgroundColor,
         surface: surfaceColor,
       ),
       dividerColor: dividerColor,
@@ -47,8 +46,8 @@ class AppTheme {
       inputDecorationTheme: const InputDecorationTheme(
         filled: true,
         fillColor: cardColor,
-        labelStyle: const TextStyle(color: textSecondary),
-        hintStyle: const TextStyle(color: textSecondary),
+        labelStyle: TextStyle(color: textSecondary),
+        hintStyle: TextStyle(color: textSecondary),
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: InputBorder.none,

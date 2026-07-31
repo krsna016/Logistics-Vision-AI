@@ -15,7 +15,9 @@ class ImageStorageService {
 
   Future<String> saveImage(File imageFile, String prefix) async {
     final basePath = await _storagePath;
-    final fileName = '${prefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final safePrefix = prefix.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+    final fileName =
+        '${safePrefix.isEmpty ? 'image' : safePrefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
     final destination = p.join(basePath, fileName);
 
     await imageFile.copy(destination);
@@ -24,7 +26,8 @@ class ImageStorageService {
   }
 
   Future<File?> getImage(String path) async {
-    final file = File(path);
+    final file = await _storedFile(path);
+    if (file == null) return null;
     if (await file.exists()) {
       return file;
     }
@@ -32,9 +35,19 @@ class ImageStorageService {
   }
 
   Future<void> deleteImage(String path) async {
-    final file = File(path);
+    final file = await _storedFile(path);
+    if (file == null) return;
     if (await file.exists()) {
       await file.delete();
     }
+  }
+
+  Future<File?> _storedFile(String path) async {
+    final root = p.normalize(await _storagePath);
+    final candidate = p.normalize(path);
+    final isInsideStorage =
+        candidate == root || candidate.startsWith('$root${p.separator}');
+    if (!isInsideStorage) return null;
+    return File(candidate);
   }
 }

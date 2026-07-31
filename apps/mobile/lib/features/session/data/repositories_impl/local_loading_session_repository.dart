@@ -16,7 +16,7 @@ class LocalLoadingSessionRepository implements LoadingSessionRepository {
       id: data.id,
       truckId: data.truckId,
       warehouseId: data.warehouseId ?? '',
-      operatorId: data.operatorId ?? '',
+      operatorId: data.operatorId,
       startTime: data.startTime,
       endTime: data.endTime,
       status: SessionStatus.values.firstWhere((e) => e.name == data.status,

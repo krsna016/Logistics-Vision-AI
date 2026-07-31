@@ -51,10 +51,12 @@ class WagonListState {
 
     // Sort: Loading first, then Planning, then Completed, descending chronological
     list.sort((a, b) {
-      if (a.status == WagonStatus.loading && b.status != WagonStatus.loading)
+      if (a.status == WagonStatus.loading && b.status != WagonStatus.loading) {
         return -1;
-      if (b.status == WagonStatus.loading && a.status != WagonStatus.loading)
+      }
+      if (b.status == WagonStatus.loading && a.status != WagonStatus.loading) {
         return 1;
+      }
       return b.createdAt.compareTo(a.createdAt);
     });
 

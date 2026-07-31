@@ -70,7 +70,7 @@ class CountMethodSelectionScreen extends StatelessWidget {
               'The selected method is recorded with the layer review.',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  color: Colors.white.withOpacity(0.45), fontSize: 12),
+                  color: Colors.white.withValues(alpha: 0.45), fontSize: 12),
             ),
             const SizedBox(height: 18),
           ],
@@ -188,10 +188,10 @@ class _ManualCountScreenState extends State<ManualCountScreen> {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppTheme.warningColor.withOpacity(0.12),
+              color: AppTheme.warningColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(14),
-              border:
-                  Border.all(color: AppTheme.warningColor.withOpacity(0.35)),
+              border: Border.all(
+                  color: AppTheme.warningColor.withValues(alpha: 0.35)),
             ),
             child: const Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,7 +323,7 @@ class _MethodCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 27,
-              backgroundColor: color.withOpacity(0.16),
+              backgroundColor: color.withValues(alpha: 0.16),
               child: Icon(icon, color: color, size: 28),
             ),
             const SizedBox(width: 16),
