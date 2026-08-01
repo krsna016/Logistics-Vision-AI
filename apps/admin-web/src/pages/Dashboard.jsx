@@ -6,6 +6,7 @@ import {
   Users, UserX, X, MapPin
 } from 'lucide-react';
 import api from '../api';
+import LiveLocationMap from '../components/LiveLocationMap';
 
 const roleOptions = ['All', 'Admin', 'Manager', 'Supervisor', 'Operator'];
 
@@ -168,6 +169,7 @@ export default function Dashboard() {
           <div><div className="section-kicker">ADMIN ONLY</div><h2>Live employee locations <span>{liveLocations.length}</span></h2><p>Latest authenticated device positions. Refreshes every 10 seconds.</p></div>
           <MapPin size={22} aria-hidden="true" />
         </div>
+        <LiveLocationMap locations={liveLocations} />
         {liveLocations.length === 0 ? <div className="empty-state"><div className="empty-icon"><MapPin size={22} /></div><h3>No active locations</h3><p>No connected employee device has sent a location yet.</p></div> : <div className="table-wrap"><table className="user-table"><thead><tr><th>Employee</th><th>Last update</th><th>Accuracy</th><th>Coordinates</th></tr></thead><tbody>{liveLocations.map(location => <tr key={location.employee_id}><td><div className="user-cell"><div className="avatar">{location.employee_name?.charAt(0).toUpperCase()}</div><div><strong>{location.employee_name}</strong><span className="id-copy">{location.employee_id} · {location.role}</span></div></div></td><td>{new Date(location.recorded_at).toLocaleString()}</td><td>{location.accuracy_meters == null ? '—' : `${Math.round(location.accuracy_meters)} m`}</td><td><a href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`} target="_blank" rel="noreferrer">{location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</a></td></tr>)}</tbody></table></div>}
       </section>
 
