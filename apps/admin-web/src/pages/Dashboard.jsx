@@ -110,8 +110,28 @@ export default function Dashboard() {
       }
     };
     fetchLocations();
-    const timer = window.setInterval(fetchLocations, 10000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+    let reconnectTimer;
+    let socket;
+    const connect = () => {
+      if (cancelled) return;
+      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://logistics-vision-ai.onrender.com/api';
+      const websocketBase = apiBase.replace(/^http/, 'ws').replace(/\/$/, '');
+      const token = sessionStorage.getItem('token');
+      if (!token) return;
+      socket = new WebSocket(`${websocketBase}/locations/stream?token=${encodeURIComponent(token)}`);
+      socket.onmessage = event => {
+        const location = JSON.parse(event.data);
+        if (location.type === 'offline') {
+          setLiveLocations(current => current.filter(item => item.employee_id !== location.employee_id));
+          return;
+        }
+        if (!location.employee_id) return;
+        setLiveLocations(current => [...current.filter(item => item.employee_id !== location.employee_id), location]);
+      };
+      socket.onclose = () => { if (!cancelled) reconnectTimer = window.setTimeout(connect, 3000); };
+    };
+    connect();
+    return () => { cancelled = true; window.clearTimeout(reconnectTimer); socket?.close(); };
   }, [navigate]);
 
   const metrics = useMemo(() => {

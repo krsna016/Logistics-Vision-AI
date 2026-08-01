@@ -10,7 +10,7 @@ import 'network_service.dart';
 /// from the location payload.
 class LocationTrackingService {
   final Dio _dio;
-  Timer? _timer;
+  StreamSubscription<Position>? _positionSubscription;
   bool _running = false;
 
   LocationTrackingService(NetworkService network) : _dio = network.client;
@@ -41,14 +41,19 @@ class LocationTrackingService {
 
     _running = true;
     await _sendOnce();
-    _timer = Timer.periodic(const Duration(seconds: 20), (_) => _sendOnce());
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 5,
+      ),
+    ).listen(_sendPosition);
     return true;
   }
 
   Future<void> stop() async {
     _running = false;
-    _timer?.cancel();
-    _timer = null;
+    await _positionSubscription?.cancel();
+    _positionSubscription = null;
     try {
       await _dio.post<void>('/locations/stop');
     } on DioException {
@@ -59,12 +64,18 @@ class LocationTrackingService {
   Future<void> _sendOnce() async {
     if (!_running) return;
     try {
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.high,
-          distanceFilter: 10,
-        ),
-      );
+      final position = await Geolocator.getCurrentPosition();
+      await _sendPosition(position);
+    } on DioException {
+      // Network retry occurs on the next location update; no location is fabricated.
+    } on TimeoutException {
+      // GPS timeout is treated as a missing update.
+    }
+  }
+
+  Future<void> _sendPosition(Position position) async {
+    if (!_running) return;
+    try {
       await _dio.post<void>('/locations/heartbeat', data: {
         'latitude': position.latitude,
         'longitude': position.longitude,
@@ -72,9 +83,7 @@ class LocationTrackingService {
         'recorded_at': DateTime.now().toUtc().toIso8601String(),
       });
     } on DioException {
-      // Network retry occurs on the next tick; no location is fabricated.
-    } on TimeoutException {
-      // GPS timeout is treated as a missing update.
+      // Network retry occurs on the next location update; no location is fabricated.
     }
   }
 }

@@ -1,16 +1,68 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, status
+import jwt
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.security import get_current_user, require_admin
+from ..core.config import settings
 from ..db.database import get_db
 from ..models.location import LocationPing, LocationSession
 from ..models.user import User
 from ..schemas.location import LiveLocation, LocationHeartbeat
 
 router = APIRouter()
+admin_streams: set[WebSocket] = set()
+
+
+async def broadcast_location(location: LiveLocation) -> None:
+    disconnected = []
+    for websocket in tuple(admin_streams):
+        try:
+            await websocket.send_json(location.model_dump(mode="json"))
+        except Exception:
+            disconnected.append(websocket)
+    for websocket in disconnected:
+        admin_streams.discard(websocket)
+
+
+async def broadcast_event(event: dict) -> None:
+    disconnected = []
+    for websocket in tuple(admin_streams):
+        try:
+            await websocket.send_json(event)
+        except Exception:
+            disconnected.append(websocket)
+    for websocket in disconnected:
+        admin_streams.discard(websocket)
+
+
+@router.websocket("/stream")
+async def location_stream(websocket: WebSocket, db: AsyncSession = Depends(get_db)):
+    """Push location updates to authenticated Admin dashboard sessions."""
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=1008, reason="Authentication required")
+        return
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        employee_id = payload.get("sub")
+        result = await db.execute(select(User).where(User.employee_id == employee_id))
+        user = result.scalars().first()
+        if user is None or not user.is_active or user.role != "Admin":
+            raise ValueError("Admin access required")
+    except (jwt.InvalidTokenError, ValueError):
+        await websocket.close(code=1008, reason="Invalid Admin session")
+        return
+
+    await websocket.accept()
+    admin_streams.add(websocket)
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        admin_streams.discard(websocket)
 
 
 @router.post("/heartbeat", status_code=status.HTTP_202_ACCEPTED)
@@ -48,6 +100,16 @@ async def receive_heartbeat(
     )
     db.add(ping)
     await db.commit()
+    await broadcast_location(LiveLocation(
+        employee_id=current_user.employee_id,
+        employee_name=current_user.name,
+        role=current_user.role,
+        latitude=ping.latitude,
+        longitude=ping.longitude,
+        accuracy_meters=ping.accuracy_meters,
+        recorded_at=ping.recorded_at,
+        session_id=session.id,
+    ))
     return {"accepted": True, "session_id": session.id}
 
 
@@ -66,6 +128,7 @@ async def stop_tracking(
         session.is_active = False
         session.ended_at = datetime.now(timezone.utc)
     await db.commit()
+    await broadcast_event({"type": "offline", "employee_id": current_user.employee_id})
 
 
 @router.get("/live", response_model=list[LiveLocation])
