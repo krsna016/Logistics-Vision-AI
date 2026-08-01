@@ -81,6 +81,7 @@ export default function Dashboard() {
   const [actionLoading, setActionLoading] = useState(false);
   const [copied, setCopied] = useState('');
   const [liveLocations, setLiveLocations] = useState([]);
+  const [locationConnection, setLocationConnection] = useState('connecting');
   const navigate = useNavigate();
 
   const fetchUsers = useCallback(async (silent = false) => {
@@ -114,11 +115,13 @@ export default function Dashboard() {
     let socket;
     const connect = () => {
       if (cancelled) return;
+      setLocationConnection('connecting');
       const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://logistics-vision-ai.onrender.com/api';
       const websocketBase = apiBase.replace(/^http/, 'ws').replace(/\/$/, '');
       const token = sessionStorage.getItem('token');
       if (!token) return;
       socket = new WebSocket(`${websocketBase}/locations/stream?token=${encodeURIComponent(token)}`);
+      socket.onopen = () => { setLocationConnection('connected'); fetchLocations(); };
       socket.onmessage = event => {
         const location = JSON.parse(event.data);
         if (location.type === 'offline') {
@@ -128,7 +131,8 @@ export default function Dashboard() {
         if (!location.employee_id) return;
         setLiveLocations(current => [...current.filter(item => item.employee_id !== location.employee_id), location]);
       };
-      socket.onclose = () => { if (!cancelled) reconnectTimer = window.setTimeout(connect, 3000); };
+      socket.onerror = () => { setLocationConnection('reconnecting'); };
+      socket.onclose = () => { setLocationConnection('reconnecting'); if (!cancelled) reconnectTimer = window.setTimeout(connect, 3000); };
     };
     connect();
     return () => { cancelled = true; window.clearTimeout(reconnectTimer); socket?.close(); };
@@ -186,7 +190,7 @@ export default function Dashboard() {
 
       <section className="directory-panel location-panel">
         <div className="directory-heading">
-          <div><div className="section-kicker">ADMIN ONLY</div><h2>Live employee locations <span>{liveLocations.length}</span></h2><p>Latest authenticated device positions. Refreshes every 10 seconds.</p></div>
+          <div><div className="section-kicker">ADMIN ONLY</div><h2>Live employee locations <span>{liveLocations.length}</span></h2><p>Push updates from authenticated devices. <span className={`location-stream-status ${locationConnection}`}><span className="status-dot" /> {locationConnection === 'connected' ? 'Live' : 'Reconnecting'}</span></p></div>
           <MapPin size={22} aria-hidden="true" />
         </div>
         <LiveLocationMap locations={liveLocations} />

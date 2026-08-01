@@ -11,7 +11,9 @@ import 'network_service.dart';
 class LocationTrackingService {
   final Dio _dio;
   StreamSubscription<Position>? _positionSubscription;
+  Timer? _watchdog;
   bool _running = false;
+  bool _sending = false;
 
   LocationTrackingService(NetworkService network) : _dio = network.client;
 
@@ -46,7 +48,10 @@ class LocationTrackingService {
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 5,
       ),
-    ).listen(_sendPosition);
+    ).listen(_sendPosition, onError: (_, __) {});
+    // This is a delivery watchdog, not dashboard polling: it keeps the
+    // server's last-seen state fresh when GPS does not emit a movement event.
+    _watchdog = Timer.periodic(const Duration(seconds: 30), (_) => _sendOnce());
     return true;
   }
 
@@ -54,6 +59,8 @@ class LocationTrackingService {
     _running = false;
     await _positionSubscription?.cancel();
     _positionSubscription = null;
+    _watchdog?.cancel();
+    _watchdog = null;
     try {
       await _dio.post<void>('/locations/stop');
     } on DioException {
@@ -74,7 +81,8 @@ class LocationTrackingService {
   }
 
   Future<void> _sendPosition(Position position) async {
-    if (!_running) return;
+    if (!_running || _sending) return;
+    _sending = true;
     try {
       await _dio.post<void>('/locations/heartbeat', data: {
         'latitude': position.latitude,
@@ -84,6 +92,8 @@ class LocationTrackingService {
       });
     } on DioException {
       // Network retry occurs on the next location update; no location is fabricated.
+    } finally {
+      _sending = false;
     }
   }
 }

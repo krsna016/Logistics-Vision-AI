@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import jwt
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
@@ -137,13 +137,17 @@ async def read_live_locations(
     _: User = Depends(require_admin),
 ):
     """Return only the latest ping from each active employee session."""
+    recent_cutoff = datetime.now(timezone.utc) - timedelta(seconds=90)
     latest_ping = (
         select(
             LocationPing.employee_id,
             func.max(LocationPing.recorded_at).label("latest_recorded_at"),
         )
         .join(LocationSession, LocationSession.id == LocationPing.session_id)
-        .where(LocationSession.is_active.is_(True))
+        .where(
+            LocationSession.is_active.is_(True),
+            LocationPing.recorded_at >= recent_cutoff,
+        )
         .group_by(LocationPing.employee_id)
         .subquery()
     )
@@ -158,7 +162,11 @@ async def read_live_locations(
                 latest_ping.c.latest_recorded_at == LocationPing.recorded_at,
             ),
         )
-        .where(LocationSession.is_active.is_(True), User.is_active.is_(True))
+        .where(
+            LocationSession.is_active.is_(True),
+            User.is_active.is_(True),
+            LocationPing.recorded_at >= recent_cutoff,
+        )
     )
     rows = (await db.execute(query)).all()
     return [

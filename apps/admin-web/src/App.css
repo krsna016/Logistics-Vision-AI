@@ -70,6 +70,9 @@
 .employee-marker-label { padding: 5px 8px; color: #123047; background: rgba(255,255,255,.95); border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,.25); font-size: 11px; font-weight: 800; }
 .leaflet-container { font: inherit; }
 .leaflet-popup-content { color: #173148; font-size: 12px; line-height: 1.55; }
+.location-stream-status { display: inline-flex; align-items: center; gap: 5px; margin-left: 6px; font-size: 11px; font-weight: 700; }
+.location-stream-status.connected { color: #76e0b1; }
+.location-stream-status.reconnecting, .location-stream-status.connecting { color: #f1c879; }
 .directory-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 23px 23px 19px; }
 .directory-heading h2 { margin: 7px 0 5px; color: #eff8fb; font-size: 18px; letter-spacing: -.02em; } .directory-heading h2 span { margin-left: 5px; padding: 3px 7px; color: #9fbdc9; background: rgba(255,255,255,.07); border-radius: 6px; font-size: 10px; vertical-align: middle; } .directory-heading p { margin: 0; color: var(--muted); font-size: 12px; }
 .view-switch { display: flex; padding: 3px; background: rgba(0,0,0,.18); border: 1px solid var(--line); border-radius: 8px; } .view-switch button { width: 30px; height: 27px; display: grid; place-items: center; color: #7893a0; background: transparent; border-radius: 5px; } .view-switch button.selected { color: #d8f4ff; background: rgba(46,168,230,.2); }
