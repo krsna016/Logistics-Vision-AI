@@ -4,11 +4,13 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import delete
 from sqlalchemy.future import select
 
 from ..core.security import get_current_user, get_password_hash, require_admin
 from ..db.database import get_db
 from ..models.user import User
+from ..models.location import LocationPing, LocationSession
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
 
 router = APIRouter()
@@ -101,6 +103,10 @@ async def hard_delete_user(employee_id: str, db: AsyncSession = Depends(get_db),
         
     if user.id == actor.id:
         raise HTTPException(status_code=400, detail="You cannot delete your own account")
+    # Location records reference the employee by employee_id. Remove the
+    # dependent tracking history before deleting the account.
+    await db.execute(delete(LocationPing).where(LocationPing.employee_id == employee_id))
+    await db.execute(delete(LocationSession).where(LocationSession.employee_id == employee_id))
     await db.delete(user)
     try:
         await db.commit()
