@@ -5,6 +5,8 @@
 .brand-mark { background-image: url('/company-logo.png'); background-position: center; background-repeat: no-repeat; background-size: 82%; }
 .brand-mark > svg { display: none; }
 .company-logo { width: 82%; height: 82%; display: block; object-fit: contain; }
+.brand-mark:has(.company-logo) { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.brand-mark:has(.company-logo) .company-logo { width: 100%; height: 100%; }
 .brand-lockup h2 { margin: 0; color: #f6fbff; font-size: 16px; letter-spacing: -.02em; }
 .brand-lockup p { margin: 4px 0 0; color: var(--muted); font-size: 11px; }
 .workspace-label, .section-kicker { color: #6e94a8; font-size: 10px; font-weight: 800; letter-spacing: .14em; }
