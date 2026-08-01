@@ -16,10 +16,10 @@ def test_access_token_contains_subject_and_role(monkeypatch):
     assert isinstance(token, str)
 
 
-def test_user_creation_requires_strong_password_and_known_role():
-    valid = UserCreate(employee_id="EMP-1", name="Operator", role="Operator", password="long-enough-password")
+def test_user_creation_accepts_any_non_empty_password_and_known_role():
+    valid = UserCreate(employee_id="EMP-1", name="Operator", role="Operator", password="x")
     assert valid.role == "Operator"
     with pytest.raises(ValueError):
         UserCreate(employee_id="EMP-1", name="Operator", role="Owner", password="long-enough-password")
     with pytest.raises(ValueError):
-        UserCreate(employee_id="EMP-1", name="Operator", role="Operator", password="short")
+        UserCreate(employee_id="EMP-1", name="Operator", role="Operator", password="")

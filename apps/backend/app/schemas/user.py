@@ -10,7 +10,7 @@ class UserBase(BaseModel):
     role: Literal["Admin", "Manager", "Supervisor", "Operator"]
 
 class UserCreate(UserBase):
-    password: str = Field(min_length=12, max_length=128)
+    password: str = Field(min_length=1, max_length=128)
 
 class UserUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
