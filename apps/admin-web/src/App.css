@@ -195,6 +195,13 @@
 
 /* Larger everyday reading scale. */
 .brand-lockup h2 { font-size: 18px; }
+.brand-lockup h2 { font-size: 21px; }
+.brand-lockup p { font-size: 12px; }
+.brand-lockup .brand-mark:has(.company-logo) { width: 50px; height: 50px; }
+.auth-brand { gap: 15px; }
+.auth-brand .brand-mark:has(.company-logo) { width: 58px; height: 58px; }
+.auth-brand strong { font-size: 23px; }
+.auth-brand span { margin-top: 5px; font-size: 13px; }
 .brand-lockup p, .workspace-label { font-size: 13px; }
 .nav-button { padding: 14px 15px; font-size: 15px; }
 .page-toolbar p, .directory-heading p { font-size: 17px; }
