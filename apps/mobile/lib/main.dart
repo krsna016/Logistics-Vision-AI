@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -6,6 +7,7 @@ import 'config/environment.dart';
 import 'navigation/app_router.dart';
 import 'theme/app_theme.dart';
 import 'utils/logger.dart';
+import 'features/auth/presentation/providers/auth_providers.dart';
 
 void main() async {
   // Ensure widget bindings are loaded before background async initializes.
@@ -32,11 +34,25 @@ void main() async {
   );
 }
 
-class LogisticsVisionApp extends ConsumerWidget {
+class LogisticsVisionApp extends ConsumerStatefulWidget {
   const LogisticsVisionApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<LogisticsVisionApp> createState() => _LogisticsVisionAppState();
+}
+
+class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
+  @override
+  void initState() {
+    super.initState();
+    // Prompt on app launch. Tracking still starts only after authentication.
+    Future<void>.microtask(() {
+      ref.read(locationTrackingServiceProvider).requestPermission();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
@@ -52,8 +68,11 @@ class LogisticsVisionApp extends ConsumerWidget {
       // Keep layouts usable when a device has an unusually large display or
       // font setting. Individual screens still use responsive constraints.
       builder: (context, child) {
-        final textScale =
-            MediaQuery.textScalerOf(context).scale(1).clamp(0.9, 1.1);
+        final systemTextScale =
+            MediaQuery.textScalerOf(context).scale(1).clamp(0.92, 1.03);
+        final widthTextScale =
+            (MediaQuery.sizeOf(context).width / 390).clamp(0.92, 1.03);
+        final textScale = math.min(systemTextScale, widthTextScale);
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
             textScaler: TextScaler.linear(textScale),

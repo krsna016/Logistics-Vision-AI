@@ -17,14 +17,23 @@ class LocationTrackingService {
 
   bool get isRunning => _running;
 
-  Future<bool> start() async {
-    if (_running) return true;
-    if (!await Geolocator.isLocationServiceEnabled()) return false;
-
+  /// Requests the OS permission as soon as the app opens. The OS still
+  /// requires the employee to approve the request; apps cannot grant this
+  /// permission silently.
+  Future<LocationPermission> requestPermission() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      return LocationPermission.denied;
+    }
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
+    return permission;
+  }
+
+  Future<bool> start() async {
+    if (_running) return true;
+    final permission = await requestPermission();
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       return false;
