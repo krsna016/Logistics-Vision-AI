@@ -15,6 +15,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/providers/database_provider.dart';
 import '../../../../services/storage_service.dart';
+import '../../../../services/network_service.dart';
+import '../../../../services/location_tracking_service.dart';
 import '../../data/services/password_hasher_impl.dart';
 import '../../data/services/secure_credential_storage.dart';
 import '../../data/services/offline_authentication_impl.dart';
@@ -70,6 +72,12 @@ final secureStorageProvider = Provider((ref) {
   return const FlutterSecureStorage();
 });
 
+final locationTrackingServiceProvider = Provider((ref) {
+  return LocationTrackingService(NetworkService(
+    secureStorage: ref.watch(secureStorageProvider),
+  ));
+});
+
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final dio = ref.watch(dioProvider);
   final storage = ref.watch(secureStorageProvider);
@@ -81,16 +89,19 @@ final authProvider = StateNotifierProvider<AuthNotifier, User?>((ref) {
   return AuthNotifier(
     ref.watch(authRepositoryProvider),
     ref.watch(secureStorageProvider),
+    ref.watch(locationTrackingServiceProvider),
   );
 });
 
 class AuthNotifier extends StateNotifier<User?> {
   final AuthRepository _repository;
   final FlutterSecureStorage _storage;
+  final LocationTrackingService _locationTracking;
   Timer? _pollingTimer;
   static const _cachedUserKey = 'cached_authenticated_user';
 
-  AuthNotifier(this._repository, this._storage) : super(null) {
+  AuthNotifier(this._repository, this._storage, this._locationTracking)
+      : super(null) {
     _init();
   }
 
@@ -113,6 +124,7 @@ class AuthNotifier extends StateNotifier<User?> {
       await logout(); // Kill switch triggered, clear token
     } else {
       state = user;
+      unawaited(_locationTracking.start());
       _startPolling();
     }
   }
@@ -185,6 +197,7 @@ class AuthNotifier extends StateNotifier<User?> {
       state = user;
       if (user != null) {
         await _cacheUser(user);
+        unawaited(_locationTracking.start());
         _startPolling();
       }
       return user != null;
@@ -196,6 +209,7 @@ class AuthNotifier extends StateNotifier<User?> {
   Future<void> logout() async {
     _pollingTimer?.cancel();
     _pollingTimer = null;
+    await _locationTracking.stop();
     await _repository.logout();
     await _storage.delete(key: _cachedUserKey);
     state = null;
@@ -204,6 +218,7 @@ class AuthNotifier extends StateNotifier<User?> {
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    unawaited(_locationTracking.stop());
     super.dispose();
   }
 }

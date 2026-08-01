@@ -17,6 +17,7 @@ dependencies:
   # Hardware Capabilities
   camera: ^0.10.5+8
   permission_handler: ^11.3.0
+  geolocator: ^14.0.2
   image_picker: ^1.0.7
   # State Management & Dependency Injection
   flutter_riverpod: ^2.4.9

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Check, CheckCircle2, ChevronDown, Copy, Filter, LayoutGrid, List,
   LogOut, Plus, RefreshCcw, Search, ShieldAlert, ShieldCheck, Trash2, UserCheck,
-  Users, UserX, X
+  Users, UserX, X, MapPin
 } from 'lucide-react';
 import api from '../api';
 
@@ -79,6 +79,7 @@ export default function Dashboard() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [copied, setCopied] = useState('');
+  const [liveLocations, setLiveLocations] = useState([]);
   const navigate = useNavigate();
 
   const fetchUsers = useCallback(async (silent = false) => {
@@ -97,6 +98,20 @@ export default function Dashboard() {
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
   useEffect(() => { const timer = window.setInterval(() => fetchUsers(true), 10000); return () => window.clearInterval(timer); }, [fetchUsers]);
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 4500); return () => window.clearTimeout(timer); }, [notice]);
+  useEffect(() => {
+    let cancelled = false;
+    const fetchLocations = async () => {
+      try {
+        const response = await api.get('/locations/live');
+        if (!cancelled) setLiveLocations(Array.isArray(response.data) ? response.data : []);
+      } catch (err) {
+        if (err.response?.status === 401 && !cancelled) navigate('/login');
+      }
+    };
+    fetchLocations();
+    const timer = window.setInterval(fetchLocations, 10000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, [navigate]);
 
   const metrics = useMemo(() => {
     const active = users.filter(user => user.is_active);
@@ -146,6 +161,14 @@ export default function Dashboard() {
         <Metric icon={UserCheck} label="Active access" value={metrics.active} note="Can sign in now" tone="green" />
         <Metric icon={ShieldCheck} label="Privileged" value={metrics.privileged} note="Admin & manager" tone="purple" />
         <Metric icon={UserX} label="Revoked access" value={metrics.disabled} note="Blocked accounts" tone="red" />
+      </section>
+
+      <section className="directory-panel location-panel">
+        <div className="directory-heading">
+          <div><div className="section-kicker">ADMIN ONLY</div><h2>Live employee locations <span>{liveLocations.length}</span></h2><p>Latest authenticated device positions. Refreshes every 10 seconds.</p></div>
+          <MapPin size={22} aria-hidden="true" />
+        </div>
+        {liveLocations.length === 0 ? <div className="empty-state"><div className="empty-icon"><MapPin size={22} /></div><h3>No active locations</h3><p>No connected employee device has sent a location yet.</p></div> : <div className="table-wrap"><table className="user-table"><thead><tr><th>Employee</th><th>Last update</th><th>Accuracy</th><th>Coordinates</th></tr></thead><tbody>{liveLocations.map(location => <tr key={location.employee_id}><td><div className="user-cell"><div className="avatar">{location.employee_name?.charAt(0).toUpperCase()}</div><div><strong>{location.employee_name}</strong><span className="id-copy">{location.employee_id} · {location.role}</span></div></div></td><td>{new Date(location.recorded_at).toLocaleString()}</td><td>{location.accuracy_meters == null ? '—' : `${Math.round(location.accuracy_meters)} m`}</td><td><a href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`} target="_blank" rel="noreferrer">{location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</a></td></tr>)}</tbody></table></div>}
       </section>
 
       <section className="directory-panel">

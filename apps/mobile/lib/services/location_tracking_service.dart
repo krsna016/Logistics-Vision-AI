@@ -1,0 +1,71 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
+import 'package:geolocator/geolocator.dart';
+
+import 'network_service.dart';
+
+/// Sends the signed-in device's latest position to the authenticated API.
+/// The server derives employee identity from the JWT; it is never accepted
+/// from the location payload.
+class LocationTrackingService {
+  final Dio _dio;
+  Timer? _timer;
+  bool _running = false;
+
+  LocationTrackingService(NetworkService network) : _dio = network.client;
+
+  bool get isRunning => _running;
+
+  Future<bool> start() async {
+    if (_running) return true;
+    if (!await Geolocator.isLocationServiceEnabled()) return false;
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      return false;
+    }
+
+    _running = true;
+    await _sendOnce();
+    _timer = Timer.periodic(const Duration(seconds: 20), (_) => _sendOnce());
+    return true;
+  }
+
+  Future<void> stop() async {
+    _running = false;
+    _timer?.cancel();
+    _timer = null;
+    try {
+      await _dio.post<void>('/locations/stop');
+    } on DioException {
+      // The next session's heartbeat remains authoritative if offline.
+    }
+  }
+
+  Future<void> _sendOnce() async {
+    if (!_running) return;
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+          distanceFilter: 10,
+        ),
+      );
+      await _dio.post<void>('/locations/heartbeat', data: {
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'accuracy_meters': position.accuracy,
+        'recorded_at': DateTime.now().toUtc().toIso8601String(),
+      });
+    } on DioException {
+      // Network retry occurs on the next tick; no location is fabricated.
+    } on TimeoutException {
+      // GPS timeout is treated as a missing update.
+    }
+  }
+}

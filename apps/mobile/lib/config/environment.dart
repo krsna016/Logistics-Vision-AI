@@ -12,6 +12,8 @@ enum Environment {
   }
 
   String get apiBaseUrl {
+    const override = String.fromEnvironment('API_BASE_URL');
+    if (override.isNotEmpty) return override;
     switch (this) {
       case Environment.development:
         return 'https://logistics-vision-ai.onrender.com/api'; // Switched to cloud backend for testing
