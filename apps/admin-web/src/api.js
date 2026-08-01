@@ -2,8 +2,9 @@ import axios from 'axios';
 import { getSessionToken, hasValidSession } from './auth';
 
 const api = axios.create({
-  // Use Vercel environment variable for production, fallback to localhost for local dev
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000/api', 
+  // Use an explicit override for local/staging environments; hosted Admin
+  // builds must default to the deployed API instead of a visitor's localhost.
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'https://logistics-vision-ai.onrender.com/api',
 });
 
 api.interceptors.request.use((config) => {
