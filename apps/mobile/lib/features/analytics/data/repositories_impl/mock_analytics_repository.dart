@@ -34,7 +34,7 @@ class MockAnalyticsRepository implements AnalyticsRepository {
       rejectedDetections: (42 * _getMultiplier(filter)).round(),
       retakeRate: 0.03,
       detectionSuccessRate: 0.98,
-      activeModelVersion: 'YOLO11s v1.0',
+      activeModelVersion: 'yolo11n_carton_seg_v1_3',
     );
   }
 

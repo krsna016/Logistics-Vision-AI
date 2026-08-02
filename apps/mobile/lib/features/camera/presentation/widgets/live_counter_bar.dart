@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/decision_state.dart';
+import '../../../../core/ai_engine/models/ai_model.dart';
 
 class LiveCounterBar extends StatelessWidget {
   final int detectedCount;
@@ -113,7 +114,7 @@ class LiveCounterBar extends StatelessWidget {
                         fontSize: 9,
                         fontWeight: FontWeight.bold)),
                 SizedBox(height: 2),
-                Text('YOLO11s',
+                Text(AIModel.activeLabel,
                     style: TextStyle(
                         color: Colors.blue,
                         fontSize: 14,

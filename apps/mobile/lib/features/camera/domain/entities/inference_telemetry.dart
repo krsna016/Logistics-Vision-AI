@@ -19,7 +19,7 @@ class InferenceTelemetry {
     this.postprocessingTimeMs = 0.0,
     this.droppedFramesCount = 0,
     this.totalDetectionsCount = 0,
-    this.modelVersion = '1.0.0-YOLOv8n',
+    this.modelVersion = 'yolo11n_carton_seg_v1_3',
   });
 
   InferenceTelemetry copyWith({

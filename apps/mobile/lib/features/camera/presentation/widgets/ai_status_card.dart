@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/presentation/layout/responsive.dart';
+import '../../../../core/ai_engine/models/ai_model.dart';
 import '../../domain/entities/decision_state.dart';
 
 class AIStatusCard extends StatelessWidget {
@@ -84,7 +85,7 @@ class AIStatusCard extends StatelessWidget {
                       fontSize: 9,
                       fontWeight: FontWeight.bold)),
               const Spacer(),
-              const Text('YOLO11s v1',
+              const Text(AIModel.activeLabel,
                   style: TextStyle(
                       color: Colors.blue,
                       fontSize: 10,

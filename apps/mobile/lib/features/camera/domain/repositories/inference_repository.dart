@@ -9,6 +9,9 @@ abstract class InferenceRepository {
   /// Execute pre-processing, model inference, and post-processing on a camera image.
   Future<List<Detection>> runInference(CameraImage image);
 
+  /// Run the same model once against a still image selected from the gallery.
+  Future<List<Detection>> runGalleryInference(String imagePath);
+
   /// Toggle debug visualizations and stats overlays.
   void setDebugMode(bool enabled);
 

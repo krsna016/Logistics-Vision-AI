@@ -1,4 +1,6 @@
 class AIModel {
+  static const activeLabel = 'YOLO11n Seg';
+  static const activeVersion = 'yolo11n_carton_seg_v1_3';
   final String id;
   final String name;
   final String version;
@@ -29,21 +31,22 @@ class AIModel {
     required this.assetPath,
   });
 
-  factory AIModel.yolo11n() {
+  factory AIModel.modelB() {
     return AIModel(
-      id: 'yolo11n_carton_v1',
-      name: 'YOLO11n Carton Detector',
-      version: '1.0.0',
-      trainingDate: DateTime(2026, 6, 1),
-      deploymentDate: DateTime(2026, 7, 1),
+      id: activeVersion,
+      name: 'YOLO11n Carton Segmentation Model',
+      version: '1.3.0',
+      trainingDate: DateTime(2026, 8, 1),
+      deploymentDate: DateTime(2026, 8, 2),
       inputWidth: 640,
       inputHeight: 640,
       outputClasses: const ['carton'],
-      expectedMap: 0.995,
-      expectedPrecision: 1.0,
-      expectedRecall: 1.0,
-      assetPath: 'assets/models/carton_yolo11n.onnx',
-      developerNotes: 'Validated YOLO11n carton detector exported to ONNX.',
+      expectedMap: 0.983,
+      expectedPrecision: 0.97,
+      expectedRecall: 0.95,
+      assetPath: 'assets/models/carton_model_b.onnx',
+      developerNotes:
+          'Model B: YOLO11n instance-segmentation model trained for carton counting.',
     );
   }
 }

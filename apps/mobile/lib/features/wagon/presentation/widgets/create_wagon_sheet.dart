@@ -305,6 +305,9 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
                   ElevatedButton(
                     onPressed: _isSaving ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(56),
+                    ),
                     child: _isSaving
                         ? const SizedBox(
                             width: 20,
@@ -322,4 +325,5 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       ),
     );
   }
+
 }

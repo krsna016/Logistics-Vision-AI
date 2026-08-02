@@ -173,7 +173,7 @@ class LocalLayerRepository implements LayerRepository {
               cartonCount: cartons,
               timestamp: drift.Value(timestamp),
               operatorId: const drift.Value('operator_demo'),
-              modelVersion: const drift.Value('carton-yolo11n-v1'),
+              modelVersion: const drift.Value('yolo11n_carton_seg_v1_3'),
               averageConfidence: drift.Value(confidence),
               notes: drift.Value(notes),
               createdAt: drift.Value(timestamp),

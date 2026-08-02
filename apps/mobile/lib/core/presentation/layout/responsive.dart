@@ -16,10 +16,10 @@ class AppResponsive {
   static bool isTablet(BuildContext context) => width(context) >= 600;
 
   static double pagePadding(BuildContext context) =>
-      math.min(24, math.max(16, width(context) * 0.05));
+      math.min(20, math.max(15, width(context) * 0.048));
 
   static double scale(BuildContext context, double value,
-      {double min = 0.9, double max = 1.08}) {
+      {double min = 0.92, double max = 1.03}) {
     final factor = width(context) / 390;
     return value * factor.clamp(min, max);
   }
@@ -28,14 +28,13 @@ class AppResponsive {
       math.min(max, width(context) - (pagePadding(context) * 2));
 
   static double cardPadding(BuildContext context) {
-    if (isCompact(context)) return 14;
-    if (isTablet(context)) return 20;
-    return 16;
+    if (isCompact(context)) return 13;
+    if (isTablet(context)) return 16;
+    return 15;
   }
 
   static double gap(BuildContext context, {double normal = 12}) {
     if (isCompact(context)) return math.max(8, normal - 4);
-    if (isTablet(context)) return normal + 4;
     return normal;
   }
 

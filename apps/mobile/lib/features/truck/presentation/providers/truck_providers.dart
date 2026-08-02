@@ -142,8 +142,10 @@ class TruckListNotifier extends StateNotifier<TruckListState> {
     return null; // Return null if success
   }
 
-  Future<String?> editTruck(Truck updated) async {
-    if (updated.isArchived) return 'Cannot edit archived trucks.';
+  Future<String?> editTruck(Truck updated, {bool allowArchived = false}) async {
+    if (updated.isArchived && !allowArchived) {
+      return 'Cannot edit archived trucks from the active workflow.';
+    }
 
     final exists = await _repository.isTruckNumberExists(updated.truckNumber,
         excludeId: updated.id, wagonId: updated.wagonId);

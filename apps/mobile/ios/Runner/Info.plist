@@ -30,6 +30,8 @@
 	<string>SmartLoad uses your location to provide live workforce visibility to authorized administrators while you are signed in.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>SmartLoad uses your location in the background to provide live workforce visibility to authorized administrators while you are signed in.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>SmartLoad uses the camera to scan vehicle registration numbers and count cartons.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

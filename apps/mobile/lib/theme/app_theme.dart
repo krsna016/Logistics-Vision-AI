@@ -28,6 +28,8 @@ class AppTheme {
     return ThemeData(
       useMaterial3: true,
       brightness: Brightness.dark,
+      visualDensity: VisualDensity.compact,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       scaffoldBackgroundColor: backgroundColor,
       colorScheme: const ColorScheme.dark(
         primary: primaryColor,
@@ -73,13 +75,26 @@ class AppTheme {
           side: BorderSide.none,
         ),
       ),
+      snackBarTheme: SnackBarThemeData(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: surfaceColor,
+        elevation: 8,
+        insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        contentTextStyle: const TextStyle(
+          color: textPrimary,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+        actionTextColor: warningColor,
+      ),
       textTheme: const TextTheme(
         headlineLarge: TextStyle(
-            fontSize: 32, fontWeight: FontWeight.bold, color: textPrimary),
+            fontSize: 30, fontWeight: FontWeight.bold, color: textPrimary),
         headlineMedium: TextStyle(
-            fontSize: 24, fontWeight: FontWeight.bold, color: textPrimary),
+            fontSize: 23, fontWeight: FontWeight.bold, color: textPrimary),
         titleLarge: TextStyle(
-            fontSize: 20, fontWeight: FontWeight.bold, color: textPrimary),
+            fontSize: 19, fontWeight: FontWeight.bold, color: textPrimary),
         titleMedium: TextStyle(
             fontSize: 16, fontWeight: FontWeight.w600, color: textPrimary),
         bodyLarge: TextStyle(fontSize: 14, color: textPrimary),

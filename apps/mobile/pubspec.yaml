@@ -19,6 +19,7 @@ dependencies:
   permission_handler: ^11.3.0
   geolocator: ^14.0.2
   image_picker: ^1.0.7
+  google_mlkit_text_recognition: ^0.15.0
   # State Management & Dependency Injection
   flutter_riverpod: ^2.4.9
   riverpod_annotation: ^2.3.3
@@ -38,6 +39,7 @@ dependencies:
   # Modern UI Elements & Icons
   cupertino_icons: ^1.0.6
   onnxruntime: ^1.4.1
+  image: ^4.3.0
   flutter_markdown: ^0.7.3
   connectivity_plus: ^7.3.1
   fl_chart: ^1.2.0
@@ -71,4 +73,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/models/carton_yolo11n.onnx
+    - assets/models/carton_model_b.onnx

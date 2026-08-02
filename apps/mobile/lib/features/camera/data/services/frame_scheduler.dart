@@ -6,8 +6,13 @@ import '../../../../utils/logger.dart';
 
 class FrameScheduler {
   final InferenceRepository _repository;
+  static const _minimumInferenceInterval = Duration(milliseconds: 140);
+
   bool _isProcessing = false;
+  bool _isDisposed = false;
   CameraImage? _nextFrame;
+  Timer? _wakeTimer;
+  DateTime? _lastInferenceStart;
   int _droppedFrames = 0;
 
   final _detectionController = StreamController<List<Detection>>.broadcast();
@@ -19,17 +24,40 @@ class FrameScheduler {
 
   /// Schedule a camera frame for processing. Drops intermediate frames if busy.
   void scheduleFrame(CameraImage image) {
-    if (_isProcessing) {
-      // Overwrite the previous pending frame to process only the latest captured state.
-      if (_nextFrame != null) {
-        _droppedFrames++;
-      }
-      _nextFrame = image;
+    if (_isDisposed) return;
+
+    // Keep only the newest frame. Camera streams can deliver 30+ frames per
+    // second while ONNX inference is much slower; retaining every frame makes
+    // the queue stale and increases memory pressure.
+    if (_nextFrame != null) {
+      _droppedFrames++;
+    }
+    _nextFrame = image;
+    _scheduleNextIfDue();
+  }
+
+  void _scheduleNextIfDue() {
+    if (_isDisposed || _isProcessing || _nextFrame == null) return;
+
+    final lastStart = _lastInferenceStart;
+    final elapsed = lastStart == null
+        ? _minimumInferenceInterval
+        : DateTime.now().difference(lastStart);
+    final remaining = _minimumInferenceInterval - elapsed;
+
+    if (remaining > Duration.zero) {
+      _wakeTimer ??= Timer(remaining, () {
+        _wakeTimer = null;
+        _scheduleNextIfDue();
+      });
       return;
     }
 
+    final frame = _nextFrame;
+    _nextFrame = null;
     _isProcessing = true;
-    _processFrame(image);
+    _lastInferenceStart = DateTime.now();
+    unawaited(_processFrame(frame!));
   }
 
   Future<void> _processFrame(CameraImage image) async {
@@ -45,11 +73,7 @@ class FrameScheduler {
       _isProcessing = false;
 
       // If a newer frame arrived while we were busy, execute it now.
-      final next = _nextFrame;
-      if (next != null) {
-        _nextFrame = null;
-        scheduleFrame(next);
-      }
+      _scheduleNextIfDue();
     }
   }
 
@@ -58,6 +82,10 @@ class FrameScheduler {
   }
 
   void dispose() {
+    _isDisposed = true;
+    _wakeTimer?.cancel();
+    _wakeTimer = null;
+    _nextFrame = null;
     _detectionController.close();
   }
 }

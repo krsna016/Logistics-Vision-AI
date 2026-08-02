@@ -67,11 +67,20 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     final token = await const FlutterSecureStorage()
         .read(key: StorageService.keyJwtToken);
     String? employeeId;
-    if (token != null && token.isNotEmpty && !JwtDecoder.isExpired(token)) {
-      final claims = JwtDecoder.decode(token);
-      final subject = claims['sub'];
-      if (subject is String && subject.trim().isNotEmpty) {
-        employeeId = subject.trim();
+    if (token != null && token.isNotEmpty) {
+      try {
+        final claims = JwtDecoder.decode(token);
+        final exp = claims['exp'];
+        final tokenUsable = exp == null ||
+            (exp is num &&
+                DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000)
+                    .isAfter(DateTime.now()));
+        final subject = claims['sub'];
+        if (tokenUsable && subject is String && subject.trim().isNotEmpty) {
+          employeeId = subject.trim();
+        }
+      } catch (_) {
+        // Fall back to the local active user lookup below.
       }
     }
 
@@ -144,7 +153,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         operatorId: await _operatorName(),
         photoPath: photoPath,
         notes: notes,
-        modelVersion: '1.0.0-YOLOv8n',
+        modelVersion: 'yolo11n_carton_seg_v1_3',
         averageConfidence: confidence,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),

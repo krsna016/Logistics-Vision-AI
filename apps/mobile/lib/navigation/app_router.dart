@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../features/camera/presentation/screens/camera_screen.dart';
 import '../features/camera/presentation/screens/count_method_screens.dart';
 import '../features/truck/presentation/screens/truck_details_screen.dart';
+import '../features/truck/domain/entities/truck.dart';
 import '../features/layer/presentation/screens/layer_review_screen.dart';
 import '../features/layer/domain/entities/ai_result.dart';
 
@@ -100,6 +101,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'truck_details',
         builder: (context, state) => TruckDetailsScreen(
           truckId: state.pathParameters['id'] ?? '',
+          fallbackTruck:
+              (state.extra as Map<String, dynamic>?)?['truck'] as Truck?,
+          allowArchivedEditing:
+              ((state.extra as Map<String, dynamic>?)?['allowArchivedEditing']
+                      as bool?) ??
+                  false,
         ),
         routes: [
           GoRoute(
@@ -142,7 +149,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                     count: 0,
                     averageConfidence: 0.9,
                     processingTimeMs: 12.0,
-                    modelVersion: '1.0.0-YOLOv8n',
+                    modelVersion: 'yolo11n_carton_seg_v1_3',
                     inferenceTimestamp: DateTime.now(),
                     frameSize: const Size(720, 1280),
                   );

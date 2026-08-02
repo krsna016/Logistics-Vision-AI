@@ -19,9 +19,27 @@ class RemoteAuthRepository implements AuthRepository {
 
   bool get sessionWasRevoked => _sessionWasRevoked;
 
+  /// Persistent sessions use a JWT without an `exp` claim. Older tokens may
+  /// still contain one, so retain compatibility with those tokens while
+  /// avoiding `JwtDecoder.isExpired` throwing for the new format.
+  bool _isTokenUsable(String token) {
+    try {
+      final claims = JwtDecoder.decode(token);
+      final exp = claims['exp'];
+      if (exp == null) return true;
+      if (exp is num) {
+        return DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000)
+            .isAfter(DateTime.now());
+      }
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<bool> hasValidToken() async {
     final token = await _storage.read(key: StorageService.keyJwtToken);
-    return token != null && token.isNotEmpty && !JwtDecoder.isExpired(token);
+    return token != null && token.isNotEmpty && _isTokenUsable(token);
   }
 
   RemoteAuthRepository(this._dio, this._storage);
@@ -70,7 +88,7 @@ class RemoteAuthRepository implements AuthRepository {
   @override
   Future<Session?> getCurrentSession() async {
     final token = await _storage.read(key: StorageService.keyJwtToken);
-    if (token == null || JwtDecoder.isExpired(token)) {
+    if (token == null || !_isTokenUsable(token)) {
       _sessionWasRevoked = token != null;
       await _storage.delete(key: StorageService.keyJwtToken);
       _cachedUser = null;
@@ -94,7 +112,7 @@ class RemoteAuthRepository implements AuthRepository {
   Future<User?> getCurrentUser() async {
     _sessionWasRevoked = false;
     final token = await _storage.read(key: StorageService.keyJwtToken);
-    if (token == null || JwtDecoder.isExpired(token)) {
+    if (token == null || !_isTokenUsable(token)) {
       _sessionWasRevoked = token != null;
       await _storage.delete(key: StorageService.keyJwtToken);
       _cachedUser = null;

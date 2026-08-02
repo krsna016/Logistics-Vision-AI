@@ -7,7 +7,9 @@ class Postprocessor {
 
   Postprocessor({
     this.confidenceThreshold = 0.5,
-    this.iouThreshold = 0.45,
+    // A slightly stricter threshold removes duplicate hypotheses produced by
+    // the segmentation head while preserving adjacent cartons.
+    this.iouThreshold = 0.20,
   });
 
   /// Processes raw ONNX output tensors into discrete bounding boxes.
@@ -71,11 +73,49 @@ class Postprocessor {
     candidates.sort((a, b) => b.confidence.compareTo(a.confidence));
     final selected = <DetectionResult>[];
     for (final candidate in candidates) {
-      if (selected.every((other) => _iou(candidate, other) < iouThreshold)) {
+      if (selected.every((other) => !_isDuplicate(candidate, other))) {
         selected.add(candidate);
       }
     }
     return selected;
+  }
+
+  bool _isDuplicate(DetectionResult first, DetectionResult second) {
+    if (_iou(first, second) >= iouThreshold) return true;
+
+    final left = math.max(first.xMin, second.xMin);
+    final top = math.max(first.yMin, second.yMin);
+    final right = math.min(first.xMax, second.xMax);
+    final bottom = math.min(first.yMax, second.yMax);
+    final intersection =
+        math.max(0.0, right - left) * math.max(0.0, bottom - top);
+    if (intersection <= 0) return false;
+
+    final firstArea = (first.xMax - first.xMin) * (first.yMax - first.yMin);
+    final secondArea =
+        (second.xMax - second.xMin) * (second.yMax - second.yMin);
+    final smallerArea = math.min(firstArea, secondArea);
+
+    // Duplicate boxes often have different edges but cover a large portion of
+    // the smaller hypothesis. This catches them when IoU alone is too low.
+    if (smallerArea > 0 && intersection / smallerArea >= 0.30) return true;
+
+    final firstCenterX = (first.xMin + first.xMax) / 2.0;
+    final firstCenterY = (first.yMin + first.yMax) / 2.0;
+    final secondCenterX = (second.xMin + second.xMax) / 2.0;
+    final secondCenterY = (second.yMin + second.yMax) / 2.0;
+    final centerDistance = math.sqrt(
+      math.pow(firstCenterX - secondCenterX, 2) +
+          math.pow(firstCenterY - secondCenterY, 2),
+    );
+    final smallestSide = math.min(
+      math.min(first.xMax - first.xMin, first.yMax - first.yMin),
+      math.min(second.xMax - second.xMin, second.yMax - second.yMin),
+    );
+
+    // Two predictions whose centers are very close and whose boxes overlap
+    // are almost always duplicate hypotheses for one carton.
+    return smallestSide > 0 && centerDistance <= smallestSide * 0.70;
   }
 
   double _iou(DetectionResult a, DetectionResult b) {

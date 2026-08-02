@@ -1,14 +1,17 @@
+import 'dart:async';
+import 'dart:typed_data';
+
 import '../models/ai_model.dart';
 import '../../../../utils/logger.dart';
 import 'package:flutter/services.dart';
 import 'package:onnxruntime/onnxruntime.dart';
-import 'dart:typed_data';
 
 class ModelManager {
   AIModel? _activeModel;
   OrtSession? _session;
   OrtSessionOptions? _sessionOptions;
   bool _envInitialized = false;
+  Future<void> _lastRun = Future<void>.value();
 
   Future<void> loadModel(AIModel model) async {
     await unloadModel();
@@ -27,6 +30,7 @@ class ModelManager {
   }
 
   Future<void> unloadModel() async {
+    await _lastRun;
     _session?.release();
     _session = null;
     _sessionOptions?.release();
@@ -48,21 +52,33 @@ class ModelManager {
   OrtSession? get session => _session;
 
   Future<dynamic> run(Float32List input) async {
+    final previousRun = _lastRun;
+    final runComplete = Completer<void>();
+    _lastRun = runComplete.future;
+    await previousRun;
+
     final session = _session;
-    if (session == null) throw StateError('ONNX model is not loaded');
+    if (session == null) {
+      runComplete.complete();
+      throw StateError('ONNX model is not loaded');
+    }
+
     final inputOrt =
         OrtValueTensor.createTensorWithDataList(input, [1, 3, 640, 640]);
     final runOptions = OrtRunOptions();
+    List<OrtValue?>? outputs;
     try {
-      final outputs = await session.runAsync(
+      outputs = await session.runAsync(
             runOptions,
             {session.inputNames.first: inputOrt},
           ) ??
           const <OrtValue?>[];
       return outputs.isEmpty ? null : outputs.first?.value;
     } finally {
+      outputs?.forEach((output) => output?.release());
       inputOrt.release();
       runOptions.release();
+      runComplete.complete();
     }
   }
 }

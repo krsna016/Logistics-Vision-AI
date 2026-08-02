@@ -281,7 +281,15 @@ class AppDrawer extends ConsumerWidget {
           truckNotifier.refresh();
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('Demo Data Loaded successfully.')));
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle_outline,
+                      color: Colors.white, size: 20),
+                  SizedBox(width: 10),
+                  Expanded(child: Text('Demo data loaded successfully.')),
+                ],
+              ),
+            ));
           }
         },
       ),

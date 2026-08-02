@@ -4,18 +4,24 @@ import 'detection_painter.dart';
 
 class DetectionOverlayWidget extends StatelessWidget {
   final List<Detection> detections;
+  final List<Detection>? hitTestDetections;
   final Size cameraSize;
   final BoxFit fit;
   final String? selectedId;
+  final bool showLabels;
   final ValueChanged<Detection>? onDetectionTapped;
+  final ValueChanged<Offset>? onEmptyAreaTapped;
 
   const DetectionOverlayWidget({
     super.key,
     required this.detections,
+    this.hitTestDetections,
     required this.cameraSize,
     this.fit = BoxFit.cover,
     this.selectedId,
+    this.showLabels = true,
     this.onDetectionTapped,
+    this.onEmptyAreaTapped,
   });
 
   @override
@@ -28,6 +34,7 @@ class DetectionOverlayWidget extends StatelessWidget {
           cameraSize: cameraSize,
           fit: fit,
           selectedId: selectedId,
+          showLabels: showLabels,
         ),
         child: Container(),
       ),
@@ -35,7 +42,7 @@ class DetectionOverlayWidget extends StatelessWidget {
   }
 
   void _handleTap(BuildContext context, Offset localPosition) {
-    if (onDetectionTapped == null || detections.isEmpty) return;
+    if (onDetectionTapped == null && onEmptyAreaTapped == null) return;
 
     final RenderBox renderBox = context.findRenderObject() as RenderBox;
     final size = renderBox.size;
@@ -58,7 +65,16 @@ class DetectionOverlayWidget extends StatelessWidget {
       dy = (size.height - cameraSize.height * scale) / 2;
     }
 
-    for (final detection in detections) {
+    // Prefer visible detections so a hidden box cannot steal taps from a
+    // visible box beneath it. Hidden detections remain available afterwards
+    // so tapping a hidden area can restore that box.
+    final visibleIds = detections.map((detection) => detection.id).toSet();
+    final tappableDetections = <Detection>[
+      ...detections,
+      ...?hitTestDetections
+          ?.where((detection) => !visibleIds.contains(detection.id)),
+    ];
+    for (final detection in tappableDetections) {
       final double left =
           detection.boundingBox.xMin * cameraSize.width * scale + dx;
       final double top =
@@ -70,9 +86,29 @@ class DetectionOverlayWidget extends StatelessWidget {
 
       final rect = Rect.fromLTRB(left, top, right, bottom);
       if (rect.contains(localPosition)) {
-        onDetectionTapped!(detection);
+        onDetectionTapped?.call(detection);
         break;
       }
+    }
+
+    if (onEmptyAreaTapped != null &&
+        !tappableDetections.any((detection) {
+          final left =
+              detection.boundingBox.xMin * cameraSize.width * scale + dx;
+          final top =
+              detection.boundingBox.yMin * cameraSize.height * scale + dy;
+          final right =
+              detection.boundingBox.xMax * cameraSize.width * scale + dx;
+          final bottom =
+              detection.boundingBox.yMax * cameraSize.height * scale + dy;
+          return Rect.fromLTRB(left, top, right, bottom)
+              .contains(localPosition);
+        })) {
+      final normalized = Offset(
+        ((localPosition.dx - dx) / (cameraSize.width * scale)).clamp(0.0, 1.0),
+        ((localPosition.dy - dy) / (cameraSize.height * scale)).clamp(0.0, 1.0),
+      );
+      onEmptyAreaTapped!(normalized);
     }
   }
 }

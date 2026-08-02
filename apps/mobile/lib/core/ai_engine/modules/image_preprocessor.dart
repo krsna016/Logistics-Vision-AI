@@ -1,6 +1,7 @@
 import 'package:camera/camera.dart';
 import 'dart:typed_data';
 import 'dart:math' as math;
+import 'package:image/image.dart' as img;
 
 class ImagePreprocessor {
   final int targetWidth;
@@ -38,6 +39,42 @@ class ImagePreprocessor {
         output[index] = rgb[0] / 255.0;
         output[targetWidth * targetHeight + index] = rgb[1] / 255.0;
         output[2 * targetWidth * targetHeight + index] = rgb[2] / 255.0;
+      }
+    }
+    return output;
+  }
+
+  /// Prepares a decoded gallery image using the same letterbox and RGB
+  /// normalization as the live camera pipeline.
+  Float32List processRgbImage(img.Image image) {
+    final output = Float32List(3 * targetHeight * targetWidth);
+    final scale =
+        math.min(targetWidth / image.width, targetHeight / image.height);
+    final resizedWidth = (image.width * scale).round();
+    final resizedHeight = (image.height * scale).round();
+    final padX = (targetWidth - resizedWidth) / 2.0;
+    final padY = (targetHeight - resizedHeight) / 2.0;
+
+    for (var y = 0; y < targetHeight; y++) {
+      for (var x = 0; x < targetWidth; x++) {
+        final inside = x >= padX &&
+            x < padX + resizedWidth &&
+            y >= padY &&
+            y < padY + resizedHeight;
+        final sourceX = inside
+            ? (((x - padX) / scale).floor()).clamp(0, image.width - 1)
+            : 0;
+        final sourceY = inside
+            ? (((y - padY) / scale).floor()).clamp(0, image.height - 1)
+            : 0;
+        final pixel = inside ? image.getPixel(sourceX, sourceY) : null;
+        final red = pixel?.r.toDouble() ?? 114.0;
+        final green = pixel?.g.toDouble() ?? 114.0;
+        final blue = pixel?.b.toDouble() ?? 114.0;
+        final index = y * targetWidth + x;
+        output[index] = red / 255.0;
+        output[targetWidth * targetHeight + index] = green / 255.0;
+        output[2 * targetWidth * targetHeight + index] = blue / 255.0;
       }
     }
     return output;

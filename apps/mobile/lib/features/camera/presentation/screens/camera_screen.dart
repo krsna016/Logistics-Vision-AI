@@ -4,6 +4,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
 import '../providers/camera_notifier.dart';
@@ -12,16 +13,13 @@ import '../providers/inference_notifier.dart';
 import '../providers/inference_state.dart';
 import '../providers/decision_providers.dart';
 import '../../domain/entities/decision_state.dart';
+import '../../domain/entities/detection.dart';
 import '../widgets/detection_overlay_widget.dart';
-import '../widgets/debug_telemetry_overlay.dart';
 import '../../../layer/domain/entities/ai_result.dart';
-import '../../../truck/domain/entities/truck.dart';
-import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../layer/presentation/providers/layer_providers.dart';
-import '../../../wagon/presentation/providers/wagon_providers.dart';
-import '../../../wagon/domain/entities/wagon.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/storage/image_storage_service.dart';
+import '../../../../core/ai_engine/models/ai_model.dart';
 import '../../../../utils/logger.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
@@ -39,6 +37,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
   late Animation<double> _pulseAnim;
   final _streamKey = GlobalKey<_CameraStreamAdapterState>();
   final _imageStorage = ImageStorageService();
+  double _gestureStartZoom = 1.0;
+  double _gestureZoom = 1.0;
+  bool _isGalleryAnalyzing = false;
 
   @override
   void initState() {
@@ -62,15 +63,27 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     try {
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
-        setState(() => _pickedImagePath = image.path);
+        setState(() {
+          _pickedImagePath = image.path;
+          _isGalleryAnalyzing = true;
+        });
         AppLogger.info('Custom photo loaded for analysis: ${image.path}');
-        // Gallery inference is not wired to the CameraImage pipeline yet.
-        // Do not fabricate detections; only the live camera path may publish
-        // boxes until still-image inference is implemented.
         ref.read(countingDecisionProvider.notifier).resetAnalyzer();
+        await ref
+            .read(inferenceNotifierProvider.notifier)
+            .processGalleryImage(image.path);
+        final detections = ref.read(inferenceNotifierProvider).detections;
+        final decisionNotifier = ref.read(countingDecisionProvider.notifier);
+        // A still image has no frame history, so use the same result as a
+        // short stable window to enable review immediately.
+        for (var i = 0; i < 5; i++) {
+          decisionNotifier.analyzeFrameDetections(detections);
+        }
+        if (mounted) setState(() => _isGalleryAnalyzing = false);
       }
     } catch (e, stack) {
       AppLogger.error('Failed to import photo', e, stack);
+      if (mounted) setState(() => _isGalleryAnalyzing = false);
     }
   }
 
@@ -79,36 +92,12 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     final cameraState = ref.watch(cameraNotifierProvider);
     final cameraNotifier = ref.read(cameraNotifierProvider.notifier);
     final inferenceState = ref.watch(inferenceNotifierProvider);
-    final inferenceNotifier = ref.read(inferenceNotifierProvider.notifier);
     final decisionState = ref.watch(countingDecisionProvider);
     final decisionNotifier = ref.read(countingDecisionProvider.notifier);
     final routerState = GoRouterState.of(context);
     final truckId = routerState.pathParameters['id'] ?? '';
-
-    // Derive truck/wagon context for top bar
-    final truckState = ref.watch(truckListProvider);
-    final truck = truckState.trucks.firstWhere(
-      (t) => t.id == truckId,
-      orElse: () => Truck(
-        id: '',
-        truckNumber: '------',
-        vehicleNumber: '',
-        driverName: '',
-        company: '',
-        warehouse: '',
-        status: TruckStatus.loading,
-        createdDate: DateTime.now(),
-        updatedDate: DateTime.now(),
-      ),
-    );
     final layerState = ref.watch(layerListProvider(truckId));
     final currentLayer = layerState.layers.length + 1;
-
-    final wagonState = ref.watch(wagonListProvider);
-    final wagon = wagonState.wagons.firstWhere(
-      (w) => w.id == truck.wagonId,
-      orElse: () => _emptyWagon(),
-    );
 
     final bool isReadyForReview =
         decisionState.status == CountingDecisionState.readyForReview;
@@ -118,66 +107,109 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ── Layer 0: Full-screen camera or gallery image ──────────────
-          Positioned.fill(
-            child: isGallery
-                ? _GalleryPreview(
-                    path: _pickedImagePath!,
-                    decisionState: decisionState,
-                  )
-                : _buildMainContent(context, cameraState, cameraNotifier),
+          // ── Layer 0: Bounded camera or gallery preview ─────────────────
+          // Keep the preview large enough for carton inspection, while
+          // leaving stable space for the header and capture controls.
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 62,
+            left: 12,
+            right: 12,
+            bottom: 158,
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final width = math.min(
+                  constraints.maxWidth,
+                  constraints.maxHeight * 3 / 4,
+                );
+                return Center(
+                  child: SizedBox(
+                    width: width,
+                    height: width * 4 / 3,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onScaleStart: !isGallery
+                          ? (_) => _gestureStartZoom = _gestureZoom
+                          : null,
+                      onScaleUpdate: !isGallery
+                          ? (details) {
+                              if (details.scale == 1.0) return;
+                              _gestureZoom = (_gestureStartZoom * details.scale)
+                                  .clamp(1.0, 20.0)
+                                  .toDouble();
+                              cameraNotifier.setZoomLevel(_gestureZoom);
+                            }
+                          : null,
+                      child: isGallery
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(28),
+                              clipBehavior: Clip.antiAlias,
+                              child: _GalleryPreview(
+                                path: _pickedImagePath!,
+                                decisionState: decisionState,
+                                detections: inferenceState.detections,
+                              ),
+                            )
+                          : _buildMainContent(
+                              context, cameraState, cameraNotifier),
+                    ),
+                  ),
+                );
+              },
+            ),
           ),
 
-          // ── Layer 1: Top Information Bar ──────────────────────────────
+          // ── Layer 1: Simple camera header ──────────────────────────────
           Positioned(
             top: 0,
             left: 0,
             right: 0,
-            child: _CameraTopBar(
-              wagonNumber: wagon.wagonNumber,
-              truckNumber: truck.vehicleNumber,
-              layerNumber: currentLayer,
-              totalCartons: truck.totalCartons,
-              isOnline: false,
-            ),
+            child: _SimpleCameraHeader(layerNumber: currentLayer),
           ),
 
-          // ── Layer 2: AI Status Panel (top-right, below top bar) ───────
-          Positioned(
-            top: 100,
-            right: 12,
-            child: _AIStatusPanel(
-              inferenceState: inferenceState,
-              decisionState: decisionState,
-            ),
-          ),
-
-          // ── Layer 4: Debug Telemetry (conditional) ────────────────────
-          if (inferenceState.isDebugMode)
-            Positioned(
-              top: 240,
-              right: 12,
-              child: DebugTelemetryOverlay(telemetry: inferenceState.telemetry),
-            ),
-
-          // ── Layer 5: Live Counter Bar (bottom-center, above controls) ─
+          // ── Layer 2: Simple live count ─────────────────────────────────
           if (cameraState.status == CameraStatus.ready || isGallery)
             Positioned(
-              bottom: 160,
+              top: 72,
               left: 16,
-              right: 16,
-              child: _LiveCounterBar(
-                detectedCount: decisionState.stableCount,
-                confidence: decisionState.averageConfidence,
-                stabilityScore: decisionState.stabilityScore,
-                status: decisionState.status,
-                recommendedAction: decisionState.recommendedAction,
-                warnings: decisionState.warnings,
-                qualityScore: decisionState.qualityScore,
+              child: _SimpleCountBadge(
+                count: decisionState.stableCount > 0
+                    ? decisionState.stableCount
+                    : inferenceState.detections.length,
               ),
             ),
 
-          // ── Layer 6: Capture Controls (bottom dock) ───────────────────
+          if (_isGalleryAnalyzing)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: Center(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Color(0xDD101010),
+                      borderRadius: BorderRadius.all(Radius.circular(14)),
+                    ),
+                    child: Padding(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          SizedBox(width: 10),
+                          Text('Counting cartons...',
+                              style: TextStyle(color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          // ── Layer 3: Capture Controls (bottom dock) ────────────────────
           if (cameraState.status == CameraStatus.ready || isGallery)
             Positioned(
               bottom: 0,
@@ -186,7 +218,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
               child: _CaptureControlsDock(
                 isReadyForReview: isReadyForReview,
                 isGallery: isGallery,
-                isDebugMode: inferenceState.isDebugMode,
                 onGallery: _pickImage,
                 onFlipCamera: () {
                   if (isGallery) {
@@ -196,7 +227,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                   }
                   decisionNotifier.resetAnalyzer();
                 },
-                onDebugToggle: () => inferenceNotifier.toggleDebugOverlay(),
                 onReset: () {
                   setState(() => _pickedImagePath = null);
                   decisionNotifier.resetAnalyzer();
@@ -230,10 +260,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       {String? photoPath, int? capturedCount}) {
     final aiResult = AIResult(
       detections: inferenceState.detections,
-      count: capturedCount ?? decisionState.stableCount,
+      count: capturedCount ??
+          (_pickedImagePath != null
+              ? inferenceState.detections.length
+              : decisionState.stableCount),
       averageConfidence: 0.96,
       processingTimeMs: 15.0,
-      modelVersion: '1.0.0-YOLOv8n',
+      modelVersion: 'yolo11n_carton_seg_v1_3',
       inferenceTimestamp: DateTime.now(),
       frameSize: const Size(720, 1280),
     );
@@ -336,27 +369,77 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
         );
     }
   }
+}
 
-  // ignore: prefer_const_constructors
-  Wagon _emptyWagon() {
-    // Returns a placeholder when wagon lookup fails
-    // Using dynamic to avoid importing wagon entity here
-    return Wagon(
-      id: '',
-      wagonNumber: '------',
-      origin: '',
-      destination: '',
-      loadingDate: DateTime.now(),
-      expectedTruckCount: 0,
-      completedTruckCount: 0,
-      status: WagonStatus.loading,
-      createdAt: DateTime.now(),
-      updatedAt: DateTime.now(),
+class _SimpleCameraHeader extends StatelessWidget {
+  final int layerNumber;
+
+  const _SimpleCameraHeader({required this.layerNumber});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        top: MediaQuery.of(context).padding.top + 8,
+        left: 8,
+        right: 16,
+        bottom: 12,
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Color(0xE6000000), Colors.transparent],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ),
+      ),
+      child: Row(
+        children: [
+          IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () =>
+                context.canPop() ? context.pop() : context.go('/wagons'),
+          ),
+          const Expanded(
+            child: Text(
+              'Capture Layer',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold),
+            ),
+          ),
+          Text('Layer $layerNumber',
+              style: const TextStyle(color: Colors.white70, fontSize: 13)),
+        ],
+      ),
+    );
+  }
+}
+
+class _SimpleCountBadge extends StatelessWidget {
+  final int count;
+
+  const _SimpleCountBadge({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        '$count cartons',
+        style: const TextStyle(
+            color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+      ),
     );
   }
 }
 
 // ─── TOP INFORMATION BAR ─────────────────────────────────────────────────────
+// ignore: unused_element
 class _CameraTopBar extends StatelessWidget {
   final String wagonNumber;
   final String truckNumber;
@@ -523,6 +606,7 @@ class _TopChip extends StatelessWidget {
 }
 
 // ─── AI STATUS PANEL ─────────────────────────────────────────────────────────
+// ignore: unused_element
 class _AIStatusPanel extends StatelessWidget {
   final dynamic inferenceState;
   final DecisionState decisionState;
@@ -601,7 +685,7 @@ class _AIStatusPanel extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.8)),
               const Spacer(),
-              const Text('YOLO11s',
+              const Text(AIModel.activeLabel,
                   style: TextStyle(
                       color: AppTheme.primaryColor,
                       fontSize: 9,
@@ -629,7 +713,7 @@ class _AIStatusPanel extends StatelessWidget {
           const SizedBox(height: 6),
           Row(
             children: [
-              const _AIMetric(label: 'MODEL', value: 'v1.0'),
+              const _AIMetric(label: 'MODEL', value: 'v1.3'),
               const SizedBox(width: 8),
               _AIMetric(
                   label: 'STATUS', value: _statusLabel, color: _statusColor),
@@ -674,6 +758,7 @@ class _AIMetric extends StatelessWidget {
 }
 
 // ─── LIVE COUNTER BAR ─────────────────────────────────────────────────────────
+// ignore: unused_element
 class _LiveCounterBar extends StatelessWidget {
   final int detectedCount;
   final double confidence;
@@ -773,7 +858,7 @@ class _LiveCounterBar extends StatelessWidget {
                           ? AppTheme.successColor
                           : AppTheme.warningColor),
                   _vDivider(),
-                  const _CountCol('MODEL', 'YOLO11s',
+                  const _CountCol('MODEL', AIModel.activeLabel,
                       color: AppTheme.primaryColor),
                 ],
               ),
@@ -987,10 +1072,8 @@ class _GuidePainter extends CustomPainter {
 class _CaptureControlsDock extends StatelessWidget {
   final bool isReadyForReview;
   final bool isGallery;
-  final bool isDebugMode;
   final VoidCallback onGallery;
   final VoidCallback onFlipCamera;
-  final VoidCallback onDebugToggle;
   final VoidCallback onReset;
   final VoidCallback? onCapture;
   final VoidCallback? onReview;
@@ -999,10 +1082,8 @@ class _CaptureControlsDock extends StatelessWidget {
   const _CaptureControlsDock({
     required this.isReadyForReview,
     required this.isGallery,
-    required this.isDebugMode,
     required this.onGallery,
     required this.onFlipCamera,
-    required this.onDebugToggle,
     required this.onReset,
     required this.onCapture,
     required this.onReview,
@@ -1048,13 +1129,6 @@ class _CaptureControlsDock extends StatelessWidget {
                 icon: Icons.refresh_outlined,
                 label: 'Reset',
                 onTap: onReset,
-              ),
-              _IconControl(
-                icon:
-                    isDebugMode ? Icons.bug_report : Icons.bug_report_outlined,
-                label: 'Debug',
-                onTap: onDebugToggle,
-                iconColor: isDebugMode ? Colors.greenAccent : Colors.white70,
               ),
             ],
           ),
@@ -1120,13 +1194,11 @@ class _IconControl extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final Color? iconColor;
 
   const _IconControl({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.iconColor,
   });
 
   @override
@@ -1144,7 +1216,7 @@ class _IconControl extends StatelessWidget {
               shape: BoxShape.circle,
               border: Border.all(color: Colors.white24),
             ),
-            child: Icon(icon, color: iconColor ?? Colors.white, size: 22),
+            child: Icon(icon, color: Colors.white, size: 22),
           ),
           const SizedBox(height: 4),
           Text(label,
@@ -1210,15 +1282,61 @@ class _CameraErrorState extends StatelessWidget {
 }
 
 // ─── GALLERY PREVIEW ─────────────────────────────────────────────────────────
-class _GalleryPreview extends StatelessWidget {
+class _GalleryPreview extends StatefulWidget {
   final String path;
   final DecisionState decisionState;
+  final List<Detection> detections;
 
-  const _GalleryPreview({required this.path, required this.decisionState});
+  const _GalleryPreview({
+    required this.path,
+    required this.decisionState,
+    required this.detections,
+  });
+
+  @override
+  State<_GalleryPreview> createState() => _GalleryPreviewState();
+}
+
+class _GalleryPreviewState extends State<_GalleryPreview> {
+  Size _imageSize = const Size(640, 640);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadImageSize();
+  }
+
+  Future<void> _loadImageSize() async {
+    try {
+      final bytes = await File(widget.path).readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded != null && mounted) {
+        setState(() {
+          _imageSize = Size(
+            decoded.width.toDouble(),
+            decoded.height.toDouble(),
+          );
+        });
+      }
+    } catch (_) {
+      // Keep the square fallback if the image dimensions are unavailable.
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Image.file(File(path), fit: BoxFit.cover);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Image.file(File(widget.path), fit: BoxFit.contain),
+        DetectionOverlayWidget(
+          detections: widget.detections,
+          cameraSize: _imageSize,
+          fit: BoxFit.contain,
+          showLabels: false,
+        ),
+      ],
+    );
   }
 }
 
@@ -1314,14 +1432,26 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     // CameraPreview applies the platform-specific rotation and aspect-ratio
     // transform internally. Keep the overlay as its child so its canvas is
     // exactly the same rectangle as the displayed camera frame.
-    return Center(
-      child: CameraPreview(
-        widget.controller,
-        child: Positioned.fill(
-          child: DetectionOverlayWidget(
-            detections: inferenceState.detections,
-            cameraSize: cameraSize,
-            fit: BoxFit.fill,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(28),
+      clipBehavior: Clip.antiAlias,
+      child: Center(
+        child: FittedBox(
+          fit: BoxFit.cover,
+          child: SizedBox(
+            width: cameraSize.width,
+            height: cameraSize.height,
+            child: CameraPreview(
+              widget.controller,
+              child: Positioned.fill(
+                child: DetectionOverlayWidget(
+                  detections: inferenceState.detections,
+                  cameraSize: cameraSize,
+                  fit: BoxFit.fill,
+                  showLabels: false,
+                ),
+              ),
+            ),
           ),
         ),
       ),

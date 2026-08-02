@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image/image.dart' as img;
 
 import '../../../../theme/app_theme.dart';
 import '../../../../presentation/widgets/app_card.dart';
@@ -10,6 +11,7 @@ import '../../domain/entities/ai_result.dart';
 import '../../domain/entities/layer.dart';
 import '../../../camera/presentation/widgets/detection_overlay_widget.dart';
 import '../../../../utils/logger.dart';
+import '../../../camera/domain/entities/detection.dart';
 
 class LayerReviewScreen extends ConsumerStatefulWidget {
   final String truckId;
@@ -37,6 +39,8 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   bool _showManualCorrection = false;
   String? _errorMessage;
   late int _correctedCount;
+  late List<Detection> _editableDetections;
+  final Set<String> _hiddenDetectionIds = <String>{};
   String? _correctionReason;
 
   late AnimationController _countController;
@@ -47,6 +51,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     super.initState();
     _notesCtrl.text = widget.initialNotes ?? '';
     _correctedCount = widget.aiResult.count;
+    _editableDetections = List<Detection>.of(widget.aiResult.detections);
 
     _countController = AnimationController(
       vsync: this,
@@ -67,13 +72,33 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
 
   void _adjustCount(int delta) {
     setState(() {
-      _correctedCount = (_correctedCount + delta).clamp(0, 9999);
-      _countAnim = IntTween(
-              begin: _correctedCount - delta, end: _correctedCount)
-          .animate(
-              CurvedAnimation(parent: _countController, curve: Curves.easeOut));
-      _countController.reset();
-      _countController.forward();
+      _animateCountTo((_correctedCount + delta).clamp(0, 9999));
+    });
+  }
+
+  void _animateCountTo(int nextCount) {
+    final previousCount = _correctedCount;
+    _correctedCount = nextCount;
+    _countAnim = IntTween(begin: previousCount, end: nextCount).animate(
+      CurvedAnimation(parent: _countController, curve: Curves.easeOut),
+    );
+    _countController
+      ..reset()
+      ..forward();
+  }
+
+  List<Detection> get _visibleDetections => _editableDetections
+      .where((detection) => !_hiddenDetectionIds.contains(detection.id))
+      .toList(growable: false);
+
+  void _toggleDetection(Detection detection) {
+    setState(() {
+      if (_hiddenDetectionIds.contains(detection.id)) {
+        _hiddenDetectionIds.remove(detection.id);
+      } else {
+        _hiddenDetectionIds.add(detection.id);
+      }
+      _animateCountTo(_visibleDetections.length);
     });
   }
 
@@ -164,8 +189,11 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                 // ── 1. Image with bounding boxes ──────────────────────────
                 _ImagePreviewSection(
                   photoPath: widget.photoPath,
-                  aiResult: widget.aiResult,
+                  detections: _visibleDetections,
+                  allDetections: _editableDetections,
+                  count: _correctedCount,
                   showBoxes: _showBoxes,
+                  onDetectionTapped: _toggleDetection,
                   onToggleBoxes: () => setState(() => _showBoxes = !_showBoxes),
                 ),
 
@@ -317,52 +345,105 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
 
 // ─── Sub-Widgets ─────────────────────────────────────────────────────────────
 
-class _ImagePreviewSection extends StatelessWidget {
+class _ImagePreviewSection extends StatefulWidget {
   final String? photoPath;
-  final AIResult aiResult;
+  final List<Detection> detections;
+  final List<Detection> allDetections;
+  final int count;
   final bool showBoxes;
+  final ValueChanged<Detection> onDetectionTapped;
   final VoidCallback onToggleBoxes;
 
   const _ImagePreviewSection({
     required this.photoPath,
-    required this.aiResult,
+    required this.detections,
+    required this.allDetections,
+    required this.count,
     required this.showBoxes,
+    required this.onDetectionTapped,
     required this.onToggleBoxes,
   });
 
   @override
+  State<_ImagePreviewSection> createState() => _ImagePreviewSectionState();
+}
+
+class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
+  late final TransformationController _zoomController;
+  Size _photoSize = const Size(720, 1280);
+
+  @override
+  void initState() {
+    super.initState();
+    _zoomController = TransformationController();
+    _loadPhotoSize();
+  }
+
+  Future<void> _loadPhotoSize() async {
+    final path = widget.photoPath;
+    if (path == null) return;
+    try {
+      final bytes = await File(path).readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded != null && mounted) {
+        setState(() => _photoSize = Size(
+              decoded.width.toDouble(),
+              decoded.height.toDouble(),
+            ));
+      }
+    } catch (_) {
+      // Keep the safe fallback size when the reference image cannot be read.
+    }
+  }
+
+  @override
+  void dispose() {
+    _zoomController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final height = MediaQuery.of(context).size.height * 0.42;
+    final height = (MediaQuery.of(context).size.height * 0.54)
+        .clamp(380.0, 620.0)
+        .toDouble();
 
     return SizedBox(
       height: height,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          // Base image
-          photoPath != null
-              ? Image.file(File(photoPath!), fit: BoxFit.cover)
-              : Container(
-                  color: const Color(0xFF0A1628),
-                  child: const Center(
-                    child: Icon(Icons.photo_camera_outlined,
-                        size: 80, color: Colors.white24),
+          InteractiveViewer(
+            transformationController: _zoomController,
+            minScale: 1,
+            maxScale: 4,
+            boundaryMargin: const EdgeInsets.all(80),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                widget.photoPath != null
+                    ? Image.file(File(widget.photoPath!), fit: BoxFit.contain)
+                    : Container(
+                        color: const Color(0xFF0A1628),
+                        child: const Center(
+                          child: Icon(Icons.photo_camera_outlined,
+                              size: 80, color: Colors.white24),
+                        ),
+                      ),
+                if (widget.showBoxes)
+                  Positioned.fill(
+                    child: DetectionOverlayWidget(
+                      detections: widget.detections,
+                      hitTestDetections: widget.allDetections,
+                      cameraSize: _photoSize,
+                      fit: BoxFit.contain,
+                      showLabels: false,
+                      onDetectionTapped: widget.onDetectionTapped,
+                    ),
                   ),
-                ),
-
-          // Bounding boxes
-          if (showBoxes)
-            AnimatedOpacity(
-              opacity: showBoxes ? 1.0 : 0.0,
-              duration: const Duration(milliseconds: 300),
-              child: Positioned.fill(
-                child: DetectionOverlayWidget(
-                  detections: aiResult.detections,
-                  cameraSize: aiResult.frameSize,
-                  fit: BoxFit.cover,
-                ),
-              ),
+              ],
             ),
+          ),
 
           // Top gradient
           Positioned(
@@ -403,7 +484,7 @@ class _ImagePreviewSection extends StatelessWidget {
             top: 12,
             right: 12,
             child: GestureDetector(
-              onTap: onToggleBoxes,
+              onTap: widget.onToggleBoxes,
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -415,7 +496,7 @@ class _ImagePreviewSection extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      showBoxes
+                      widget.showBoxes
                           ? Icons.visibility_outlined
                           : Icons.visibility_off_outlined,
                       size: 14,
@@ -423,12 +504,28 @@ class _ImagePreviewSection extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      showBoxes ? 'Hide Boxes' : 'Show Boxes',
+                      widget.showBoxes ? 'Hide Boxes' : 'Show Boxes',
                       style:
                           const TextStyle(color: Colors.white70, fontSize: 11),
                     ),
                   ],
                 ),
+              ),
+            ),
+          ),
+
+          Positioned(
+            top: 14,
+            left: 14,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: const Text(
+                'Tap box to hide  •  Tap same area to restore',
+                style: TextStyle(color: Colors.white70, fontSize: 10),
               ),
             ),
           ),
@@ -444,7 +541,7 @@ class _ImagePreviewSection extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                '${aiResult.count} cartons detected',
+                '${widget.count} cartons detected',
                 style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,

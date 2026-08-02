@@ -30,11 +30,12 @@ def get_password_hash(password: str) -> str:
     return bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
 
 def create_access_token(subject: str | Any, role: str, expires_delta: timedelta | None = None) -> str:
+    # A missing expiry is intentional for the mobile app's persistent session.
+    # Access is still revoked server-side when the user is inactive.
+    to_encode = {"sub": str(subject), "role": role}
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"exp": expire, "sub": str(subject), "role": role}
+        to_encode["exp"] = expire
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
     return encoded_jwt
 

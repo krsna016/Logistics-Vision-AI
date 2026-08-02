@@ -4,8 +4,9 @@ import '../../../truck/domain/entities/truck.dart';
 
 class TruckTable extends StatelessWidget {
   final List<Truck> trucks;
+  final ValueChanged<Truck>? onTruckTap;
 
-  const TruckTable({super.key, required this.trucks});
+  const TruckTable({super.key, required this.trucks, this.onTruckTap});
 
   @override
   Widget build(BuildContext context) {
@@ -77,10 +78,15 @@ class TruckTable extends StatelessWidget {
                 ...trucks.map((truck) {
                   return DataRow(
                     cells: [
-                      DataCell(Text(truck.truckNumber,
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white))),
+                      DataCell(
+                        Text(truck.truckNumber,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
+                        onTap: onTruckTap == null
+                            ? null
+                            : () => onTruckTap!(truck),
+                      ),
                       DataCell(Text(truck.driverName)),
                       DataCell(Text(truck.company)),
                       DataCell(Text('${truck.totalLayers}')),

@@ -20,8 +20,15 @@ import '../widgets/layer_timeline.dart';
 
 class TruckDetailsScreen extends ConsumerWidget {
   final String truckId;
+  final Truck? fallbackTruck;
+  final bool allowArchivedEditing;
 
-  const TruckDetailsScreen({super.key, required this.truckId});
+  const TruckDetailsScreen({
+    super.key,
+    required this.truckId,
+    this.fallbackTruck,
+    this.allowArchivedEditing = false,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,17 +41,19 @@ class TruckDetailsScreen extends ConsumerWidget {
 
     final truck = listState.trucks.firstWhere(
       (e) => e.id == truckId,
-      orElse: () => Truck(
-        id: '',
-        truckNumber: 'Not Found',
-        vehicleNumber: '',
-        driverName: '',
-        company: '',
-        warehouse: '',
-        status: TruckStatus.loading,
-        createdDate: DateTime.now(),
-        updatedDate: DateTime.now(),
-      ),
+      orElse: () =>
+          fallbackTruck ??
+          Truck(
+            id: '',
+            truckNumber: 'Not Found',
+            vehicleNumber: '',
+            driverName: '',
+            company: '',
+            warehouse: '',
+            status: TruckStatus.loading,
+            createdDate: DateTime.now(),
+            updatedDate: DateTime.now(),
+          ),
     );
 
     if (truck.id.isEmpty) {
@@ -59,8 +68,12 @@ class TruckDetailsScreen extends ConsumerWidget {
 
     // Completed/dispatched trucks can still be corrected until archived.
     // Archiving is the explicit point at which layer editing is locked.
-    final isReadOnly = truck.isArchived;
-    final canEditOrDelete = !truck.isArchived;
+    // Archived records stay closed for operational actions, but the Digital
+    // Register provides an audit-correction path for layer notes/deletions.
+    final isWorkflowReadOnly = truck.isArchived;
+    final isLayerReadOnly = truck.isArchived && !allowArchivedEditing;
+    final canEditOrDelete = !truck.isArchived || allowArchivedEditing;
+    final canDelete = !truck.isArchived;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -90,7 +103,10 @@ class TruckDetailsScreen extends ConsumerWidget {
                     borderRadius:
                         BorderRadius.vertical(top: Radius.circular(20)),
                   ),
-                  builder: (ctx) => TruckFormDialog(existingTruck: truck),
+                  builder: (ctx) => TruckFormDialog(
+                    existingTruck: truck,
+                    allowArchivedEdit: allowArchivedEditing,
+                  ),
                 );
               },
             ),
@@ -99,7 +115,7 @@ class TruckDetailsScreen extends ConsumerWidget {
             tooltip: 'Generate Report',
             onPressed: () => _showUnifiedReportDialog(context, ref, truckId),
           ),
-          if (canEditOrDelete)
+          if (canDelete)
             IconButton(
               icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
               tooltip: 'Delete Truck',
@@ -183,7 +199,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                 else
                   LayerTimeline(
                     layers: layerState.layers,
-                    isReadOnly: isReadOnly,
+                    isReadOnly: isLayerReadOnly,
                     onEditNotes: (layer) =>
                         _editLayerNotesDialog(context, layerNotifier, layer),
                     onDeleteLayer: (layer) {
@@ -219,27 +235,33 @@ class TruckDetailsScreen extends ConsumerWidget {
       )),
 
       // ── 6. Sticky Bottom Action Bar ─────────────────────────────────────
-      bottomNavigationBar: _StickyBottomBar(
-        isReadOnly: isReadOnly,
-        hasActiveSession: sessionState.activeSession?.truckId == truckId,
-        onStartSession: () async {
-          final error = await sessionNotifier.startSession(
-              truckId: truckId, warehouseId: truck.warehouse);
-          if (error != null && context.mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: Text(error)));
-          }
-        },
-        onCapture: isReadOnly
-            ? null
-            : () => context.push('/trucks/$truckId/count-method'),
-        onComplete: !isReadOnly && layerState.layers.isNotEmpty
-            ? () => _confirmComplete(context, notifier, sessionNotifier, truck)
-            : null,
-        onArchive: truck.status == TruckStatus.completed && !truck.isArchived
-            ? () => _confirmArchive(context, notifier, truck)
-            : null,
-      ),
+      // Digital Register is a history workspace, not an operational workflow.
+      // Hide loading/archive controls when a truck is opened from the register.
+      bottomNavigationBar: allowArchivedEditing
+          ? null
+          : _StickyBottomBar(
+              isReadOnly: isWorkflowReadOnly,
+              hasActiveSession: sessionState.activeSession?.truckId == truckId,
+              onStartSession: () async {
+                final error = await sessionNotifier.startSession(
+                    truckId: truckId, warehouseId: truck.warehouse);
+                if (error != null && context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(error)));
+                }
+              },
+              onCapture: isWorkflowReadOnly
+                  ? null
+                  : () => context.push('/trucks/$truckId/count-method'),
+              onComplete: !isWorkflowReadOnly && layerState.layers.isNotEmpty
+                  ? () => _confirmComplete(
+                      context, notifier, sessionNotifier, truck)
+                  : null,
+              onArchive:
+                  truck.status == TruckStatus.completed && !truck.isArchived
+                      ? () => _confirmArchive(context, notifier, truck)
+                      : null,
+            ),
     );
   }
 
@@ -662,6 +684,7 @@ class _EmptyLayersState extends StatelessWidget {
 }
 
 class _StickyBottomBar extends StatelessWidget {
+  static const double _actionHeight = 56;
   final bool isReadOnly;
   final bool hasActiveSession;
   final VoidCallback? onStartSession;
@@ -684,8 +707,8 @@ class _StickyBottomBar extends StatelessWidget {
       padding: EdgeInsets.only(
         left: 16,
         right: 16,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 12,
+        top: 10,
+        bottom: MediaQuery.of(context).padding.bottom + 10,
       ),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
@@ -710,7 +733,8 @@ class _StickyBottomBar extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.textSecondary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  minimumSize: const Size.fromHeight(_actionHeight),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                 ),
@@ -743,7 +767,8 @@ class _StickyBottomBar extends StatelessWidget {
                           : AppTheme.primaryColor,
                       foregroundColor:
                           isReadOnly ? AppTheme.textSecondary : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      minimumSize: const Size.fromHeight(_actionHeight),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                     ),
@@ -751,8 +776,8 @@ class _StickyBottomBar extends StatelessWidget {
                 ),
                 const SizedBox(width: 10),
                 SizedBox(
-                  width: 54,
-                  height: 54,
+                  width: _actionHeight,
+                  height: _actionHeight,
                   child: IconButton(
                     onPressed: onComplete,
                     tooltip: 'Complete Loading Session',

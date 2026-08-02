@@ -1,0 +1,26 @@
+{
+  "inputDataset": "dataset-5",
+  "outputDataset": "d5",
+  "createdAt": "2026-07-31T12:51:52.685Z",
+  "trainPercentage": 70,
+  "validationPercentage": 20,
+  "testPercentage": 10,
+  "randomSeed": 42,
+  "groupingMethod": "none",
+  "duplicatePolicy": "same-split",
+  "sourceImages": 38,
+  "exportedImages": 38,
+  "excludedImages": 0,
+  "missingLabels": 0,
+  "invalidImages": 0,
+  "classDistribution": {
+    "0": 1936
+  },
+  "finalSplitCounts": {
+    "train": 26,
+    "valid": 8,
+    "test": 4
+  },
+  "holdoutPath": null,
+  "warnings": []
+}

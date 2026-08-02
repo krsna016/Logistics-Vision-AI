@@ -8,6 +8,7 @@ import '../../../../core/presentation/widgets/strict_action_warning_dialog.dart'
 import '../../domain/entities/digital_register.dart';
 import '../providers/register_providers.dart';
 import '../../../wagon/presentation/providers/wagon_providers.dart';
+import '../../../wagon/presentation/widgets/create_wagon_sheet.dart';
 import '../widgets/register_header.dart';
 import '../widgets/truck_table.dart';
 import '../widgets/summary_section.dart';
@@ -49,6 +50,11 @@ class RegisterDetailsScreen extends ConsumerWidget {
         title: Text('${register.wagonNumber} — Digital Register'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.edit_outlined),
+            tooltip: 'Edit Wagon Details',
+            onPressed: () => _editWagon(context, ref, register.wagonId),
+          ),
+          IconButton(
             icon: const Icon(Icons.assessment_outlined),
             onPressed: () =>
                 _showUnifiedReportDialog(context, ref, register.wagonId),
@@ -76,7 +82,16 @@ class RegisterDetailsScreen extends ConsumerWidget {
             const SizedBox(height: 16),
 
             // Truck Table
-            TruckTable(trucks: register.trucks),
+            TruckTable(
+              trucks: register.trucks,
+              onTruckTap: (truck) => context.push(
+                '/trucks/${truck.id}',
+                extra: <String, dynamic>{
+                  'truck': truck,
+                  'allowArchivedEditing': true,
+                },
+              ),
+            ),
             const SizedBox(height: 16),
 
             // Remarks Section
@@ -94,6 +109,24 @@ class RegisterDetailsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _editWagon(
+      BuildContext context, WidgetRef ref, String wagonId) async {
+    final wagon = await ref.read(wagonRepositoryProvider).getWagonById(wagonId);
+    if (!context.mounted || wagon == null) return;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => CreateWagonSheet(existingWagon: wagon),
+    );
+    if (context.mounted) {
+      await ref.read(registerListProvider.notifier).refresh();
+    }
   }
 
   void _confirmDelete(

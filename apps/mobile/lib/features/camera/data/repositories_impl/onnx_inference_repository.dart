@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:image/image.dart' as img;
 import 'package:camera/camera.dart';
 
 import '../../../../core/ai_engine/inference_pipeline.dart';
@@ -28,12 +30,41 @@ class ONNXInferenceRepository implements InferenceRepository {
 
   @override
   Future<void> loadModel() async {
-    await _pipeline.modelManager.loadModel(AIModel.yolo11n());
+    await _pipeline.modelManager.loadModel(AIModel.modelB());
   }
 
   @override
   Future<List<Detection>> runInference(CameraImage image) async {
     return await _pipeline.run(image);
+  }
+
+  @override
+  Future<List<Detection>> runGalleryInference(String imagePath) async {
+    final bytes = await File(imagePath).readAsBytes();
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) return [];
+
+    final image = img.bakeOrientation(decoded);
+    final input = _pipeline.preprocessor.processRgbImage(image);
+    final rawOutput = await _pipeline.modelManager.run(input);
+    final decodedResults = _pipeline.postprocessor.process(
+      rawOutput is List ? rawOutput.cast<dynamic>() : const [],
+      imageWidth: image.width,
+      imageHeight: image.height,
+    );
+    return _pipeline.validator.validate(decodedResults).map((d) {
+      return Detection(
+        id: d.id,
+        label: d.label,
+        confidence: d.confidence,
+        boundingBox: BoundingBox(
+          xMin: d.xMin,
+          yMin: d.yMin,
+          xMax: d.xMax,
+          yMax: d.yMax,
+        ),
+      );
+    }).toList(growable: false);
   }
 
   @override

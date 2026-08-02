@@ -6,12 +6,14 @@ class DetectionPainter extends CustomPainter {
   final Size cameraSize;
   final BoxFit fit;
   final String? selectedId;
+  final bool showLabels;
 
   DetectionPainter({
     required this.detections,
     required this.cameraSize,
     this.fit = BoxFit.cover,
     this.selectedId,
+    this.showLabels = true,
   });
 
   @override
@@ -67,6 +69,8 @@ class DetectionPainter extends CustomPainter {
       final rect = Rect.fromLTRB(left, top, right, bottom);
       canvas.drawRect(rect, boxPaint);
 
+      if (!showLabels) continue;
+
       // Render Label banner overlay
       final confidencePct = (detection.confidence * 100).toStringAsFixed(0);
       final labelText = '${detection.label} ($confidencePct%)';
@@ -94,6 +98,7 @@ class DetectionPainter extends CustomPainter {
     return oldDelegate.detections != detections ||
         oldDelegate.cameraSize != cameraSize ||
         oldDelegate.fit != fit ||
-        oldDelegate.selectedId != selectedId;
+        oldDelegate.selectedId != selectedId ||
+        oldDelegate.showLabels != showLabels;
   }
 }

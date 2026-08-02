@@ -40,7 +40,16 @@ class _LoginCardState extends ConsumerState<LoginCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Invalid credentials or unauthorized device.'),
+            content: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    color: Colors.white, size: 20),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text('Invalid credentials or unauthorized device.'),
+                ),
+              ],
+            ),
             backgroundColor: AppTheme.errorColor,
           ),
         );

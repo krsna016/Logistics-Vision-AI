@@ -92,7 +92,7 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
         operatorId: 'usr_loader_01', // Mock user profile
         startTime: DateTime.now(),
         status: SessionStatus.started,
-        modelVersion: '1.0.0-YOLOv8n',
+        modelVersion: 'yolo11n_carton_seg_v1_3',
       );
 
       await _repository.saveSession(newSession);

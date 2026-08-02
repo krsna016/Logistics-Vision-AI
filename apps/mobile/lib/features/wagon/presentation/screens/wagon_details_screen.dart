@@ -750,6 +750,7 @@ class WagonDetailsScreen extends ConsumerWidget {
 }
 
 class _WagonBottomBar extends StatelessWidget {
+  static const double _actionHeight = 56;
   final bool isArchived;
   final bool canComplete;
   final VoidCallback onRegisterTruck;
@@ -768,10 +769,10 @@ class _WagonBottomBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 12,
-        bottom: MediaQuery.of(context).padding.bottom + 12,
+        left: 12,
+        right: 12,
+        top: 10,
+        bottom: MediaQuery.of(context).padding.bottom + 10,
       ),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
@@ -796,7 +797,8 @@ class _WagonBottomBar extends StatelessWidget {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.textSecondary,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  minimumSize: const Size.fromHeight(_actionHeight),
+                  padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14)),
                 ),
@@ -819,16 +821,17 @@ class _WagonBottomBar extends StatelessWidget {
                           : AppTheme.primaryColor,
                       foregroundColor:
                           isArchived ? AppTheme.textSecondary : Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      minimumSize: const Size.fromHeight(_actionHeight),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14)),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 8),
                 SizedBox(
-                  width: 54,
-                  height: 54,
+                  width: _actionHeight,
+                  height: _actionHeight,
                   child: IconButton(
                     onPressed: canComplete ? onComplete : null,
                     tooltip: 'Complete Wagon',

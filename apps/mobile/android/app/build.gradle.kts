@@ -34,6 +34,15 @@ android {
     }
 }
 
+dependencies {
+    // The ML Kit Flutter bridge references optional script classes during
+    // release shrinking, even though this scanner uses Latin recognition.
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-devanagari:16.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-japanese:16.0.1")
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17

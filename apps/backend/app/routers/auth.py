@@ -8,7 +8,6 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 
-from ..core.config import settings
 from ..core.security import create_access_token, verify_password
 from ..db.database import get_db
 from ..models.user import User
@@ -53,9 +52,16 @@ async def login_for_access_token(
             detail="Inactive user"
         )
         
-    access_token_expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     user.failed_login_attempts = 0
     user.locked_until = None
     await db.commit()
-    access_token = create_access_token(subject=user.employee_id, role=user.role, expires_delta=access_token_expires)
+    # This app is designed for a persistent operator session.  The token is
+    # still checked against the active user record on every authenticated
+    # request, so disabling the user in the admin panel immediately revokes
+    # access.  An explicit logout deletes the token on the device.
+    access_token = create_access_token(
+        subject=user.employee_id,
+        role=user.role,
+        expires_delta=None,
+    )
     return {"access_token": access_token, "token_type": "bearer"}

@@ -306,6 +306,9 @@ class WagonListScreen extends ConsumerWidget {
         },
         icon: const Icon(Icons.add),
         label: const Text('Create Wagon'),
+        extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
+        extendedIconLabelSpacing: 8,
+        materialTapTargetSize: MaterialTapTargetSize.padded,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       ),
     );

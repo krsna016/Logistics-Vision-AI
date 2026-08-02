@@ -2,13 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/truck.dart';
 import '../providers/truck_providers.dart';
+import '../screens/vehicle_number_scanner_screen.dart';
 import '../../../../theme/app_theme.dart';
 
 class TruckFormDialog extends ConsumerStatefulWidget {
   final Truck? existingTruck;
   final String? wagonId;
+  final bool allowArchivedEdit;
 
-  const TruckFormDialog({super.key, this.existingTruck, this.wagonId});
+  const TruckFormDialog({
+    super.key,
+    this.existingTruck,
+    this.wagonId,
+    this.allowArchivedEdit = false,
+  });
 
   @override
   ConsumerState<TruckFormDialog> createState() => _TruckFormDialogState();
@@ -93,7 +100,10 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
             : _warehouseCtrl.text.trim(),
         notes: _notesCtrl.text.isEmpty ? 'NIL' : _notesCtrl.text,
       );
-      error = await notifier.editTruck(updated);
+      error = await notifier.editTruck(
+        updated,
+        allowArchived: widget.allowArchivedEdit,
+      );
     }
 
     if (mounted) {
@@ -201,8 +211,15 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
                   TextFormField(
                     controller: _vehicleNumberCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Vehicle Number*', hintText: 'e.g. V-101'),
+                    decoration: InputDecoration(
+                      labelText: 'Vehicle Number*',
+                      hintText: 'e.g. V-101',
+                      suffixIcon: IconButton(
+                        tooltip: 'Open vehicle number scanner',
+                        onPressed: _isSaving ? null : _scanVehicleNumber,
+                        icon: const Icon(Icons.document_scanner_outlined),
+                      ),
+                    ),
                     validator: (val) =>
                         val == null || val.trim().isEmpty ? 'Required.' : null,
                   ),
@@ -246,6 +263,9 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
                   ElevatedButton(
                     onPressed: _isSaving ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(56),
+                    ),
                     child: _isSaving
                         ? const SizedBox(
                             width: 20,
@@ -260,5 +280,20 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
         ),
       ),
     );
+  }
+
+  Future<void> _scanVehicleNumber() async {
+    final scannedNumber = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const VehicleNumberScannerScreen()),
+    );
+    if (!mounted || scannedNumber == null || scannedNumber.trim().isEmpty) {
+      return;
+    }
+    setState(() {
+      _vehicleNumberCtrl.text = scannedNumber;
+      _vehicleNumberCtrl.selection = TextSelection.collapsed(
+        offset: _vehicleNumberCtrl.text.length,
+      );
+    });
   }
 }

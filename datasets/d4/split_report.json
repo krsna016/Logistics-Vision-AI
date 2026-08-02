@@ -1,0 +1,26 @@
+{
+  "inputDataset": "dataset-4",
+  "outputDataset": "d4",
+  "createdAt": "2026-07-31T11:52:11.358Z",
+  "trainPercentage": 70,
+  "validationPercentage": 20,
+  "testPercentage": 10,
+  "randomSeed": 42,
+  "groupingMethod": "none",
+  "duplicatePolicy": "same-split",
+  "sourceImages": 406,
+  "exportedImages": 406,
+  "excludedImages": 0,
+  "missingLabels": 0,
+  "invalidImages": 0,
+  "classDistribution": {
+    "0": 17042
+  },
+  "finalSplitCounts": {
+    "train": 284,
+    "valid": 81,
+    "test": 41
+  },
+  "holdoutPath": null,
+  "warnings": []
+}
