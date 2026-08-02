@@ -9,22 +9,23 @@ import 'package:path_provider/path_provider.dart';
 class VehiclePlateImagePreprocessor {
   VehiclePlateImagePreprocessor._();
 
-  static Future<List<String>> createVariants(String sourcePath) async {
+  static Future<String> createFocusedImage(String sourcePath) async {
     final directory = await getTemporaryDirectory();
     final outputPath =
         '${directory.path}/vehicle_plate_${DateTime.now().microsecondsSinceEpoch}.jpg';
     return Isolate.run(
-      () => _createVariantsInIsolate(sourcePath, outputPath),
-    );
+        () => _createFocusedImageInIsolate(sourcePath, outputPath));
   }
 
-  static List<String> _createVariantsInIsolate(
+  static String _createFocusedImageInIsolate(
     String sourcePath,
     String outputPath,
   ) {
     final bytes = File(sourcePath).readAsBytesSync();
     final decoded = img.decodeImage(bytes);
-    if (decoded == null) return [sourcePath];
+    if (decoded == null) {
+      throw StateError('Could not decode the captured truck image.');
+    }
 
     final oriented = img.bakeOrientation(decoded);
     final plateBox = _findYellowPlate(oriented);
@@ -37,11 +38,16 @@ class VehiclePlateImagePreprocessor {
       interpolation: img.Interpolation.cubic,
     );
 
-    File(outputPath).writeAsBytesSync(img.encodeJpg(enlarged, quality: 95));
-
-    // OCR the localized plate first, then retain the full image as fallback
-    // for unusual plate colours or a badly centered camera frame.
-    return [outputPath, sourcePath];
+    // Use one focused, enhanced crop. Dark characters on reflective yellow
+    // plates are easier for OCR after this grayscale/high-contrast pass.
+    final enhanced = img.adjustColor(
+      img.Image.from(enlarged),
+      contrast: 1.45,
+      saturation: 0,
+      brightness: 1.05,
+    );
+    File(outputPath).writeAsBytesSync(img.encodeJpg(enhanced, quality: 95));
+    return outputPath;
   }
 
   static img.Image _centerCrop(img.Image source) {

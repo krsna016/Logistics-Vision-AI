@@ -133,56 +133,15 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
 
     try {
       final image = await controller.takePicture();
-      // Fast path: let ML Kit read the captured camera image directly. Most
-      // wagon numbers are readable without the slower crop/enlarge pipeline.
-      try {
-        final result = await _recognizer
-            .processImage(InputImage.fromFilePath(image.path))
-            .timeout(const Duration(milliseconds: 1500));
-        final candidates = WagonNumberParser.candidatesFromText(result.text);
-        for (final candidate in candidates) {
-          if (WagonNumberParser.looksLikeWagonNumber(candidate)) {
-            if (!mounted) return;
-            setState(() => _scanning = false);
-            Navigator.of(context).pop(candidate);
-            return;
-          }
-        }
-      } on TimeoutException {
-        // Continue with the accuracy fallback below.
-      }
 
-      // Accuracy fallback for angled, faded, or low-contrast wagon numbers.
-      final variants =
-          await WagonNumberImagePreprocessor.createVariants(image.path);
-      final recognizedTexts = <String>[];
-      for (final variant in variants) {
-        try {
-          final result = await _recognizer
-              .processImage(InputImage.fromFilePath(variant))
-              .timeout(const Duration(seconds: 5));
-          if (result.text.trim().isEmpty) continue;
-          recognizedTexts.add(result.text);
-          final candidates = WagonNumberParser.candidatesFromText(result.text);
-          String? validCandidate;
-          for (final candidate in candidates) {
-            if (WagonNumberParser.looksLikeWagonNumber(candidate)) {
-              validCandidate = candidate;
-              break;
-            }
-          }
-          if (validCandidate != null) {
-            if (!mounted) return;
-            setState(() => _scanning = false);
-            Navigator.of(context).pop(validCandidate);
-            return;
-          }
-        } on TimeoutException {
-          // Continue with the full-image fallback.
-        }
-      }
-      final candidates =
-          WagonNumberParser.candidatesFromText(recognizedTexts.join('\n'));
+      final focusedImage =
+          await WagonNumberImagePreprocessor.createFocusedImage(image.path);
+      final result = await _recognizer
+          .processImage(InputImage.fromFilePath(focusedImage))
+          .timeout(const Duration(seconds: 5));
+      final candidates = WagonNumberParser.candidatesFromText(result.text)
+          .where(WagonNumberParser.looksLikeWagonNumber)
+          .toList();
       if (!mounted) return;
       if (candidates.isEmpty) {
         setState(() {

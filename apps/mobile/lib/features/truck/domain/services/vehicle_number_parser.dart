@@ -28,6 +28,11 @@ class VehicleNumberParser {
         fleetFormat.hasMatch(normalized);
   }
 
+  static bool looksLikeIndianVehicleNumber(String value) {
+    final normalized = normalize(value);
+    return RegExp(r'^[A-Z]{2}\d{1,2}[A-Z]{1,3}\d{1,4}$').hasMatch(normalized);
+  }
+
   static List<String> candidatesFromText(String text) {
     final rawCandidates = text
         .split(RegExp(r'[\r\n\s,;|]+'))

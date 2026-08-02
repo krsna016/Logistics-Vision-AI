@@ -145,60 +145,15 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
 
     try {
       final image = await controller.takePicture();
-      // Fast path: let ML Kit read the captured camera image directly. Most
-      // plates are readable without the slower crop/enlarge pipeline.
-      try {
-        final result = await _recognizer
-            .processImage(InputImage.fromFilePath(image.path))
-            .timeout(const Duration(milliseconds: 1500));
-        final candidates = VehicleNumberParser.candidatesFromText(result.text);
-        for (final candidate in candidates) {
-          if (VehicleNumberParser.looksLikeVehicleNumber(candidate)) {
-            if (!mounted) return;
-            setState(() => _scanning = false);
-            Navigator.of(context).pop(candidate);
-            return;
-          }
-        }
-      } on TimeoutException {
-        // Continue with the accuracy fallback below.
-      }
 
-      // Accuracy fallback for angled, damaged, or low-contrast plates.
-      final variants =
-          await VehiclePlateImagePreprocessor.createVariants(image.path);
-      final recognizedTexts = <String>[];
-      for (final variant in variants) {
-        try {
-          final result = await _recognizer
-              .processImage(InputImage.fromFilePath(variant))
-              .timeout(const Duration(seconds: 5));
-          if (result.text.trim().isNotEmpty) {
-            recognizedTexts.add(result.text);
-            final candidates = VehicleNumberParser.candidatesFromText(
-              result.text,
-            );
-            String? validCandidate;
-            for (final candidate in candidates) {
-              if (VehicleNumberParser.looksLikeVehicleNumber(candidate)) {
-                validCandidate = candidate;
-                break;
-              }
-            }
-            if (validCandidate != null) {
-              if (!mounted) return;
-              setState(() => _scanning = false);
-              Navigator.of(context).pop(validCandidate);
-              return;
-            }
-          }
-        } on TimeoutException {
-          // Continue with the fallback image if one OCR pass is slow.
-        }
-      }
-      final candidates = VehicleNumberParser.candidatesFromText(
-        recognizedTexts.join('\n'),
-      );
+      final focusedImage =
+          await VehiclePlateImagePreprocessor.createFocusedImage(image.path);
+      final result = await _recognizer
+          .processImage(InputImage.fromFilePath(focusedImage))
+          .timeout(const Duration(seconds: 5));
+      final candidates = VehicleNumberParser.candidatesFromText(result.text)
+          .where(VehicleNumberParser.looksLikeIndianVehicleNumber)
+          .toList();
       if (!mounted) return;
       if (candidates.isEmpty) {
         setState(() {

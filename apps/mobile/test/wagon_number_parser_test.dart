@@ -10,6 +10,22 @@ void main() {
     expect(candidates.first, 'BCNAHSM131142324907');
   });
 
+  test('joins wagon class with two numeric groups', () {
+    final candidates = WagonNumberParser.candidatesFromText(
+      'BCNAHSM1\n311006\n42760',
+    );
+
+    expect(candidates.first, 'BCNAHSM131100642760');
+  });
+
+  test('does not accept unrelated specification text as a wagon number', () {
+    final candidates = WagonNumberParser.candidatesFromText(
+      'BCNAHSM1 311006 42760 C.C. TARE AREA 66.96',
+    );
+
+    expect(candidates.first, 'BCNAHSM131100642760');
+  });
+
   test('joins a number split over two lines', () {
     final candidates = WagonNumberParser.candidatesFromText(
       'BCNAM1\n300800\n33728',

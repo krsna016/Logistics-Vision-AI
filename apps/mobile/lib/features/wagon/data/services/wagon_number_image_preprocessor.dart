@@ -8,17 +8,19 @@ import 'package:path_provider/path_provider.dart';
 class WagonNumberImagePreprocessor {
   WagonNumberImagePreprocessor._();
 
-  static Future<List<String>> createVariants(String sourcePath) async {
+  static Future<String> createFocusedImage(String sourcePath) async {
     final directory = await getTemporaryDirectory();
     final outputPath =
         '${directory.path}/wagon_number_${DateTime.now().microsecondsSinceEpoch}.jpg';
-    return Isolate.run(() => _createVariant(sourcePath, outputPath));
+    return Isolate.run(() => _createFocusedImage(sourcePath, outputPath));
   }
 
-  static List<String> _createVariant(String sourcePath, String outputPath) {
+  static String _createFocusedImage(String sourcePath, String outputPath) {
     final bytes = File(sourcePath).readAsBytesSync();
     final decoded = img.decodeImage(bytes);
-    if (decoded == null) return [sourcePath];
+    if (decoded == null) {
+      throw StateError('Could not decode the captured wagon image.');
+    }
 
     final oriented = img.bakeOrientation(decoded);
     final cropWidth = (oriented.width * 0.84).round();
@@ -38,7 +40,16 @@ class WagonNumberImagePreprocessor {
       width: math.max(crop.width * 2, 900),
       interpolation: img.Interpolation.cubic,
     );
-    File(outputPath).writeAsBytesSync(img.encodeJpg(enlarged, quality: 94));
-    return [outputPath, sourcePath];
+
+    // Wagon identifiers are white paint on blue, often faded or dirty. Use
+    // one enlarged, high-contrast crop for the single OCR pass.
+    final enhanced = img.adjustColor(
+      img.Image.from(enlarged),
+      contrast: 1.5,
+      saturation: 0,
+      brightness: 1.08,
+    );
+    File(outputPath).writeAsBytesSync(img.encodeJpg(enhanced, quality: 94));
+    return outputPath;
   }
 }
