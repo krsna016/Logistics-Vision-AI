@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/truck.dart';
 import '../screens/vehicle_number_scan_screen.dart';
 import '../providers/truck_providers.dart';
 import '../../../../theme/app_theme.dart';
+import '../../data/services/scanner_camera_warmup.dart';
 
 class TruckFormDialog extends ConsumerStatefulWidget {
   final Truck? existingTruck;
@@ -44,6 +47,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
     _companyCtrl = TextEditingController(text: t?.company ?? '');
     _warehouseCtrl = TextEditingController(text: t?.warehouse ?? '');
     _notesCtrl = TextEditingController(text: t?.notes ?? '');
+    unawaited(ScannerCameraWarmup.prepare());
   }
 
   @override
@@ -54,6 +58,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
     _companyCtrl.dispose();
     _warehouseCtrl.dispose();
     _notesCtrl.dispose();
+    unawaited(ScannerCameraWarmup.release());
     super.dispose();
   }
 
@@ -120,17 +125,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
   Future<void> _scanVehicleNumber() async {
     final result = await Navigator.of(context).push<String>(
-      PageRouteBuilder<String>(
-        pageBuilder: (_, animation, secondaryAnimation) =>
-            const VehicleNumberScanScreen(),
-        transitionDuration: const Duration(milliseconds: 180),
-        reverseTransitionDuration: const Duration(milliseconds: 140),
-        transitionsBuilder: (_, animation, secondaryAnimation, child) =>
-            FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: child,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => const VehicleNumberScanScreen()),
     );
     if (result != null && mounted) {
       _vehicleNumberCtrl.text = result;

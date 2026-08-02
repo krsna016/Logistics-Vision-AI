@@ -6,6 +6,7 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 
 import '../../../../theme/app_theme.dart';
 import '../../../truck/data/services/live_camera_text_frame.dart';
+import '../../../truck/data/services/scanner_camera_warmup.dart';
 import '../../data/services/wagon_number_image_preprocessor.dart';
 import '../../domain/services/wagon_number_parser.dart';
 
@@ -21,7 +22,6 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
   final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
   String? _error;
   bool _initializing = true;
-  bool _cameraVisible = false;
   bool _scanning = false;
   bool _torchOn = false;
   double _zoom = 1;
@@ -37,18 +37,8 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
 
   Future<void> _initialize() async {
     try {
-      final cameras = await cachedCameraDescriptions();
-      final rear = cameras.where(
-        (camera) => camera.lensDirection == CameraLensDirection.back,
-      );
-      final description = rear.isNotEmpty ? rear.first : cameras.first;
-      final controller = CameraController(
-        description,
-        ResolutionPreset.medium,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.nv21,
-      );
-      await controller.initialize();
+      final controller = await ScannerCameraWarmup.takePrepared() ??
+          await _createCameraController();
       if (!mounted) {
         await controller.dispose();
         return;
@@ -59,8 +49,6 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
         _zoom = _minZoom;
         _gestureStartZoom = _minZoom;
       });
-      await Future<void>.delayed(const Duration(milliseconds: 90));
-      if (mounted) setState(() => _cameraVisible = true);
       unawaited(_loadZoomLevels(controller));
     } catch (_) {
       if (mounted) {
@@ -71,6 +59,22 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
         });
       }
     }
+  }
+
+  Future<CameraController> _createCameraController() async {
+    final cameras = await cachedCameraDescriptions();
+    final rear = cameras.where(
+      (camera) => camera.lensDirection == CameraLensDirection.back,
+    );
+    final description = rear.isNotEmpty ? rear.first : cameras.first;
+    final controller = CameraController(
+      description,
+      ResolutionPreset.medium,
+      enableAudio: false,
+      imageFormatGroup: ImageFormatGroup.nv21,
+    );
+    await controller.initialize();
+    return controller;
   }
 
   Future<void> _loadZoomLevels(CameraController controller) async {
@@ -228,113 +232,105 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null && controller == null
               ? _ErrorState(message: _error!)
-              : AnimatedOpacity(
-                  opacity: _cameraVisible ? 1 : 0,
-                  duration: const Duration(milliseconds: 220),
-                  curve: Curves.easeOut,
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      if (controller != null && controller.value.isInitialized)
-                        Positioned.fill(
-                          child: Padding(
-                            padding: const EdgeInsets.all(8),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(28),
-                              child: GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onScaleStart: (_) => _gestureStartZoom = _zoom,
-                                onScaleUpdate: (details) {
-                                  if (details.scale != 1) {
-                                    unawaited(
-                                      _setZoom(
-                                          _gestureStartZoom * details.scale),
-                                    );
-                                  }
-                                },
-                                child: CameraPreview(controller),
-                              ),
-                            ),
-                          ),
-                        ),
-                      Center(
-                        child: IgnorePointer(
-                          child: SizedBox(
-                            width: MediaQuery.sizeOf(context).width * 0.62,
-                            height: 250,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: AppTheme.warningColor,
-                                  width: 1,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+              : Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (controller != null && controller.value.isInitialized)
+                      Positioned.fill(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(28),
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onScaleStart: (_) => _gestureStartZoom = _zoom,
+                              onScaleUpdate: (details) {
+                                if (details.scale != 1) {
+                                  unawaited(
+                                    _setZoom(_gestureStartZoom * details.scale),
+                                  );
+                                }
+                              },
+                              child: CameraPreview(controller),
                             ),
                           ),
                         ),
                       ),
-                      Positioned(
-                        left: 20,
-                        right: 20,
-                        bottom: 16,
-                        child: Column(
-                          children: [
-                            if (_error != null)
-                              Container(
-                                padding: const EdgeInsets.all(10),
-                                margin: const EdgeInsets.only(bottom: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.black87,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child:
-                                    Text(_error!, textAlign: TextAlign.center),
+                    Center(
+                      child: IgnorePointer(
+                        child: SizedBox(
+                          width: MediaQuery.sizeOf(context).width * 0.62,
+                          height: 250,
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: AppTheme.warningColor,
+                                width: 1,
                               ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Positioned(
+                      left: 20,
+                      right: 20,
+                      bottom: 16,
+                      child: Column(
+                        children: [
+                          if (_error != null)
                             Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(6),
+                              padding: const EdgeInsets.all(10),
+                              margin: const EdgeInsets.only(bottom: 12),
                               decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.62),
-                                borderRadius: BorderRadius.circular(20),
+                                color: Colors.black87,
+                                borderRadius: BorderRadius.circular(10),
                               ),
-                              child: ElevatedButton.icon(
-                                onPressed: _scanning ? null : _captureAndRead,
-                                icon: _scanning
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                              AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
-                                          ),
+                              child: Text(_error!, textAlign: TextAlign.center),
+                            ),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.62),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed: _scanning ? null : _captureAndRead,
+                              icon: _scanning
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          Colors.white,
                                         ),
-                                      )
-                                    : const Icon(Icons.camera_alt_outlined,
-                                        size: 18),
-                                label: Text(_scanning
-                                    ? 'Reading'
-                                    : 'Capture wagon number'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: AppTheme.primaryColor,
-                                  foregroundColor: Colors.white,
-                                  disabledBackgroundColor:
-                                      AppTheme.primaryColor,
-                                  disabledForegroundColor: Colors.white,
-                                  minimumSize: const Size.fromHeight(52),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
+                                      ),
+                                    )
+                                  : const Icon(Icons.camera_alt_outlined,
+                                      size: 18),
+                              label: Text(_scanning
+                                  ? 'Reading'
+                                  : 'Capture wagon number'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppTheme.primaryColor,
+                                foregroundColor: Colors.white,
+                                disabledBackgroundColor: AppTheme.primaryColor,
+                                disabledForegroundColor: Colors.white,
+                                minimumSize: const Size.fromHeight(52),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
                                 ),
                               ),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
     );
   }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -5,6 +7,7 @@ import '../providers/wagon_providers.dart';
 import '../../domain/entities/wagon.dart';
 import '../screens/wagon_number_scan_screen.dart';
 import '../../../../theme/app_theme.dart';
+import '../../../truck/data/services/scanner_camera_warmup.dart';
 
 class CreateWagonSheet extends ConsumerStatefulWidget {
   final Wagon? existingWagon;
@@ -37,6 +40,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
         text: wagon == null ? '' : '${wagon.expectedTruckCount}');
     _remarksCtrl = TextEditingController(text: wagon?.remarks);
     _selectedDate = wagon?.loadingDate ?? DateTime.now();
+    unawaited(ScannerCameraWarmup.prepare());
   }
 
   @override
@@ -46,6 +50,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
     _destinationCtrl.dispose();
     _expectedTrucksCtrl.dispose();
     _remarksCtrl.dispose();
+    unawaited(ScannerCameraWarmup.release());
     super.dispose();
   }
 
@@ -101,17 +106,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
   Future<void> _scanWagonNumber() async {
     final result = await Navigator.of(context).push<String>(
-      PageRouteBuilder<String>(
-        pageBuilder: (_, animation, secondaryAnimation) =>
-            const WagonNumberScanScreen(),
-        transitionDuration: const Duration(milliseconds: 180),
-        reverseTransitionDuration: const Duration(milliseconds: 140),
-        transitionsBuilder: (_, animation, secondaryAnimation, child) =>
-            FadeTransition(
-          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
-          child: child,
-        ),
-      ),
+      MaterialPageRoute(builder: (_) => const WagonNumberScanScreen()),
     );
     if (result != null && mounted) {
       _numberCtrl.text = result;
