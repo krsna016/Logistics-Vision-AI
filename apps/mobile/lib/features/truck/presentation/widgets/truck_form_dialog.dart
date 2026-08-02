@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/truck.dart';
+import '../screens/vehicle_number_scan_screen.dart';
 import '../providers/truck_providers.dart';
-import '../screens/vehicle_number_scanner_screen.dart';
 import '../../../../theme/app_theme.dart';
 
 class TruckFormDialog extends ConsumerStatefulWidget {
@@ -118,6 +118,18 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
     }
   }
 
+  Future<void> _scanVehicleNumber() async {
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const VehicleNumberScanScreen()),
+    );
+    if (result != null && mounted) {
+      _vehicleNumberCtrl.text = result;
+      _vehicleNumberCtrl.selection = TextSelection.collapsed(
+        offset: _vehicleNumberCtrl.text.length,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEdit = widget.existingTruck != null;
@@ -213,11 +225,12 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                     controller: _vehicleNumberCtrl,
                     decoration: InputDecoration(
                       labelText: 'Vehicle Number*',
-                      hintText: 'e.g. V-101',
+                      hintText: 'e.g. MH12AB1234',
                       suffixIcon: IconButton(
-                        tooltip: 'Open vehicle number scanner',
                         onPressed: _isSaving ? null : _scanVehicleNumber,
                         icon: const Icon(Icons.document_scanner_outlined),
+                        tooltip: 'Scan vehicle number',
+                        color: AppTheme.primaryColor,
                       ),
                     ),
                     validator: (val) =>
@@ -280,20 +293,5 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
         ),
       ),
     );
-  }
-
-  Future<void> _scanVehicleNumber() async {
-    final scannedNumber = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const VehicleNumberScannerScreen()),
-    );
-    if (!mounted || scannedNumber == null || scannedNumber.trim().isEmpty) {
-      return;
-    }
-    setState(() {
-      _vehicleNumberCtrl.text = scannedNumber;
-      _vehicleNumberCtrl.selection = TextSelection.collapsed(
-        offset: _vehicleNumberCtrl.text.length,
-      );
-    });
   }
 }

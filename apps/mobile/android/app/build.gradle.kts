@@ -30,17 +30,12 @@ android {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
             signingConfig = signingConfigs.getByName("debug")
+            // ML Kit's current dependency graph is not safe to shrink with R8.
+            // Keep release builds functional until the ML Kit package is upgraded.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
-}
-
-dependencies {
-    // The ML Kit Flutter bridge references optional script classes during
-    // release shrinking, even though this scanner uses Latin recognition.
-    implementation("com.google.android.gms:play-services-mlkit-text-recognition-chinese:16.0.1")
-    implementation("com.google.android.gms:play-services-mlkit-text-recognition-devanagari:16.0.1")
-    implementation("com.google.android.gms:play-services-mlkit-text-recognition-japanese:16.0.1")
-    implementation("com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1")
 }
 
 kotlin {
