@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -9,7 +10,19 @@ class VehiclePlateImagePreprocessor {
   VehiclePlateImagePreprocessor._();
 
   static Future<List<String>> createVariants(String sourcePath) async {
-    final bytes = await File(sourcePath).readAsBytes();
+    final directory = await getTemporaryDirectory();
+    final outputPath =
+        '${directory.path}/vehicle_plate_${DateTime.now().microsecondsSinceEpoch}.jpg';
+    return Isolate.run(
+      () => _createVariantsInIsolate(sourcePath, outputPath),
+    );
+  }
+
+  static List<String> _createVariantsInIsolate(
+    String sourcePath,
+    String outputPath,
+  ) {
+    final bytes = File(sourcePath).readAsBytesSync();
     final decoded = img.decodeImage(bytes);
     if (decoded == null) return [sourcePath];
 
@@ -24,10 +37,7 @@ class VehiclePlateImagePreprocessor {
       interpolation: img.Interpolation.cubic,
     );
 
-    final directory = await getTemporaryDirectory();
-    final outputPath =
-        '${directory.path}/vehicle_plate_${DateTime.now().microsecondsSinceEpoch}.jpg';
-    await File(outputPath).writeAsBytes(img.encodeJpg(enlarged, quality: 95));
+    File(outputPath).writeAsBytesSync(img.encodeJpg(enlarged, quality: 95));
 
     // OCR the localized plate first, then retain the full image as fallback
     // for unusual plate colours or a badly centered camera frame.

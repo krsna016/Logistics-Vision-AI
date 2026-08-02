@@ -5,18 +5,17 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 import '../../../../theme/app_theme.dart';
-import '../../data/services/vehicle_plate_image_preprocessor.dart';
-import '../../domain/services/vehicle_number_parser.dart';
+import '../../data/services/wagon_number_image_preprocessor.dart';
+import '../../domain/services/wagon_number_parser.dart';
 
-class VehicleNumberScanScreen extends StatefulWidget {
-  const VehicleNumberScanScreen({super.key});
+class WagonNumberScanScreen extends StatefulWidget {
+  const WagonNumberScanScreen({super.key});
 
   @override
-  State<VehicleNumberScanScreen> createState() =>
-      _VehicleNumberScanScreenState();
+  State<WagonNumberScanScreen> createState() => _WagonNumberScanScreenState();
 }
 
-class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
+class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
   CameraController? _controller;
   final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
   String? _error;
@@ -64,20 +63,12 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
         _zoom = _minZoom;
         _gestureStartZoom = _minZoom;
       });
-    } on TimeoutException {
-      if (mounted) {
-        setState(() {
-          _scanning = false;
-          _error =
-              'Reading took too long. Move closer to the plate and capture again.';
-        });
-      }
     } catch (_) {
       if (mounted) {
         setState(() {
           _initializing = false;
           _error =
-              'Camera could not be started. You can enter the number manually.';
+              'Camera could not be started. You can enter the wagon number manually.';
         });
       }
     }
@@ -102,15 +93,12 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
   Future<void> _setZoom(double zoom) async {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
-
     final nextZoom = zoom.clamp(_minZoom, _maxZoom).toDouble();
     if ((nextZoom - _zoom).abs() < 0.01) return;
     _zoom = nextZoom;
     try {
       await controller.setZoomLevel(nextZoom);
-    } catch (_) {
-      // Some devices expose zoom values but reject a gesture during capture.
-    }
+    } catch (_) {}
   }
 
   Future<void> _captureAndRead() async {
@@ -118,7 +106,6 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
     if (_scanning || controller == null || !controller.value.isInitialized) {
       return;
     }
-
     setState(() {
       _scanning = true;
       _error = null;
@@ -127,49 +114,44 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
     try {
       final image = await controller.takePicture();
       final variants =
-          await VehiclePlateImagePreprocessor.createVariants(image.path);
+          await WagonNumberImagePreprocessor.createVariants(image.path);
       final recognizedTexts = <String>[];
       for (final variant in variants) {
         try {
           final result = await _recognizer
               .processImage(InputImage.fromFilePath(variant))
               .timeout(const Duration(seconds: 5));
-          if (result.text.trim().isNotEmpty) {
-            recognizedTexts.add(result.text);
-            final variantCandidates = VehicleNumberParser.candidatesFromText(
-              result.text,
-            );
-            String? validCandidate;
-            for (final candidate in variantCandidates) {
-              if (VehicleNumberParser.looksLikeVehicleNumber(candidate)) {
-                validCandidate = candidate;
-                break;
-              }
-            }
-            if (validCandidate != null) {
-              if (!mounted) return;
-              setState(() => _scanning = false);
-              Navigator.of(context).pop(validCandidate);
-              return;
+          if (result.text.trim().isEmpty) continue;
+          recognizedTexts.add(result.text);
+          final candidates = WagonNumberParser.candidatesFromText(result.text);
+          String? validCandidate;
+          for (final candidate in candidates) {
+            if (WagonNumberParser.looksLikeWagonNumber(candidate)) {
+              validCandidate = candidate;
+              break;
             }
           }
+          if (validCandidate != null) {
+            if (!mounted) return;
+            setState(() => _scanning = false);
+            Navigator.of(context).pop(validCandidate);
+            return;
+          }
         } on TimeoutException {
-          // Continue with the fallback image if one OCR pass is slow.
+          // Continue with the full-image fallback.
         }
       }
-      final candidates = VehicleNumberParser.candidatesFromText(
-        recognizedTexts.join('\n'),
-      );
+
+      final candidates =
+          WagonNumberParser.candidatesFromText(recognizedTexts.join('\n'));
       if (!mounted) return;
       if (candidates.isEmpty) {
         setState(() {
           _scanning = false;
-          _error =
-              'No readable vehicle number found. Move closer and try again.';
+          _error = 'No wagon number found. Move closer and try again.';
         });
         return;
       }
-
       setState(() => _scanning = false);
       Navigator.of(context).pop(candidates.first);
     } catch (_) {
@@ -197,7 +179,7 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
-        title: const Text('Scan vehicle number'),
+        title: const Text('Scan wagon number'),
         backgroundColor: Colors.black,
         actions: [
           IconButton(
@@ -222,9 +204,7 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
                             borderRadius: BorderRadius.circular(28),
                             child: GestureDetector(
                               behavior: HitTestBehavior.opaque,
-                              onScaleStart: (_) {
-                                _gestureStartZoom = _zoom;
-                              },
+                              onScaleStart: (_) => _gestureStartZoom = _zoom,
                               onScaleUpdate: (details) {
                                 if (details.scale != 1) {
                                   unawaited(
@@ -240,8 +220,8 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
                     Center(
                       child: IgnorePointer(
                         child: SizedBox(
-                          width: MediaQuery.sizeOf(context).width * 0.68,
-                          height: 165,
+                          width: MediaQuery.sizeOf(context).width * 0.62,
+                          height: 250,
                           child: DecoratedBox(
                             decoration: BoxDecoration(
                               border: Border.all(
@@ -270,32 +250,31 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
                               ),
                               child: Text(_error!, textAlign: TextAlign.center),
                             ),
-                          Center(
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.62),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: ElevatedButton.icon(
-                                onPressed: _scanning ? null : _captureAndRead,
-                                icon: _scanning
-                                    ? const SizedBox(
-                                        width: 16,
-                                        height: 16,
-                                        child: CircularProgressIndicator(
-                                            strokeWidth: 2),
-                                      )
-                                    : const Icon(Icons.camera_alt_outlined,
-                                        size: 18),
-                                label: Text(
-                                    _scanning ? 'Reading' : 'Capture plate'),
-                                style: ElevatedButton.styleFrom(
-                                  minimumSize: const Size.fromHeight(52),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(14),
-                                  ),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withValues(alpha: 0.62),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: ElevatedButton.icon(
+                              onPressed: _scanning ? null : _captureAndRead,
+                              icon: _scanning
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2),
+                                    )
+                                  : const Icon(Icons.camera_alt_outlined,
+                                      size: 18),
+                              label: Text(_scanning
+                                  ? 'Reading'
+                                  : 'Capture wagon number'),
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size.fromHeight(52),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(14),
                                 ),
                               ),
                             ),

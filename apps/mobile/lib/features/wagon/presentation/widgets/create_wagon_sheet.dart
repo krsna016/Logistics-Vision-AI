@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/wagon_providers.dart';
 import '../../domain/entities/wagon.dart';
+import '../screens/wagon_number_scan_screen.dart';
 import '../../../../theme/app_theme.dart';
 
 class CreateWagonSheet extends ConsumerStatefulWidget {
@@ -95,6 +96,18 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       if (error == null) {
         Navigator.of(context).pop();
       }
+    }
+  }
+
+  Future<void> _scanWagonNumber() async {
+    final result = await Navigator.of(context).push<String>(
+      MaterialPageRoute(builder: (_) => const WagonNumberScanScreen()),
+    );
+    if (result != null && mounted) {
+      _numberCtrl.text = result;
+      _numberCtrl.selection = TextSelection.collapsed(
+        offset: _numberCtrl.text.length,
+      );
     }
   }
 
@@ -209,9 +222,15 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
                   TextFormField(
                     controller: _numberCtrl,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Wagon Number*',
-                      hintText: 'e.g. W-8890-TX',
+                      hintText: 'e.g. BCNAHSM131142324907',
+                      suffixIcon: IconButton(
+                        onPressed: _isSaving ? null : _scanWagonNumber,
+                        icon: const Icon(Icons.document_scanner_outlined),
+                        tooltip: 'Scan wagon number',
+                        color: AppTheme.primaryColor,
+                      ),
                     ),
                     validator: (val) =>
                         val == null || val.trim().isEmpty ? 'Required.' : null,
@@ -325,5 +344,4 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       ),
     );
   }
-
 }
