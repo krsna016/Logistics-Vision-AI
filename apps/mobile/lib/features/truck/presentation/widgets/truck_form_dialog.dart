@@ -120,7 +120,17 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
   Future<void> _scanVehicleNumber() async {
     final result = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const VehicleNumberScanScreen()),
+      PageRouteBuilder<String>(
+        pageBuilder: (_, animation, secondaryAnimation) =>
+            const VehicleNumberScanScreen(),
+        transitionDuration: const Duration(milliseconds: 180),
+        reverseTransitionDuration: const Duration(milliseconds: 140),
+        transitionsBuilder: (_, animation, secondaryAnimation, child) =>
+            FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        ),
+      ),
     );
     if (result != null && mounted) {
       _vehicleNumberCtrl.text = result;

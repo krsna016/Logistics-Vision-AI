@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
 import '../../../../theme/app_theme.dart';
+import '../../../truck/data/services/live_camera_text_frame.dart';
 import '../../data/services/wagon_number_image_preprocessor.dart';
 import '../../domain/services/wagon_number_parser.dart';
 
@@ -20,6 +21,7 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
   final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
   String? _error;
   bool _initializing = true;
+  bool _cameraVisible = false;
   bool _scanning = false;
   bool _torchOn = false;
   double _zoom = 1;
@@ -35,24 +37,18 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
 
   Future<void> _initialize() async {
     try {
-      final cameras = await availableCameras();
+      final cameras = await cachedCameraDescriptions();
       final rear = cameras.where(
         (camera) => camera.lensDirection == CameraLensDirection.back,
       );
       final description = rear.isNotEmpty ? rear.first : cameras.first;
       final controller = CameraController(
         description,
-        ResolutionPreset.high,
+        ResolutionPreset.medium,
         enableAudio: false,
+        imageFormatGroup: ImageFormatGroup.nv21,
       );
       await controller.initialize();
-      try {
-        _minZoom = await controller.getMinZoomLevel();
-        _maxZoom = await controller.getMaxZoomLevel();
-      } catch (_) {
-        _minZoom = 1;
-        _maxZoom = 1;
-      }
       if (!mounted) {
         await controller.dispose();
         return;
@@ -63,6 +59,9 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
         _zoom = _minZoom;
         _gestureStartZoom = _minZoom;
       });
+      await Future<void>.delayed(const Duration(milliseconds: 90));
+      if (mounted) setState(() => _cameraVisible = true);
+      unawaited(_loadZoomLevels(controller));
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -71,6 +70,22 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
               'Camera could not be started. You can enter the wagon number manually.';
         });
       }
+    }
+  }
+
+  Future<void> _loadZoomLevels(CameraController controller) async {
+    try {
+      final minZoom = await controller.getMinZoomLevel();
+      final maxZoom = await controller.getMaxZoomLevel();
+      if (!mounted || _controller != controller) return;
+      setState(() {
+        _minZoom = minZoom;
+        _maxZoom = maxZoom;
+        _zoom = minZoom;
+        _gestureStartZoom = minZoom;
+      });
+    } catch (_) {
+      // Keep safe defaults when zoom is unsupported.
     }
   }
 
@@ -106,6 +121,7 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
     if (_scanning || controller == null || !controller.value.isInitialized) {
       return;
     }
+
     setState(() {
       _scanning = true;
       _error = null;
@@ -113,6 +129,26 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
 
     try {
       final image = await controller.takePicture();
+      // Fast path: let ML Kit read the captured camera image directly. Most
+      // wagon numbers are readable without the slower crop/enlarge pipeline.
+      try {
+        final result = await _recognizer
+            .processImage(InputImage.fromFilePath(image.path))
+            .timeout(const Duration(milliseconds: 1500));
+        final candidates = WagonNumberParser.candidatesFromText(result.text);
+        for (final candidate in candidates) {
+          if (WagonNumberParser.looksLikeWagonNumber(candidate)) {
+            if (!mounted) return;
+            setState(() => _scanning = false);
+            Navigator.of(context).pop(candidate);
+            return;
+          }
+        }
+      } on TimeoutException {
+        // Continue with the accuracy fallback below.
+      }
+
+      // Accuracy fallback for angled, faded, or low-contrast wagon numbers.
       final variants =
           await WagonNumberImagePreprocessor.createVariants(image.path);
       final recognizedTexts = <String>[];
@@ -141,7 +177,6 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
           // Continue with the full-image fallback.
         }
       }
-
       final candidates =
           WagonNumberParser.candidatesFromText(recognizedTexts.join('\n'));
       if (!mounted) return;
@@ -193,96 +228,113 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
           ? const Center(child: CircularProgressIndicator())
           : _error != null && controller == null
               ? _ErrorState(message: _error!)
-              : Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    if (controller != null && controller.value.isInitialized)
-                      Positioned.fill(
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(28),
-                            child: GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onScaleStart: (_) => _gestureStartZoom = _zoom,
-                              onScaleUpdate: (details) {
-                                if (details.scale != 1) {
-                                  unawaited(
-                                    _setZoom(_gestureStartZoom * details.scale),
-                                  );
-                                }
-                              },
-                              child: CameraPreview(controller),
-                            ),
-                          ),
-                        ),
-                      ),
-                    Center(
-                      child: IgnorePointer(
-                        child: SizedBox(
-                          width: MediaQuery.sizeOf(context).width * 0.62,
-                          height: 250,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: AppTheme.warningColor,
-                                width: 1,
+              : AnimatedOpacity(
+                  opacity: _cameraVisible ? 1 : 0,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOut,
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      if (controller != null && controller.value.isInitialized)
+                        Positioned.fill(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(28),
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onScaleStart: (_) => _gestureStartZoom = _zoom,
+                                onScaleUpdate: (details) {
+                                  if (details.scale != 1) {
+                                    unawaited(
+                                      _setZoom(
+                                          _gestureStartZoom * details.scale),
+                                    );
+                                  }
+                                },
+                                child: CameraPreview(controller),
                               ),
-                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
                         ),
-                      ),
-                    ),
-                    Positioned(
-                      left: 20,
-                      right: 20,
-                      bottom: 16,
-                      child: Column(
-                        children: [
-                          if (_error != null)
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              margin: const EdgeInsets.only(bottom: 12),
+                      Center(
+                        child: IgnorePointer(
+                          child: SizedBox(
+                            width: MediaQuery.sizeOf(context).width * 0.62,
+                            height: 250,
+                            child: DecoratedBox(
                               decoration: BoxDecoration(
-                                color: Colors.black87,
-                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(
+                                  color: AppTheme.warningColor,
+                                  width: 1,
+                                ),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(_error!, textAlign: TextAlign.center),
                             ),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.62),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: ElevatedButton.icon(
-                              onPressed: _scanning ? null : _captureAndRead,
-                              icon: _scanning
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2),
-                                    )
-                                  : const Icon(Icons.camera_alt_outlined,
-                                      size: 18),
-                              label: Text(_scanning
-                                  ? 'Reading'
-                                  : 'Capture wagon number'),
-                              style: ElevatedButton.styleFrom(
-                                minimumSize: const Size.fromHeight(52),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                        left: 20,
+                        right: 20,
+                        bottom: 16,
+                        child: Column(
+                          children: [
+                            if (_error != null)
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                margin: const EdgeInsets.only(bottom: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.black87,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child:
+                                    Text(_error!, textAlign: TextAlign.center),
+                              ),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.black.withValues(alpha: 0.62),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: ElevatedButton.icon(
+                                onPressed: _scanning ? null : _captureAndRead,
+                                icon: _scanning
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      )
+                                    : const Icon(Icons.camera_alt_outlined,
+                                        size: 18),
+                                label: Text(_scanning
+                                    ? 'Reading'
+                                    : 'Capture wagon number'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppTheme.primaryColor,
+                                  foregroundColor: Colors.white,
+                                  disabledBackgroundColor:
+                                      AppTheme.primaryColor,
+                                  disabledForegroundColor: Colors.white,
+                                  minimumSize: const Size.fromHeight(52),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14),
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
     );
   }

@@ -101,7 +101,17 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
   Future<void> _scanWagonNumber() async {
     final result = await Navigator.of(context).push<String>(
-      MaterialPageRoute(builder: (_) => const WagonNumberScanScreen()),
+      PageRouteBuilder<String>(
+        pageBuilder: (_, animation, secondaryAnimation) =>
+            const WagonNumberScanScreen(),
+        transitionDuration: const Duration(milliseconds: 180),
+        reverseTransitionDuration: const Duration(milliseconds: 140),
+        transitionsBuilder: (_, animation, secondaryAnimation, child) =>
+            FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        ),
+      ),
     );
     if (result != null && mounted) {
       _numberCtrl.text = result;

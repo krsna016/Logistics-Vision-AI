@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../theme/app_theme.dart';
 
 class StrictActionWarningDialog extends StatefulWidget {
@@ -83,12 +84,38 @@ class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
-            Text(
-              'Type "${widget.expectedConfirmationText}" to confirm:',
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Type "${widget.expectedConfirmationText}" to confirm:',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Copy confirmation text',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.copy_rounded, size: 18),
+                  color: AppTheme.primaryColor,
+                  onPressed: () async {
+                    await Clipboard.setData(
+                      ClipboardData(text: widget.expectedConfirmationText),
+                    );
+                    if (!context.mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Confirmation text copied'),
+                        duration: Duration(milliseconds: 900),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             TextField(
