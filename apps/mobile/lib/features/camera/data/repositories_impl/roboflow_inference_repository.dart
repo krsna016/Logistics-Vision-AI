@@ -8,7 +8,7 @@ import '../../domain/entities/detection.dart';
 import '../../domain/entities/inference_telemetry.dart';
 import '../../domain/repositories/inference_repository.dart';
 
-/// Hosted implementation of the exact Roboflow Universe model `box-counting/4`.
+/// Hosted implementation of the configured Roboflow carton-counting workflow.
 class RoboflowInferenceRepository implements InferenceRepository {
   final NetworkService _network;
   int _totalDetections = 0;

@@ -1,3 +1,5 @@
+import base64
+
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 import httpx
 
@@ -13,7 +15,7 @@ async def detect_cardboxes(
     image: UploadFile = File(...),
     _: User = Depends(get_current_user),
 ):
-    """Run the exact Roboflow Universe model ``box-counting/4``.
+    """Run the configured Roboflow carton-counting workflow.
 
     The Roboflow key stays server-side; the mobile client only receives the
     normalized prediction payload it needs to draw boxes and count cartons.
@@ -30,30 +32,45 @@ async def detect_cardboxes(
     if len(content) > 15 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Image is too large")
 
-    url = f"{settings.ROBOFLOW_API_URL.rstrip('/')}/{settings.ROBOFLOW_MODEL_ID}"
-    params = {
+    url = (
+        f"{settings.ROBOFLOW_API_URL.rstrip('/')}/"
+        f"{settings.ROBOFLOW_WORKSPACE}/workflows/{settings.ROBOFLOW_WORKFLOW_ID}"
+    )
+    payload = {
         "api_key": settings.ROBOFLOW_API_KEY,
-        "confidence": "40",
-        "overlap": "30",
-    }
-    files = {
-        "file": (
-            image.filename or "frame.jpg",
-            content,
-            image.content_type or "image/jpeg",
-        )
+        "inputs": {
+            "image": {
+                "type": "base64",
+                "value": base64.b64encode(content).decode("ascii"),
+            },
+            "classes": settings.ROBOFLOW_CLASSES,
+        },
+        "use_cache": True,
     }
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.post(url, params=params, files=files)
+            response = await client.post(url, json=payload)
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail="Roboflow inference unavailable") from exc
 
     if response.is_error:
         raise HTTPException(status_code=502, detail="Roboflow inference failed")
     result = response.json()
-    return {
-        "predictions": result.get("predictions", []),
-        "image": result.get("image", {"width": 0, "height": 0}),
-        "model": settings.ROBOFLOW_MODEL_ID,
-    }
+    return {"predictions": _find_predictions(result), "image": {"width": 0, "height": 0}, "workflow": settings.ROBOFLOW_WORKFLOW_ID}
+
+
+def _find_predictions(value):
+    if isinstance(value, dict):
+        predictions = value.get("predictions")
+        if isinstance(predictions, list):
+            return predictions
+        for child in value.values():
+            found = _find_predictions(child)
+            if found:
+                return found
+    elif isinstance(value, list):
+        for child in value:
+            found = _find_predictions(child)
+            if found:
+                return found
+    return []
