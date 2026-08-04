@@ -4,14 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/repositories/inference_repository.dart';
 import '../../domain/entities/detection.dart';
-import '../../data/repositories_impl/onnx_inference_repository.dart';
+import '../../data/repositories_impl/roboflow_inference_repository.dart';
 import '../../data/services/frame_scheduler.dart';
 import 'inference_state.dart';
 import '../../../../utils/logger.dart';
 
 // Provider pointing to the concrete inference engine
 final inferenceRepositoryProvider = Provider<InferenceRepository>((ref) {
-  return ONNXInferenceRepository();
+  return RoboflowInferenceRepository();
 });
 
 // Auto-disposed StateNotifierProvider for tracking inference metrics

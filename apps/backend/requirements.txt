@@ -6,6 +6,7 @@ asyncpg
 bcrypt
 PyJWT
 python-multipart
+httpx
 pydantic-settings
 pytest
 pytest-asyncio

@@ -16,6 +16,20 @@ class Settings(BaseSettings):
     # SQLite for development, Postgres for prod
     DATABASE_URL: str = Field(default="sqlite+aiosqlite:///./sql_app.db", validation_alias="DATABASE_URL")
 
+    ROBOFLOW_API_KEY: str = Field(default="", validation_alias="ROBOFLOW_API_KEY")
+    ROBOFLOW_WORKSPACE: str = Field(
+        default="anurags-workspace-hfvt2", validation_alias="ROBOFLOW_WORKSPACE"
+    )
+    ROBOFLOW_WORKFLOW_ID: str = Field(
+        default="general-segmentation-api", validation_alias="ROBOFLOW_WORKFLOW_ID"
+    )
+    ROBOFLOW_CLASSES: str = Field(
+        default="cardboxes,cartons", validation_alias="ROBOFLOW_CLASSES"
+    )
+    ROBOFLOW_API_URL: str = Field(
+        default="https://serverless.roboflow.com", validation_alias="ROBOFLOW_API_URL"
+    )
+
     @property
     def cors_origins(self) -> list[str]:
         configured = [origin.strip() for origin in self.ADMIN_CORS_ORIGINS.split(",") if origin.strip()]
