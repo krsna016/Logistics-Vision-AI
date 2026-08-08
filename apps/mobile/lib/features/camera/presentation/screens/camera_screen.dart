@@ -47,6 +47,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   bool _isGalleryAnalyzing = false;
   bool _torchOn = false;
   bool _routeCovered = false;
+  CameraController? _previewReadyController;
 
   Future<void> _pickImage() async {
     try {
@@ -112,6 +113,14 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     final truckId = routerState.pathParameters['id'] ?? '';
     final bool isReadyForReview =
         decisionState.status == CountingDecisionState.readyForReview;
+    final previewReady = isGallery ||
+        (cameraState.controller != null &&
+            identical(_previewReadyController, cameraState.controller));
+    final hostsStartupCurtain = !isGallery &&
+        (cameraState.status == CameraStatus.initializing ||
+            cameraState.status == CameraStatus.switching ||
+            cameraState.status == CameraStatus.ready);
+    final awaitingPreview = hostsStartupCurtain && !previewReady;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -152,6 +161,17 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                           cameraState,
                           cameraNotifier,
                           inferenceReady && widget.isActive && !_routeCovered,
+                          () {
+                            final controller = cameraState.controller;
+                            if (!mounted || controller == null) return;
+                            if (identical(
+                                _previewReadyController, controller)) {
+                              return;
+                            }
+                            setState(
+                              () => _previewReadyController = controller,
+                            );
+                          },
                         ),
                       ),
                     ),
@@ -220,7 +240,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                   if (isGallery) {
                     setState(() => _pickedImagePath = null);
                   } else if (cameraState.availableCameras.length > 1) {
-                    setState(() => _torchOn = false);
+                    setState(() {
+                      _torchOn = false;
+                      _previewReadyController = null;
+                    });
                     cameraNotifier.switchCamera();
                   }
                   decisionNotifier.resetAnalyzer();
@@ -247,6 +270,47 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                         );
                       }
                     : null,
+              ),
+            ),
+
+          // Keep every intermediate camera/overlay frame behind one stable
+          // surface. The complete camera workspace fades in only after the
+          // first frame from the active controller is available.
+          if (hostsStartupCurtain)
+            Positioned.fill(
+              child: IgnorePointer(
+                ignoring: !awaitingPreview,
+                child: AnimatedOpacity(
+                  opacity: awaitingPreview ? 1 : 0,
+                  duration: const Duration(milliseconds: 140),
+                  curve: Curves.easeOut,
+                  child: const ColoredBox(
+                    color: Colors.black,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.4,
+                            ),
+                          ),
+                          SizedBox(height: 14),
+                          Text(
+                            'Preparing camera...',
+                            style: TextStyle(
+                              color: Colors.white70,
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
         ],
@@ -320,6 +384,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     CameraState state,
     CameraNotifier notifier,
     bool inferenceReady,
+    VoidCallback onPreviewReady,
   ) {
     switch (state.status) {
       case CameraStatus.initializing:
@@ -363,6 +428,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
           key: _streamKey,
           controller: state.controller!,
           inferenceReady: inferenceReady,
+          onPreviewReady: onPreviewReady,
         );
 
       case CameraStatus.disposed:
@@ -1386,11 +1452,13 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
 class _CameraStreamAdapter extends ConsumerStatefulWidget {
   final CameraController controller;
   final bool inferenceReady;
+  final VoidCallback onPreviewReady;
 
   const _CameraStreamAdapter({
     super.key,
     required this.controller,
     required this.inferenceReady,
+    required this.onPreviewReady,
   });
 
   @override
@@ -1402,25 +1470,51 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
   bool _isStreaming = false;
   bool _isStarting = false;
   bool _hasReceivedFrame = false;
+  bool _inferenceEnabled = false;
+  Timer? _streamStartTimer;
+  Timer? _inferenceStartTimer;
+  Timer? _previewFallbackTimer;
 
   @override
   void initState() {
     super.initState();
-    unawaited(_startStream());
+    _scheduleStreamStart();
   }
 
   @override
   void didUpdateWidget(covariant _CameraStreamAdapter oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
+      _streamStartTimer?.cancel();
+      _inferenceStartTimer?.cancel();
       _hasReceivedFrame = false;
+      _inferenceEnabled = false;
       unawaited(_replaceStream(oldWidget.controller));
     }
   }
 
+  void _scheduleStreamStart() {
+    _streamStartTimer?.cancel();
+    _previewFallbackTimer?.cancel();
+    // Some Android camera implementations render the preview texture but do
+    // not promptly deliver an image-stream callback after controller handoff.
+    // Never leave the operator behind a permanent startup curtain in that
+    // case; the initialized platform preview remains fully usable.
+    _previewFallbackTimer = Timer(const Duration(milliseconds: 360), () {
+      if (mounted && widget.controller.value.isInitialized) {
+        widget.onPreviewReady();
+      }
+    });
+    // Let the platform preview texture and route transition settle before
+    // starting the more expensive YUV image stream used by inference.
+    _streamStartTimer = Timer(const Duration(milliseconds: 520), () {
+      if (mounted) unawaited(_startStream());
+    });
+  }
+
   Future<void> _replaceStream(CameraController oldController) async {
     await _stopStream(oldController);
-    if (mounted) await _startStream();
+    if (mounted) _scheduleStreamStart();
   }
 
   Future<void> _startStream() async {
@@ -1432,9 +1526,20 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
       await controller.startImageStream((image) {
         if (mounted) {
           if (!_hasReceivedFrame) {
+            _previewFallbackTimer?.cancel();
             setState(() => _hasReceivedFrame = true);
+            widget.onPreviewReady();
+            _inferenceStartTimer?.cancel();
+            _inferenceStartTimer = Timer(
+              const Duration(milliseconds: 320),
+              () {
+                if (mounted) _inferenceEnabled = true;
+              },
+            );
           }
-          if (widget.inferenceReady) notifier.processImageFrame(image);
+          if (_inferenceEnabled && widget.inferenceReady) {
+            notifier.processImageFrame(image);
+          }
         }
       });
       if (!mounted || !identical(controller, widget.controller)) {
@@ -1482,6 +1587,9 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
 
   @override
   void dispose() {
+    _streamStartTimer?.cancel();
+    _inferenceStartTimer?.cancel();
+    _previewFallbackTimer?.cancel();
     unawaited(_stopStream(widget.controller));
     super.dispose();
   }
@@ -1531,23 +1639,6 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
             ),
           ),
         ),
-        if (!_hasReceivedFrame)
-          const ColoredBox(
-            color: Colors.black,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(color: Colors.white),
-                  SizedBox(height: 16),
-                  Text(
-                    'Starting Full HD camera...',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-          ),
       ],
     );
   }

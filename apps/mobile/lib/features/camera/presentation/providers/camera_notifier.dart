@@ -7,6 +7,11 @@ import '../../data/repositories_impl/camera_repository_impl.dart';
 import 'camera_state.dart';
 import '../../../../utils/logger.dart';
 
+// Android camera release is asynchronous. A new provider can be created on a
+// later route before the previous provider has finished closing the hardware,
+// so serialize release and initialization across provider lifetimes.
+Future<void> _pendingCameraRelease = Future<void>.value();
+
 // Provider pointing to the concrete repository implementation
 final cameraRepositoryProvider = Provider<CameraRepository>((ref) {
   return CameraRepositoryImpl();
@@ -30,6 +35,7 @@ class CameraNotifier extends StateNotifier<CameraState>
     with WidgetsBindingObserver {
   final CameraRepository _repository;
   double _zoomLevel = 1.0;
+  int _cameraOperation = 0;
 
   CameraNotifier(this._repository)
       : super(const CameraState(status: CameraStatus.initializing)) {
@@ -38,9 +44,20 @@ class CameraNotifier extends StateNotifier<CameraState>
   }
 
   Future<void> initialize() async {
-    state = state.copyWith(status: CameraStatus.initializing);
+    final existingController = state.controller;
+    if (state.status == CameraStatus.ready &&
+        existingController?.value.isInitialized == true) {
+      return;
+    }
+
+    final operation = ++_cameraOperation;
+    state = const CameraState(status: CameraStatus.initializing);
     try {
+      await _pendingCameraRelease;
+      if (!mounted || operation != _cameraOperation) return;
+
       final hasPermission = await _repository.requestCameraPermission();
+      if (!mounted || operation != _cameraOperation) return;
       if (!hasPermission) {
         AppLogger.warning('Camera permissions were denied by the operator.');
         state = state.copyWith(status: CameraStatus.permissionDenied);
@@ -48,6 +65,7 @@ class CameraNotifier extends StateNotifier<CameraState>
       }
 
       final cameras = await _repository.getAvailableCameras();
+      if (!mounted || operation != _cameraOperation) return;
       if (cameras.isEmpty) {
         AppLogger.warning('Zero cameras detected on this device.');
         state = state.copyWith(
@@ -74,6 +92,11 @@ class CameraNotifier extends StateNotifier<CameraState>
         resolutionPreset: ResolutionPreset.veryHigh,
       );
 
+      if (!mounted || operation != _cameraOperation) {
+        await _repository.disposeController(controller);
+        return;
+      }
+
       state = CameraState(
         status: CameraStatus.ready,
         controller: controller,
@@ -82,6 +105,7 @@ class CameraNotifier extends StateNotifier<CameraState>
       );
       _zoomLevel = 1.0;
     } catch (e, stack) {
+      if (!mounted || operation != _cameraOperation) return;
       AppLogger.error('Fatal initialization error in CameraNotifier', e, stack);
       state = state.copyWith(
         status: CameraStatus.error,
@@ -161,12 +185,19 @@ class CameraNotifier extends StateNotifier<CameraState>
   }
 
   Future<void> disposeCamera() async {
+    ++_cameraOperation;
     final controller = state.controller;
-    if (controller != null) {
-      await _repository.disposeController(controller);
+    if (mounted) {
+      state = const CameraState(status: CameraStatus.disposed);
     }
-    if (!mounted) return;
-    state = state.copyWith(status: CameraStatus.disposed, controller: null);
+    if (controller == null) return;
+
+    final release = _repository.disposeController(controller);
+    _pendingCameraRelease =
+        release.catchError((Object error, StackTrace stack) {
+      AppLogger.error('Failed to release camera hardware', error, stack);
+    });
+    await _pendingCameraRelease;
   }
 
   @override
