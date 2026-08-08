@@ -1522,6 +1522,9 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
   Timer? _streamWatchdogTimer;
   DateTime? _lastFrameAt;
   int _consecutiveBlackFrames = 0;
+  int _consecutiveDarkFrames = 0;
+  int _consecutiveUsableFrames = 0;
+  bool _isLowLight = false;
   bool _recoveryRequested = false;
 
   @override
@@ -1541,6 +1544,9 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
       _inferenceEnabled = false;
       _lastFrameAt = null;
       _consecutiveBlackFrames = 0;
+      _consecutiveDarkFrames = 0;
+      _consecutiveUsableFrames = 0;
+      _isLowLight = false;
       _recoveryRequested = false;
       unawaited(_replaceStream(oldWidget.controller));
     }
@@ -1593,8 +1599,8 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     if (luminance.isEmpty) return;
 
     // Sample only a few hundred Y-plane pixels, keeping this check negligible
-    // compared with inference. Sustained near-zero luminance indicates the
-    // CameraX black-frame failure, not an ordinary dim warehouse scene.
+    // compared with inference. Normal YUV black is commonly around 16, so a
+    // dark scene must never be treated as a broken CameraX session.
     final step = math.max(1, luminance.length ~/ 320);
     var total = 0;
     var samples = 0;
@@ -1608,12 +1614,21 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
       samples++;
     }
     final average = samples == 0 ? 255 : total / samples;
-    final isCameraBlackFrame =
-        average < 3.0 || (average <= 18.0 && maximum - minimum <= 2);
+    final isCameraBlackFrame = average < 1.5 && maximum - minimum <= 1;
     _consecutiveBlackFrames =
         isCameraBlackFrame ? _consecutiveBlackFrames + 1 : 0;
-    if (_consecutiveBlackFrames >= 12) {
-      _requestRecovery('Camera image stream returned sustained black frames.');
+    if (_consecutiveBlackFrames >= 30) {
+      _requestRecovery('Camera image stream returned corrupted zero frames.');
+      return;
+    }
+
+    final lowLight = average < 38;
+    _consecutiveDarkFrames = lowLight ? _consecutiveDarkFrames + 1 : 0;
+    _consecutiveUsableFrames = lowLight ? 0 : _consecutiveUsableFrames + 1;
+    if (!_isLowLight && _consecutiveDarkFrames >= 12 && mounted) {
+      setState(() => _isLowLight = true);
+    } else if (_isLowLight && _consecutiveUsableFrames >= 6 && mounted) {
+      setState(() => _isLowLight = false);
     }
   }
 
@@ -1751,6 +1766,42 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
             ),
           ),
         ),
+        if (_isLowLight)
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 72,
+            left: 24,
+            right: 24,
+            child: IgnorePointer(
+              child: Center(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.72),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.flash_on_rounded,
+                            color: Colors.amber, size: 18),
+                        SizedBox(width: 8),
+                        Text(
+                          'Too dark — turn on flash',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
