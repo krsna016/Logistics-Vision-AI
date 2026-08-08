@@ -23,7 +23,8 @@ class WagonNumberScanScreen extends StatefulWidget {
 class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
     with WidgetsBindingObserver {
   CameraController? _controller;
-  final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+  TextRecognizer _recognizer =
+      TextRecognizer(script: TextRecognitionScript.latin);
   final _consensus = WagonNumberConsensus();
   String? _error;
   bool _initializing = true;
@@ -35,14 +36,18 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
   bool _resultDelivered = false;
   Future<void>? _activeFrameProcessing;
   Timer? _candidateExpiryTimer;
+  Timer? _cameraWatchdogTimer;
   DateTime _lastFrameStarted = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime? _lastCameraFrameAt;
   String? _liveCandidate;
   bool _lifecyclePaused = false;
+  int _framesWithoutCandidate = 0;
   final Stopwatch _sessionStopwatch = Stopwatch()..start();
-  double _zoom = 1;
-  double _minZoom = 1;
-  double _maxZoom = 1;
-  double _gestureStartZoom = 1;
+  double _currentZoom = 1;
+  double _baseZoom = 1;
+  double _minimumZoom = 1;
+  double _maximumZoom = 1;
+  bool _cameraRecoveryInProgress = false;
 
   @override
   void initState() {
@@ -69,10 +74,8 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
       setState(() {
         _controller = controller;
         _initializing = false;
-        _zoom = _minZoom;
-        _gestureStartZoom = _minZoom;
       });
-      unawaited(_loadZoomLevels(controller));
+      unawaited(_initializeZoom(controller));
       // Paint the camera preview first, then attach the analysis stream. This
       // prevents route animation, texture creation and OCR startup competing in
       // the same frame.
@@ -103,22 +106,6 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
     await _initialize();
   }
 
-  Future<void> _loadZoomLevels(CameraController controller) async {
-    try {
-      final minZoom = await controller.getMinZoomLevel();
-      final maxZoom = await controller.getMaxZoomLevel();
-      if (!mounted || _controller != controller) return;
-      setState(() {
-        _minZoom = minZoom;
-        _maxZoom = maxZoom;
-        _zoom = minZoom;
-        _gestureStartZoom = minZoom;
-      });
-    } catch (_) {
-      // Keep safe defaults when zoom is unsupported.
-    }
-  }
-
   Future<void> _toggleTorch() async {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
@@ -135,14 +122,28 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
     }
   }
 
-  Future<void> _setZoom(double zoom) async {
+  Future<void> _initializeZoom(CameraController controller) async {
+    try {
+      final minimum = await controller.getMinZoomLevel();
+      final maximum = await controller.getMaxZoomLevel();
+      if (!mounted || _controller != controller) return;
+      _minimumZoom = minimum;
+      _maximumZoom = maximum;
+      _currentZoom = minimum;
+      _baseZoom = minimum;
+      await controller.setZoomLevel(minimum);
+    } catch (_) {}
+  }
+
+  Future<void> _setPinchZoom(double scale) async {
     final controller = _controller;
     if (controller == null || !controller.value.isInitialized) return;
-    final nextZoom = zoom.clamp(_minZoom, _maxZoom).toDouble();
-    if ((nextZoom - _zoom).abs() < 0.01) return;
-    _zoom = nextZoom;
+    final zoom =
+        (_baseZoom * scale).clamp(_minimumZoom, _maximumZoom).toDouble();
+    if ((zoom - _currentZoom).abs() < 0.01) return;
+    _currentZoom = zoom;
     try {
-      await controller.setZoomLevel(nextZoom);
+      await controller.setZoomLevel(zoom);
     } catch (_) {}
   }
 
@@ -155,8 +156,10 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
     }
     try {
       _consensus.reset();
+      _lastCameraFrameAt = DateTime.now();
       await controller.startImageStream((image) {
         final now = DateTime.now();
+        _lastCameraFrameAt = now;
         if (_resultDelivered ||
             _processingFrame ||
             _recognizerBusy ||
@@ -175,11 +178,64 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
         }));
       });
       _liveScanning = true;
+      _startCameraWatchdog(controller);
       if (mounted) setState(() {});
     } catch (_) {
       _liveScanning = false;
       // Gallery remains available on devices without image streaming.
     }
+  }
+
+  void _startCameraWatchdog(CameraController controller) {
+    _cameraWatchdogTimer?.cancel();
+    _cameraWatchdogTimer = Timer.periodic(
+      const Duration(milliseconds: 750),
+      (_) {
+        if (!mounted ||
+            _lifecyclePaused ||
+            _resultDelivered ||
+            _cameraRecoveryInProgress ||
+            _controller != controller) {
+          return;
+        }
+        final lastFrameAt = _lastCameraFrameAt;
+        final streamStalled = lastFrameAt != null &&
+            DateTime.now().difference(lastFrameAt) >
+                const Duration(milliseconds: 1800);
+        if (controller.value.hasError ||
+            controller.value.isPreviewPaused ||
+            streamStalled) {
+          unawaited(_recoverCameraSession());
+        }
+      },
+    );
+  }
+
+  Future<void> _recoverCameraSession() async {
+    if (_cameraRecoveryInProgress ||
+        _lifecyclePaused ||
+        _resultDelivered ||
+        !mounted) {
+      return;
+    }
+    _cameraRecoveryInProgress = true;
+    _cameraWatchdogTimer?.cancel();
+    _candidateExpiryTimer?.cancel();
+    _liveScanning = false;
+    _processingFrame = false;
+    _controller = null;
+    setState(() {
+      _initializing = true;
+      _error = null;
+      _liveCandidate = null;
+      _torchOn = false;
+    });
+    AppLogger.warning('Wagon scanner camera stalled. Rebuilding session.');
+    await ScannerCameraWarmup.disposeNow();
+    if (mounted && !_lifecyclePaused && !_resultDelivered) {
+      await _initialize();
+    }
+    _cameraRecoveryInProgress = false;
   }
 
   Future<void> _stopLiveScanning(
@@ -197,6 +253,7 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
       // The controller may already be stopping or disposing.
     } finally {
       _liveScanning = false;
+      _cameraWatchdogTimer?.cancel();
     }
     if (waitForActiveFrame) await _activeFrameProcessing;
   }
@@ -206,20 +263,23 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
     CameraImage cameraImage,
   ) async {
     final frameStopwatch = Stopwatch()..start();
+    final useExpandedRegion = _framesWithoutCandidate >= 3;
+    final roiWidth = useExpandedRegion ? 0.96 : 0.84;
+    final roiHeight = useExpandedRegion ? 0.78 : 0.58;
     try {
       if (!cameraFrameHasSufficientQuality(
         cameraImage,
         controller.description.sensorOrientation,
-        roiWidthFraction: 0.84,
-        roiHeightFraction: 0.58,
+        roiWidthFraction: roiWidth,
+        roiHeightFraction: roiHeight,
       )) {
         return;
       }
       final inputImage = inputImageFromCameraFrame(
         cameraImage,
         controller.description.sensorOrientation,
-        roiWidthFraction: 0.84,
-        roiHeightFraction: 0.58,
+        roiWidthFraction: roiWidth,
+        roiHeightFraction: roiHeight,
       );
       if (inputImage == null) return;
 
@@ -228,8 +288,8 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
       _recognizerBusy = true;
       unawaited(
         recognition.then<void>((_) {}, onError: (_, __) {}).whenComplete(() {
-          _recognizerBusy = false;
           if (identical(_activeRecognition, recognition)) {
+            _recognizerBusy = false;
             _activeRecognition = null;
           }
         }),
@@ -240,6 +300,12 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
       final candidates = WagonNumberParser.candidatesFromText(result.text)
           .where(WagonNumberParser.looksLikeWagonNumber)
           .toList();
+      if (candidates.isEmpty) {
+        _framesWithoutCandidate =
+            (_framesWithoutCandidate + 1).clamp(0, 8).toInt();
+      } else {
+        _framesWithoutCandidate = 0;
+      }
       final accepted = _consensus.addCandidates(candidates);
       final leading = _consensus.leadingCandidate;
       if (candidates.isNotEmpty && leading != null) {
@@ -257,6 +323,9 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
         Navigator.of(context).pop(accepted);
       }
     } on TimeoutException {
+      _replaceStalledRecognizer();
+      _framesWithoutCandidate =
+          (_framesWithoutCandidate + 1).clamp(0, 8).toInt();
       _candidateExpiryTimer?.cancel();
       _consensus.reset();
       if (mounted) setState(() => _liveCandidate = null);
@@ -271,6 +340,18 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
       }
       _processingFrame = false;
     }
+  }
+
+  void _replaceStalledRecognizer() {
+    final stalledRecognizer = _recognizer;
+    _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+    _activeRecognition = null;
+    _recognizerBusy = false;
+    unawaited(
+      stalledRecognizer.close().timeout(const Duration(seconds: 1)).catchError(
+            (_) {},
+          ),
+    );
   }
 
   void _showLiveCandidate(String candidate) {
@@ -301,7 +382,9 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
   Future<void> _pauseForLifecycle() async {
     if (_lifecyclePaused) return;
     _lifecyclePaused = true;
+    _cameraWatchdogTimer?.cancel();
     _candidateExpiryTimer?.cancel();
+    _cameraWatchdogTimer?.cancel();
     final controller = _controller;
     await _stopLiveScanning(controller, waitForActiveFrame: false);
     await ScannerCameraWarmup.disposeNow();
@@ -317,6 +400,7 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
   Future<void> _resumeAfterLifecyclePause() async {
     if (!_lifecyclePaused || !mounted) return;
     _lifecyclePaused = false;
+    _framesWithoutCandidate = 0;
     _resultDelivered = false;
     _sessionStopwatch
       ..reset()
@@ -392,13 +476,11 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
                               borderRadius: BorderRadius.circular(28),
                               child: GestureDetector(
                                 behavior: HitTestBehavior.opaque,
-                                onScaleStart: (_) => _gestureStartZoom = _zoom,
+                                onScaleStart: (_) => _baseZoom = _currentZoom,
                                 onScaleUpdate: (details) {
-                                  if (details.scale != 1) {
-                                    unawaited(
-                                      _setZoom(
-                                          _gestureStartZoom * details.scale),
-                                    );
+                                  if (details.pointerCount == 2 &&
+                                      details.scale != 1) {
+                                    unawaited(_setPinchZoom(details.scale));
                                   }
                                 },
                                 child: CameraPreview(controller),

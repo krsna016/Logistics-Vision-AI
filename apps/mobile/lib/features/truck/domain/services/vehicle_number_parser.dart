@@ -22,15 +22,18 @@ class VehicleNumberParser {
 
     // Supports common Indian private/commercial registration shapes while
     // retaining a fallback for fleet identifiers used by existing customers.
-    final indianFormat = RegExp(r'^[A-Z]{2}\d{1,2}[A-Z]{1,3}\d{1,4}$');
+    final indianFormat = RegExp(r'^[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{3,4}$');
+    final bharatSeries = RegExp(r'^\d{2}BH\d{4}[A-Z]{2}$');
     final fleetFormat = RegExp(r'^(?=.*[A-Z])(?=.*\d)[A-Z0-9]{5,12}$');
     return indianFormat.hasMatch(normalized) ||
+        bharatSeries.hasMatch(normalized) ||
         fleetFormat.hasMatch(normalized);
   }
 
   static bool looksLikeIndianVehicleNumber(String value) {
     final normalized = normalize(value);
-    return RegExp(r'^[A-Z]{2}\d{1,2}[A-Z]{1,3}\d{1,4}$').hasMatch(normalized);
+    return RegExp(r'^[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{3,4}$').hasMatch(normalized) ||
+        RegExp(r'^\d{2}BH\d{4}[A-Z]{2}$').hasMatch(normalized);
   }
 
   static List<String> candidatesFromText(String text) {
@@ -91,6 +94,7 @@ class VehicleNumberParser {
     if (RegExp(r'^[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{3,4}$').hasMatch(value)) {
       score += 5;
     }
+    if (RegExp(r'^\d{2}BH\d{4}[A-Z]{2}$').hasMatch(value)) score += 8;
     if (RegExp(r'^[A-Z]{2}').hasMatch(value)) score += 3;
     if (RegExp(r'\d').hasMatch(value)) score += 2;
     if (RegExp(r'[A-Z]').hasMatch(value)) score += 1;

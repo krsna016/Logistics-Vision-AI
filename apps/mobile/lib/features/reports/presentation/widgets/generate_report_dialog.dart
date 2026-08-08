@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 
-class GenerateReportDialog extends StatelessWidget {
+class GenerateReportDialog extends StatefulWidget {
   final String title;
   final String subtitle;
   final Future<void> Function() onPdf;
@@ -14,6 +14,30 @@ class GenerateReportDialog extends StatelessWidget {
     required this.onPdf,
     required this.onExcel,
   });
+
+  @override
+  State<GenerateReportDialog> createState() => _GenerateReportDialogState();
+}
+
+class _GenerateReportDialogState extends State<GenerateReportDialog> {
+  String? _generatingFormat;
+
+  Future<void> _generate(String format, Future<void> Function() action) async {
+    if (_generatingFormat != null) return;
+    setState(() => _generatingFormat = format);
+    try {
+      // Let Flutter paint the selected button's spinner before report
+      // generation starts doing any database or document work.
+      await WidgetsBinding.instance.endOfFrame;
+      await Future<void>.delayed(Duration.zero);
+      if (!mounted) return;
+      await action();
+    } finally {
+      if (mounted) {
+        setState(() => _generatingFormat = null);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +64,8 @@ class GenerateReportDialog extends StatelessWidget {
             children: [
               Container(
                 width: double.infinity,
-                padding: const EdgeInsets.fromLTRB(20, 18, 10, 18),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
                 decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     colors: [Color(0xFF102A43), Color(0xFF173D5C)],
@@ -59,17 +84,11 @@ class GenerateReportDialog extends StatelessWidget {
                     ),
                     const SizedBox(width: 12),
                     Expanded(
-                      child: Text(title,
+                      child: Text(widget.title,
                           style: const TextStyle(
                               fontSize: 19,
                               fontWeight: FontWeight.w800,
                               color: Colors.white)),
-                    ),
-                    IconButton(
-                      tooltip: 'Close',
-                      onPressed: () => Navigator.pop(context),
-                      icon: const Icon(Icons.close,
-                          color: AppTheme.textSecondary),
                     ),
                   ],
                 ),
@@ -79,7 +98,7 @@ class GenerateReportDialog extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(subtitle,
+                    Text(widget.subtitle,
                         style: const TextStyle(
                             color: AppTheme.textSecondary, height: 1.4)),
                     const SizedBox(height: 18),
@@ -88,10 +107,10 @@ class GenerateReportDialog extends StatelessWidget {
                       title: 'Export PDF',
                       subtitle: 'Best for printing and sharing',
                       color: AppTheme.primaryColor,
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await onPdf();
-                      },
+                      isLoading: _generatingFormat == 'PDF',
+                      onPressed: _generatingFormat == null
+                          ? () => _generate('PDF', widget.onPdf)
+                          : null,
                     ),
                     const SizedBox(height: 10),
                     _ReportOptionButton(
@@ -99,10 +118,10 @@ class GenerateReportDialog extends StatelessWidget {
                       title: 'Export Excel',
                       subtitle: 'Best for editing and analysis',
                       color: AppTheme.successColor,
-                      onPressed: () async {
-                        Navigator.pop(context);
-                        await onExcel();
-                      },
+                      isLoading: _generatingFormat == 'Excel',
+                      onPressed: _generatingFormat == null
+                          ? () => _generate('Excel', widget.onExcel)
+                          : null,
                     ),
                   ],
                 ),
@@ -120,13 +139,15 @@ class _ReportOptionButton extends StatelessWidget {
   final String title;
   final String subtitle;
   final Color color;
-  final Future<void> Function() onPressed;
+  final bool isLoading;
+  final Future<void> Function()? onPressed;
 
   const _ReportOptionButton({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.color,
+    required this.isLoading,
     required this.onPressed,
   });
 
@@ -136,14 +157,14 @@ class _ReportOptionButton extends StatelessWidget {
       width: double.infinity,
       height: 58,
       child: ElevatedButton(
-        onPressed: () => onPressed(),
+        onPressed: onPressed == null ? null : () => onPressed!(),
         style: ElevatedButton.styleFrom(
           backgroundColor: color,
           foregroundColor: Colors.white,
           elevation: 0,
           padding: const EdgeInsets.symmetric(horizontal: 16),
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         ),
         child: Row(
           children: [
@@ -163,7 +184,17 @@ class _ReportOptionButton extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.arrow_forward_rounded, size: 19),
+            if (isLoading)
+              const SizedBox(
+                width: 19,
+                height: 19,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.2,
+                  color: Colors.white,
+                ),
+              )
+            else
+              const Icon(Icons.arrow_forward_rounded, size: 19),
           ],
         ),
       ),

@@ -26,6 +26,18 @@ void main() {
     expect(candidates.first, 'AS01KC1812');
   });
 
+  test('accepts a registration without optional series letters', () {
+    final candidates = VehicleNumberParser.candidatesFromText('AB 01 1234');
+
+    expect(candidates.first, 'AB011234');
+  });
+
+  test('accepts a Bharat Series registration', () {
+    final candidates = VehicleNumberParser.candidatesFromText('22 BH 1234 AA');
+
+    expect(candidates.first, '22BH1234AA');
+  });
+
   test('parses representative two-line Assam commercial plates', () {
     const samples = <String, String>{
       'IND\nAS01\nDC4577': 'AS01DC4577',

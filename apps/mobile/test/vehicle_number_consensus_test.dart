@@ -22,6 +22,14 @@ void main() {
     expect(consensus.matchesFor('AS01GC5231'), 2);
   });
 
+  test('tolerates one known OCR confusion when two exact readings agree', () {
+    final consensus = VehicleNumberConsensus();
+
+    expect(consensus.addCandidates(['AS01GC0451']), isNull);
+    expect(consensus.addCandidates(['AS01GCO451']), isNull);
+    expect(consensus.addCandidates(['AS01GC0451']), 'AS01GC0451');
+  });
+
   test('keeps only recent observations', () {
     final consensus = VehicleNumberConsensus(
       requiredMatches: 3,

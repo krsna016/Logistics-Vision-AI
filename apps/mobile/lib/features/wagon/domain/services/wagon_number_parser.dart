@@ -7,7 +7,7 @@ class WagonNumberParser {
   static bool looksLikeWagonNumber(String value) {
     final normalized = normalize(value);
     return RegExp(r'^3\d{10}$').hasMatch(normalized) ||
-        RegExp(r'^BCN[A-Z0-9]{2,7}3\d{10}$').hasMatch(normalized);
+        RegExp(r'^BCN(?:[A-Z][A-Z0-9]{0,7})?3\d{10}$').hasMatch(normalized);
   }
 
   static List<String> candidatesFromText(String text) {
@@ -36,7 +36,7 @@ class WagonNumberParser {
     final classes = <String>{};
     for (var start = 0; start < tokens.length; start++) {
       var joined = '';
-      for (var end = start; end < tokens.length && end <= start + 2; end++) {
+      for (var end = start; end < tokens.length && end <= start + 4; end++) {
         joined += tokens[end];
         if (joined.length > 10) break;
         final corrected = _correctWagonClass(joined);
@@ -50,7 +50,7 @@ class WagonNumberParser {
     final numbers = <String>{};
     for (var start = 0; start < tokens.length; start++) {
       var joined = '';
-      for (var end = start; end < tokens.length && end <= start + 2; end++) {
+      for (var end = start; end < tokens.length && end <= start + 3; end++) {
         final digits = _asDigits(tokens[end]);
         if (digits == null) break;
         joined += digits;
@@ -64,7 +64,7 @@ class WagonNumberParser {
   static String? _correctWagonClass(String value) {
     final normalized =
         normalize(value).replaceAllMapped(RegExp(r'(?<=M)[IL]$'), (_) => '1');
-    if (RegExp(r'^BCN(?=.*[A-Z])[A-Z0-9]{2,7}$').hasMatch(normalized)) {
+    if (RegExp(r'^BCN(?:[A-Z][A-Z0-9]{0,7})?$').hasMatch(normalized)) {
       return normalized;
     }
     return null;
@@ -91,7 +91,14 @@ class WagonNumberParser {
 
   static int _score(String value) {
     var score = 0;
-    if (value.startsWith('BCN')) score += 20;
+    final classMatch = RegExp(r'^(BCN(?:[A-Z][A-Z0-9]{0,7})?)(3\d{10})$')
+        .firstMatch(normalize(value));
+    if (classMatch != null) {
+      score += 20;
+      // When OCR exposes BCN, BCNA and BCNAHSM1 as overlapping candidates,
+      // retain the most complete visible class rather than the shortest one.
+      score += classMatch.group(1)!.length - 3;
+    }
     if (RegExp(r'3\d{10}$').hasMatch(value)) score += 12;
     return score;
   }

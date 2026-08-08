@@ -14,8 +14,8 @@ class WagonNumberConsensus {
   String? addCandidates(Iterable<String> candidates) {
     final candidate = candidates.firstOrNull;
     if (candidate == null) return null;
-    final match =
-        RegExp(r'^(BCN[A-Z0-9]{2,7})?(3\d{10})$').firstMatch(candidate);
+    final match = RegExp(r'^(BCN(?:[A-Z][A-Z0-9]{0,7})?)?(3\d{10})$')
+        .firstMatch(candidate);
     if (match == null) return null;
 
     _wagonClass = match.group(1) ?? _wagonClass;

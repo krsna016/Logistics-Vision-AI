@@ -66,6 +66,22 @@ void main() {
     expect(candidates.first, 'BCNHL31052414989');
   });
 
+  test('keeps a standalone BCN class when no suffix is visible', () {
+    final candidates = WagonNumberParser.candidatesFromText(
+      'BCN\n310524\n14989',
+    );
+
+    expect(candidates.first, 'BCN31052414989');
+  });
+
+  test('joins a wagon class split across several OCR tokens', () {
+    final candidates = WagonNumberParser.candidatesFromText(
+      'BCN A HSM 1\n310324\n37595',
+    );
+
+    expect(candidates.first, 'BCNAHSM131032437595');
+  });
+
   test('does not accept an incomplete first numeric row', () {
     final candidates = WagonNumberParser.candidatesFromText(
       'BCNAHSM1\n310524',

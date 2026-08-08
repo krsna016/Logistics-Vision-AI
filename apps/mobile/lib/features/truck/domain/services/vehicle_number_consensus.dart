@@ -17,8 +17,18 @@ class VehicleNumberConsensus {
     _history.add(candidate);
     if (_history.length > historyLimit) _history.removeAt(0);
 
-    final matches = _history.where((value) => value == candidate).length;
-    return matches >= requiredMatches ? candidate : null;
+    final matching = _history.where((value) => _sameReading(value, candidate));
+    if (matching.length < requiredMatches) return null;
+
+    // Prefer the most frequently observed exact spelling within the matching
+    // group. This tolerates a single O/0-style OCR wobble without inventing a
+    // new registration value.
+    final counts = <String, int>{};
+    for (final value in matching) {
+      counts[value] = (counts[value] ?? 0) + 1;
+    }
+    final winner = counts.entries.reduce((a, b) => a.value >= b.value ? a : b);
+    return winner.value >= 2 ? winner.key : null;
   }
 
   String? get leadingCandidate {
@@ -34,6 +44,27 @@ class VehicleNumberConsensus {
       _history.where((value) => value == candidate).length;
 
   void reset() => _history.clear();
+
+  static bool _sameReading(String first, String second) {
+    if (first == second) return true;
+    if (first.length != second.length) return false;
+    var differences = 0;
+    for (var index = 0; index < first.length; index++) {
+      final a = first[index];
+      final b = second[index];
+      if (a == b) continue;
+      differences++;
+      if (differences > 1 || !_knownOcrConfusion(a, b)) return false;
+    }
+    return differences == 1;
+  }
+
+  static bool _knownOcrConfusion(String first, String second) {
+    const groups = ['0OQD', '1IL', '2Z', '5S', '6G', '7T', '8B'];
+    return groups.any(
+      (group) => group.contains(first) && group.contains(second),
+    );
+  }
 }
 
 extension _FirstOrNull<T> on Iterable<T> {

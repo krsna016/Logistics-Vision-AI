@@ -36,7 +36,6 @@ final cameraNotifierProvider =
 class CameraNotifier extends StateNotifier<CameraState>
     with WidgetsBindingObserver {
   final CameraRepository _repository;
-  double _zoomLevel = 1.0;
   int _cameraOperation = 0;
   Timer? _reconnectTimer;
 
@@ -108,7 +107,6 @@ class CameraNotifier extends StateNotifier<CameraState>
         selectedCameraIndex: defaultIndex,
       );
       _reconnectTimer?.cancel();
-      _zoomLevel = 1.0;
     } catch (e, stack) {
       if (!mounted || operation != _cameraOperation) return;
       AppLogger.error('Fatal initialization error in CameraNotifier', e, stack);
@@ -160,42 +158,12 @@ class CameraNotifier extends StateNotifier<CameraState>
         controller: nextController,
         selectedCameraIndex: nextIndex,
       );
-      _zoomLevel = 1.0;
     } catch (e, stack) {
       AppLogger.error('Switching camera error', e, stack);
       state = state.copyWith(
         status: CameraStatus.error,
         errorMessage: 'Failed to switch camera devices.',
       );
-    }
-  }
-
-  Future<void> zoomBy(double delta) async {
-    await setZoomLevel(_zoomLevel + delta);
-  }
-
-  Future<void> setZoomLevel(double zoomLevel) async {
-    final controller = state.controller;
-    if (controller == null || !controller.value.isInitialized) return;
-
-    try {
-      final maxZoom = await controller.getMaxZoomLevel();
-      _zoomLevel = zoomLevel.clamp(1.0, maxZoom).toDouble();
-      await controller.setZoomLevel(_zoomLevel);
-    } catch (e, stack) {
-      AppLogger.error('Failed to change camera zoom', e, stack);
-    }
-  }
-
-  Future<void> resetZoom() async {
-    final controller = state.controller;
-    if (controller == null || !controller.value.isInitialized) return;
-
-    try {
-      _zoomLevel = 1.0;
-      await controller.setZoomLevel(_zoomLevel);
-    } catch (e, stack) {
-      AppLogger.error('Failed to reset camera zoom', e, stack);
     }
   }
 

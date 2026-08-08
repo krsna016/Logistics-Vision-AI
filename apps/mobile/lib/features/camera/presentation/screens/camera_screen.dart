@@ -42,8 +42,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   final ImagePicker _picker = ImagePicker();
   final _streamKey = GlobalKey<_CameraStreamAdapterState>();
   final _imageStorage = ImageStorageService();
-  double _gestureStartZoom = 1.0;
-  double _gestureZoom = 1.0;
+  CameraController? _zoomController;
+  double _currentZoom = 1;
+  double _baseZoom = 1;
+  double _minimumZoom = 1;
+  double _maximumZoom = 1;
   bool _isGalleryAnalyzing = false;
   bool _torchOn = false;
   bool _routeCovered = false;
@@ -94,11 +97,55 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     await _pickImage();
   }
 
+  void _syncNativeZoom(CameraController? controller) {
+    if (identical(_zoomController, controller)) return;
+    _zoomController = controller;
+    if (controller != null) unawaited(_initializeZoom(controller));
+  }
+
+  Future<void> _initializeZoom(CameraController controller) async {
+    try {
+      final minimum = await controller.getMinZoomLevel();
+      final maximum = await controller.getMaxZoomLevel();
+      if (!mounted || _zoomController != controller) return;
+      _minimumZoom = minimum;
+      _maximumZoom = maximum;
+      _currentZoom = minimum;
+      _baseZoom = minimum;
+      await controller.setZoomLevel(minimum);
+    } catch (_) {
+      // Keep the native camera default when zoom is unavailable.
+    }
+  }
+
+  Future<void> _setPinchZoom(double scale) async {
+    final controller = _zoomController;
+    if (controller == null || !controller.value.isInitialized) return;
+    final zoom =
+        (_baseZoom * scale).clamp(_minimumZoom, _maximumZoom).toDouble();
+    if ((zoom - _currentZoom).abs() < 0.01) return;
+    _currentZoom = zoom;
+    try {
+      await controller.setZoomLevel(zoom);
+    } catch (_) {
+      // Ignore an update while CameraX is switching or recovering.
+    }
+  }
+
+  @override
+  void dispose() {
+    _zoomController = null;
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final cameraState = ref.watch(cameraNotifierProvider);
     final cameraNotifier = ref.read(cameraNotifierProvider.notifier);
     final isGallery = _pickedImagePath != null;
+    _syncNativeZoom(!isGallery && cameraState.status == CameraStatus.ready
+        ? cameraState.controller
+        : null);
     final inferenceReady = ref.watch(
       inferenceNotifierProvider.select((state) => state.isModelLoaded),
     );
@@ -132,15 +179,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onScaleStart:
-                  !isGallery ? (_) => _gestureStartZoom = _gestureZoom : null,
+              onScaleStart: !isGallery ? (_) => _baseZoom = _currentZoom : null,
               onScaleUpdate: !isGallery
                   ? (details) {
-                      if (details.scale == 1.0) return;
-                      _gestureZoom = (_gestureStartZoom * details.scale)
-                          .clamp(1.0, 20.0)
-                          .toDouble();
-                      cameraNotifier.setZoomLevel(_gestureZoom);
+                      if (details.pointerCount != 2 || details.scale == 1.0) {
+                        return;
+                      }
+                      unawaited(_setPinchZoom(details.scale));
                     }
                   : null,
               child: isGallery
@@ -246,10 +291,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                     });
                     cameraNotifier.switchCamera();
                   }
-                  decisionNotifier.resetAnalyzer();
-                },
-                onReset: () {
-                  setState(() => _pickedImagePath = null);
                   decisionNotifier.resetAnalyzer();
                 },
                 onReview: isReadyForReview
@@ -1117,7 +1158,6 @@ class _CameraOverlayControls extends StatefulWidget {
   final VoidCallback? onToggleTorch;
   final VoidCallback onGallery;
   final VoidCallback onFlipCamera;
-  final VoidCallback onReset;
   final VoidCallback? onCapture;
   final VoidCallback? onReview;
 
@@ -1128,7 +1168,6 @@ class _CameraOverlayControls extends StatefulWidget {
     required this.onToggleTorch,
     required this.onGallery,
     required this.onFlipCamera,
-    required this.onReset,
     required this.onCapture,
     required this.onReview,
   });
@@ -1260,30 +1299,24 @@ class _CameraOverlayControlsState extends State<_CameraOverlayControls>
         ),
         SizedBox(
           width: 52,
-          height: 232,
+          height: 174,
           child: Stack(
             alignment: Alignment.bottomCenter,
             clipBehavior: Clip.none,
             children: [
               _menuOption(
-                index: 2,
+                index: 1,
                 icon: Icons.photo_library_outlined,
                 tooltip: 'Gallery',
                 onTap: widget.onGallery,
               ),
               _menuOption(
-                index: 1,
+                index: 0,
                 icon: widget.isGallery
                     ? Icons.camera_alt_outlined
                     : Icons.flip_camera_ios_outlined,
                 tooltip: widget.isGallery ? 'Camera' : 'Flip camera',
                 onTap: widget.onFlipCamera,
-              ),
-              _menuOption(
-                index: 0,
-                icon: Icons.refresh_rounded,
-                tooltip: 'Reset',
-                onTap: widget.onReset,
               ),
               _RoundCameraButton(
                 icon: _menuOpen ? Icons.close_rounded : Icons.more_vert_rounded,
@@ -1486,6 +1519,10 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
   Timer? _streamStartTimer;
   Timer? _inferenceStartTimer;
   Timer? _previewRecoveryTimer;
+  Timer? _streamWatchdogTimer;
+  DateTime? _lastFrameAt;
+  int _consecutiveBlackFrames = 0;
+  bool _recoveryRequested = false;
 
   @override
   void initState() {
@@ -1499,8 +1536,12 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     if (oldWidget.controller != widget.controller) {
       _streamStartTimer?.cancel();
       _inferenceStartTimer?.cancel();
+      _streamWatchdogTimer?.cancel();
       _hasReceivedFrame = false;
       _inferenceEnabled = false;
+      _lastFrameAt = null;
+      _consecutiveBlackFrames = 0;
+      _recoveryRequested = false;
       unawaited(_replaceStream(oldWidget.controller));
     }
   }
@@ -1523,6 +1564,64 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     _streamStartTimer = Timer(const Duration(milliseconds: 520), () {
       if (mounted) unawaited(_startStream());
     });
+    _streamWatchdogTimer?.cancel();
+    _streamWatchdogTimer = Timer.periodic(
+      const Duration(milliseconds: 750),
+      (_) => _checkStreamHealth(),
+    );
+  }
+
+  void _checkStreamHealth() {
+    if (!mounted || !_isStreaming || _recoveryRequested) return;
+    if (widget.controller.value.hasError) {
+      _requestRecovery(
+        'Camera controller reported: ${widget.controller.value.errorDescription}',
+      );
+      return;
+    }
+    final lastFrameAt = _lastFrameAt;
+    if (lastFrameAt != null &&
+        DateTime.now().difference(lastFrameAt) >
+            const Duration(milliseconds: 1800)) {
+      _requestRecovery('Camera image stream stopped delivering frames.');
+    }
+  }
+
+  void _inspectFrameBrightness(CameraImage image) {
+    if (image.planes.isEmpty || _recoveryRequested) return;
+    final luminance = image.planes.first.bytes;
+    if (luminance.isEmpty) return;
+
+    // Sample only a few hundred Y-plane pixels, keeping this check negligible
+    // compared with inference. Sustained near-zero luminance indicates the
+    // CameraX black-frame failure, not an ordinary dim warehouse scene.
+    final step = math.max(1, luminance.length ~/ 320);
+    var total = 0;
+    var samples = 0;
+    var minimum = 255;
+    var maximum = 0;
+    for (var index = 0; index < luminance.length; index += step) {
+      final value = luminance[index];
+      total += value;
+      minimum = math.min(minimum, value);
+      maximum = math.max(maximum, value);
+      samples++;
+    }
+    final average = samples == 0 ? 255 : total / samples;
+    final isCameraBlackFrame =
+        average < 3.0 || (average <= 18.0 && maximum - minimum <= 2);
+    _consecutiveBlackFrames =
+        isCameraBlackFrame ? _consecutiveBlackFrames + 1 : 0;
+    if (_consecutiveBlackFrames >= 12) {
+      _requestRecovery('Camera image stream returned sustained black frames.');
+    }
+  }
+
+  void _requestRecovery(String reason) {
+    if (_recoveryRequested || !mounted) return;
+    _recoveryRequested = true;
+    AppLogger.warning(reason);
+    unawaited(ref.read(cameraNotifierProvider.notifier).recoverCamera());
   }
 
   Future<void> _replaceStream(CameraController oldController) async {
@@ -1538,6 +1637,8 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
       final notifier = ref.read(inferenceNotifierProvider.notifier);
       await controller.startImageStream((image) {
         if (mounted) {
+          _lastFrameAt = DateTime.now();
+          _inspectFrameBrightness(image);
           if (!_hasReceivedFrame) {
             _previewRecoveryTimer?.cancel();
             setState(() => _hasReceivedFrame = true);
@@ -1600,6 +1701,7 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     _streamStartTimer?.cancel();
     _inferenceStartTimer?.cancel();
     _previewRecoveryTimer?.cancel();
+    _streamWatchdogTimer?.cancel();
     unawaited(_stopStream(widget.controller));
     super.dispose();
   }
