@@ -45,10 +45,11 @@ class CameraRepositoryImpl implements CameraRepository {
     required CameraDescription description,
     required ResolutionPreset resolutionPreset,
   }) async {
+    CameraController? controller;
     try {
       AppLogger.info(
           'Constructing camera controller for camera: ${description.name}');
-      final controller = CameraController(
+      controller = CameraController(
         description,
         resolutionPreset,
         enableAudio: false, // Audio disabled for carton counting requirements
@@ -61,10 +62,12 @@ class CameraRepositoryImpl implements CameraRepository {
       AppLogger.info('Camera initialization completed successfully.');
       return controller;
     } on CameraException catch (e, stack) {
+      if (controller != null) await disposeController(controller);
       AppLogger.error(
           'Camera Exception during initialization', e.description, stack);
       throw DatabaseException('Camera setup error: ${e.description}');
     } catch (e, stack) {
+      if (controller != null) await disposeController(controller);
       AppLogger.error(
           'Unexpected error during camera initialization', e, stack);
       throw const DatabaseException('Failed to initialize camera controller');

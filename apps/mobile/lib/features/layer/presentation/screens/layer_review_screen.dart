@@ -35,16 +35,11 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     with TickerProviderStateMixin {
   final _notesCtrl = TextEditingController();
   bool _isSaving = false;
-  bool _showBoxes = true;
-  bool _showManualCorrection = false;
   String? _errorMessage;
   late int _correctedCount;
   late List<Detection> _editableDetections;
   final Set<String> _hiddenDetectionIds = <String>{};
-  String? _correctionReason;
-
-  late AnimationController _countController;
-  late Animation<int> _countAnim;
+  final List<_ReviewSnapshot> _history = <_ReviewSnapshot>[];
 
   @override
   void initState() {
@@ -52,39 +47,31 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     _notesCtrl.text = widget.initialNotes ?? '';
     _correctedCount = widget.aiResult.count;
     _editableDetections = List<Detection>.of(widget.aiResult.detections);
-
-    _countController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 800),
-    );
-    _countAnim = IntTween(begin: 0, end: _correctedCount).animate(
-      CurvedAnimation(parent: _countController, curve: Curves.easeOut),
-    );
-    _countController.forward();
   }
 
   @override
   void dispose() {
     _notesCtrl.dispose();
-    _countController.dispose();
     super.dispose();
   }
 
   void _adjustCount(int delta) {
     setState(() {
+      _saveSnapshot();
       _animateCountTo((_correctedCount + delta).clamp(0, 9999));
     });
   }
 
+  void _saveSnapshot() {
+    _history.add(_ReviewSnapshot(
+      hiddenIds: Set<String>.of(_hiddenDetectionIds),
+      count: _correctedCount,
+    ));
+    if (_history.length > 20) _history.removeAt(0);
+  }
+
   void _animateCountTo(int nextCount) {
-    final previousCount = _correctedCount;
     _correctedCount = nextCount;
-    _countAnim = IntTween(begin: previousCount, end: nextCount).animate(
-      CurvedAnimation(parent: _countController, curve: Curves.easeOut),
-    );
-    _countController
-      ..reset()
-      ..forward();
   }
 
   List<Detection> get _visibleDetections => _editableDetections
@@ -93,12 +80,35 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
 
   void _toggleDetection(Detection detection) {
     setState(() {
+      _saveSnapshot();
       if (_hiddenDetectionIds.contains(detection.id)) {
         _hiddenDetectionIds.remove(detection.id);
       } else {
         _hiddenDetectionIds.add(detection.id);
       }
       _animateCountTo(_visibleDetections.length);
+    });
+  }
+
+  void _undoLastChange() {
+    if (_history.isEmpty) return;
+    setState(() {
+      final snapshot = _history.removeLast();
+      _hiddenDetectionIds
+        ..clear()
+        ..addAll(snapshot.hiddenIds);
+      _animateCountTo(snapshot.count);
+    });
+  }
+
+  void _resetReview() {
+    setState(() {
+      if (_hiddenDetectionIds.isNotEmpty ||
+          _correctedCount != widget.aiResult.count) {
+        _saveSnapshot();
+      }
+      _hiddenDetectionIds.clear();
+      _animateCountTo(widget.aiResult.count);
     });
   }
 
@@ -114,7 +124,6 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
         if (widget.aiResult.modelVersion == 'MANUAL_COUNT')
           'Count method: Manual operator entry',
         if (_notesCtrl.text.isNotEmpty) _notesCtrl.text.trim(),
-        if (_correctionReason != null) 'Correction: $_correctionReason',
       ].join(' | ');
 
       final error =
@@ -150,13 +159,6 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   Widget build(BuildContext context) {
     final layerState = ref.watch(layerListProvider(widget.truckId));
     final currentLayerNum = layerState.layers.length + 1;
-    final confPct =
-        (widget.aiResult.averageConfidence * 100).toStringAsFixed(0);
-    final aiCount = widget.aiResult.count;
-    final isManual = widget.aiResult.modelVersion == 'MANUAL_COUNT';
-    final hasCorrection = _correctedCount != aiCount;
-    final defectCount = widget.aiResult.defectCount;
-
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
@@ -180,151 +182,31 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
         actions: const [],
       ),
       body: Stack(
+        fit: StackFit.expand,
         children: [
-          SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 120),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // ── 1. Image with bounding boxes ──────────────────────────
-                _ImagePreviewSection(
-                  photoPath: widget.photoPath,
-                  detections: _visibleDetections,
-                  allDetections: _editableDetections,
-                  count: _correctedCount,
-                  showBoxes: _showBoxes,
-                  onDetectionTapped: _toggleDetection,
-                  onToggleBoxes: () => setState(() => _showBoxes = !_showBoxes),
-                ),
-
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // ── 2. Count Summary ─────────────────────────────────
-                      _CountSummaryCard(
-                        aiCount: aiCount,
-                        correctedCount: _correctedCount,
-                        confidence: double.parse(confPct),
-                        isManual: isManual,
-                        layerNumber: currentLayerNum,
-                        countAnimation: _countAnim,
-                        countController: _countController,
-                      ),
-                      const SizedBox(height: 12),
-
-                      if (isManual || defectCount > 0) ...[
-                        AppCard(
-                          child: Row(
-                            children: [
-                              const Icon(Icons.warning_amber_outlined,
-                                  color: AppTheme.warningColor),
-                              const SizedBox(width: 10),
-                              const Expanded(
-                                child: Text(
-                                    'Defective boxes\nIncluded in total boxes',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.w600)),
-                              ),
-                              Text('$defectCount',
-                                  style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.w800,
-                                      color: AppTheme.warningColor)),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // ── 3. Layer History ──────────────────────────────────
-                      _LayerHistoryCard(
-                        layers: layerState.layers,
-                        currentCount: _correctedCount,
-                        currentLayerNum: currentLayerNum,
-                      ),
-                      const SizedBox(height: 12),
-
-                      if (!isManual) ...[
-                        // ── 4. Manual Correction ────────────────────────────
-                        _ManualCorrectionCard(
-                          aiCount: aiCount,
-                          correctedCount: _correctedCount,
-                          hasCorrection: hasCorrection,
-                          correctionReason: _correctionReason,
-                          isExpanded: _showManualCorrection,
-                          onToggle: () => setState(
-                            () =>
-                                _showManualCorrection = !_showManualCorrection,
-                          ),
-                          onIncrease: () => _adjustCount(1),
-                          onDecrease: () => _adjustCount(-1),
-                          onReasonSelected: (r) =>
-                              setState(() => _correctionReason = r),
-                        ),
-                        const SizedBox(height: 12),
-                      ],
-
-                      // ── 5. Notes ──────────────────────────────────────────
-                      AppCard(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Row(
-                              children: [
-                                Icon(Icons.note_alt_outlined,
-                                    size: 16, color: AppTheme.textSecondary),
-                                SizedBox(width: 8),
-                                Text('Verification Notes',
-                                    style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 14)),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _notesCtrl,
-                              maxLines: 2,
-                              decoration: const InputDecoration(
-                                hintText:
-                                    'Anomalies, stacking patterns, damage context…',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      if (_errorMessage != null) ...[
-                        const SizedBox(height: 12),
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppTheme.errorColor.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(Icons.error_outline,
-                                  color: AppTheme.errorColor, size: 16),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(_errorMessage!,
-                                    style: const TextStyle(
-                                        color: AppTheme.errorColor,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-            ),
+          _ImagePreviewSection(
+            photoPath: widget.photoPath,
+            detections: _visibleDetections,
+            allDetections: _editableDetections,
+            onDetectionTapped: _toggleDetection,
           ),
+          if (_errorMessage != null)
+            Positioned(
+              left: 16,
+              right: 16,
+              bottom: 106,
+              child: Material(
+                color: AppTheme.errorColor,
+                borderRadius: BorderRadius.circular(10),
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Text(_errorMessage!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ),
 
           // ── Sticky Bottom Action Bar ────────────────────────────────────
           Positioned(
@@ -334,6 +216,8 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
             child: _ReviewBottomBar(
               isSaving: _isSaving,
               correctedCount: _correctedCount,
+              onIncrease: () => _adjustCount(1),
+              onDecrease: () => _adjustCount(-1),
               onConfirm: _onSave,
             ),
           ),
@@ -349,19 +233,13 @@ class _ImagePreviewSection extends StatefulWidget {
   final String? photoPath;
   final List<Detection> detections;
   final List<Detection> allDetections;
-  final int count;
-  final bool showBoxes;
   final ValueChanged<Detection> onDetectionTapped;
-  final VoidCallback onToggleBoxes;
 
   const _ImagePreviewSection({
     required this.photoPath,
     required this.detections,
     required this.allDetections,
-    required this.count,
-    required this.showBoxes,
     required this.onDetectionTapped,
-    required this.onToggleBoxes,
   });
 
   @override
@@ -404,153 +282,40 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
 
   @override
   Widget build(BuildContext context) {
-    final height = (MediaQuery.of(context).size.height * 0.54)
-        .clamp(380.0, 620.0)
-        .toDouble();
-
-    return SizedBox(
-      height: height,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          InteractiveViewer(
-            transformationController: _zoomController,
-            minScale: 1,
-            maxScale: 4,
-            boundaryMargin: const EdgeInsets.all(80),
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                widget.photoPath != null
-                    ? Image.file(File(widget.photoPath!), fit: BoxFit.contain)
-                    : Container(
-                        color: const Color(0xFF0A1628),
-                        child: const Center(
-                          child: Icon(Icons.photo_camera_outlined,
-                              size: 80, color: Colors.white24),
-                        ),
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        InteractiveViewer(
+          transformationController: _zoomController,
+          minScale: 1,
+          maxScale: 4,
+          boundaryMargin: const EdgeInsets.all(80),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              widget.photoPath != null
+                  ? Image.file(File(widget.photoPath!), fit: BoxFit.contain)
+                  : Container(
+                      color: const Color(0xFF0A1628),
+                      child: const Center(
+                        child: Icon(Icons.photo_camera_outlined,
+                            size: 80, color: Colors.white24),
                       ),
-                if (widget.showBoxes)
-                  Positioned.fill(
-                    child: DetectionOverlayWidget(
-                      detections: widget.detections,
-                      hitTestDetections: widget.allDetections,
-                      cameraSize: _photoSize,
-                      fit: BoxFit.contain,
-                      showLabels: false,
-                      onDetectionTapped: widget.onDetectionTapped,
                     ),
-                  ),
-              ],
-            ),
-          ),
-
-          // Top gradient
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 60,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.black87, Colors.transparent],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
+              Positioned.fill(
+                child: DetectionOverlayWidget(
+                  detections: widget.detections,
+                  hitTestDetections: widget.allDetections,
+                  cameraSize: _photoSize,
+                  fit: BoxFit.contain,
+                  showLabels: false,
+                  onDetectionTapped: widget.onDetectionTapped,
                 ),
               ),
-            ),
+            ],
           ),
-
-          // Bottom gradient
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: 80,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.transparent, Color(0xFF121212)],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-          ),
-
-          // Toggle bounding boxes
-          Positioned(
-            top: 12,
-            right: 12,
-            child: GestureDetector(
-              onTap: widget.onToggleBoxes,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      widget.showBoxes
-                          ? Icons.visibility_outlined
-                          : Icons.visibility_off_outlined,
-                      size: 14,
-                      color: Colors.white70,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      widget.showBoxes ? 'Hide Boxes' : 'Show Boxes',
-                      style:
-                          const TextStyle(color: Colors.white70, fontSize: 11),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-
-          Positioned(
-            top: 14,
-            left: 14,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.65),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Text(
-                'Tap box to hide  •  Tap same area to restore',
-                style: TextStyle(color: Colors.white70, fontSize: 10),
-              ),
-            ),
-          ),
-
-          // Bottom count badge
-          Positioned(
-            bottom: 16,
-            left: 16,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor.withValues(alpha: 0.9),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                '${widget.count} cartons detected',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13),
-              ),
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
@@ -964,8 +729,8 @@ class _CounterButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 52,
-        height: 52,
+        width: 44,
+        height: 44,
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.15),
           shape: BoxShape.circle,
@@ -976,14 +741,25 @@ class _CounterButton extends StatelessWidget {
   }
 }
 
+class _ReviewSnapshot {
+  final Set<String> hiddenIds;
+  final int count;
+
+  const _ReviewSnapshot({required this.hiddenIds, required this.count});
+}
+
 class _ReviewBottomBar extends StatelessWidget {
   final bool isSaving;
   final int correctedCount;
+  final VoidCallback onIncrease;
+  final VoidCallback onDecrease;
   final VoidCallback onConfirm;
 
   const _ReviewBottomBar({
     required this.isSaving,
     required this.correctedCount,
+    required this.onIncrease,
+    required this.onDecrease,
     required this.onConfirm,
   });
 
@@ -1007,29 +783,75 @@ class _ReviewBottomBar extends StatelessWidget {
           ),
         ],
       ),
-      child: SizedBox(
-        width: double.infinity,
-        height: 56,
-        child: ElevatedButton.icon(
-          onPressed: isSaving ? null : onConfirm,
-          icon: isSaving
-              ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white))
-              : const Icon(Icons.check_circle_outline, size: 22),
-          label: Text(
-            isSaving ? 'Saving…' : 'Confirm  $correctedCount Cartons',
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+      child: Row(
+        children: [
+          Expanded(
+            child: Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppTheme.primaryColor.withValues(alpha: 0.25),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _CounterButton(
+                    icon: Icons.remove,
+                    onTap: isSaving ? () {} : onDecrease,
+                    color: Colors.white,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '$correctedCount',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(width: 8),
+                  _CounterButton(
+                    icon: Icons.add,
+                    onTap: isSaving ? () {} : onIncrease,
+                    color: Colors.white,
+                  ),
+                ],
+              ),
+            ),
           ),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppTheme.successColor,
-            foregroundColor: Colors.white,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: SizedBox(
+              height: 56,
+              child: ElevatedButton.icon(
+                onPressed: isSaving ? null : onConfirm,
+                icon: isSaving
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.check, size: 24),
+                label: Text(isSaving ? 'Saving…' : 'Confirm'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 18),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24)),
+                  backgroundColor: AppTheme.successColor,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ),
           ),
-        ),
+        ],
       ),
     );
   }

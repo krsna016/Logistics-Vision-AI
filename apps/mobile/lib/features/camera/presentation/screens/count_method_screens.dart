@@ -279,7 +279,6 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
             label: 'Defective items',
             hint: '0',
             icon: Icons.warning_amber_rounded,
-            helper: 'Included in the verified carton total',
             accentColor: AppTheme.warningColor,
             onDecrease: () => _adjustValue(_defectController, -1),
             onIncrease: () => _adjustValue(_defectController, 1),
@@ -561,7 +560,6 @@ class _ManualNumberField extends StatelessWidget {
   final String label;
   final String hint;
   final IconData icon;
-  final String? helper;
   final Color accentColor;
   final VoidCallback onDecrease;
   final VoidCallback onIncrease;
@@ -572,7 +570,6 @@ class _ManualNumberField extends StatelessWidget {
     required this.label,
     required this.hint,
     required this.icon,
-    this.helper,
     this.accentColor = AppTheme.primaryColor,
     required this.onDecrease,
     required this.onIncrease,
@@ -591,83 +588,84 @@ class _ManualNumberField extends StatelessWidget {
         ),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: accentColor.withValues(alpha: 0.13),
-              borderRadius: BorderRadius.circular(15),
+          SizedBox(
+            height: 56,
+            child: Center(
+              child: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: accentColor.withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: Icon(icon, color: accentColor, size: 24),
+              ),
             ),
-            child: Icon(icon, color: accentColor, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  height: 56,
-                  child: TextField(
-                    controller: controller,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: onChanged,
-                    textAlignVertical: TextAlignVertical.center,
-                    style: const TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
+            child: SizedBox(
+              height: 56,
+              child: TextField(
+                controller: controller,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                onChanged: onChanged,
+                textAlignVertical: TextAlignVertical.center,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+                decoration: InputDecoration(
+                  labelText: label,
+                  hintText: hint,
+                  filled: true,
+                  fillColor: AppTheme.cardColor,
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                    borderSide: BorderSide(color: AppTheme.dividerColor),
+                  ),
+                  enabledBorder: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                    borderSide: BorderSide(color: AppTheme.dividerColor),
+                  ),
+                  focusedBorder: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(10)),
+                    borderSide: BorderSide(
+                      color: AppTheme.primaryColor,
+                      width: 1.5,
                     ),
-                    decoration: InputDecoration(
-                      labelText: label,
-                      hintText: hint,
-                      filled: true,
-                      fillColor: AppTheme.cardColor,
-                      border: const OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        borderSide: BorderSide(color: AppTheme.dividerColor),
-                      ),
-                      enabledBorder: const OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        borderSide: BorderSide(color: AppTheme.dividerColor),
-                      ),
-                      focusedBorder: const OutlineInputBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(10)),
-                        borderSide: BorderSide(
-                          color: AppTheme.primaryColor,
-                          width: 1.5,
-                        ),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 14,
-                      ),
-                    ),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
                   ),
                 ),
-                if (helper != null) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    helper!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: AppTheme.textSecondary,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ],
+              ),
             ),
           ),
           const SizedBox(width: 10),
-          _StepButton(icon: Icons.remove_rounded, onTap: onDecrease),
+          SizedBox(
+            height: 56,
+            child: Center(
+              child: _StepButton(
+                icon: Icons.remove_rounded,
+                onTap: onDecrease,
+              ),
+            ),
+          ),
           const SizedBox(width: 8),
-          _StepButton(
-            icon: Icons.add_rounded,
-            onTap: onIncrease,
-            highlighted: true,
+          SizedBox(
+            height: 56,
+            child: Center(
+              child: _StepButton(
+                icon: Icons.add_rounded,
+                onTap: onIncrease,
+                highlighted: true,
+              ),
+            ),
           ),
         ],
       ),

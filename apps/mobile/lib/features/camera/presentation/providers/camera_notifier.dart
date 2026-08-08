@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
@@ -36,6 +38,7 @@ class CameraNotifier extends StateNotifier<CameraState>
   final CameraRepository _repository;
   double _zoomLevel = 1.0;
   int _cameraOperation = 0;
+  Timer? _reconnectTimer;
 
   CameraNotifier(this._repository)
       : super(const CameraState(status: CameraStatus.initializing)) {
@@ -51,6 +54,7 @@ class CameraNotifier extends StateNotifier<CameraState>
     }
 
     final operation = ++_cameraOperation;
+    _reconnectTimer?.cancel();
     state = const CameraState(status: CameraStatus.initializing);
     try {
       await _pendingCameraRelease;
@@ -103,6 +107,7 @@ class CameraNotifier extends StateNotifier<CameraState>
         availableCameras: cameras,
         selectedCameraIndex: defaultIndex,
       );
+      _reconnectTimer?.cancel();
       _zoomLevel = 1.0;
     } catch (e, stack) {
       if (!mounted || operation != _cameraOperation) return;
@@ -111,7 +116,17 @@ class CameraNotifier extends StateNotifier<CameraState>
         status: CameraStatus.error,
         errorMessage: e.toString(),
       );
+      _scheduleReconnect();
     }
+  }
+
+  void _scheduleReconnect() {
+    _reconnectTimer?.cancel();
+    _reconnectTimer = Timer(const Duration(milliseconds: 900), () {
+      if (mounted && state.status == CameraStatus.error) {
+        unawaited(initialize());
+      }
+    });
   }
 
   Future<void> switchCamera() async {
@@ -184,6 +199,14 @@ class CameraNotifier extends StateNotifier<CameraState>
     }
   }
 
+  /// Rebuilds the complete CameraX session after a surface/frame timeout.
+  /// Disposal and initialization are serialized by [_pendingCameraRelease].
+  Future<void> recoverCamera() async {
+    AppLogger.warning('Camera preview stalled. Rebuilding camera session.');
+    await disposeCamera();
+    if (mounted) await initialize();
+  }
+
   Future<void> disposeCamera() async {
     ++_cameraOperation;
     final controller = state.controller;
@@ -202,6 +225,7 @@ class CameraNotifier extends StateNotifier<CameraState>
 
   @override
   void dispose() {
+    _reconnectTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -212,16 +236,18 @@ class CameraNotifier extends StateNotifier<CameraState>
   // Keep the descriptive local name to avoid shadowing StateNotifier.state.
   // ignore: avoid_renaming_method_parameters
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
-    final controller = state.controller;
-    if (controller == null || !controller.value.isInitialized) return;
-
-    if (lifecycleState == AppLifecycleState.inactive ||
-        lifecycleState == AppLifecycleState.paused) {
+    if (lifecycleState == AppLifecycleState.paused ||
+        lifecycleState == AppLifecycleState.detached) {
       AppLogger.info('App paused. Suspending camera hardware.');
-      disposeCamera();
+      unawaited(disposeCamera());
     } else if (lifecycleState == AppLifecycleState.resumed) {
       AppLogger.info('App resumed. Re-initializing camera hardware.');
-      initialize();
+      // A paused camera has already cleared its controller. Do not require an
+      // existing controller here or the UI remains permanently "disconnected".
+      unawaited(initialize());
     }
+    // `inactive` is commonly emitted for notification shade, focus changes,
+    // permission overlays and transitions. Keep the active carton camera
+    // session alive so these temporary interruptions do not disconnect it.
   }
 }

@@ -414,13 +414,18 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         );
 
       case CameraStatus.error:
-        return _CameraErrorState(
-          icon: Icons.error_outline,
-          title: 'Camera Error',
-          subtitle:
-              state.errorMessage ?? 'An unexpected hardware error occurred.',
-          buttonLabel: 'Retry',
-          onRetry: () => notifier.initialize(),
+        return const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.white),
+              SizedBox(height: 16),
+              Text(
+                'Reconnecting camera…',
+                style: TextStyle(color: Colors.white70, fontSize: 15),
+              ),
+            ],
+          ),
         );
 
       case CameraStatus.ready:
@@ -433,8 +438,15 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
 
       case CameraStatus.disposed:
         return const Center(
-          child: Text('Camera disconnected.',
-              style: TextStyle(color: Colors.white54)),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(color: Colors.white),
+              SizedBox(height: 16),
+              Text('Reconnecting camera…',
+                  style: TextStyle(color: Colors.white54)),
+            ],
+          ),
         );
     }
   }
@@ -1473,7 +1485,7 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
   bool _inferenceEnabled = false;
   Timer? _streamStartTimer;
   Timer? _inferenceStartTimer;
-  Timer? _previewFallbackTimer;
+  Timer? _previewRecoveryTimer;
 
   @override
   void initState() {
@@ -1495,14 +1507,15 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
 
   void _scheduleStreamStart() {
     _streamStartTimer?.cancel();
-    _previewFallbackTimer?.cancel();
-    // Some Android camera implementations render the preview texture but do
-    // not promptly deliver an image-stream callback after controller handoff.
-    // Never leave the operator behind a permanent startup curtain in that
-    // case; the initialized platform preview remains fully usable.
-    _previewFallbackTimer = Timer(const Duration(milliseconds: 360), () {
-      if (mounted && widget.controller.value.isInitialized) {
-        widget.onPreviewReady();
+    _previewRecoveryTimer?.cancel();
+    // Controller initialization does not mean that CameraX has produced a
+    // usable surface frame. Keep the curtain until a real analysis frame and
+    // rebuild the session if the device never delivers one.
+    _previewRecoveryTimer = Timer(const Duration(milliseconds: 2500), () {
+      if (mounted && !_hasReceivedFrame) {
+        unawaited(
+          ref.read(cameraNotifierProvider.notifier).recoverCamera(),
+        );
       }
     });
     // Let the platform preview texture and route transition settle before
@@ -1526,7 +1539,7 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
       await controller.startImageStream((image) {
         if (mounted) {
           if (!_hasReceivedFrame) {
-            _previewFallbackTimer?.cancel();
+            _previewRecoveryTimer?.cancel();
             setState(() => _hasReceivedFrame = true);
             widget.onPreviewReady();
             _inferenceStartTimer?.cancel();
@@ -1571,16 +1584,13 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     if (!controller.value.isInitialized) return null;
 
     try {
-      if (_isStreaming) {
-        await controller.stopImageStream();
-        _isStreaming = false;
-      }
+      // CameraX binds Preview, ImageCapture and ImageAnalysis concurrently.
+      // Taking a picture does not require tearing down and recreating the
+      // analysis surface, which could leave some Xiaomi devices black.
       final photo = await controller.takePicture();
-      await _startStream();
       return photo;
     } catch (e, stack) {
       AppLogger.error('Failed to capture camera photo', e, stack);
-      await _startStream();
       return null;
     }
   }
@@ -1589,7 +1599,7 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
   void dispose() {
     _streamStartTimer?.cancel();
     _inferenceStartTimer?.cancel();
-    _previewFallbackTimer?.cancel();
+    _previewRecoveryTimer?.cancel();
     unawaited(_stopStream(widget.controller));
     super.dispose();
   }
