@@ -16,6 +16,7 @@ class ScannerCameraWarmup {
   }
 
   static Future<void> _prepareInternal() async {
+    CameraController? controller;
     try {
       final cameras = await cachedCameraDescriptions();
       if (cameras.isEmpty) return;
@@ -23,15 +24,22 @@ class ScannerCameraWarmup {
         (camera) => camera.lensDirection == CameraLensDirection.back,
       );
       final description = rear.isNotEmpty ? rear.first : cameras.first;
-      final controller = CameraController(
+      controller = CameraController(
         description,
         ResolutionPreset.high,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.nv21,
       );
-      await controller.initialize();
+      await controller.initialize().timeout(const Duration(seconds: 4));
       _warmedController = controller;
     } catch (_) {
+      if (controller != null) {
+        try {
+          await controller.dispose().timeout(const Duration(seconds: 1));
+        } catch (_) {
+          // The platform camera may already be unavailable.
+        }
+      }
       // The scanner will retry camera initialization when opened.
     } finally {
       _pending = null;
@@ -39,7 +47,7 @@ class ScannerCameraWarmup {
   }
 
   static Future<CameraController?> takePrepared() async {
-    await prepare();
+    await prepare().timeout(const Duration(seconds: 5));
     final controller = _warmedController;
     _warmedController = null;
     return controller?.value.isInitialized == true ? controller : null;

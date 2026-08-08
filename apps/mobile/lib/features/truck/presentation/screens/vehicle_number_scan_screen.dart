@@ -35,8 +35,10 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
   bool _processingFrame = false;
   bool _liveScanning = false;
   Future<void>? _activeFrameProcessing;
+  Timer? _candidateExpiryTimer;
   DateTime _lastFrameStarted = DateTime.fromMillisecondsSinceEpoch(0);
   String? _liveCandidate;
+  int _consecutiveFrameTimeouts = 0;
   double _zoom = 1;
   double _minZoom = 1;
   double _maxZoom = 1;
@@ -68,9 +70,9 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
     } on TimeoutException {
       if (mounted) {
         setState(() {
+          _initializing = false;
           _scanning = false;
-          _error =
-              'Reading took too long. Move closer to the plate and capture again.';
+          _error = 'Camera took too long to start. Tap retry to open it again.';
         });
       }
     } catch (_) {
@@ -112,8 +114,26 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.nv21,
     );
-    await controller.initialize();
-    return controller;
+    try {
+      await controller.initialize().timeout(const Duration(seconds: 5));
+      return controller;
+    } catch (_) {
+      try {
+        await controller.dispose().timeout(const Duration(seconds: 1));
+      } catch (_) {
+        // The platform camera may already be unavailable.
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _retryInitialize() async {
+    if (_initializing) return;
+    setState(() {
+      _initializing = true;
+      _error = null;
+    });
+    await _initialize();
   }
 
   Future<void> _loadZoomLevels(CameraController controller) async {
@@ -363,6 +383,7 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
     CameraController controller,
     CameraImage cameraImage,
   ) async {
+    var shouldRestartStream = false;
     try {
       final inputImage = inputImageFromCameraFrame(
         cameraImage,
@@ -372,32 +393,64 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
       );
       if (inputImage == null) return;
 
-      final result = await _recognizer.processImage(inputImage);
+      final result = await _recognizer
+          .processImage(inputImage)
+          .timeout(const Duration(milliseconds: 1200));
+      _consecutiveFrameTimeouts = 0;
       if (_scanning || !mounted) return;
       final candidates = VehicleNumberParser.candidatesFromText(result.text)
           .where(VehicleNumberParser.looksLikeIndianVehicleNumber)
           .toList();
       final accepted = _consensus.addCandidates(candidates);
       final leading = _consensus.leadingCandidate;
-      if (mounted && leading != _liveCandidate) {
-        setState(() {
-          _liveCandidate = leading;
-          _error = null;
-        });
+      if (candidates.isNotEmpty && leading != null) {
+        _showLiveCandidate(leading);
       }
       if (accepted != null && mounted) {
+        _candidateExpiryTimer?.cancel();
         await _stopLiveScanning(controller, waitForActiveFrame: false);
         if (mounted) Navigator.of(context).pop(accepted);
       }
+    } on TimeoutException {
+      _consecutiveFrameTimeouts++;
+      shouldRestartStream = _consecutiveFrameTimeouts >= 2;
     } catch (_) {
       // A bad preview frame is expected occasionally; the next frame retries.
     } finally {
       _processingFrame = false;
+      if (shouldRestartStream) unawaited(_restartLiveScanning(controller));
+    }
+  }
+
+  void _showLiveCandidate(String candidate) {
+    _candidateExpiryTimer?.cancel();
+    if (mounted && candidate != _liveCandidate) {
+      setState(() {
+        _liveCandidate = candidate;
+        _error = null;
+      });
+    }
+    _candidateExpiryTimer = Timer(const Duration(milliseconds: 1500), () {
+      _consensus.reset();
+      if (mounted) setState(() => _liveCandidate = null);
+    });
+  }
+
+  Future<void> _restartLiveScanning(CameraController controller) async {
+    _consecutiveFrameTimeouts = 0;
+    await _stopLiveScanning(controller, waitForActiveFrame: false);
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (mounted && !_scanning && _controller == controller) {
+      _candidateExpiryTimer?.cancel();
+      _consensus.reset();
+      setState(() => _liveCandidate = null);
+      await _startLiveScanning(controller);
     }
   }
 
   @override
   void dispose() {
+    _candidateExpiryTimer?.cancel();
     final controller = _controller;
     _controller = null;
     unawaited(_disposeScannerResources(controller));
@@ -430,7 +483,10 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
             : _error != null && controller == null
                 ? KeyedSubtree(
                     key: const ValueKey('camera-error'),
-                    child: _ErrorState(message: _error!),
+                    child: _ErrorState(
+                      message: _error!,
+                      onRetry: _retryInitialize,
+                    ),
                   )
                 : Stack(
                     key: const ValueKey('camera-ready'),
@@ -516,6 +572,7 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
                               onGallery: _pickFromGallery,
                               onFlipCamera: _switchCamera,
                               captureLabel: 'Capture plate',
+                              flashOnlyMode: true,
                             ),
                           ],
                         ),
@@ -529,14 +586,26 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
 
 class _ErrorState extends StatelessWidget {
   final String message;
+  final VoidCallback onRetry;
 
-  const _ErrorState({required this.message});
+  const _ErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(message, textAlign: TextAlign.center),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry camera'),
+              ),
+            ],
+          ),
         ),
       );
 }

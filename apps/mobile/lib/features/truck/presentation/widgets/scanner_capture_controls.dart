@@ -8,6 +8,8 @@ class ScannerCaptureControls extends StatefulWidget {
   final VoidCallback onGallery;
   final VoidCallback onFlipCamera;
   final String captureLabel;
+  final bool twoButtonMode;
+  final bool flashOnlyMode;
 
   const ScannerCaptureControls({
     super.key,
@@ -18,6 +20,8 @@ class ScannerCaptureControls extends StatefulWidget {
     required this.onGallery,
     required this.onFlipCamera,
     required this.captureLabel,
+    this.twoButtonMode = false,
+    this.flashOnlyMode = false,
   });
 
   @override
@@ -98,6 +102,39 @@ class _ScannerCaptureControlsState extends State<ScannerCaptureControls>
 
   @override
   Widget build(BuildContext context) {
+    if (widget.flashOnlyMode) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: _ScannerRoundButton(
+          icon:
+              widget.torchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+          tooltip: widget.torchOn ? 'Turn flash off' : 'Turn flash on',
+          onTap: widget.onToggleTorch,
+        ),
+      );
+    }
+
+    if (widget.twoButtonMode) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _ScannerRoundButton(
+            icon: widget.torchOn
+                ? Icons.flash_on_rounded
+                : Icons.flash_off_rounded,
+            tooltip: widget.torchOn ? 'Turn flash off' : 'Turn flash on',
+            onTap: widget.onToggleTorch,
+          ),
+          const SizedBox(width: 28),
+          _ScannerRoundButton(
+            icon: Icons.photo_library_outlined,
+            tooltip: 'Choose plate from gallery',
+            onTap: widget.isScanning ? null : widget.onGallery,
+          ),
+        ],
+      );
+    }
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.end,

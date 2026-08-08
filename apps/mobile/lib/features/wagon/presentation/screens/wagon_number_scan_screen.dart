@@ -8,6 +8,7 @@ import 'package:image_picker/image_picker.dart';
 import '../../../truck/data/services/live_camera_text_frame.dart';
 import '../../../truck/data/services/scanner_camera_warmup.dart';
 import '../../data/services/wagon_number_image_preprocessor.dart';
+import '../../domain/services/wagon_number_consensus.dart';
 import '../../domain/services/wagon_number_parser.dart';
 import '../../../truck/presentation/widgets/rounded_scanner_overlay.dart';
 import '../../../truck/presentation/widgets/scanner_capture_controls.dart';
@@ -23,12 +24,20 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
   CameraController? _controller;
   final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
   final _picker = ImagePicker();
+  final _consensus = WagonNumberConsensus();
   List<CameraDescription> _cameras = const [];
   int _cameraIndex = 0;
   String? _error;
   bool _initializing = true;
   bool _scanning = false;
   bool _torchOn = false;
+  bool _processingFrame = false;
+  bool _liveScanning = false;
+  Future<void>? _activeFrameProcessing;
+  Timer? _candidateExpiryTimer;
+  DateTime _lastFrameStarted = DateTime.fromMillisecondsSinceEpoch(0);
+  String? _liveCandidate;
+  int _consecutiveFrameTimeouts = 0;
   double _zoom = 1;
   double _minZoom = 1;
   double _maxZoom = 1;
@@ -56,6 +65,7 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
       });
       unawaited(_loadCameraList(controller));
       unawaited(_loadZoomLevels(controller));
+      unawaited(_startLiveScanning(controller));
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -91,12 +101,30 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
     final description = rear.isNotEmpty ? rear.first : cameras.first;
     final controller = CameraController(
       description,
-      ResolutionPreset.veryHigh,
+      ResolutionPreset.high,
       enableAudio: false,
       imageFormatGroup: ImageFormatGroup.nv21,
     );
-    await controller.initialize();
-    return controller;
+    try {
+      await controller.initialize().timeout(const Duration(seconds: 5));
+      return controller;
+    } catch (_) {
+      try {
+        await controller.dispose().timeout(const Duration(seconds: 1));
+      } catch (_) {
+        // The platform camera may already be unavailable.
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> _retryInitialize() async {
+    if (_initializing) return;
+    setState(() {
+      _initializing = true;
+      _error = null;
+    });
+    await _initialize();
   }
 
   Future<void> _loadZoomLevels(CameraController controller) async {
@@ -160,11 +188,13 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
       _error = null;
     });
     try {
+      await _stopLiveScanning(current);
+      if (!mounted) return;
       await current.dispose();
       final nextIndex = (_cameraIndex + 1) % _cameras.length;
       final next = CameraController(
         _cameras[nextIndex],
-        ResolutionPreset.veryHigh,
+        ResolutionPreset.high,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.nv21,
       );
@@ -181,6 +211,7 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
         _gestureStartZoom = 1;
       });
       unawaited(_loadZoomLevels(next));
+      unawaited(_startLiveScanning(next));
     } catch (_) {
       if (mounted) {
         setState(() {
@@ -196,8 +227,15 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
     if (_scanning) return;
     try {
       if (_torchOn) await _toggleTorch();
+      await _stopLiveScanning(_controller);
+      if (!mounted) return;
       final image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image == null || !mounted) return;
+      if (image == null || !mounted) {
+        if (mounted && _controller != null) {
+          unawaited(_startLiveScanning(_controller!));
+        }
+        return;
+      }
       setState(() {
         _scanning = true;
         _error = null;
@@ -206,6 +244,7 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
     } catch (_) {
       if (mounted) {
         setState(() => _error = 'Could not open this gallery image.');
+        if (_controller != null) unawaited(_startLiveScanning(_controller!));
       }
     }
   }
@@ -222,6 +261,8 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
     });
 
     try {
+      await _stopLiveScanning(controller);
+      if (!mounted) return;
       final image = await controller.takePicture();
       await _readImage(image.path);
     } catch (_) {
@@ -230,6 +271,7 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
           _scanning = false;
           _error = 'Could not read this image. Please try again.';
         });
+        unawaited(_startLiveScanning(controller));
       }
     } finally {
       if (mounted && _scanning) setState(() => _scanning = false);
@@ -252,6 +294,7 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
           _scanning = false;
           _error = 'No wagon number found. Move closer and try again.';
         });
+        if (_controller != null) unawaited(_startLiveScanning(_controller!));
         return;
       }
       setState(() => _scanning = false);
@@ -262,17 +305,149 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
           _scanning = false;
           _error = 'Could not read this image. Please try again.';
         });
+        if (_controller != null) unawaited(_startLiveScanning(_controller!));
       }
     } finally {
       if (mounted && _scanning) setState(() => _scanning = false);
     }
   }
 
+  Future<void> _startLiveScanning(CameraController controller) async {
+    if (_liveScanning ||
+        _scanning ||
+        !controller.value.isInitialized ||
+        controller.value.isStreamingImages) {
+      return;
+    }
+    try {
+      _consensus.reset();
+      await controller.startImageStream((image) {
+        final now = DateTime.now();
+        if (_processingFrame ||
+            _scanning ||
+            now.difference(_lastFrameStarted) <
+                const Duration(milliseconds: 160)) {
+          return;
+        }
+        _lastFrameStarted = now;
+        _processingFrame = true;
+        final processing = _processLiveFrame(controller, image);
+        _activeFrameProcessing = processing;
+        unawaited(processing.whenComplete(() {
+          if (identical(_activeFrameProcessing, processing)) {
+            _activeFrameProcessing = null;
+          }
+        }));
+      });
+      _liveScanning = true;
+      if (mounted) setState(() {});
+    } catch (_) {
+      _liveScanning = false;
+      // Gallery remains available on devices without image streaming.
+    }
+  }
+
+  Future<void> _stopLiveScanning(
+    CameraController? controller, {
+    bool waitForActiveFrame = true,
+  }) async {
+    if (controller == null || !controller.value.isStreamingImages) {
+      _liveScanning = false;
+      if (waitForActiveFrame) await _activeFrameProcessing;
+      return;
+    }
+    try {
+      await controller.stopImageStream();
+    } catch (_) {
+      // The controller may already be stopping or disposing.
+    } finally {
+      _liveScanning = false;
+    }
+    if (waitForActiveFrame) await _activeFrameProcessing;
+  }
+
+  Future<void> _processLiveFrame(
+    CameraController controller,
+    CameraImage cameraImage,
+  ) async {
+    var shouldRestartStream = false;
+    try {
+      final inputImage = inputImageFromCameraFrame(
+        cameraImage,
+        controller.description.sensorOrientation,
+        roiWidthFraction: 0.84,
+        roiHeightFraction: 0.58,
+      );
+      if (inputImage == null) return;
+
+      final result = await _recognizer
+          .processImage(inputImage)
+          .timeout(const Duration(milliseconds: 1200));
+      _consecutiveFrameTimeouts = 0;
+      if (_scanning || !mounted) return;
+      final candidates = WagonNumberParser.candidatesFromText(result.text)
+          .where(WagonNumberParser.looksLikeWagonNumber)
+          .toList();
+      final accepted = _consensus.addCandidates(candidates);
+      final leading = _consensus.leadingCandidate;
+      if (candidates.isNotEmpty && leading != null) {
+        _showLiveCandidate(leading);
+      }
+      if (accepted != null && mounted) {
+        _candidateExpiryTimer?.cancel();
+        await _stopLiveScanning(controller, waitForActiveFrame: false);
+        if (mounted) Navigator.of(context).pop(accepted);
+      }
+    } on TimeoutException {
+      _consecutiveFrameTimeouts++;
+      shouldRestartStream = _consecutiveFrameTimeouts >= 2;
+    } catch (_) {
+      // A bad preview frame is expected occasionally; the next frame retries.
+    } finally {
+      _processingFrame = false;
+      if (shouldRestartStream) unawaited(_restartLiveScanning(controller));
+    }
+  }
+
+  void _showLiveCandidate(String candidate) {
+    _candidateExpiryTimer?.cancel();
+    if (mounted && candidate != _liveCandidate) {
+      setState(() {
+        _liveCandidate = candidate;
+        _error = null;
+      });
+    }
+    _candidateExpiryTimer = Timer(const Duration(milliseconds: 1500), () {
+      _consensus.reset();
+      if (mounted) setState(() => _liveCandidate = null);
+    });
+  }
+
+  Future<void> _restartLiveScanning(CameraController controller) async {
+    _consecutiveFrameTimeouts = 0;
+    await _stopLiveScanning(controller, waitForActiveFrame: false);
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (mounted && !_scanning && _controller == controller) {
+      _candidateExpiryTimer?.cancel();
+      _consensus.reset();
+      setState(() => _liveCandidate = null);
+      await _startLiveScanning(controller);
+    }
+  }
+
   @override
   void dispose() {
-    _recognizer.close();
-    _controller?.dispose();
+    _candidateExpiryTimer?.cancel();
+    final controller = _controller;
+    _controller = null;
+    unawaited(_disposeScannerResources(controller));
     super.dispose();
+  }
+
+  Future<void> _disposeScannerResources(CameraController? controller) async {
+    await _stopLiveScanning(controller);
+    await _recognizer.close();
+    await controller?.dispose();
   }
 
   @override
@@ -295,7 +470,10 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
             : _error != null && controller == null
                 ? KeyedSubtree(
                     key: const ValueKey('camera-error'),
-                    child: _ErrorState(message: _error!),
+                    child: _ErrorState(
+                      message: _error!,
+                      onRetry: _retryInitialize,
+                    ),
                   )
                 : Stack(
                     key: const ValueKey('camera-ready'),
@@ -328,7 +506,10 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
                           padding: EdgeInsets.all(8),
                           child: ClipRRect(
                             borderRadius: BorderRadius.all(Radius.circular(28)),
-                            child: RoundedScannerOverlay(),
+                            child: RoundedScannerOverlay(
+                              widthFactor: 0.84,
+                              aspectRatio: 0.9,
+                            ),
                           ),
                         ),
                       ),
@@ -339,6 +520,23 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 8,
+                              ),
+                              margin: const EdgeInsets.only(bottom: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.black87,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                _liveCandidate == null
+                                    ? 'Place BCN code and full number inside the frame'
+                                    : 'Reading $_liveCandidate… hold steady',
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
                             if (_error != null)
                               Container(
                                 padding: const EdgeInsets.all(10),
@@ -359,6 +557,7 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
                               onGallery: _pickFromGallery,
                               onFlipCamera: _switchCamera,
                               captureLabel: 'Capture wagon number',
+                              flashOnlyMode: true,
                             ),
                           ],
                         ),
@@ -372,14 +571,26 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen> {
 
 class _ErrorState extends StatelessWidget {
   final String message;
+  final VoidCallback onRetry;
 
-  const _ErrorState({required this.message});
+  const _ErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) => Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
-          child: Text(message, textAlign: TextAlign.center),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh_rounded),
+                label: const Text('Retry camera'),
+              ),
+            ],
+          ),
         ),
       );
 }

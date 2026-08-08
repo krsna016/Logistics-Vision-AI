@@ -6,14 +6,8 @@ class WagonNumberParser {
 
   static bool looksLikeWagonNumber(String value) {
     final normalized = normalize(value);
-    final letters = RegExp(r'[A-Z]').allMatches(normalized).length;
-    final digits = RegExp(r'\d').allMatches(normalized).length;
-    return normalized.startsWith('BCN') &&
-        normalized.length >= 9 &&
-        normalized.length <= 24 &&
-        letters >= 3 &&
-        digits >= 5 &&
-        digits <= 12;
+    return RegExp(r'^3\d{10}$').hasMatch(normalized) ||
+        RegExp(r'^BCN[A-Z0-9]{2,7}3\d{10}$').hasMatch(normalized);
   }
 
   static List<String> candidatesFromText(String text) {
@@ -21,68 +15,84 @@ class WagonNumberParser {
         .split(RegExp(r'[\r\n\s,;|:/]+'))
         .map(normalize)
         .where((token) => token.isNotEmpty)
-        .where((token) => !_isLabel(token))
         .toList();
+    final wagonClasses = _wagonClasses(tokens);
+    final numbers = _wagonNumbers(tokens);
     final candidates = <String>{};
 
-    // Wagon identifiers start with a BCNA-family class and may be followed
-    // by one or two numeric groups. Prefer this structure so numbers from a
-    // neighbouring wagon or technical specification are not joined together.
-    for (var index = 0; index < tokens.length; index++) {
-      final token = tokens[index];
-      if (!token.startsWith('BCN')) continue;
-      var joined = token;
-      if (joined.length >= 9 && joined.length <= 24) candidates.add(joined);
-      for (var next = index + 1;
-          next < tokens.length && next <= index + 2;
-          next++) {
-        if (!RegExp(r'^\d{4,12}$').hasMatch(tokens[next])) break;
-        joined += tokens[next];
-        if (joined.length >= 9 && joined.length <= 24) candidates.add(joined);
+    for (final wagonClass in wagonClasses) {
+      for (final number in numbers) {
+        candidates.add('$wagonClass$number');
       }
     }
-
-    for (var start = 0; start < tokens.length; start++) {
-      var joined = '';
-      for (var end = start; end < tokens.length && end < start + 4; end++) {
-        joined += tokens[end];
-        if (joined.length >= 9 && joined.length <= 24) {
-          candidates.add(joined);
-        }
-      }
-    }
-
-    final compact = normalize(text);
-    if (compact.length >= 9 && compact.length <= 24) {
-      candidates.add(compact);
-    }
+    candidates.addAll(numbers);
 
     final valid = candidates.where(looksLikeWagonNumber).toList()
       ..sort((a, b) => _score(b).compareTo(_score(a)));
-    return valid.isNotEmpty ? valid : candidates.toList();
+    return valid;
   }
 
-  static bool _isLabel(String token) {
-    const labels = {
-      'IND',
-      'CC',
-      'TARE',
-      'AREA',
-      'CAPACITY',
-      'UFMS',
-      'UF MBS',
+  static Set<String> _wagonClasses(List<String> tokens) {
+    final classes = <String>{};
+    for (var start = 0; start < tokens.length; start++) {
+      var joined = '';
+      for (var end = start; end < tokens.length && end <= start + 2; end++) {
+        joined += tokens[end];
+        if (joined.length > 10) break;
+        final corrected = _correctWagonClass(joined);
+        if (corrected != null) classes.add(corrected);
+      }
+    }
+    return classes;
+  }
+
+  static Set<String> _wagonNumbers(List<String> tokens) {
+    final numbers = <String>{};
+    for (var start = 0; start < tokens.length; start++) {
+      var joined = '';
+      for (var end = start; end < tokens.length && end <= start + 2; end++) {
+        final digits = _asDigits(tokens[end]);
+        if (digits == null) break;
+        joined += digits;
+        if (joined.length > 11) break;
+        if (RegExp(r'^3\d{10}$').hasMatch(joined)) numbers.add(joined);
+      }
+    }
+    return numbers;
+  }
+
+  static String? _correctWagonClass(String value) {
+    final normalized =
+        normalize(value).replaceAllMapped(RegExp(r'(?<=M)[IL]$'), (_) => '1');
+    if (RegExp(r'^BCN(?=.*[A-Z])[A-Z0-9]{2,7}$').hasMatch(normalized)) {
+      return normalized;
+    }
+    return null;
+  }
+
+  static String? _asDigits(String value) {
+    if (value.isEmpty || !RegExp(r'^[0-9OQDILZSGTB]+$').hasMatch(value)) {
+      return null;
+    }
+    const replacements = <String, String>{
+      'O': '0',
+      'Q': '0',
+      'D': '0',
+      'I': '1',
+      'L': '1',
+      'Z': '2',
+      'S': '5',
+      'G': '6',
+      'T': '7',
+      'B': '8',
     };
-    return labels.contains(token) || token.length < 3;
+    return value.split('').map((char) => replacements[char] ?? char).join();
   }
 
   static int _score(String value) {
-    final digits = RegExp(r'\d').allMatches(value).length;
-    final letters = RegExp(r'[A-Z]').allMatches(value).length;
-    var score = digits + letters;
-    if (value.startsWith('BCN')) score += 12;
-    if (digits >= 10) score += 8;
-    if (letters >= 5) score += 4;
-    if (value.length >= 15) score += 3;
+    var score = 0;
+    if (value.startsWith('BCN')) score += 20;
+    if (RegExp(r'3\d{10}$').hasMatch(value)) score += 12;
     return score;
   }
 }
