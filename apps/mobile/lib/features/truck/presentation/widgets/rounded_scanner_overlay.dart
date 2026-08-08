@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 class RoundedScannerOverlay extends StatelessWidget {
   final double widthFactor;
   final double cornerRadius;
+  final double aspectRatio;
 
   const RoundedScannerOverlay({
     super.key,
     this.widthFactor = 0.76,
     this.cornerRadius = 16,
+    this.aspectRatio = 1,
   });
 
   @override
@@ -19,6 +21,7 @@ class RoundedScannerOverlay extends StatelessWidget {
         painter: _RoundedScannerOverlayPainter(
           widthFactor: widthFactor,
           cornerRadius: cornerRadius,
+          aspectRatio: aspectRatio,
         ),
       ),
     );
@@ -28,22 +31,26 @@ class RoundedScannerOverlay extends StatelessWidget {
 class _RoundedScannerOverlayPainter extends CustomPainter {
   final double widthFactor;
   final double cornerRadius;
+  final double aspectRatio;
 
   const _RoundedScannerOverlayPainter({
     required this.widthFactor,
     required this.cornerRadius,
+    required this.aspectRatio,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final frameSide = (size.width * widthFactor).clamp(
+    final frameWidth = (size.width * widthFactor).clamp(
       180.0,
-      size.height * 0.58,
+      size.width,
     );
+    final frameHeight =
+        (frameWidth / aspectRatio).clamp(120.0, size.height * 0.58);
     final frame = Rect.fromCenter(
       center: Offset(size.width / 2, size.height / 2),
-      width: frameSide,
-      height: frameSide,
+      width: frameWidth,
+      height: frameHeight,
     );
     final frameRRect = RRect.fromRectAndRadius(
       frame,
@@ -63,6 +70,7 @@ class _RoundedScannerOverlayPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _RoundedScannerOverlayPainter oldDelegate) {
     return oldDelegate.widthFactor != widthFactor ||
-        oldDelegate.cornerRadius != cornerRadius;
+        oldDelegate.cornerRadius != cornerRadius ||
+        oldDelegate.aspectRatio != aspectRatio;
   }
 }

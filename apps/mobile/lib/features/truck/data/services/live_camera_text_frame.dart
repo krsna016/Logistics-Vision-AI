@@ -16,7 +16,7 @@ InputImage? inputImageFromCameraFrame(
 }) {
   final isNv21 = defaultTargetPlatform == TargetPlatform.android &&
       image.planes.length == 1;
-  final bytes = isNv21
+  final nv21Crop = isNv21
       ? _centerCropNv21(
           image.planes.first.bytes,
           width: image.width,
@@ -26,24 +26,15 @@ InputImage? inputImageFromCameraFrame(
           roiWidthFraction: roiWidthFraction,
           roiHeightFraction: roiHeightFraction,
         )
-      : image.planes.length == 1
+      : null;
+  final bytes = nv21Crop?.bytes ??
+      (image.planes.length == 1
           ? image.planes.first.bytes
           : Uint8List.fromList(
               image.planes.expand((plane) => plane.bytes).toList(),
-            );
-  final cropped =
-      isNv21 && (roiWidthFraction < 0.99 || roiHeightFraction < 0.99);
-  final rotateDisplayAxes = sensorOrientation == 90 || sensorOrientation == 270;
-  final metadataWidth = cropped && rotateDisplayAxes
-      ? (image.width * roiHeightFraction).round()
-      : cropped
-          ? (image.width * roiWidthFraction).round()
-          : image.width;
-  final metadataHeight = cropped && rotateDisplayAxes
-      ? (image.height * roiWidthFraction).round()
-      : cropped
-          ? (image.height * roiHeightFraction).round()
-          : image.height;
+            ));
+  final metadataWidth = nv21Crop?.width ?? image.width;
+  final metadataHeight = nv21Crop?.height ?? image.height;
   final rotation = switch (sensorOrientation) {
     90 => InputImageRotation.rotation90deg,
     180 => InputImageRotation.rotation180deg,
@@ -60,12 +51,12 @@ InputImage? inputImageFromCameraFrame(
       size: Size(metadataWidth.toDouble(), metadataHeight.toDouble()),
       rotation: rotation,
       format: format,
-      bytesPerRow: image.planes.first.bytesPerRow,
+      bytesPerRow: nv21Crop?.bytesPerRow ?? image.planes.first.bytesPerRow,
     ),
   );
 }
 
-Uint8List _centerCropNv21(
+_Nv21Crop _centerCropNv21(
   Uint8List source, {
   required int width,
   required int height,
@@ -75,7 +66,7 @@ Uint8List _centerCropNv21(
   required double roiHeightFraction,
 }) {
   if (roiWidthFraction >= 0.99 && roiHeightFraction >= 0.99) {
-    return source;
+    return _Nv21Crop(source, width, height, bytesPerRow);
   }
 
   final rotateDisplayAxes = sensorOrientation == 90 || sensorOrientation == 270;
@@ -94,7 +85,7 @@ Uint8List _centerCropNv21(
   final yPlaneSize = bytesPerRow * height;
   final outputSize = cropWidth * cropHeight * 3 ~/ 2;
   if (source.length < yPlaneSize + width * height ~/ 2 || outputSize <= 0) {
-    return source;
+    return _Nv21Crop(source, width, height, bytesPerRow);
   }
 
   final output = Uint8List(outputSize);
@@ -120,5 +111,14 @@ Uint8List _centerCropNv21(
     );
     outputOffset += cropWidth;
   }
-  return output;
+  return _Nv21Crop(output, cropWidth, cropHeight, cropWidth);
+}
+
+class _Nv21Crop {
+  final Uint8List bytes;
+  final int width;
+  final int height;
+  final int bytesPerRow;
+
+  const _Nv21Crop(this.bytes, this.width, this.height, this.bytesPerRow);
 }
