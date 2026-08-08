@@ -127,6 +127,17 @@ class ScannerCameraWarmup {
         // Disposal below remains the final recovery path.
       }
     }
+    // Restore the retained camera while the closing scanner is already off
+    // screen. The next truck/wagon scanner can then reveal a normal-zoom
+    // preview immediately, without showing CameraX zooming back out.
+    try {
+      final minimum = await controller
+          .getMinZoomLevel()
+          .timeout(_operationTimeout);
+      await controller.setZoomLevel(minimum).timeout(_operationTimeout);
+    } catch (_) {
+      // The scanner also verifies zoom before revealing its next preview.
+    }
     try {
       await controller.setFlashMode(FlashMode.off).timeout(_operationTimeout);
     } catch (_) {

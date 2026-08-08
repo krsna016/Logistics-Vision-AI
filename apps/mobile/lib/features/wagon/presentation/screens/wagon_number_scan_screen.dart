@@ -71,11 +71,18 @@ class _WagonNumberScanScreenState extends State<WagonNumberScanScreen>
         await ScannerCameraWarmup.releaseController(controller);
         return;
       }
+      // Keep the prepared camera hidden until its hardware zoom is back at
+      // the default. A retained CameraX controller otherwise briefly paints
+      // the zoom level from the previous scanner session.
+      _controller = controller;
+      await _initializeZoom(controller);
+      if (!mounted || _controller != controller) {
+        await ScannerCameraWarmup.releaseController(controller);
+        return;
+      }
       setState(() {
-        _controller = controller;
         _initializing = false;
       });
-      unawaited(_initializeZoom(controller));
       // Paint the camera preview first, then attach the analysis stream. This
       // prevents route animation, texture creation and OCR startup competing in
       // the same frame.
