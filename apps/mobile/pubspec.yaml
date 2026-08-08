@@ -15,7 +15,9 @@ dependencies:
   go_router: ^13.0.0
 
   # Hardware Capabilities
-  camera: ^0.10.5+8
+  # CameraX is the endorsed Android backend in 0.11+. Its image-analysis
+  # backpressure avoids flooding Flutter when OCR cannot consume every frame.
+  camera: ^0.11.2+1
   google_mlkit_text_recognition: ^0.15.0
   permission_handler: ^11.3.0
   geolocator: ^14.0.2
