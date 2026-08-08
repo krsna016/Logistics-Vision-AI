@@ -40,7 +40,13 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
         text: wagon == null ? '' : '${wagon.expectedTruckCount}');
     _remarksCtrl = TextEditingController(text: wagon?.remarks);
     _selectedDate = wagon?.loadingDate ?? DateTime.now();
-    unawaited(ScannerCameraWarmup.prepare());
+    // Let the sheet transition finish before opening the native camera. Starting
+    // Camera2 during the route animation produces a visible hitch on Android.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 350), () {
+        if (mounted) unawaited(ScannerCameraWarmup.prepare());
+      });
+    });
   }
 
   @override
@@ -270,7 +276,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                             minimumSize: const Size(0, 52),
                             padding: const EdgeInsets.symmetric(horizontal: 8),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: BorderRadius.circular(14),
                             ),
                           ),
                           icon: const Icon(Icons.calendar_today, size: 15),

@@ -47,7 +47,13 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
     _companyCtrl = TextEditingController(text: t?.company ?? '');
     _warehouseCtrl = TextEditingController(text: t?.warehouse ?? '');
     _notesCtrl = TextEditingController(text: t?.notes ?? '');
-    unawaited(ScannerCameraWarmup.prepare());
+    // Let the sheet transition finish before opening the native camera. Starting
+    // Camera2 during the route animation produces a visible hitch on Android.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 350), () {
+        if (mounted) unawaited(ScannerCameraWarmup.prepare());
+      });
+    });
   }
 
   @override

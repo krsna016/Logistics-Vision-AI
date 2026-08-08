@@ -3,15 +3,15 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
-import 'package:image_picker/image_picker.dart';
 
+import '../../../../utils/logger.dart';
 import '../../data/services/live_camera_text_frame.dart';
 import '../../data/services/scanner_camera_warmup.dart';
-import '../../data/services/vehicle_plate_image_preprocessor.dart';
 import '../../domain/services/vehicle_number_consensus.dart';
 import '../../domain/services/vehicle_number_parser.dart';
 import '../widgets/rounded_scanner_overlay.dart';
 import '../widgets/scanner_capture_controls.dart';
+import '../widgets/scanner_starting_view.dart';
 
 class VehicleNumberScanScreen extends StatefulWidget {
   const VehicleNumberScanScreen({super.key});
@@ -21,24 +21,25 @@ class VehicleNumberScanScreen extends StatefulWidget {
       _VehicleNumberScanScreenState();
 }
 
-class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
+class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen>
+    with WidgetsBindingObserver {
   CameraController? _controller;
   final _recognizer = TextRecognizer(script: TextRecognitionScript.latin);
-  final _picker = ImagePicker();
   final _consensus = VehicleNumberConsensus();
-  List<CameraDescription> _cameras = const [];
-  int _cameraIndex = 0;
   String? _error;
   bool _initializing = true;
-  bool _scanning = false;
   bool _torchOn = false;
   bool _processingFrame = false;
+  bool _recognizerBusy = false;
+  Future<RecognizedText>? _activeRecognition;
   bool _liveScanning = false;
+  bool _resultDelivered = false;
   Future<void>? _activeFrameProcessing;
   Timer? _candidateExpiryTimer;
   DateTime _lastFrameStarted = DateTime.fromMillisecondsSinceEpoch(0);
   String? _liveCandidate;
-  int _consecutiveFrameTimeouts = 0;
+  bool _lifecyclePaused = false;
+  final Stopwatch _sessionStopwatch = Stopwatch()..start();
   double _zoom = 1;
   double _minZoom = 1;
   double _maxZoom = 1;
@@ -47,15 +48,23 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
   @override
   void initState() {
     super.initState();
-    _initialize();
+    WidgetsBinding.instance.addObserver(this);
+    // Keep native camera startup away from the route's opening animation. In
+    // the usual path the controller is already prewarmed, so this only yields
+    // long enough for the first scanner frame to paint.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future<void>.delayed(const Duration(milliseconds: 220), () {
+        if (mounted) unawaited(_initialize());
+      });
+    });
   }
 
   Future<void> _initialize() async {
     try {
-      final controller = await ScannerCameraWarmup.takePrepared() ??
-          await _createCameraController();
+      final controller = await ScannerCameraWarmup.takePrepared();
+      if (controller == null) throw StateError('No camera is available.');
       if (!mounted) {
-        await controller.dispose();
+        await ScannerCameraWarmup.releaseController(controller);
         return;
       }
       setState(() {
@@ -64,14 +73,21 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
         _zoom = _minZoom;
         _gestureStartZoom = _minZoom;
       });
-      unawaited(_loadCameraList(controller));
       unawaited(_loadZoomLevels(controller));
-      unawaited(_startLiveScanning(controller));
+      // Paint the camera preview first, then attach the analysis stream. This
+      // prevents route animation, texture creation and OCR startup competing in
+      // the same frame.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future<void>.delayed(const Duration(milliseconds: 120), () {
+          if (mounted && _controller == controller && !_lifecyclePaused) {
+            unawaited(_startLiveScanning(controller));
+          }
+        });
+      });
     } on TimeoutException {
       if (mounted) {
         setState(() {
           _initializing = false;
-          _scanning = false;
           _error = 'Camera took too long to start. Tap retry to open it again.';
         });
       }
@@ -83,47 +99,6 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
               'Camera could not be started. You can enter the number manually.';
         });
       }
-    }
-  }
-
-  Future<void> _loadCameraList(CameraController controller) async {
-    try {
-      final cameras = await cachedCameraDescriptions();
-      final index = cameras.indexWhere(
-        (camera) => camera.name == controller.description.name,
-      );
-      if (!mounted || _controller != controller) return;
-      setState(() {
-        _cameras = cameras;
-        _cameraIndex = index < 0 ? 0 : index;
-      });
-    } catch (_) {
-      // Flip remains unavailable if the device camera list cannot be read.
-    }
-  }
-
-  Future<CameraController> _createCameraController() async {
-    final cameras = await cachedCameraDescriptions();
-    final rear = cameras.where(
-      (camera) => camera.lensDirection == CameraLensDirection.back,
-    );
-    final description = rear.isNotEmpty ? rear.first : cameras.first;
-    final controller = CameraController(
-      description,
-      ResolutionPreset.high,
-      enableAudio: false,
-      imageFormatGroup: ImageFormatGroup.nv21,
-    );
-    try {
-      await controller.initialize().timeout(const Duration(seconds: 5));
-      return controller;
-    } catch (_) {
-      try {
-        await controller.dispose().timeout(const Duration(seconds: 1));
-      } catch (_) {
-        // The platform camera may already be unavailable.
-      }
-      rethrow;
     }
   }
 
@@ -182,152 +157,9 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
     }
   }
 
-  Future<void> _switchCamera() async {
-    if (_scanning || _initializing) return;
-    final current = _controller;
-    if (current == null || _cameras.length < 2) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No other camera is available.')),
-        );
-      }
-      return;
-    }
-
-    setState(() {
-      _initializing = true;
-      _torchOn = false;
-      _error = null;
-    });
-    try {
-      await _stopLiveScanning(current);
-      if (!mounted) return;
-      await current.dispose();
-      final nextIndex = (_cameraIndex + 1) % _cameras.length;
-      final next = CameraController(
-        _cameras[nextIndex],
-        ResolutionPreset.high,
-        enableAudio: false,
-        imageFormatGroup: ImageFormatGroup.nv21,
-      );
-      await next.initialize();
-      if (!mounted) {
-        await next.dispose();
-        return;
-      }
-      setState(() {
-        _controller = next;
-        _cameraIndex = nextIndex;
-        _initializing = false;
-        _zoom = 1;
-        _gestureStartZoom = 1;
-      });
-      unawaited(_loadZoomLevels(next));
-      unawaited(_startLiveScanning(next));
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _controller = null;
-          _initializing = false;
-          _error = 'Could not switch the camera. Please try again.';
-        });
-      }
-    }
-  }
-
-  Future<void> _pickFromGallery() async {
-    if (_scanning) return;
-    try {
-      if (_torchOn) await _toggleTorch();
-      await _stopLiveScanning(_controller);
-      if (!mounted) return;
-      final image = await _picker.pickImage(source: ImageSource.gallery);
-      if (image == null || !mounted) {
-        if (mounted && _controller != null) {
-          unawaited(_startLiveScanning(_controller!));
-        }
-        return;
-      }
-      setState(() {
-        _scanning = true;
-        _error = null;
-      });
-      await _readImage(image.path);
-    } catch (_) {
-      if (mounted) {
-        setState(() => _error = 'Could not open this gallery image.');
-        if (_controller != null) unawaited(_startLiveScanning(_controller!));
-      }
-    }
-  }
-
-  Future<void> _captureAndRead() async {
-    final controller = _controller;
-    if (_scanning || controller == null || !controller.value.isInitialized) {
-      return;
-    }
-
-    setState(() {
-      _scanning = true;
-      _error = null;
-    });
-
-    try {
-      await _stopLiveScanning(controller);
-      if (!mounted) return;
-      final image = await controller.takePicture();
-      await _readImage(image.path);
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _scanning = false;
-          _error = 'Could not read this image. Please try again.';
-        });
-        unawaited(_startLiveScanning(controller));
-      }
-    } finally {
-      if (mounted && _scanning) setState(() => _scanning = false);
-    }
-  }
-
-  Future<void> _readImage(String imagePath) async {
-    try {
-      final focusedImage =
-          await VehiclePlateImagePreprocessor.createFocusedImage(imagePath);
-      final result = await _recognizer
-          .processImage(InputImage.fromFilePath(focusedImage))
-          .timeout(const Duration(seconds: 5));
-      final candidates = VehicleNumberParser.candidatesFromText(result.text)
-          .where(VehicleNumberParser.looksLikeIndianVehicleNumber)
-          .toList();
-      if (!mounted) return;
-      if (candidates.isEmpty) {
-        setState(() {
-          _scanning = false;
-          _error =
-              'No readable vehicle number found. Move closer and try again.';
-        });
-        if (_controller != null) unawaited(_startLiveScanning(_controller!));
-        return;
-      }
-      setState(() => _scanning = false);
-      Navigator.of(context).pop(candidates.first);
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _scanning = false;
-          _error = 'Could not read this image. Please try again.';
-        });
-        if (_controller != null) unawaited(_startLiveScanning(_controller!));
-      }
-    } finally {
-      if (mounted && _scanning) setState(() => _scanning = false);
-    }
-  }
-
   Future<void> _startLiveScanning(CameraController controller) async {
     if (_liveScanning ||
-        _scanning ||
+        _lifecyclePaused ||
         !controller.value.isInitialized ||
         controller.value.isStreamingImages) {
       return;
@@ -336,10 +168,11 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
       _consensus.reset();
       await controller.startImageStream((image) {
         final now = DateTime.now();
-        if (_processingFrame ||
-            _scanning ||
+        if (_resultDelivered ||
+            _processingFrame ||
+            _recognizerBusy ||
             now.difference(_lastFrameStarted) <
-                const Duration(milliseconds: 140)) {
+                const Duration(milliseconds: 240)) {
           return;
         }
         _lastFrameStarted = now;
@@ -383,8 +216,16 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
     CameraController controller,
     CameraImage cameraImage,
   ) async {
-    var shouldRestartStream = false;
+    final frameStopwatch = Stopwatch()..start();
     try {
+      if (!cameraFrameHasSufficientQuality(
+        cameraImage,
+        controller.description.sensorOrientation,
+        roiWidthFraction: 0.84,
+        roiHeightFraction: 0.34,
+      )) {
+        return;
+      }
       final inputImage = inputImageFromCameraFrame(
         cameraImage,
         controller.description.sensorOrientation,
@@ -393,11 +234,20 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
       );
       if (inputImage == null) return;
 
-      final result = await _recognizer
-          .processImage(inputImage)
-          .timeout(const Duration(milliseconds: 1200));
-      _consecutiveFrameTimeouts = 0;
-      if (_scanning || !mounted) return;
+      final recognition = _recognizer.processImage(inputImage);
+      _activeRecognition = recognition;
+      _recognizerBusy = true;
+      unawaited(
+        recognition.then<void>((_) {}, onError: (_, __) {}).whenComplete(() {
+          _recognizerBusy = false;
+          if (identical(_activeRecognition, recognition)) {
+            _activeRecognition = null;
+          }
+        }),
+      );
+      final result =
+          await recognition.timeout(const Duration(milliseconds: 1200));
+      if (_lifecyclePaused || !mounted) return;
       final candidates = VehicleNumberParser.candidatesFromText(result.text)
           .where(VehicleNumberParser.looksLikeIndianVehicleNumber)
           .toList();
@@ -406,19 +256,31 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
       if (candidates.isNotEmpty && leading != null) {
         _showLiveCandidate(leading);
       }
-      if (accepted != null && mounted) {
+      if (accepted != null && mounted && !_resultDelivered) {
+        _resultDelivered = true;
+        _liveScanning = false;
         _candidateExpiryTimer?.cancel();
-        await _stopLiveScanning(controller, waitForActiveFrame: false);
-        if (mounted) Navigator.of(context).pop(accepted);
+        AppLogger.debug(
+          'Truck scanner confirmed in ${_sessionStopwatch.elapsedMilliseconds} ms.',
+        );
+        // Pop immediately. Stream shutdown is intentionally handled after the
+        // closing animation in dispose so Camera2 cannot stall that animation.
+        Navigator.of(context).pop(accepted);
       }
     } on TimeoutException {
-      _consecutiveFrameTimeouts++;
-      shouldRestartStream = _consecutiveFrameTimeouts >= 2;
+      _candidateExpiryTimer?.cancel();
+      _consensus.reset();
+      if (mounted) setState(() => _liveCandidate = null);
     } catch (_) {
       // A bad preview frame is expected occasionally; the next frame retries.
     } finally {
+      frameStopwatch.stop();
+      if (frameStopwatch.elapsedMilliseconds > 500) {
+        AppLogger.warning(
+          'Truck OCR frame took ${frameStopwatch.elapsedMilliseconds} ms.',
+        );
+      }
       _processingFrame = false;
-      if (shouldRestartStream) unawaited(_restartLiveScanning(controller));
     }
   }
 
@@ -436,20 +298,50 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
     });
   }
 
-  Future<void> _restartLiveScanning(CameraController controller) async {
-    _consecutiveFrameTimeouts = 0;
-    await _stopLiveScanning(controller, waitForActiveFrame: false);
-    await Future<void>.delayed(const Duration(milliseconds: 250));
-    if (mounted && !_scanning && _controller == controller) {
-      _candidateExpiryTimer?.cancel();
-      _consensus.reset();
-      setState(() => _liveCandidate = null);
-      await _startLiveScanning(controller);
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      unawaited(_resumeAfterLifecyclePause());
+    } else if (state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
+      unawaited(_pauseForLifecycle());
     }
+  }
+
+  Future<void> _pauseForLifecycle() async {
+    if (_lifecyclePaused) return;
+    _lifecyclePaused = true;
+    _candidateExpiryTimer?.cancel();
+    final controller = _controller;
+    await _stopLiveScanning(controller, waitForActiveFrame: false);
+    await ScannerCameraWarmup.disposeNow();
+    if (mounted) {
+      setState(() {
+        _controller = null;
+        _liveCandidate = null;
+        _torchOn = false;
+      });
+    }
+  }
+
+  Future<void> _resumeAfterLifecyclePause() async {
+    if (!_lifecyclePaused || !mounted) return;
+    _lifecyclePaused = false;
+    _resultDelivered = false;
+    _sessionStopwatch
+      ..reset()
+      ..start();
+    setState(() {
+      _initializing = true;
+      _error = null;
+    });
+    await _initialize();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _candidateExpiryTimer?.cancel();
     final controller = _controller;
     _controller = null;
@@ -458,9 +350,21 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
   }
 
   Future<void> _disposeScannerResources(CameraController? controller) async {
+    // Camera2 stopImageStream can block the Android main thread for hundreds of
+    // milliseconds. Let the route transition finish before touching it.
+    await Future<void>.delayed(const Duration(milliseconds: 320));
     await _stopLiveScanning(controller);
-    await _recognizer.close();
-    await controller?.dispose();
+    try {
+      await _activeRecognition?.timeout(const Duration(milliseconds: 1500));
+    } catch (_) {
+      // Closing the recognizer below is the final recovery path.
+    }
+    try {
+      await _recognizer.close().timeout(const Duration(seconds: 1));
+    } catch (_) {
+      // Native recognition may already have been reclaimed.
+    }
+    await ScannerCameraWarmup.releaseController(controller);
   }
 
   @override
@@ -473,13 +377,12 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
         backgroundColor: Colors.black,
       ),
       body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        reverseDuration: const Duration(milliseconds: 150),
+        duration: const Duration(milliseconds: 280),
+        reverseDuration: const Duration(milliseconds: 180),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
         child: _initializing
-            ? const Center(
-                key: ValueKey('camera-loading'),
-                child: CircularProgressIndicator(),
-              )
+            ? const ScannerStartingView()
             : _error != null && controller == null
                 ? KeyedSubtree(
                     key: const ValueKey('camera-error'),
@@ -565,14 +468,8 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen> {
                               ),
                             ScannerCaptureControls(
                               torchOn: _torchOn,
-                              isScanning: _scanning,
                               onToggleTorch:
                                   controller == null ? null : _toggleTorch,
-                              onCapture: _captureAndRead,
-                              onGallery: _pickFromGallery,
-                              onFlipCamera: _switchCamera,
-                              captureLabel: 'Capture plate',
-                              flashOnlyMode: true,
                             ),
                           ],
                         ),

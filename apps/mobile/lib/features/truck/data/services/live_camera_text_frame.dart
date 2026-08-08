@@ -1,4 +1,5 @@
 import 'dart:ui' show Size;
+import 'dart:math' as math;
 
 import 'package:camera/camera.dart';
 import 'package:flutter/foundation.dart';
@@ -7,6 +8,78 @@ import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart
 Future<List<CameraDescription>> _cachedCameras = availableCameras();
 
 Future<List<CameraDescription>> cachedCameraDescriptions() => _cachedCameras;
+
+bool cameraFrameHasSufficientQuality(
+  CameraImage image,
+  int sensorOrientation, {
+  required double roiWidthFraction,
+  required double roiHeightFraction,
+}) {
+  if (image.planes.length != 1 || image.planes.first.bytes.isEmpty) return true;
+  final rotateDisplayAxes = sensorOrientation == 90 || sensorOrientation == 270;
+  final widthFraction =
+      rotateDisplayAxes ? roiHeightFraction : roiWidthFraction;
+  final heightFraction =
+      rotateDisplayAxes ? roiWidthFraction : roiHeightFraction;
+  return lumaPlaneHasSufficientQuality(
+    image.planes.first.bytes,
+    width: image.width,
+    height: image.height,
+    bytesPerRow: image.planes.first.bytesPerRow,
+    roiWidthFraction: widthFraction,
+    roiHeightFraction: heightFraction,
+  );
+}
+
+bool lumaPlaneHasSufficientQuality(
+  Uint8List bytes, {
+  required int width,
+  required int height,
+  required int bytesPerRow,
+  required double roiWidthFraction,
+  required double roiHeightFraction,
+}) {
+  if (width <= 0 || height <= 0 || bytesPerRow < width) return false;
+  final cropWidth = (width * roiWidthFraction).round().clamp(2, width);
+  final cropHeight = (height * roiHeightFraction).round().clamp(2, height);
+  final left = (width - cropWidth) ~/ 2;
+  final top = (height - cropHeight) ~/ 2;
+  final stepX = math.max(2, cropWidth ~/ 32);
+  final stepY = math.max(2, cropHeight ~/ 24);
+  var count = 0;
+  var sum = 0;
+  var minimum = 255;
+  var maximum = 0;
+  var edgeSum = 0;
+  var edgeCount = 0;
+
+  for (var y = top; y < top + cropHeight; y += stepY) {
+    final row = y * bytesPerRow;
+    var previous = -1;
+    for (var x = left; x < left + cropWidth; x += stepX) {
+      final index = row + x;
+      if (index >= bytes.length) return true;
+      final value = bytes[index];
+      sum += value;
+      minimum = math.min(minimum, value);
+      maximum = math.max(maximum, value);
+      count++;
+      if (previous >= 0) {
+        edgeSum += (value - previous).abs();
+        edgeCount++;
+      }
+      previous = value;
+    }
+  }
+
+  if (count == 0 || edgeCount == 0) return false;
+  final mean = sum / count;
+  final averageEdge = edgeSum / edgeCount;
+  return mean >= 28 &&
+      mean <= 235 &&
+      maximum - minimum >= 24 &&
+      averageEdge >= 2.5;
+}
 
 InputImage? inputImageFromCameraFrame(
   CameraImage image,
