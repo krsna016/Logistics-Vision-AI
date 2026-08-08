@@ -68,7 +68,10 @@ class CameraNotifier extends StateNotifier<CameraState>
 
       final controller = await _repository.initializeCameraController(
         description: cameras[defaultIndex],
-        resolutionPreset: ResolutionPreset.medium,
+        // Keep the operator preview and saved layer photo at Full HD. The
+        // inference encoder independently samples frames down to its bounded
+        // working size, so preview quality does not dictate inference cost.
+        resolutionPreset: ResolutionPreset.veryHigh,
       );
 
       state = CameraState(
@@ -110,7 +113,7 @@ class CameraNotifier extends StateNotifier<CameraState>
 
       final nextController = await _repository.initializeCameraController(
         description: state.availableCameras[nextIndex],
-        resolutionPreset: ResolutionPreset.medium,
+        resolutionPreset: ResolutionPreset.veryHigh,
       );
 
       state = state.copyWith(

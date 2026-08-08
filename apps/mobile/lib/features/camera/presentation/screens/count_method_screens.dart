@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -82,8 +84,13 @@ class CountMethodSelectionScreen extends StatelessWidget {
 
 class ManualCountScreen extends StatefulWidget {
   final String truckId;
+  final VoidCallback? onAiSelected;
 
-  const ManualCountScreen({super.key, required this.truckId});
+  const ManualCountScreen({
+    super.key,
+    required this.truckId,
+    this.onAiSelected,
+  });
 
   @override
   State<ManualCountScreen> createState() => _ManualCountScreenState();
@@ -98,6 +105,18 @@ class _ManualCountScreenState extends State<ManualCountScreen> {
   String? _referencePhotoPath;
   bool _isSavingPhoto = false;
   String? _error;
+
+  Future<void> _switchToAi() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    unawaited(SystemChannels.textInput.invokeMethod<void>('TextInput.hide'));
+    final onAiSelected = widget.onAiSelected;
+    if (onAiSelected != null) {
+      onAiSelected();
+      return;
+    }
+    if (!mounted) return;
+    context.pushReplacement('/trucks/${widget.truckId}/camera');
+  }
 
   @override
   void dispose() {
@@ -179,7 +198,12 @@ class _ManualCountScreenState extends State<ManualCountScreen> {
           onPressed: () =>
               context.canPop() ? context.pop() : context.go('/wagons'),
         ),
-        title: const Text('Manual Count'),
+        title: CountModeSwitcher(
+          selectedMode: CountMode.manual,
+          onAiSelected: _switchToAi,
+          onManualSelected: () {},
+        ),
+        centerTitle: true,
         backgroundColor: AppTheme.surfaceColor,
       ),
       body: ListView(
@@ -244,7 +268,7 @@ class _ManualCountScreenState extends State<ManualCountScreen> {
           const SizedBox(height: 24),
           TextField(
             controller: _countController,
-            autofocus: true,
+            autofocus: false,
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
               labelText: 'Verified carton total',
@@ -252,30 +276,60 @@ class _ManualCountScreenState extends State<ManualCountScreen> {
               prefixIcon: const Icon(Icons.inventory_2_outlined),
               errorText: _error,
               border: const OutlineInputBorder(),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                    color: AppTheme.dividerColor.withValues(alpha: 0.9)),
+              ),
+              focusedBorder: const OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(14)),
+                borderSide:
+                    BorderSide(color: AppTheme.primaryColor, width: 1.5),
+              ),
             ),
           ),
           const SizedBox(height: 18),
           TextField(
             controller: _defectController,
             keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Defective boxes (included in total)',
               hintText: 'e.g. 2',
               helperText:
                   'These boxes are already included in the total above.',
-              prefixIcon: Icon(Icons.warning_amber_outlined),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.warning_amber_outlined),
+              border: const OutlineInputBorder(),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                    color: AppTheme.dividerColor.withValues(alpha: 0.9)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+              ),
             ),
           ),
           const SizedBox(height: 18),
           TextField(
             controller: _notesController,
             maxLines: 3,
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               labelText: 'Notes (optional)',
               hintText: 'Add a reason or observation',
-              prefixIcon: Icon(Icons.notes_outlined),
-              border: OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.notes_outlined),
+              border: const OutlineInputBorder(),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(
+                    color: AppTheme.dividerColor.withValues(alpha: 0.9)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide:
+                    const BorderSide(color: AppTheme.primaryColor, width: 1.5),
+              ),
             ),
           ),
           const SizedBox(height: 28),
@@ -288,6 +342,94 @@ class _ManualCountScreenState extends State<ManualCountScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+enum CountMode { ai, manual }
+
+class CountModeSwitcher extends StatelessWidget {
+  final CountMode selectedMode;
+  final VoidCallback onAiSelected;
+  final VoidCallback onManualSelected;
+
+  const CountModeSwitcher({
+    super.key,
+    required this.selectedMode,
+    required this.onAiSelected,
+    required this.onManualSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: 'Counting method',
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.all(4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF484848),
+          borderRadius: BorderRadius.circular(22),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _CountModeOption(
+              label: 'AI',
+              selected: selectedMode == CountMode.ai,
+              onTap: onAiSelected,
+            ),
+            _CountModeOption(
+              label: 'Manual',
+              selected: selectedMode == CountMode.manual,
+              onTap: onManualSelected,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CountModeOption extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _CountModeOption({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: InkWell(
+        onTap: selected ? null : onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: Alignment.center,
+          constraints: const BoxConstraints(minWidth: 72),
+          padding: const EdgeInsets.symmetric(horizontal: 15),
+          decoration: BoxDecoration(
+            color: selected ? const Color(0xFF242424) : Colors.transparent,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 14,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -1,6 +1,8 @@
 import 'dart:ui';
 import 'dart:math' as math;
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'config/environment.dart';
@@ -12,6 +14,16 @@ import 'features/auth/presentation/providers/auth_providers.dart';
 void main() async {
   // Ensure widget bindings are loaded before background async initializes.
   WidgetsFlutterBinding.ensureInitialized();
+
+  await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarDividerColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.light,
+  ));
 
   // Setup Global Exception Handlers
   FlutterError.onError = (details) {
@@ -45,10 +57,20 @@ class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
   @override
   void initState() {
     super.initState();
-    // Prompt on app launch. Tracking still starts only after authentication.
-    Future<void>.microtask(() {
-      ref.read(locationTrackingServiceProvider).requestPermission();
+    // Ask only after the first frame, when the Android/iOS activity is ready
+    // to present a native permission dialog. Tracking still starts only after
+    // authentication in AuthNotifier.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(_requestLocationPermission());
     });
+  }
+
+  Future<void> _requestLocationPermission() async {
+    try {
+      await ref.read(locationTrackingServiceProvider).requestPermission();
+    } catch (error, stack) {
+      AppLogger.warning('Location permission request failed', error, stack);
+    }
   }
 
   @override

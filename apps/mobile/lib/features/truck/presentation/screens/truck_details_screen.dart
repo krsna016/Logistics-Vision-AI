@@ -252,7 +252,7 @@ class TruckDetailsScreen extends ConsumerWidget {
               },
               onCapture: isWorkflowReadOnly
                   ? null
-                  : () => context.push('/trucks/$truckId/count-method'),
+                  : () => context.push('/trucks/$truckId/camera'),
               onComplete: !isWorkflowReadOnly && layerState.layers.isNotEmpty
                   ? () => _confirmComplete(
                       context, notifier, sessionNotifier, truck)
@@ -736,7 +736,7 @@ class _StickyBottomBar extends StatelessWidget {
                   minimumSize: const Size.fromHeight(_actionHeight),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(24)),
                 ),
               ),
             )
@@ -770,7 +770,7 @@ class _StickyBottomBar extends StatelessWidget {
                       minimumSize: const Size.fromHeight(_actionHeight),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(24)),
                     ),
                   ),
                 ),

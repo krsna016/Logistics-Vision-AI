@@ -25,7 +25,7 @@ class ScannerCameraWarmup {
       final description = rear.isNotEmpty ? rear.first : cameras.first;
       final controller = CameraController(
         description,
-        ResolutionPreset.medium,
+        ResolutionPreset.veryHigh,
         enableAudio: false,
         imageFormatGroup: ImageFormatGroup.nv21,
       );

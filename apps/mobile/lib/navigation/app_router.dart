@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../features/camera/presentation/screens/camera_screen.dart';
 import '../features/camera/presentation/screens/count_method_screens.dart';
+import '../features/camera/presentation/screens/capture_workspace_screen.dart';
 import '../features/truck/presentation/screens/truck_details_screen.dart';
 import '../features/truck/domain/entities/truck.dart';
 import '../features/layer/presentation/screens/layer_review_screen.dart';
@@ -112,29 +112,31 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'camera',
             name: 'camera',
-            builder: (context, state) => CountMethodSelectionScreen(
+            builder: (context, state) => CaptureWorkspaceScreen(
               truckId: state.pathParameters['id'] ?? '',
             ),
             routes: [
               GoRoute(
                 path: 'live',
                 name: 'camera_live',
-                builder: (context, state) => const CameraScreen(),
+                builder: (context, state) => CaptureWorkspaceScreen(
+                  truckId: state.pathParameters['id'] ?? '',
+                ),
               ),
             ],
           ),
           GoRoute(
             path: 'count-method',
             name: 'count_method',
-            builder: (context, state) => CountMethodSelectionScreen(
-              truckId: state.pathParameters['id'] ?? '',
-            ),
+            redirect: (context, state) =>
+                '/trucks/${state.pathParameters['id'] ?? ''}/camera',
           ),
           GoRoute(
             path: 'manual-count',
             name: 'manual_count',
-            builder: (context, state) => ManualCountScreen(
+            builder: (context, state) => CaptureWorkspaceScreen(
               truckId: state.pathParameters['id'] ?? '',
+              initialMode: CountMode.manual,
             ),
           ),
           GoRoute(

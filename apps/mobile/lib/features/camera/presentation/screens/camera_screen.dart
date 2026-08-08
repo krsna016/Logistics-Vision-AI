@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 import 'dart:math' as math;
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
@@ -16,48 +17,36 @@ import '../../domain/entities/decision_state.dart';
 import '../../domain/entities/detection.dart';
 import '../widgets/detection_overlay_widget.dart';
 import '../../../layer/domain/entities/ai_result.dart';
-import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/storage/image_storage_service.dart';
 import '../../../../core/ai_engine/models/ai_model.dart';
 import '../../../../utils/logger.dart';
+import 'count_method_screens.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
-  const CameraScreen({super.key});
+  final bool isActive;
+  final VoidCallback? onManualSelected;
+
+  const CameraScreen({
+    super.key,
+    this.isActive = true,
+    this.onManualSelected,
+  });
 
   @override
   ConsumerState<CameraScreen> createState() => _CameraScreenState();
 }
 
-class _CameraScreenState extends ConsumerState<CameraScreen>
-    with TickerProviderStateMixin {
+class _CameraScreenState extends ConsumerState<CameraScreen> {
   String? _pickedImagePath;
   final ImagePicker _picker = ImagePicker();
-  late AnimationController _pulseController;
-  late Animation<double> _pulseAnim;
   final _streamKey = GlobalKey<_CameraStreamAdapterState>();
   final _imageStorage = ImageStorageService();
   double _gestureStartZoom = 1.0;
   double _gestureZoom = 1.0;
   bool _isGalleryAnalyzing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void dispose() {
-    _pulseController.dispose();
-    super.dispose();
-  }
+  bool _torchOn = false;
+  bool _routeCovered = false;
 
   Future<void> _pickImage() async {
     try {
@@ -74,11 +63,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
             .processGalleryImage(image.path);
         final detections = ref.read(inferenceNotifierProvider).detections;
         final decisionNotifier = ref.read(countingDecisionProvider.notifier);
-        // A still image has no frame history, so use the same result as a
-        // short stable window to enable review immediately.
-        for (var i = 0; i < 5; i++) {
-          decisionNotifier.analyzeFrameDetections(detections);
-        }
+        decisionNotifier.acceptGalleryDetections(detections);
         if (mounted) setState(() => _isGalleryAnalyzing = false);
       }
     } catch (e, stack) {
@@ -87,74 +72,89 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     }
   }
 
+  Future<void> _toggleTorch(CameraController? controller) async {
+    if (controller == null || !controller.value.isInitialized) return;
+    try {
+      final next = !_torchOn;
+      await controller.setFlashMode(next ? FlashMode.torch : FlashMode.off);
+      if (mounted) setState(() => _torchOn = next);
+    } on CameraException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.description ?? 'Flashlight is not available.'),
+        ),
+      );
+    }
+  }
+
+  Future<void> _openGallery(CameraController? controller) async {
+    if (_torchOn) await _toggleTorch(controller);
+    await _pickImage();
+  }
+
   @override
   Widget build(BuildContext context) {
     final cameraState = ref.watch(cameraNotifierProvider);
     final cameraNotifier = ref.read(cameraNotifierProvider.notifier);
-    final inferenceState = ref.watch(inferenceNotifierProvider);
-    final decisionState = ref.watch(countingDecisionProvider);
+    final isGallery = _pickedImagePath != null;
+    final inferenceReady = ref.watch(
+      inferenceNotifierProvider.select((state) => state.isModelLoaded),
+    );
+    final inferenceState = isGallery
+        ? ref.watch(inferenceNotifierProvider)
+        : ref.read(inferenceNotifierProvider);
+    final decisionState = isGallery
+        ? ref.watch(countingDecisionProvider)
+        : ref.read(countingDecisionProvider);
     final decisionNotifier = ref.read(countingDecisionProvider.notifier);
     final routerState = GoRouterState.of(context);
     final truckId = routerState.pathParameters['id'] ?? '';
-    final layerState = ref.watch(layerListProvider(truckId));
-    final currentLayer = layerState.layers.length + 1;
-
     final bool isReadyForReview =
         decisionState.status == CountingDecisionState.readyForReview;
-    final bool isGallery = _pickedImagePath != null;
 
     return Scaffold(
       backgroundColor: Colors.black,
+      extendBody: true,
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
-          // ── Layer 0: Bounded camera or gallery preview ─────────────────
-          // Keep the preview large enough for carton inspection, while
-          // leaving stable space for the header and capture controls.
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 62,
-            left: 12,
-            right: 12,
-            bottom: 158,
-            child: LayoutBuilder(
-              builder: (context, constraints) {
-                final width = math.min(
-                  constraints.maxWidth,
-                  constraints.maxHeight * 3 / 4,
-                );
-                return Center(
-                  child: SizedBox(
-                    width: width,
-                    height: width * 4 / 3,
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onScaleStart: !isGallery
-                          ? (_) => _gestureStartZoom = _gestureZoom
-                          : null,
-                      onScaleUpdate: !isGallery
-                          ? (details) {
-                              if (details.scale == 1.0) return;
-                              _gestureZoom = (_gestureStartZoom * details.scale)
-                                  .clamp(1.0, 20.0)
-                                  .toDouble();
-                              cameraNotifier.setZoomLevel(_gestureZoom);
-                            }
-                          : null,
-                      child: isGallery
-                          ? ClipRRect(
-                              borderRadius: BorderRadius.circular(28),
-                              clipBehavior: Clip.antiAlias,
-                              child: _GalleryPreview(
-                                path: _pickedImagePath!,
-                                decisionState: decisionState,
-                                detections: inferenceState.detections,
-                              ),
-                            )
-                          : _buildMainContent(
-                              context, cameraState, cameraNotifier),
+          // ── Layer 0: Edge-to-edge camera/gallery preview ───────────────
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onScaleStart:
+                  !isGallery ? (_) => _gestureStartZoom = _gestureZoom : null,
+              onScaleUpdate: !isGallery
+                  ? (details) {
+                      if (details.scale == 1.0) return;
+                      _gestureZoom = (_gestureStartZoom * details.scale)
+                          .clamp(1.0, 20.0)
+                          .toDouble();
+                      cameraNotifier.setZoomLevel(_gestureZoom);
+                    }
+                  : null,
+              child: isGallery
+                  ? _GalleryPreview(
+                      path: _pickedImagePath!,
+                      decisionState: decisionState,
+                      detections: inferenceState.detections,
+                    )
+                  : AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 220),
+                      reverseDuration: const Duration(milliseconds: 160),
+                      switchInCurve: Curves.easeOut,
+                      switchOutCurve: Curves.easeIn,
+                      child: KeyedSubtree(
+                        key: ValueKey(cameraState.status),
+                        child: _buildMainContent(
+                          context,
+                          cameraState,
+                          cameraNotifier,
+                          inferenceReady && widget.isActive && !_routeCovered,
+                        ),
+                      ),
                     ),
-                  ),
-                );
-              },
             ),
           ),
 
@@ -163,20 +163,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
             top: 0,
             left: 0,
             right: 0,
-            child: _SimpleCameraHeader(layerNumber: currentLayer),
-          ),
-
-          // ── Layer 2: Simple live count ─────────────────────────────────
-          if (cameraState.status == CameraStatus.ready || isGallery)
-            Positioned(
-              top: 72,
-              left: 16,
-              child: _SimpleCountBadge(
-                count: decisionState.stableCount > 0
-                    ? decisionState.stableCount
-                    : inferenceState.detections.length,
-              ),
+            child: _SimpleCameraHeader(
+              onManualSelected: widget.onManualSelected ??
+                  () => context.pushReplacement(
+                        '/trucks/$truckId/manual-count',
+                      ),
             ),
+          ),
 
           if (_isGalleryAnalyzing)
             const Positioned.fill(
@@ -209,20 +202,25 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
               ),
             ),
 
-          // ── Layer 3: Capture Controls (bottom dock) ────────────────────
+          // ── Layer 2: Minimal controls over the camera preview ──────────
           if (cameraState.status == CameraStatus.ready || isGallery)
             Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: _CaptureControlsDock(
+              bottom: MediaQuery.of(context).padding.bottom + 28,
+              left: 28,
+              right: 28,
+              child: _CameraOverlayControls(
                 isReadyForReview: isReadyForReview,
                 isGallery: isGallery,
-                onGallery: _pickImage,
+                torchOn: _torchOn,
+                onToggleTorch: isGallery
+                    ? null
+                    : () => _toggleTorch(cameraState.controller),
+                onGallery: () => _openGallery(cameraState.controller),
                 onFlipCamera: () {
                   if (isGallery) {
                     setState(() => _pickedImagePath = null);
                   } else if (cameraState.availableCameras.length > 1) {
+                    setState(() => _torchOn = false);
                     cameraNotifier.switchCamera();
                   }
                   decisionNotifier.resetAnalyzer();
@@ -240,14 +238,15 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
                         )
                     : null,
                 onCapture: !isGallery
-                    ? () => _captureLayerPhoto(
+                    ? () {
+                        _captureLayerPhoto(
                           context,
                           truckId,
-                          inferenceState,
-                          decisionState,
-                        )
+                          ref.read(inferenceNotifierProvider),
+                          ref.read(countingDecisionProvider),
+                        );
+                      }
                     : null,
-                pulseAnimation: _pulseAnim,
               ),
             ),
         ],
@@ -255,9 +254,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     );
   }
 
-  void _navigateToReview(BuildContext context, String truckId,
+  Future<void> _navigateToReview(BuildContext context, String truckId,
       InferenceState inferenceState, DecisionState decisionState,
-      {String? photoPath, int? capturedCount}) {
+      {String? photoPath, int? capturedCount}) async {
     final aiResult = AIResult(
       detections: inferenceState.detections,
       count: capturedCount ??
@@ -271,10 +270,12 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
       frameSize: const Size(720, 1280),
     );
 
-    context.push('/trucks/$truckId/review', extra: {
+    if (mounted) setState(() => _routeCovered = true);
+    await context.push('/trucks/$truckId/review', extra: {
       'aiResult': aiResult,
       'photoPath': photoPath ?? _pickedImagePath,
     });
+    if (mounted) setState(() => _routeCovered = false);
   }
 
   Future<void> _captureLayerPhoto(
@@ -318,6 +319,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
     BuildContext context,
     CameraState state,
     CameraNotifier notifier,
+    bool inferenceReady,
   ) {
     switch (state.status) {
       case CameraStatus.initializing:
@@ -360,6 +362,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
         return _CameraStreamAdapter(
           key: _streamKey,
           controller: state.controller!,
+          inferenceReady: inferenceReady,
         );
 
       case CameraStatus.disposed:
@@ -372,67 +375,27 @@ class _CameraScreenState extends ConsumerState<CameraScreen>
 }
 
 class _SimpleCameraHeader extends StatelessWidget {
-  final int layerNumber;
+  final VoidCallback onManualSelected;
 
-  const _SimpleCameraHeader({required this.layerNumber});
+  const _SimpleCameraHeader({
+    required this.onManualSelected,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 8,
-        left: 8,
+        left: 16,
         right: 16,
         bottom: 12,
       ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xE6000000), Colors.transparent],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+      child: Center(
+        child: CountModeSwitcher(
+          selectedMode: CountMode.ai,
+          onAiSelected: () {},
+          onManualSelected: onManualSelected,
         ),
-      ),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back, color: Colors.white),
-            onPressed: () =>
-                context.canPop() ? context.pop() : context.go('/wagons'),
-          ),
-          const Expanded(
-            child: Text(
-              'Capture Layer',
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
-            ),
-          ),
-          Text('Layer $layerNumber',
-              style: const TextStyle(color: Colors.white70, fontSize: 13)),
-        ],
-      ),
-    );
-  }
-}
-
-class _SimpleCountBadge extends StatelessWidget {
-  final int count;
-
-  const _SimpleCountBadge({required this.count});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.72),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        '$count cartons',
-        style: const TextStyle(
-            color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
       ),
     );
   }
@@ -1068,160 +1031,239 @@ class _GuidePainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-// ─── CAPTURE CONTROLS DOCK ───────────────────────────────────────────────────
-class _CaptureControlsDock extends StatelessWidget {
+// ─── CAMERA OVERLAY CONTROLS ─────────────────────────────────────────────────
+class _CameraOverlayControls extends StatefulWidget {
   final bool isReadyForReview;
   final bool isGallery;
+  final bool torchOn;
+  final VoidCallback? onToggleTorch;
   final VoidCallback onGallery;
   final VoidCallback onFlipCamera;
   final VoidCallback onReset;
   final VoidCallback? onCapture;
   final VoidCallback? onReview;
-  final Animation<double> pulseAnimation;
 
-  const _CaptureControlsDock({
+  const _CameraOverlayControls({
     required this.isReadyForReview,
     required this.isGallery,
+    required this.torchOn,
+    required this.onToggleTorch,
     required this.onGallery,
     required this.onFlipCamera,
     required this.onReset,
     required this.onCapture,
     required this.onReview,
-    required this.pulseAnimation,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
-        top: 14,
-        bottom: MediaQuery.of(context).padding.bottom + 14,
-      ),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.transparent, Color(0xFF000000)],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
+  State<_CameraOverlayControls> createState() => _CameraOverlayControlsState();
+}
+
+class _CameraOverlayControlsState extends State<_CameraOverlayControls>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _menuController;
+  bool _menuOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _menuController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+      reverseDuration: const Duration(milliseconds: 190),
+    );
+  }
+
+  @override
+  void dispose() {
+    _menuController.dispose();
+    super.dispose();
+  }
+
+  void _toggleMenu() {
+    setState(() => _menuOpen = !_menuOpen);
+    if (_menuOpen) {
+      _menuController.forward();
+    } else {
+      _menuController.reverse();
+    }
+  }
+
+  void _runAndClose(VoidCallback action) {
+    action();
+    if (_menuOpen) _toggleMenu();
+  }
+
+  Widget _menuOption({
+    required int index,
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    final animation = CurvedAnimation(
+      parent: _menuController,
+      curve:
+          Interval(index * 0.1, 0.78 + index * 0.1, curve: Curves.easeOutBack),
+      reverseCurve: Curves.easeInCubic,
+    );
+
+    return Positioned(
+      bottom: 62.0 + index * 60,
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, child) => IgnorePointer(
+          ignoring: animation.value < 0.95,
+          child: Opacity(
+            opacity: animation.value.clamp(0.0, 1.0),
+            child: Transform.translate(
+              offset: Offset(0, 16 * (1 - animation.value)),
+              child: Transform.scale(
+                scale: 0.72 + 0.28 * animation.value,
+                child: child,
+              ),
+            ),
+          ),
+        ),
+        child: _RoundCameraButton(
+          icon: icon,
+          tooltip: tooltip,
+          onTap: () => _runAndClose(onTap),
         ),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Secondary controls row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _IconControl(
-                icon: Icons.photo_library_outlined,
-                label: 'Gallery',
-                onTap: onGallery,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shutterAction = widget.isGallery
+        ? (widget.isReadyForReview ? widget.onReview : null)
+        : widget.onCapture;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        _RoundCameraButton(
+          icon:
+              widget.torchOn ? Icons.flash_on_rounded : Icons.flash_off_rounded,
+          tooltip: widget.torchOn ? 'Turn flash off' : 'Turn flash on',
+          onTap: widget.onToggleTorch,
+        ),
+        Semantics(
+          button: true,
+          label: widget.isGallery ? 'Review count' : 'Capture layer',
+          child: GestureDetector(
+            onTap: shutterAction,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 180),
+              width: 82,
+              height: 82,
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withValues(alpha: 0.45),
               ),
-              _IconControl(
-                icon: isGallery
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: shutterAction == null
+                      ? Colors.white38
+                      : (widget.isGallery
+                          ? AppTheme.successColor
+                          : Colors.white),
+                ),
+                child: widget.isGallery
+                    ? const Icon(Icons.arrow_forward_rounded,
+                        color: Colors.white, size: 30)
+                    : null,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(
+          width: 52,
+          height: 232,
+          child: Stack(
+            alignment: Alignment.bottomCenter,
+            clipBehavior: Clip.none,
+            children: [
+              _menuOption(
+                index: 2,
+                icon: Icons.photo_library_outlined,
+                tooltip: 'Gallery',
+                onTap: widget.onGallery,
+              ),
+              _menuOption(
+                index: 1,
+                icon: widget.isGallery
                     ? Icons.camera_alt_outlined
                     : Icons.flip_camera_ios_outlined,
-                label: isGallery ? 'Camera' : 'Flip',
-                onTap: onFlipCamera,
+                tooltip: widget.isGallery ? 'Camera' : 'Flip camera',
+                onTap: widget.onFlipCamera,
               ),
-              _IconControl(
-                icon: Icons.refresh_outlined,
-                label: 'Reset',
-                onTap: onReset,
+              _menuOption(
+                index: 0,
+                icon: Icons.refresh_rounded,
+                tooltip: 'Reset',
+                onTap: widget.onReset,
+              ),
+              _RoundCameraButton(
+                icon: _menuOpen ? Icons.close_rounded : Icons.more_vert_rounded,
+                tooltip:
+                    _menuOpen ? 'Close camera options' : 'More camera options',
+                onTap: _toggleMenu,
               ),
             ],
           ),
-          const SizedBox(height: 14),
-
-          // Primary Review Button
-          AnimatedBuilder(
-            animation: pulseAnimation,
-            builder: (context, child) {
-              return Container(
-                decoration: isReadyForReview
-                    ? BoxDecoration(
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppTheme.successColor
-                                .withValues(alpha: pulseAnimation.value * 0.6),
-                            blurRadius: 20,
-                            spreadRadius: 4,
-                          ),
-                        ],
-                      )
-                    : null,
-                child: SizedBox(
-                  width: double.infinity,
-                  height: 58,
-                  child: ElevatedButton.icon(
-                    onPressed: isGallery ? onReview : onCapture,
-                    icon: Icon(
-                      isGallery ? Icons.rate_review : Icons.camera_alt_outlined,
-                      size: 22,
-                    ),
-                    label: Text(
-                      isGallery ? 'Review Count  →' : 'Capture Layer',
-                      style: const TextStyle(
-                          fontSize: 17, fontWeight: FontWeight.bold),
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: isGallery
-                          ? (isReadyForReview
-                              ? AppTheme.successColor
-                              : Colors.white12)
-                          : AppTheme.primaryColor,
-                      foregroundColor: isGallery && !isReadyForReview
-                          ? Colors.white38
-                          : Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18)),
-                      elevation: isReadyForReview ? 4 : 0,
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
 
-class _IconControl extends StatelessWidget {
+class _RoundCameraButton extends StatelessWidget {
   final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+  final String tooltip;
+  final VoidCallback? onTap;
 
-  const _IconControl({
+  const _RoundCameraButton({
     required this.icon,
-    required this.label,
-    required this.onTap,
+    required this.tooltip,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white24),
+    return AnimatedOpacity(
+      opacity: onTap == null ? 0.42 : 1,
+      duration: const Duration(milliseconds: 160),
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: Material(
+          color: Colors.black.withValues(alpha: 0.58),
+          shape: const CircleBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: SizedBox(
+              width: 52,
+              height: 52,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 170),
+                transitionBuilder: (child, animation) =>
+                    ScaleTransition(scale: animation, child: child),
+                child: Icon(
+                  icon,
+                  key: ValueKey(icon.codePoint),
+                  color: Colors.white,
+                  size: 28,
+                ),
+              ),
             ),
-            child: Icon(icon, color: Colors.white, size: 22),
           ),
-          const SizedBox(height: 4),
-          Text(label,
-              style: const TextStyle(color: Colors.white54, fontSize: 10)),
-        ],
+        ),
       ),
     );
   }
@@ -1328,11 +1370,11 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        Image.file(File(widget.path), fit: BoxFit.contain),
+        Image.file(File(widget.path), fit: BoxFit.cover),
         DetectionOverlayWidget(
           detections: widget.detections,
           cameraSize: _imageSize,
-          fit: BoxFit.contain,
+          fit: BoxFit.cover,
           showLabels: false,
         ),
       ],
@@ -1343,8 +1385,13 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
 // ─── CAMERA STREAM ADAPTER ────────────────────────────────────────────────────
 class _CameraStreamAdapter extends ConsumerStatefulWidget {
   final CameraController controller;
+  final bool inferenceReady;
 
-  const _CameraStreamAdapter({super.key, required this.controller});
+  const _CameraStreamAdapter({
+    super.key,
+    required this.controller,
+    required this.inferenceReady,
+  });
 
   @override
   ConsumerState<_CameraStreamAdapter> createState() =>
@@ -1353,42 +1400,62 @@ class _CameraStreamAdapter extends ConsumerStatefulWidget {
 
 class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
   bool _isStreaming = false;
+  bool _isStarting = false;
+  bool _hasReceivedFrame = false;
 
   @override
   void initState() {
     super.initState();
-    _startStream();
+    unawaited(_startStream());
   }
 
   @override
   void didUpdateWidget(covariant _CameraStreamAdapter oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
-      _stopStream(oldWidget.controller);
-      _startStream();
+      _hasReceivedFrame = false;
+      unawaited(_replaceStream(oldWidget.controller));
     }
   }
 
-  void _startStream() {
-    if (_isStreaming) return;
+  Future<void> _replaceStream(CameraController oldController) async {
+    await _stopStream(oldController);
+    if (mounted) await _startStream();
+  }
+
+  Future<void> _startStream() async {
+    if (_isStreaming || _isStarting) return;
+    _isStarting = true;
+    final controller = widget.controller;
     try {
       final notifier = ref.read(inferenceNotifierProvider.notifier);
-      widget.controller.startImageStream((image) {
+      await controller.startImageStream((image) {
         if (mounted) {
-          notifier.processImageFrame(image);
+          if (!_hasReceivedFrame) {
+            setState(() => _hasReceivedFrame = true);
+          }
+          if (widget.inferenceReady) notifier.processImageFrame(image);
         }
       });
+      if (!mounted || !identical(controller, widget.controller)) {
+        await controller.stopImageStream();
+        return;
+      }
       _isStreaming = true;
     } catch (e, stack) {
       AppLogger.error('Failed to start camera frame stream', e, stack);
+    } finally {
+      _isStarting = false;
     }
   }
 
-  void _stopStream(CameraController controller) {
-    if (!_isStreaming) return;
+  Future<void> _stopStream(CameraController controller) async {
+    if (!_isStreaming && !_isStarting) return;
+    _isStreaming = false;
     try {
-      controller.stopImageStream();
-      _isStreaming = false;
+      if (controller.value.isStreamingImages) {
+        await controller.stopImageStream();
+      }
     } catch (e, stack) {
       AppLogger.error('Failed to halt camera stream', e, stack);
     }
@@ -1404,24 +1471,23 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
         _isStreaming = false;
       }
       final photo = await controller.takePicture();
-      _startStream();
+      await _startStream();
       return photo;
     } catch (e, stack) {
       AppLogger.error('Failed to capture camera photo', e, stack);
-      _startStream();
+      await _startStream();
       return null;
     }
   }
 
   @override
   void dispose() {
-    _stopStream(widget.controller);
+    unawaited(_stopStream(widget.controller));
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final inferenceState = ref.watch(inferenceNotifierProvider);
     final size = widget.controller.value.previewSize;
     final cameraSize = size == null
         ? const Size(720, 1280)
@@ -1432,29 +1498,57 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     // CameraPreview applies the platform-specific rotation and aspect-ratio
     // transform internally. Keep the overlay as its child so its canvas is
     // exactly the same rectangle as the displayed camera frame.
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(28),
-      clipBehavior: Clip.antiAlias,
-      child: Center(
-        child: FittedBox(
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        FittedBox(
           fit: BoxFit.cover,
+          clipBehavior: Clip.hardEdge,
           child: SizedBox(
             width: cameraSize.width,
             height: cameraSize.height,
             child: CameraPreview(
               widget.controller,
-              child: Positioned.fill(
-                child: DetectionOverlayWidget(
-                  detections: inferenceState.detections,
-                  cameraSize: cameraSize,
-                  fit: BoxFit.fill,
-                  showLabels: false,
-                ),
+              child: Consumer(
+                builder: (context, ref, child) {
+                  final detections = ref.watch(
+                    inferenceNotifierProvider.select(
+                      (state) => state.detections,
+                    ),
+                  );
+                  return Positioned.fill(
+                    child: RepaintBoundary(
+                      child: DetectionOverlayWidget(
+                        detections: detections,
+                        cameraSize: cameraSize,
+                        fit: BoxFit.fill,
+                        showLabels: false,
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ),
         ),
-      ),
+        if (!_hasReceivedFrame)
+          const ColoredBox(
+            color: Colors.black,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(color: Colors.white),
+                  SizedBox(height: 16),
+                  Text(
+                    'Starting Full HD camera...',
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                  ),
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
