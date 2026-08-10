@@ -101,13 +101,6 @@ class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
                     await Clipboard.setData(
                       ClipboardData(text: widget.expectedConfirmationText),
                     );
-                    if (!context.mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Confirmation text copied'),
-                        duration: Duration(milliseconds: 900),
-                      ),
-                    );
                   },
                   tooltip: 'Copy confirmation text',
                   visualDensity: VisualDensity.compact,

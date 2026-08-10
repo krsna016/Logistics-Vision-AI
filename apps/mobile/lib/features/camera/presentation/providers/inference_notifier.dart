@@ -78,12 +78,12 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
     _scheduler.scheduleFrame(image);
   }
 
-  Future<void> processGalleryImage(String imagePath) async {
+  Future<bool> processGalleryImage(String imagePath) async {
     if (!state.isModelLoaded) {
       try {
         await _initialization;
       } catch (_) {
-        return;
+        return false;
       }
     }
     try {
@@ -92,11 +92,13 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
         detections: detections,
         telemetry: _repository.getTelemetry(),
       );
+      return true;
     } catch (e, stack) {
       AppLogger.error('Failed to analyse gallery image', e, stack);
       state = state.copyWith(
         errorMessage: 'Could not analyse the selected image.',
       );
+      return false;
     }
   }
 

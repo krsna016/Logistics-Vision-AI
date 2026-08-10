@@ -30,11 +30,6 @@ class GlobalAuditScreen extends ConsumerWidget {
                 return;
               }
 
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Exporting logs to CSV...')));
-              }
-
               try {
                 final List<List<dynamic>> rows = [
                   [

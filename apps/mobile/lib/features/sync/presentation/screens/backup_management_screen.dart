@@ -25,16 +25,11 @@ class BackupManagementScreen extends ConsumerWidget {
             icon: const Icon(Icons.refresh),
             onPressed: () {
               ref.read(syncEngineProvider).forceSync();
-              ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Forcing Sync...')));
             },
           ),
           IconButton(
             icon: const Icon(Icons.settings),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Sync Settings coming soon')));
-            },
+            onPressed: null,
           ),
           Builder(
             builder: (context) => IconButton(
@@ -84,11 +79,7 @@ class BackupManagementScreen extends ConsumerWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content:
-                              Text('Exporting backup to external storage...')));
-                    },
+                    onPressed: null,
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: const BorderSide(color: AppTheme.primaryColor),
@@ -121,11 +112,7 @@ class BackupManagementScreen extends ConsumerWidget {
                   children: queue
                       .map((item) => SyncQueueCard(
                             item: item,
-                            onResolveConflict: () {
-                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                  content: Text(
-                                      'Resolving conflict for ${item.entityId}')));
-                            },
+                            onResolveConflict: () {},
                           ))
                       .toList(),
                 );
@@ -204,11 +191,6 @@ class BackupManagementScreen extends ConsumerWidget {
               return ElevatedButton(
                 onPressed: () async {
                   Navigator.pop(ctx);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                        content: Text('Restoring backup...'),
-                        backgroundColor: AppTheme.warningColor));
-                  }
                   final success = await ref
                       .read(backupRepositoryProvider)
                       .restoreBackup(backupId);

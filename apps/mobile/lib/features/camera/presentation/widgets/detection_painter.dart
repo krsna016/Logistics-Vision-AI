@@ -8,6 +8,7 @@ class DetectionPainter extends CustomPainter {
   final String? selectedId;
   final bool showLabels;
   final bool showNumbers;
+  final bool useDarkPalette;
 
   DetectionPainter({
     required this.detections,
@@ -16,6 +17,7 @@ class DetectionPainter extends CustomPainter {
     this.selectedId,
     this.showLabels = true,
     this.showNumbers = false,
+    this.useDarkPalette = false,
   });
 
   @override
@@ -60,9 +62,10 @@ class DetectionPainter extends CustomPainter {
       final detection = detections[detectionIndex];
       final isSelected = detection.id == selectedId;
       final isManual = detection.metadata['manuallyAdded'] == true;
+      final palette = useDarkPalette ? _darkPalette : _palette;
       final color = isManual
-          ? const Color(0xFF34D399)
-          : _palette[detection.id.hashCode.abs() % _palette.length];
+          ? (useDarkPalette ? const Color(0xFF047857) : const Color(0xFF34D399))
+          : palette[detection.id.hashCode.abs() % palette.length];
 
       outlinePaint.color = isSelected ? Colors.white : color;
       outlinePaint.strokeWidth = isSelected ? 2.7 : 1.65;
@@ -141,7 +144,8 @@ class DetectionPainter extends CustomPainter {
         oldDelegate.fit != fit ||
         oldDelegate.selectedId != selectedId ||
         oldDelegate.showLabels != showLabels ||
-        oldDelegate.showNumbers != showNumbers;
+        oldDelegate.showNumbers != showNumbers ||
+        oldDelegate.useDarkPalette != useDarkPalette;
   }
 
   void _drawNumberBadge(Canvas canvas, TextPainter painter, Offset anchor,
@@ -150,16 +154,16 @@ class DetectionPainter extends CustomPainter {
       text: value,
       style: const TextStyle(
         color: Colors.white,
-        fontSize: 9,
+        fontSize: 8.3,
         height: 1,
         fontWeight: FontWeight.w800,
       ),
     );
     painter.layout();
-    final badgeSize = Size(painter.width + 7, 16);
+    final badgeSize = Size(painter.width + 6, 14.5);
     final badge = RRect.fromRectAndRadius(
       anchor & badgeSize,
-      const Radius.circular(8),
+      const Radius.circular(7.25),
     );
     canvas.drawRRect(badge, Paint()..color = const Color(0xDD07131C));
     canvas.drawRRect(
@@ -170,7 +174,7 @@ class DetectionPainter extends CustomPainter {
         ..strokeWidth = 1.1,
     );
     painter.paint(
-        canvas, anchor + Offset((badgeSize.width - painter.width) / 2, 3));
+        canvas, anchor + Offset((badgeSize.width - painter.width) / 2, 2.7));
   }
 
   static const _palette = <Color>[
@@ -179,5 +183,14 @@ class DetectionPainter extends CustomPainter {
     Color(0xFFFBBF24),
     Color(0xFFC084FC),
     Color(0xFFFB7185),
+  ];
+
+  static const _darkPalette = <Color>[
+    Color(0xFF00695C),
+    Color(0xFF0369A1),
+    Color(0xFFB45309),
+    Color(0xFF7E22CE),
+    Color(0xFFBE123C),
+    Color(0xFF166534),
   ];
 }

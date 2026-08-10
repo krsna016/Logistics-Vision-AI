@@ -182,15 +182,6 @@ class RegisterDetailsScreen extends ConsumerWidget {
       await ref
           .read(shareServiceProvider)
           .shareFile(file, subject: 'Digital Register Report ($type)');
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$type report generated successfully.'),
-            backgroundColor: AppTheme.successColor,
-          ),
-        );
-      }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

@@ -130,8 +130,6 @@ class WagonDetailsScreen extends ConsumerWidget {
                     await ref.read(truckListProvider.notifier).refresh();
                     if (context.mounted) {
                       context.go('/wagons');
-                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Wagon and related records removed.')));
                     }
                   },
                 ),
@@ -613,8 +611,6 @@ class WagonDetailsScreen extends ConsumerWidget {
               await notifier.updateWagonStatus(wagon.id, WagonStatus.completed);
               if (ctx.mounted) {
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                    content: Text('Wagon status marked Completed.')));
               }
             },
             style: ElevatedButton.styleFrom(

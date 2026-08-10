@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
@@ -16,6 +17,8 @@ import '../../../camera/domain/entities/detection.dart';
 // Retained only for the legacy, non-rendered toolbar implementation below.
 // The active review experience is now fully tap-driven.
 enum _CorrectionMode { inspect, add, remove }
+
+enum _OutlineColorMode { auto, dark, light }
 
 class LayerReviewScreen extends ConsumerStatefulWidget {
   final String truckId;
@@ -43,10 +46,13 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   bool _isSaving = false;
   String? _errorMessage;
   late int _correctedCount;
+  late int _correctedDefectCount;
   late List<Detection> _editableDetections;
   late AIResult _aiResult;
   bool _isFinalizing = false;
   bool _finalizationFailed = false;
+  bool _showNumbers = true;
+  _OutlineColorMode _outlineColorMode = _OutlineColorMode.auto;
   final Set<String> _hiddenDetectionIds = <String>{};
   final List<_ReviewSnapshot> _history = <_ReviewSnapshot>[];
 
@@ -56,6 +62,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     _notesCtrl.text = widget.initialNotes ?? '';
     _aiResult = widget.aiResult;
     _correctedCount = _aiResult.count;
+    _correctedDefectCount = _aiResult.defectCount;
     _editableDetections = List<Detection>.of(_aiResult.detections);
     final pendingResult = widget.finalResult;
     if (pendingResult != null) {
@@ -74,6 +81,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
         _hiddenDetectionIds.clear();
         _history.clear();
         _correctedCount = result.count;
+        _correctedDefectCount = result.defectCount;
         _isFinalizing = false;
         _finalizationFailed = false;
       });
@@ -102,6 +110,27 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     });
   }
 
+  void _adjustDefectCount(int delta) {
+    setState(() {
+      _correctedDefectCount =
+          (_correctedDefectCount + delta).clamp(0, _correctedCount);
+    });
+  }
+
+  void _setCartonCount(int value) {
+    setState(() {
+      _saveSnapshot();
+      _animateCountTo(value.clamp(0, 9999));
+      _correctedDefectCount = _correctedDefectCount.clamp(0, _correctedCount);
+    });
+  }
+
+  void _setDefectCount(int value) {
+    setState(() {
+      _correctedDefectCount = value.clamp(0, _correctedCount);
+    });
+  }
+
   void _saveSnapshot() {
     _history.add(_ReviewSnapshot(
       hiddenIds: Set<String>.of(_hiddenDetectionIds),
@@ -119,16 +148,30 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
       .where((detection) => !_hiddenDetectionIds.contains(detection.id))
       .toList(growable: false);
 
-  void _toggleDetection(Detection detection) {
+  void _removeDetection(Detection detection) {
+    if (_hiddenDetectionIds.contains(detection.id)) return;
     setState(() {
       _saveSnapshot();
-      if (_hiddenDetectionIds.contains(detection.id)) {
-        _hiddenDetectionIds.remove(detection.id);
-      } else {
-        _hiddenDetectionIds.add(detection.id);
-      }
+      _hiddenDetectionIds.add(detection.id);
       _animateCountTo(_visibleDetections.length);
     });
+  }
+
+  void _restoreDetection(Detection detection) {
+    if (!_hiddenDetectionIds.contains(detection.id)) return;
+    setState(() {
+      _saveSnapshot();
+      _hiddenDetectionIds.remove(detection.id);
+      _animateCountTo(_visibleDetections.length);
+    });
+  }
+
+  void _toggleDetection(Detection detection) {
+    if (_hiddenDetectionIds.contains(detection.id)) {
+      _restoreDetection(detection);
+    } else {
+      _removeDetection(detection);
+    }
   }
 
   void _addDetectionAt(Offset center) {
@@ -217,7 +260,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
       final error =
           await ref.read(layerListProvider(widget.truckId).notifier).saveLayer(
                 cartonCount: _correctedCount,
-                defectCount: _aiResult.defectCount,
+                defectCount: _correctedDefectCount,
                 confidence: _aiResult.averageConfidence,
                 notes: noteText.isEmpty ? null : noteText,
                 photoPath: widget.photoPath,
@@ -253,6 +296,16 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
           _hiddenDetectionIds.contains(detection.id))
       .length;
 
+  void _cycleOutlineColorMode() {
+    setState(() {
+      _outlineColorMode = switch (_outlineColorMode) {
+        _OutlineColorMode.auto => _OutlineColorMode.dark,
+        _OutlineColorMode.dark => _OutlineColorMode.light,
+        _OutlineColorMode.light => _OutlineColorMode.auto,
+      };
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final layerState = ref.watch(layerListProvider(widget.truckId));
@@ -277,7 +330,6 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                     fontSize: 10, color: AppTheme.textSecondary)),
           ],
         ),
-        actions: const [],
       ),
       body: Stack(
         fit: StackFit.expand,
@@ -286,12 +338,41 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
             photoPath: widget.photoPath,
             detections: _visibleDetections,
             allDetections: _editableDetections,
+            showNumbers: _showNumbers,
+            outlineColorMode: _outlineColorMode,
             onDetectionTapped: _toggleDetection,
             onEmptyAreaTapped: _addDetectionAt,
           ),
+          Positioned(
+            top: 14,
+            left: 14,
+            child: SafeArea(
+              bottom: false,
+              child: _OutlineColorButton(
+                mode: _outlineColorMode,
+                onPressed: _cycleOutlineColorMode,
+              ),
+            ),
+          ),
+          Positioned(
+            top: 14,
+            right: 14,
+            child: SafeArea(
+              bottom: false,
+              child: _ReviewOverlayButton(
+                tooltip: _showNumbers
+                    ? 'Hide carton numbers'
+                    : 'Show carton numbers',
+                icon: _showNumbers
+                    ? Icons.pin_outlined
+                    : Icons.format_list_numbered_rtl_rounded,
+                onPressed: () => setState(() => _showNumbers = !_showNumbers),
+              ),
+            ),
+          ),
           if (_isFinalizing)
             const Positioned(
-              top: 14,
+              top: 68,
               left: 20,
               right: 20,
               child: _FinalizingBanner(),
@@ -322,8 +403,13 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
               isFinalizing: _isFinalizing,
               finalizationFailed: _finalizationFailed,
               correctedCount: _correctedCount,
+              defectCount: _correctedDefectCount,
               onIncrease: () => _adjustCount(1),
               onDecrease: () => _adjustCount(-1),
+              onDefectIncrease: () => _adjustDefectCount(1),
+              onDefectDecrease: () => _adjustDefectCount(-1),
+              onCartonValueChanged: _setCartonCount,
+              onDefectValueChanged: _setDefectCount,
               onConfirm: _onSave,
             ),
           ),
@@ -339,6 +425,8 @@ class _ImagePreviewSection extends StatefulWidget {
   final String? photoPath;
   final List<Detection> detections;
   final List<Detection> allDetections;
+  final bool showNumbers;
+  final _OutlineColorMode outlineColorMode;
   final ValueChanged<Detection> onDetectionTapped;
   final ValueChanged<Offset> onEmptyAreaTapped;
 
@@ -346,6 +434,8 @@ class _ImagePreviewSection extends StatefulWidget {
     required this.photoPath,
     required this.detections,
     required this.allDetections,
+    required this.showNumbers,
+    required this.outlineColorMode,
     required this.onDetectionTapped,
     required this.onEmptyAreaTapped,
   });
@@ -357,6 +447,7 @@ class _ImagePreviewSection extends StatefulWidget {
 class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
   late final TransformationController _zoomController;
   Size _photoSize = const Size(720, 1280);
+  bool _useDarkPalette = false;
 
   @override
   void initState() {
@@ -372,10 +463,23 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
       final bytes = await File(path).readAsBytes();
       final decoded = img.decodeImage(bytes);
       if (decoded != null && mounted) {
-        setState(() => _photoSize = Size(
-              decoded.width.toDouble(),
-              decoded.height.toDouble(),
-            ));
+        var luminanceTotal = 0.0;
+        var samples = 0;
+        final stepX = (decoded.width / 48).ceil().clamp(1, decoded.width);
+        final stepY = (decoded.height / 48).ceil().clamp(1, decoded.height);
+        for (var y = 0; y < decoded.height; y += stepY) {
+          for (var x = 0; x < decoded.width; x += stepX) {
+            final pixel = decoded.getPixel(x, y);
+            luminanceTotal +=
+                0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
+            samples++;
+          }
+        }
+        setState(() {
+          _photoSize =
+              Size(decoded.width.toDouble(), decoded.height.toDouble());
+          _useDarkPalette = samples > 0 && luminanceTotal / samples >= 145;
+        });
       }
     } catch (_) {
       // Keep the safe fallback size when the reference image cannot be read.
@@ -418,7 +522,12 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
                   cameraSize: _photoSize,
                   fit: BoxFit.contain,
                   showLabels: false,
-                  showNumbers: true,
+                  showNumbers: widget.showNumbers,
+                  useDarkPalette: switch (widget.outlineColorMode) {
+                    _OutlineColorMode.auto => _useDarkPalette,
+                    _OutlineColorMode.dark => true,
+                    _OutlineColorMode.light => false,
+                  },
                   onDetectionTapped: widget.onDetectionTapped,
                   onEmptyAreaTapped: widget.onEmptyAreaTapped,
                 ),
@@ -427,6 +536,61 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _OutlineColorButton extends StatelessWidget {
+  final _OutlineColorMode mode;
+  final VoidCallback onPressed;
+
+  const _OutlineColorButton({required this.mode, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final (icon, label) = switch (mode) {
+      _OutlineColorMode.auto => (Icons.brightness_auto_rounded, 'Auto colours'),
+      _OutlineColorMode.dark => (Icons.dark_mode_rounded, 'Dark colours'),
+      _OutlineColorMode.light => (Icons.light_mode_rounded, 'Light colours'),
+    };
+    return _ReviewOverlayButton(
+      tooltip: label,
+      icon: icon,
+      onPressed: onPressed,
+    );
+  }
+}
+
+class _ReviewOverlayButton extends StatelessWidget {
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback onPressed;
+
+  const _ReviewOverlayButton({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xE60A1722),
+      shape: const CircleBorder(),
+      elevation: 5,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(
+          icon,
+          color: Colors.white,
+          size: 21,
+        ),
+        style: IconButton.styleFrom(
+          fixedSize: const Size.square(44),
+          shape: const CircleBorder(),
+        ),
+      ),
     );
   }
 }
@@ -1030,8 +1194,13 @@ class _ReviewBottomBar extends StatelessWidget {
   final bool isFinalizing;
   final bool finalizationFailed;
   final int correctedCount;
+  final int defectCount;
   final VoidCallback onIncrease;
   final VoidCallback onDecrease;
+  final VoidCallback onDefectIncrease;
+  final VoidCallback onDefectDecrease;
+  final ValueChanged<int> onCartonValueChanged;
+  final ValueChanged<int> onDefectValueChanged;
   final VoidCallback onConfirm;
 
   const _ReviewBottomBar({
@@ -1039,8 +1208,13 @@ class _ReviewBottomBar extends StatelessWidget {
     required this.isFinalizing,
     required this.finalizationFailed,
     required this.correctedCount,
+    required this.defectCount,
     required this.onIncrease,
     required this.onDecrease,
+    required this.onDefectIncrease,
+    required this.onDefectDecrease,
+    required this.onCartonValueChanged,
+    required this.onDefectValueChanged,
     required this.onConfirm,
   });
 
@@ -1068,48 +1242,31 @@ class _ReviewBottomBar extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Container(
-              height: 56,
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              decoration: BoxDecoration(
-                color: AppTheme.primaryColor,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: AppTheme.primaryColor.withValues(alpha: 0.25),
-                    blurRadius: 8,
-                    offset: const Offset(0, 3),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _CounterButton(
-                    icon: Icons.remove,
-                    onTap: isBusy ? () {} : onDecrease,
-                    color: Colors.white,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$correctedCount',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(width: 8),
-                  _CounterButton(
-                    icon: Icons.add,
-                    onTap: isBusy ? () {} : onIncrease,
-                    color: Colors.white,
-                  ),
-                ],
-              ),
+            flex: 3,
+            child: _BottomCounter(
+              value: correctedCount,
+              label: 'Cartons',
+              color: AppTheme.primaryColor,
+              onDecrease: isBusy ? () {} : onDecrease,
+              onIncrease: isBusy ? () {} : onIncrease,
+              onValueChanged: isBusy ? (_) {} : onCartonValueChanged,
             ),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           Expanded(
+            flex: 3,
+            child: _BottomCounter(
+              value: defectCount,
+              label: 'Defects',
+              color: AppTheme.warningColor,
+              onDecrease: isBusy ? () {} : onDefectDecrease,
+              onIncrease: isBusy ? () {} : onDefectIncrease,
+              onValueChanged: isBusy ? (_) {} : onDefectValueChanged,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            flex: 4,
             child: SizedBox(
               height: 56,
               child: ElevatedButton.icon(
@@ -1140,6 +1297,199 @@ class _ReviewBottomBar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _BottomCounter extends StatelessWidget {
+  final int value;
+  final String label;
+  final Color color;
+  final VoidCallback onDecrease;
+  final VoidCallback onIncrease;
+  final ValueChanged<int> onValueChanged;
+
+  const _BottomCounter({
+    required this.value,
+    required this.label,
+    required this.color,
+    required this.onDecrease,
+    required this.onIncrease,
+    required this.onValueChanged,
+  });
+
+  Future<void> _showNumberEditor(BuildContext context) async {
+    final controller = TextEditingController(text: '$value')
+      ..selection = TextSelection(baseOffset: 0, extentOffset: '$value'.length);
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          24,
+          20,
+          24,
+          MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Enter $label count',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: controller,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              textInputAction: TextInputAction.done,
+              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: color,
+                fontSize: 34,
+                fontWeight: FontWeight.w900,
+              ),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: color.withValues(alpha: 0.10),
+                hintText: '0',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: color),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(color: color, width: 2),
+                ),
+              ),
+              onChanged: (text) {
+                final parsed = int.tryParse(text);
+                if (parsed != null) onValueChanged(parsed);
+              },
+              onSubmitted: (_) => Navigator.of(sheetContext).pop(),
+            ),
+          ],
+        ),
+      ),
+    );
+    controller.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 56,
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(22),
+      ),
+      child: Row(
+        children: [
+          _CompactCounterButton(
+            icon: Icons.remove_rounded,
+            tooltip: 'Decrease $label',
+            onTap: onDecrease,
+          ),
+          Expanded(
+            child: Semantics(
+              button: true,
+              label: '$label count $value. Tap to enter an exact value.',
+              child: InkWell(
+                onTap: () => _showNumberEditor(context),
+                borderRadius: BorderRadius.circular(12),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('$value',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                height: 1,
+                                fontWeight: FontWeight.w900)),
+                        const SizedBox(width: 3),
+                        const Icon(Icons.edit_rounded,
+                            color: Colors.white70, size: 11),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    Text(label,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 8.5,
+                            height: 1,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          _CompactCounterButton(
+            icon: Icons.add_rounded,
+            tooltip: 'Increase $label',
+            onTap: onIncrease,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactCounterButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _CompactCounterButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Semantics(
+        button: true,
+        label: tooltip,
+        child: InkResponse(
+          onTap: onTap,
+          radius: 24,
+          child: Container(
+            width: 38,
+            height: 42,
+            margin: const EdgeInsets.symmetric(horizontal: 1),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.24),
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white70, width: 1.2),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.18),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Icon(icon, color: Colors.white, size: 25),
+          ),
+        ),
       ),
     );
   }

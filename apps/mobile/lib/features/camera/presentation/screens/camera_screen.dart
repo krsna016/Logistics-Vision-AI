@@ -66,19 +66,34 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       if (!_aiStarted) setState(() => _aiStarted = true);
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
-        setState(() {
-          _pickedImagePath = image.path;
-          _isGalleryAnalyzing = true;
-        });
+        setState(() => _isGalleryAnalyzing = true);
         AppLogger.info('Custom photo loaded for analysis: ${image.path}');
         ref.read(countingDecisionProvider.notifier).resetAnalyzer();
-        await ref
+        final succeeded = await ref
             .read(inferenceNotifierProvider.notifier)
             .processGalleryImage(image.path);
+        if (!mounted) return;
+        if (!succeeded) {
+          setState(() => _isGalleryAnalyzing = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not analyse this photo.')),
+          );
+          return;
+        }
         final detections = ref.read(inferenceNotifierProvider).detections;
         final decisionNotifier = ref.read(countingDecisionProvider.notifier);
         decisionNotifier.acceptGalleryDetections(detections);
-        if (mounted) setState(() => _isGalleryAnalyzing = false);
+        setState(() => _isGalleryAnalyzing = false);
+
+        final truckId = GoRouterState.of(context).pathParameters['id'] ?? '';
+        await _navigateToReview(
+          context,
+          truckId,
+          ref.read(inferenceNotifierProvider),
+          ref.read(countingDecisionProvider),
+          photoPath: image.path,
+          capturedCount: detections.length,
+        );
       }
     } catch (e, stack) {
       AppLogger.error('Failed to import photo', e, stack);

@@ -147,10 +147,6 @@ class TruckDetailsScreen extends ConsumerWidget {
                       await notifier.deleteTruck(truck.id);
                       if (context.mounted) {
                         context.pop();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                    Text('Truck and its layers removed.')));
                       }
                     },
                   ),
@@ -234,11 +230,6 @@ class TruckDetailsScreen extends ConsumerWidget {
                           actionColor: Colors.redAccent,
                           onConfirm: () async {
                             await layerNotifier.deleteLayer(layer.id);
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Layer deleted.')));
-                            }
                           },
                         ),
                       );

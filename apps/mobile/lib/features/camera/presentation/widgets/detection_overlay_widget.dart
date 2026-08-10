@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../domain/entities/detection.dart';
 import 'detection_painter.dart';
 
@@ -10,7 +11,9 @@ class DetectionOverlayWidget extends StatelessWidget {
   final String? selectedId;
   final bool showLabels;
   final bool showNumbers;
+  final bool useDarkPalette;
   final ValueChanged<Detection>? onDetectionTapped;
+  final ValueChanged<Detection>? onDetectionLongPressed;
   final ValueChanged<Offset>? onEmptyAreaTapped;
   final ValueChanged<Rect>? onBoxDrawn;
 
@@ -23,7 +26,9 @@ class DetectionOverlayWidget extends StatelessWidget {
     this.selectedId,
     this.showLabels = true,
     this.showNumbers = false,
+    this.useDarkPalette = false,
     this.onDetectionTapped,
+    this.onDetectionLongPressed,
     this.onEmptyAreaTapped,
     this.onBoxDrawn,
   });
@@ -35,6 +40,18 @@ class DetectionOverlayWidget extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onTapUp: (details) => _handleTap(context, details.localPosition),
+      onLongPressStart: onDetectionLongPressed == null
+          ? null
+          : (details) => _handleLongPress(
+                context,
+                details.localPosition,
+              ),
+      onDoubleTapDown: onDetectionLongPressed == null
+          ? null
+          : (details) => _handleRemovalGesture(
+                context,
+                details.localPosition,
+              ),
       onPanStart: onBoxDrawn == null
           ? null
           : (details) => dragStart = _toNormalized(
@@ -71,6 +88,7 @@ class DetectionOverlayWidget extends StatelessWidget {
           selectedId: selectedId,
           showLabels: showLabels,
           showNumbers: showNumbers,
+          useDarkPalette: useDarkPalette,
         ),
         child: Container(),
       ),
@@ -117,50 +135,93 @@ class DetectionOverlayWidget extends StatelessWidget {
       dy = (size.height - cameraSize.height * scale) / 2;
     }
 
-    // Prefer visible detections so a hidden box cannot steal taps from a
-    // visible box beneath it. Hidden detections remain available afterwards
-    // so tapping a hidden area can restore that box.
+    final normalized = Offset(
+      ((localPosition.dx - dx) / (cameraSize.width * scale)).clamp(0.0, 1.0),
+      ((localPosition.dy - dy) / (cameraSize.height * scale)).clamp(0.0, 1.0),
+    );
+
+    // A normal tap never removes a visible carton. This is important for
+    // compact layers where neighbouring bounding rectangles overlap.
     final visibleIds = detections.map((detection) => detection.id).toSet();
-    final tappableDetections = <Detection>[
-      ...detections,
-      ...?hitTestDetections
-          ?.where((detection) => !visibleIds.contains(detection.id)),
-    ];
-    for (final detection in tappableDetections) {
-      final double left =
-          detection.boundingBox.xMin * cameraSize.width * scale + dx;
-      final double top =
-          detection.boundingBox.yMin * cameraSize.height * scale + dy;
-      final double right =
-          detection.boundingBox.xMax * cameraSize.width * scale + dx;
-      final double bottom =
-          detection.boundingBox.yMax * cameraSize.height * scale + dy;
+    final visibleHit = _closestHit(detections, normalized);
+    if (visibleHit != null) {
+      onDetectionTapped?.call(visibleHit);
+      return;
+    }
 
-      final rect = Rect.fromLTRB(left, top, right, bottom);
-      if (rect.contains(localPosition)) {
-        onDetectionTapped?.call(detection);
-        break;
+    final hidden = hitTestDetections
+            ?.where((detection) => !visibleIds.contains(detection.id))
+            .toList(growable: false) ??
+        const <Detection>[];
+    final hiddenHit = _closestHit(hidden, normalized);
+    if (hiddenHit != null) {
+      onDetectionTapped?.call(hiddenHit);
+      return;
+    }
+
+    onEmptyAreaTapped?.call(normalized);
+  }
+
+  void _handleLongPress(BuildContext context, Offset localPosition) {
+    _handleRemovalGesture(context, localPosition);
+  }
+
+  void _handleRemovalGesture(BuildContext context, Offset localPosition) {
+    final normalized = _toNormalized(context, localPosition);
+    final hit = _closestHit(detections, normalized, allowBoxFallback: true);
+    if (hit != null) {
+      HapticFeedback.mediumImpact();
+      onDetectionLongPressed?.call(hit);
+    }
+  }
+
+  Detection? _closestHit(
+    List<Detection> candidates,
+    Offset point, {
+    bool allowBoxFallback = false,
+  }) {
+    bool preciseHit(Detection detection) {
+      if (detection.polygon.length >= 3) {
+        final path = Path();
+        for (var index = 0; index < detection.polygon.length; index++) {
+          final vertex = detection.polygon[index];
+          if (vertex.length < 2) continue;
+          final offset = Offset(vertex[0], vertex[1]);
+          if (index == 0) {
+            path.moveTo(offset.dx, offset.dy);
+          } else {
+            path.lineTo(offset.dx, offset.dy);
+          }
+        }
+        path.close();
+        return path.contains(point);
       }
+      final box = detection.boundingBox;
+      return Rect.fromLTRB(box.xMin, box.yMin, box.xMax, box.yMax)
+          .contains(point);
     }
 
-    if (onEmptyAreaTapped != null &&
-        !tappableDetections.any((detection) {
-          final left =
-              detection.boundingBox.xMin * cameraSize.width * scale + dx;
-          final top =
-              detection.boundingBox.yMin * cameraSize.height * scale + dy;
-          final right =
-              detection.boundingBox.xMax * cameraSize.width * scale + dx;
-          final bottom =
-              detection.boundingBox.yMax * cameraSize.height * scale + dy;
-          return Rect.fromLTRB(left, top, right, bottom)
-              .contains(localPosition);
-        })) {
-      final normalized = Offset(
-        ((localPosition.dx - dx) / (cameraSize.width * scale)).clamp(0.0, 1.0),
-        ((localPosition.dy - dy) / (cameraSize.height * scale)).clamp(0.0, 1.0),
-      );
-      onEmptyAreaTapped!(normalized);
+    var hits = candidates.where(preciseHit).toList(growable: false);
+    if (hits.isEmpty && allowBoxFallback) {
+      hits = candidates.where((detection) {
+        final box = detection.boundingBox;
+        return Rect.fromLTRB(box.xMin, box.yMin, box.xMax, box.yMax)
+            .contains(point);
+      }).toList(growable: false);
     }
+    if (hits.isEmpty) return null;
+    hits.sort((first, second) {
+      double distance(Detection detection) {
+        final box = detection.boundingBox;
+        final center = Offset(
+          (box.xMin + box.xMax) / 2,
+          (box.yMin + box.yMax) / 2,
+        );
+        return (center - point).distanceSquared;
+      }
+
+      return distance(first).compareTo(distance(second));
+    });
+    return hits.first;
   }
 }
