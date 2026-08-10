@@ -1,6 +1,79 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/detection.dart';
 
+/// Returns a display-only verification order: rows from top to bottom and
+/// cartons inside each row from left to right. Detection IDs and model output
+/// order stay untouched, so editing and inference behaviour are unaffected.
+List<Detection> orderDetectionsForVerification(List<Detection> detections) {
+  if (detections.length < 2) return List<Detection>.of(detections);
+
+  final pending = List<Detection>.of(detections)
+    ..sort((a, b) {
+      final byY = _centerY(a).compareTo(_centerY(b));
+      return byY != 0 ? byY : _centerX(a).compareTo(_centerX(b));
+    });
+  final rows = <_DetectionRow>[];
+
+  for (final detection in pending) {
+    _DetectionRow? bestRow;
+    var bestDistance = double.infinity;
+    final centerY = _centerY(detection);
+    final height = _height(detection);
+
+    for (final row in rows) {
+      final distance = (centerY - row.centerY).abs();
+      // Half the typical carton height reliably joins perspective-skewed
+      // cartons in one visual row without merging adjacent stacked rows.
+      final tolerance =
+          ((height + row.averageHeight) * 0.25).clamp(0.018, 0.12);
+      if (distance <= tolerance && distance < bestDistance) {
+        bestRow = row;
+        bestDistance = distance;
+      }
+    }
+
+    if (bestRow == null) {
+      rows.add(_DetectionRow(detection));
+    } else {
+      bestRow.add(detection);
+    }
+  }
+
+  rows.sort((a, b) => a.centerY.compareTo(b.centerY));
+  return <Detection>[
+    for (final row in rows)
+      ...(row.detections..sort((a, b) => _centerX(a).compareTo(_centerX(b)))),
+  ];
+}
+
+double _centerX(Detection detection) =>
+    (detection.boundingBox.xMin + detection.boundingBox.xMax) / 2;
+
+double _centerY(Detection detection) =>
+    (detection.boundingBox.yMin + detection.boundingBox.yMax) / 2;
+
+double _height(Detection detection) =>
+    (detection.boundingBox.yMax - detection.boundingBox.yMin).abs();
+
+class _DetectionRow {
+  final List<Detection> detections = [];
+  double _centerYTotal = 0;
+  double _heightTotal = 0;
+
+  _DetectionRow(Detection detection) {
+    add(detection);
+  }
+
+  double get centerY => _centerYTotal / detections.length;
+  double get averageHeight => _heightTotal / detections.length;
+
+  void add(Detection detection) {
+    detections.add(detection);
+    _centerYTotal += _centerY(detection);
+    _heightTotal += _height(detection);
+  }
+}
+
 class DetectionPainter extends CustomPainter {
   final List<Detection> detections;
   final Size cameraSize;
@@ -55,6 +128,13 @@ class DetectionPainter extends CustomPainter {
     final textPainter = TextPainter(
       textDirection: TextDirection.ltr,
     );
+    final verificationNumbers = showNumbers
+        ? <String, int>{
+            for (final entry
+                in orderDetectionsForVerification(detections).asMap().entries)
+              entry.value.id: entry.key + 1,
+          }
+        : const <String, int>{};
 
     for (var detectionIndex = 0;
         detectionIndex < detections.length;
@@ -109,7 +189,7 @@ class DetectionPainter extends CustomPainter {
           canvas,
           textPainter,
           rect.topLeft + const Offset(2, 2),
-          isManual ? '+' : '${detectionIndex + 1}',
+          '${verificationNumbers[detection.id] ?? detectionIndex + 1}',
           color,
         );
       }
