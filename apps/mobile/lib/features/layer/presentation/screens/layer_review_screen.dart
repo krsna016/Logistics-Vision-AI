@@ -370,13 +370,6 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
               ),
             ),
           ),
-          if (_isFinalizing)
-            const Positioned(
-              top: 68,
-              left: 20,
-              right: 20,
-              child: _FinalizingBanner(),
-            ),
           if (_errorMessage != null)
             Positioned(
               left: 16,
@@ -463,13 +456,14 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
       final bytes = await File(path).readAsBytes();
       final decoded = img.decodeImage(bytes);
       if (decoded != null && mounted) {
+        final oriented = img.bakeOrientation(decoded);
         var luminanceTotal = 0.0;
         var samples = 0;
-        final stepX = (decoded.width / 48).ceil().clamp(1, decoded.width);
-        final stepY = (decoded.height / 48).ceil().clamp(1, decoded.height);
-        for (var y = 0; y < decoded.height; y += stepY) {
-          for (var x = 0; x < decoded.width; x += stepX) {
-            final pixel = decoded.getPixel(x, y);
+        final stepX = (oriented.width / 48).ceil().clamp(1, oriented.width);
+        final stepY = (oriented.height / 48).ceil().clamp(1, oriented.height);
+        for (var y = 0; y < oriented.height; y += stepY) {
+          for (var x = 0; x < oriented.width; x += stepX) {
+            final pixel = oriented.getPixel(x, y);
             luminanceTotal +=
                 0.2126 * pixel.r + 0.7152 * pixel.g + 0.0722 * pixel.b;
             samples++;
@@ -477,7 +471,7 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
         }
         setState(() {
           _photoSize =
-              Size(decoded.width.toDouble(), decoded.height.toDouble());
+              Size(oriented.width.toDouble(), oriented.height.toDouble());
           _useDarkPalette = samples > 0 && luminanceTotal / samples >= 145;
         });
       }
@@ -1488,43 +1482,6 @@ class _CompactCounterButton extends StatelessWidget {
               ],
             ),
             child: Icon(icon, color: Colors.white, size: 25),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FinalizingBanner extends StatelessWidget {
-  const _FinalizingBanner();
-
-  @override
-  Widget build(BuildContext context) {
-    return const SafeArea(
-      child: Material(
-        color: Color(0xEE102438),
-        borderRadius: BorderRadius.all(Radius.circular(14)),
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 10),
-              Flexible(
-                child: Text(
-                  'Finalizing high-quality carton count…',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-            ],
           ),
         ),
       ),

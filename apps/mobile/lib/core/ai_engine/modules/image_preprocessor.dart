@@ -9,7 +9,7 @@ class ImagePreprocessor {
   final int targetWidth;
   final int targetHeight;
 
-  ImagePreprocessor({this.targetWidth = 640, this.targetHeight = 640});
+  ImagePreprocessor({this.targetWidth = 960, this.targetHeight = 960});
 
   /// Copies the ephemeral camera planes and performs the expensive YUV-to-RGB
   /// conversion away from Flutter's UI isolate. This is the main protection
@@ -182,8 +182,14 @@ class ImagePreprocessor {
         math.min(targetWidth / image.width, targetHeight / image.height);
     final resizedWidth = (image.width * scale).round();
     final resizedHeight = (image.height * scale).round();
-    final padX = (targetWidth - resizedWidth) / 2.0;
-    final padY = (targetHeight - resizedHeight) / 2.0;
+    final padX = ((targetWidth - resizedWidth) / 2.0 - 0.1).round();
+    final padY = ((targetHeight - resizedHeight) / 2.0 - 0.1).round();
+    final resized = img.copyResize(
+      image,
+      width: resizedWidth,
+      height: resizedHeight,
+      interpolation: img.Interpolation.linear,
+    );
 
     for (var y = 0; y < targetHeight; y++) {
       for (var x = 0; x < targetWidth; x++) {
@@ -191,13 +197,9 @@ class ImagePreprocessor {
             x < padX + resizedWidth &&
             y >= padY &&
             y < padY + resizedHeight;
-        final sourceX = inside
-            ? (((x - padX) / scale).floor()).clamp(0, image.width - 1)
-            : 0;
-        final sourceY = inside
-            ? (((y - padY) / scale).floor()).clamp(0, image.height - 1)
-            : 0;
-        final pixel = inside ? image.getPixel(sourceX, sourceY) : null;
+        final resizedX = inside ? x - padX : 0;
+        final resizedY = inside ? y - padY : 0;
+        final pixel = inside ? resized.getPixel(resizedX, resizedY) : null;
         double adjust(num value) =>
             (((value.toDouble() * brightness) - 128.0) * contrast + 128.0)
                 .clamp(0.0, 255.0);

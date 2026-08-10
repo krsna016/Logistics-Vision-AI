@@ -19,10 +19,12 @@ class ONNXInferenceRepository implements InferenceRepository {
   ONNXInferenceRepository() {
     _pipeline = InferencePipeline(
       modelManager: ModelManager(),
-      preprocessor: ImagePreprocessor(),
+      preprocessor: ImagePreprocessor(targetWidth: 960, targetHeight: 960),
       postprocessor: Postprocessor(
         confidenceThreshold: 0.27,
         iouThreshold: 0.70,
+        inputWidth: 960,
+        inputHeight: 960,
       ),
       trackingEngine: TrackingEngine(),
       validator: DetectionValidator(),
@@ -50,6 +52,8 @@ class ONNXInferenceRepository implements InferenceRepository {
       () => Postprocessor(
         confidenceThreshold: 0.27,
         iouThreshold: 0.70,
+        inputWidth: 960,
+        inputHeight: 960,
       ).process(
         outputList,
         imageWidth: image.width,

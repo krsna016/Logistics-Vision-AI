@@ -40,17 +40,17 @@ class AIModel {
       version: '1.0.0',
       trainingDate: DateTime(2026, 8, 9),
       deploymentDate: DateTime(2026, 8, 10),
-      inputWidth: 640,
-      inputHeight: 640,
+      inputWidth: 960,
+      inputHeight: 960,
       outputClasses: const ['carton'],
       expectedMap: 0.0,
       expectedPrecision: 0.0,
       expectedRecall: 0.0,
-      assetPath: 'assets/models/stage1_carton_yolo26m_seg.onnx',
+      assetPath: 'assets/models/stage1_carton_yolo26m_seg_960.onnx',
       expectedSha256:
-          '3dfbbc32bac3e5124e83e1bf2edf39747f5aaf9b0e678126d287dbf0295e721b',
+          '935a736845b1921b554174723b5b3d1c9e477e5235e41734e882374356008bc7',
       developerNotes:
-          'Stage 1 YOLO26m instance-segmentation checkpoint exported to ONNX at 640 px. Counting threshold: 0.27.',
+          'Stage 1 YOLO26m instance-segmentation checkpoint exported to ONNX at 960 px. Counting threshold: 0.27.',
     );
   }
 }

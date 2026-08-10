@@ -47,7 +47,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   double _baseZoom = 1;
   double _minimumZoom = 1;
   double _maximumZoom = 1;
-  bool _isGalleryAnalyzing = false;
   bool _isFinalizingCapture = false;
   bool _torchOn = false;
   bool _aiStarted = false;
@@ -70,39 +69,32 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     try {
       if (!_aiStarted) setState(() => _aiStarted = true);
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      if (!mounted) return;
       if (image != null) {
-        setState(() => _isGalleryAnalyzing = true);
-        AppLogger.info('Custom photo loaded for analysis: ${image.path}');
+        AppLogger.info('Gallery photo selected for review: ${image.path}');
         ref.read(countingDecisionProvider.notifier).resetAnalyzer();
-        final succeeded = await ref
-            .read(inferenceNotifierProvider.notifier)
-            .processGalleryImage(image.path);
-        if (!mounted) return;
-        if (!succeeded) {
-          setState(() => _isGalleryAnalyzing = false);
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not analyse this photo.')),
-          );
-          return;
-        }
-        final detections = ref.read(inferenceNotifierProvider).detections;
-        final decisionNotifier = ref.read(countingDecisionProvider.notifier);
-        decisionNotifier.acceptGalleryDetections(detections);
-        setState(() => _isGalleryAnalyzing = false);
-
         final truckId = GoRouterState.of(context).pathParameters['id'] ?? '';
+
+        // Match camera capture: open Review immediately with the chosen image
+        // and let its existing bottom bar show "Analyzing…" while the 960px
+        // final pass completes in the background.
+        final finalResult = _finalizeCapturedResult(image.path);
         await _navigateToReview(
           context,
           truckId,
-          ref.read(inferenceNotifierProvider),
-          ref.read(countingDecisionProvider),
+          const InferenceState(),
+          const DecisionState(status: CountingDecisionState.collecting),
           photoPath: image.path,
-          capturedCount: detections.length,
+          finalResult: finalResult,
         );
       }
     } catch (e, stack) {
       AppLogger.error('Failed to import photo', e, stack);
-      if (mounted) setState(() => _isGalleryAnalyzing = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open this photo.')),
+        );
+      }
     }
   }
 
@@ -220,6 +212,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                   : null,
               child: isGallery
                   ? _GalleryPreview(
+                      key: ValueKey(_pickedImagePath),
                       path: _pickedImagePath!,
                       decisionState: decisionState,
                       detections: inferenceState.detections,
@@ -260,37 +253,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                       ),
             ),
           ),
-
-          if (_isGalleryAnalyzing)
-            const Positioned.fill(
-              child: IgnorePointer(
-                child: Center(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Color(0xDD101010),
-                      borderRadius: BorderRadius.all(Radius.circular(14)),
-                    ),
-                    child: Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          SizedBox(width: 10),
-                          Text('Counting cartons...',
-                              style: TextStyle(color: Colors.white)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
 
           if (_isFinalizingCapture)
             const Positioned.fill(
@@ -1541,6 +1503,7 @@ class _GalleryPreview extends StatefulWidget {
   final List<Detection> detections;
 
   const _GalleryPreview({
+    super.key,
     required this.path,
     required this.decisionState,
     required this.detections,

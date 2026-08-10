@@ -141,4 +141,153 @@ void main() {
 
     expect(detections, hasLength(1));
   });
+
+  test('960 postprocessor maps model coordinates to the captured image', () {
+    final row = <double>[
+      96,
+      192,
+      480,
+      576,
+      0.91,
+      0,
+      ...List<double>.filled(32, 0),
+    ];
+    final detection = Postprocessor(inputWidth: 960, inputHeight: 960).process(
+      <dynamic>[
+        <dynamic>[
+          <dynamic>[row],
+        ],
+      ],
+      imageWidth: 960,
+      imageHeight: 960,
+      decodeMasks: false,
+    ).single;
+
+    expect(detection.xMin, closeTo(0.10, 0.001));
+    expect(detection.yMin, closeTo(0.20, 0.001));
+    expect(detection.xMax, closeTo(0.50, 0.001));
+    expect(detection.yMax, closeTo(0.60, 0.001));
+  });
+
+  test('landscape Gallery coordinates are not rotated', () {
+    final row = <double>[
+      96,
+      336,
+      288,
+      528,
+      0.91,
+      0,
+      ...List<double>.filled(32, 0),
+    ];
+    final detection = Postprocessor(inputWidth: 960, inputHeight: 960).process(
+      <dynamic>[
+        <dynamic>[
+          <dynamic>[row],
+        ],
+      ],
+      imageWidth: 800,
+      imageHeight: 400,
+      decodeMasks: false,
+    ).single;
+
+    expect(detection.xMin, closeTo(0.10, 0.001));
+    expect(detection.yMin, closeTo(0.20, 0.001));
+    expect(detection.xMax, closeTo(0.30, 0.001));
+    expect(detection.yMax, closeTo(0.60, 0.001));
+  });
+
+  test('raw landscape sensor coordinates rotate only when requested', () {
+    final row = <double>[
+      96,
+      336,
+      288,
+      528,
+      0.91,
+      0,
+      ...List<double>.filled(32, 0),
+    ];
+    final detection = Postprocessor(inputWidth: 960, inputHeight: 960).process(
+      <dynamic>[
+        <dynamic>[
+          <dynamic>[row],
+        ],
+      ],
+      imageWidth: 800,
+      imageHeight: 400,
+      decodeMasks: false,
+      rotateLandscapeSensorToPortrait: true,
+    ).single;
+
+    expect(detection.xMin, closeTo(0.40, 0.001));
+    expect(detection.yMin, closeTo(0.10, 0.001));
+    expect(detection.xMax, closeTo(0.80, 0.001));
+    expect(detection.yMax, closeTo(0.30, 0.001));
+  });
+
+  test('mask decoder traces concave boundaries instead of row envelopes', () {
+    final row = <double>[
+      0,
+      0,
+      960,
+      960,
+      0.95,
+      0,
+      10,
+      ...List<double>.filled(31, 0),
+    ];
+    final shape = List<List<double>>.generate(
+      8,
+      (y) => List<double>.generate(
+        8,
+        (x) => (x >= 1 && x <= 3 && y >= 1 && y <= 6) ||
+                (x >= 3 && x <= 6 && y >= 4 && y <= 6)
+            ? 1
+            : -1,
+      ),
+    );
+    final prototypes = <List<List<double>>>[
+      shape,
+      ...List<List<List<double>>>.generate(
+        31,
+        (_) => List<List<double>>.generate(
+          8,
+          (_) => List<double>.filled(8, 0),
+        ),
+      ),
+    ];
+
+    final polygon = Postprocessor(inputWidth: 960, inputHeight: 960)
+        .process(
+          <dynamic>[
+            <dynamic>[
+              <dynamic>[row],
+            ],
+            <dynamic>[prototypes],
+          ],
+          imageWidth: 960,
+          imageHeight: 960,
+        )
+        .single
+        .polygon;
+
+    expect(polygon.length, greaterThanOrEqualTo(6));
+    expect(polygon.every((point) => point.length == 2), isTrue);
+    expect(
+      polygon.any(
+        (point) => point.any(
+          (coordinate) =>
+              ((coordinate * 8) - (coordinate * 8).round()).abs() > 0.01,
+        ),
+      ),
+      isTrue,
+      reason: 'The contour should cross between prototype pixels.',
+    );
+    expect(
+      polygon.every(
+        (point) =>
+            point.every((coordinate) => coordinate >= 0 && coordinate <= 1),
+      ),
+      isTrue,
+    );
+  });
 }

@@ -45,6 +45,10 @@ class InferencePipeline {
       // counting. Live preview uses stable boxes; the captured final frame
       // still receives the full segmentation masks.
       decodeMasks: false,
+      // Raw Android camera frames commonly arrive in landscape sensor
+      // coordinates while the visible preview is portrait. File-based
+      // Gallery/capture inference never enables this sensor-only transform.
+      rotateLandscapeSensorToPortrait: image.width > image.height,
     );
     final validated = validator.validate(decoded);
     final tracked = trackingEngine.update(validated);

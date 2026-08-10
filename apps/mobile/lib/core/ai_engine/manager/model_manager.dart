@@ -110,8 +110,15 @@ class ModelManager {
       throw StateError('ONNX model is not loaded');
     }
 
-    final inputOrt =
-        OrtValueTensor.createTensorWithDataList(input, [1, 3, 640, 640]);
+    final model = _activeModel;
+    if (model == null) {
+      runComplete.complete();
+      throw StateError('ONNX model metadata is not loaded');
+    }
+    final inputOrt = OrtValueTensor.createTensorWithDataList(
+      input,
+      [1, 3, model.inputHeight, model.inputWidth],
+    );
     final runOptions = OrtRunOptions();
     List<OrtValue?>? outputs;
     try {
