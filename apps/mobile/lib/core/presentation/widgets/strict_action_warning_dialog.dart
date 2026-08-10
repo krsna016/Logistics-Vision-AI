@@ -85,23 +85,18 @@ class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
             ),
             const SizedBox(height: 24),
             Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Expanded(
-                  child: Text(
-                    'Type "${widget.expectedConfirmationText}" to confirm:',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                    textAlign: TextAlign.center,
+                Text(
+                  'Type "${widget.expectedConfirmationText}"',
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
                   ),
                 ),
                 IconButton(
-                  tooltip: 'Copy confirmation text',
-                  visualDensity: VisualDensity.compact,
-                  icon: const Icon(Icons.copy_rounded, size: 18),
-                  color: AppTheme.primaryColor,
                   onPressed: () async {
                     await Clipboard.setData(
                       ClipboardData(text: widget.expectedConfirmationText),
@@ -114,6 +109,21 @@ class _StrictActionWarningDialogState extends State<StrictActionWarningDialog> {
                       ),
                     );
                   },
+                  tooltip: 'Copy confirmation text',
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  constraints:
+                      const BoxConstraints(minWidth: 28, minHeight: 28),
+                  icon: const Icon(Icons.copy_rounded,
+                      size: 17, color: AppTheme.primaryColor),
+                ),
+                const Text(
+                  ' to confirm:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
               ],
             ),

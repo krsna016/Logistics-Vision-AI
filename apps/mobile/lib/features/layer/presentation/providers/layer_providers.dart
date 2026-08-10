@@ -14,6 +14,7 @@ import '../../../../services/storage_service.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 import '../../../../core/providers/database_provider.dart';
+import '../../../../core/ai_engine/models/ai_model.dart';
 
 final layerRepositoryProvider = Provider<LayerRepository>((ref) {
   final db = ref.watch(databaseProvider);
@@ -153,7 +154,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         operatorId: await _operatorName(),
         photoPath: photoPath,
         notes: notes,
-        modelVersion: 'yolo11n_carton_seg_v1_3',
+        modelVersion: AIModel.activeVersion,
         averageConfidence: confidence,
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -220,27 +221,50 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     }
   }
 
+  Future<String?> correctLayer({
+    required String layerId,
+    required int cartonCount,
+    required int defectCount,
+    String? notes,
+    required String reason,
+  }) async {
+    if (cartonCount < 0 || defectCount < 0 || defectCount > cartonCount) {
+      return 'Enter valid carton and defect counts.';
+    }
+    if (reason.trim().isEmpty) return 'Correction reason is required.';
+    try {
+      final index = state.layers.indexWhere((layer) => layer.id == layerId);
+      if (index < 0) return 'Layer not found.';
+      final current = state.layers[index];
+      final updated = current.copyWith(
+        cartonCount: cartonCount,
+        defectCount: defectCount,
+        notes: notes,
+        updatedAt: DateTime.now(),
+      );
+      await _layerRepository.updateLayer(
+        updated,
+        correctionReason: reason.trim(),
+      );
+      await _ref
+          .read(activeSessionProvider.notifier)
+          .refreshTotalsForTruck(_truckId);
+      await _ref.read(truckListProvider.notifier).refresh();
+      await refresh();
+      return null;
+    } catch (error) {
+      AppLogger.error('Failed to correct layer', error);
+      return 'Failed to save layer correction.';
+    }
+  }
+
   Future<void> deleteLayer(String id) async {
     try {
-      final target = state.layers.firstWhere((element) => element.id == id);
       await _layerRepository.softDeleteLayer(id);
-
-      // Update parent truck statistics
-      final truckRepo = _ref.read(truckRepositoryProvider);
-      final currentTruck = await truckRepo.getTruckById(_truckId);
-      if (currentTruck != null) {
-        final updatedTruck = currentTruck.copyWith(
-          totalLayers: (currentTruck.totalLayers - 1).clamp(0, 99999),
-          totalCartons:
-              (currentTruck.totalCartons - target.cartonCount).clamp(0, 999999),
-          totalDefects:
-              (currentTruck.totalDefects - target.defectCount).clamp(0, 999999),
-          updatedDate: DateTime.now(),
-        );
-        await truckRepo.updateTruck(updatedTruck);
-        _ref.read(truckListProvider.notifier).refresh();
-      }
-
+      await _ref
+          .read(activeSessionProvider.notifier)
+          .refreshTotalsForTruck(_truckId);
+      await _ref.read(truckListProvider.notifier).refresh();
       await refresh();
     } catch (e) {
       AppLogger.error('Failed to delete layer', e);

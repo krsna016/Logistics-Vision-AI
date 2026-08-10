@@ -128,16 +128,60 @@ class LocalTruckRepository implements TruckRepository {
 
   @override
   Future<void> softDeleteTruck(String id) async {
+    final truck = await (_db.select(_db.trucks)
+          ..where((row) => row.id.equals(id)))
+        .getSingleOrNull();
+    if (truck == null || truck.isDeleted) return;
     await _db.transaction(() async {
+      final layers = await (_db.select(_db.layers)
+            ..where((layer) =>
+                layer.truckId.equals(id) & layer.isDeleted.equals(false)))
+          .get();
+      final layerIds = layers.map((layer) => layer.id).toList(growable: false);
+
       await (_db.update(_db.trucks)..where((t) => t.id.equals(id)))
-          .write(const db.TrucksCompanion(isDeleted: drift.Value(true)));
+          .write(db.TrucksCompanion(
+        isDeleted: const drift.Value(true),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+      await (_db.update(_db.layers)..where((layer) => layer.truckId.equals(id)))
+          .write(db.LayersCompanion(
+        isDeleted: const drift.Value(true),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+      if (layerIds.isNotEmpty) {
+        await (_db.update(_db.detections)
+              ..where((detection) => detection.layerId.isIn(layerIds)))
+            .write(db.DetectionsCompanion(
+          isDeleted: const drift.Value(true),
+          updatedAt: drift.Value(DateTime.now()),
+        ));
+      }
+      await (_db.update(_db.loadingSessions)
+            ..where((session) => session.truckId.equals(id)))
+          .write(db.LoadingSessionsCompanion(
+        isDeleted: const drift.Value(true),
+        status: const drift.Value('cancelled'),
+        endTime: drift.Value(DateTime.now()),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+
+      await _db.into(_db.auditLogs).insert(db.AuditLogsCompanion.insert(
+            id: 'audit_truck_delete_${DateTime.now().microsecondsSinceEpoch}',
+            entityId: id,
+            entityType: 'Truck',
+            action: 'delete',
+            userId: 'local_operator',
+            details: drift.Value(
+                'Voided truck ${truck.truckNumber} and ${layers.length} child layers.'),
+          ));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_t_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'sync_t_${DateTime.now().microsecondsSinceEpoch}',
             entityId: id,
             entityType: 'Truck',
             operation: 'DELETE',
-            payloadData: '{}',
+            payloadData: '{"cascadeChildren":true}',
           ));
     });
     AppLogger.info('Soft deleted truck: $id');

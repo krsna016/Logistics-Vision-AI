@@ -36,10 +36,10 @@ class ExcelReportServiceImpl implements ExcelReportService {
 
     // Fetch data
     final truck = await (_db.select(_db.trucks)
-          ..where((t) => t.id.equals(truckId)))
+          ..where((t) => t.id.equals(truckId) & t.isDeleted.equals(false)))
         .getSingleOrNull();
     final layers = await (_db.select(_db.layers)
-          ..where((l) => l.truckId.equals(truckId)))
+          ..where((l) => l.truckId.equals(truckId) & l.isDeleted.equals(false)))
         .get();
 
     if (truck == null) throw Exception('Truck not found');
@@ -120,13 +120,17 @@ class ExcelReportServiceImpl implements ExcelReportService {
             columnIndex: 0, rowIndex: currentRow + 1))
         .value = TextCellValue('TOTAL');
     sheet
-        .cell(CellIndex.indexByColumnRow(
-            columnIndex: 1, rowIndex: currentRow + 1))
-        .value = IntCellValue(truck.totalCartons);
+            .cell(CellIndex.indexByColumnRow(
+                columnIndex: 1, rowIndex: currentRow + 1))
+            .value =
+        IntCellValue(
+            layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount));
     sheet
-        .cell(CellIndex.indexByColumnRow(
-            columnIndex: 2, rowIndex: currentRow + 1))
-        .value = IntCellValue(truck.totalDefects);
+            .cell(CellIndex.indexByColumnRow(
+                columnIndex: 2, rowIndex: currentRow + 1))
+            .value =
+        IntCellValue(
+            layers.fold<int>(0, (sum, layer) => sum + layer.defectCount));
 
     return _saveExcel(excel, 'TRUCK_${truck.truckNumber}');
   }
@@ -144,12 +148,22 @@ class ExcelReportServiceImpl implements ExcelReportService {
     final trucks = await (_db.select(_db.trucks)
           ..where((t) => t.wagonId.equals(wagonId) & t.isDeleted.equals(false)))
         .get();
+    final truckIds = trucks.map((truck) => truck.id).toList(growable: false);
+    final layers = truckIds.isEmpty
+        ? <Layer>[]
+        : await (_db.select(_db.layers)
+              ..where(
+                  (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false)))
+            .get();
     final totalCartons =
-        trucks.fold<int>(0, (sum, truck) => sum + truck.totalCartons);
+        layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
     final totalDefects =
-        trucks.fold<int>(0, (sum, truck) => sum + truck.totalDefects);
-    final totalLayers =
-        trucks.fold<int>(0, (sum, truck) => sum + truck.totalLayers);
+        layers.fold<int>(0, (sum, layer) => sum + layer.defectCount);
+    final totalLayers = layers.length;
+    final layersByTruck = <String, List<Layer>>{
+      for (final truck in trucks)
+        truck.id: layers.where((layer) => layer.truckId == truck.id).toList(),
+    };
     final headerStyle = CellStyle(
       bold: true,
       horizontalAlign: HorizontalAlign.Center,
@@ -196,9 +210,13 @@ class ExcelReportServiceImpl implements ExcelReportService {
         truck.vehicleNumber,
         truck.driverName,
         truck.driverMobile ?? 'N/A',
-        truck.totalLayers.toString(),
-        truck.totalCartons.toString(),
-        truck.totalDefects.toString(),
+        layersByTruck[truck.id]!.length.toString(),
+        layersByTruck[truck.id]!
+            .fold<int>(0, (sum, layer) => sum + layer.cartonCount)
+            .toString(),
+        layersByTruck[truck.id]!
+            .fold<int>(0, (sum, layer) => sum + layer.defectCount)
+            .toString(),
         truck.status,
       ];
       for (var column = 0; column < values.length; column++) {
@@ -253,9 +271,9 @@ class ExcelReportServiceImpl implements ExcelReportService {
                   (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false)))
             .get();
     final totalCartons =
-        trucks.fold<int>(0, (sum, truck) => sum + truck.totalCartons);
+        layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
     final totalDefects =
-        trucks.fold<int>(0, (sum, truck) => sum + truck.totalDefects);
+        layers.fold<int>(0, (sum, layer) => sum + layer.defectCount);
     final register = await (_db.select(_db.digitalRegisters)
           ..where((r) => r.wagonId.equals(wagonId) & r.isDeleted.equals(false)))
         .getSingleOrNull();
@@ -360,13 +378,24 @@ class ExcelReportServiceImpl implements ExcelReportService {
     final sheet = excel['Analytics'];
     excel.setDefaultSheet(sheet.sheetName);
 
-    final wagons = await _db.select(_db.wagons).get();
-    final trucks = await (_db.select(_db.trucks)
+    final wagons = await (_db.select(_db.wagons)
+          ..where((wagon) => wagon.isDeleted.equals(false)))
+        .get();
+    final allActiveTrucks = await (_db.select(_db.trucks)
           ..where((t) => t.isDeleted.equals(false)))
         .get();
-    final layers = await (_db.select(_db.layers)
+    final activeWagonIds = wagons.map((wagon) => wagon.id).toSet();
+    final trucks = allActiveTrucks
+        .where((truck) =>
+            truck.wagonId == null || activeWagonIds.contains(truck.wagonId))
+        .toList(growable: false);
+    final validTruckIds = trucks.map((truck) => truck.id).toSet();
+    final allActiveLayers = await (_db.select(_db.layers)
           ..where((l) => l.isDeleted.equals(false)))
         .get();
+    final layers = allActiveLayers
+        .where((layer) => validTruckIds.contains(layer.truckId))
+        .toList(growable: false);
 
     final totalCartons = layers.fold<int>(0, (sum, l) => sum + l.cartonCount);
     final totalDefects = layers.fold<int>(0, (sum, l) => sum + l.defectCount);

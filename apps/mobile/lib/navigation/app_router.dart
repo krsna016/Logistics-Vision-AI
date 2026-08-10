@@ -8,6 +8,7 @@ import '../features/truck/presentation/screens/truck_details_screen.dart';
 import '../features/truck/domain/entities/truck.dart';
 import '../features/layer/presentation/screens/layer_review_screen.dart';
 import '../features/layer/domain/entities/ai_result.dart';
+import '../core/ai_engine/models/ai_model.dart';
 
 import '../features/splash/presentation/screens/splash_screen.dart';
 import '../features/wagon/presentation/screens/wagon_list_screen.dart';
@@ -151,17 +152,19 @@ final routerProvider = Provider<GoRouter>((ref) {
                     count: 0,
                     averageConfidence: 0.9,
                     processingTimeMs: 12.0,
-                    modelVersion: 'yolo11n_carton_seg_v1_3',
+                    modelVersion: AIModel.activeVersion,
                     inferenceTimestamp: DateTime.now(),
                     frameSize: const Size(720, 1280),
                   );
               final photoPath = extra['photoPath'] as String?;
               final manualNotes = extra['manualNotes'] as String?;
+              final finalResult = extra['finalResult'] as Future<AIResult>?;
               return LayerReviewScreen(
                 truckId: truckId,
                 aiResult: aiResult,
                 photoPath: photoPath,
                 initialNotes: manualNotes,
+                finalResult: finalResult,
               );
             },
           ),

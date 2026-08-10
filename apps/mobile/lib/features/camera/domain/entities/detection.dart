@@ -34,6 +34,7 @@ class Detection {
   final double confidence;
   final Color color;
   final String? trackingId;
+  final List<List<double>> polygon;
 
   /// Extensibility hook for future computer vision layers (rotated boxes, keypoints, segmentation points).
   final Map<String, dynamic> metadata;
@@ -45,6 +46,7 @@ class Detection {
     required this.confidence,
     this.color = Colors.red,
     this.trackingId,
+    this.polygon = const [],
     this.metadata = const {},
   });
 
@@ -56,6 +58,7 @@ class Detection {
     Color? color,
     String? trackingId,
     Map<String, dynamic>? metadata,
+    List<List<double>>? polygon,
   }) {
     return Detection(
       id: id ?? this.id,
@@ -64,6 +67,7 @@ class Detection {
       confidence: confidence ?? this.confidence,
       color: color ?? this.color,
       trackingId: trackingId ?? this.trackingId,
+      polygon: polygon ?? this.polygon,
       metadata: metadata ?? this.metadata,
     );
   }

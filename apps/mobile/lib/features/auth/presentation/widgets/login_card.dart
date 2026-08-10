@@ -147,7 +147,7 @@ class _LoginCardState extends ConsumerState<LoginCard> {
                 backgroundColor: AppTheme.primaryColor,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(24)),
               ),
               onPressed: _isLoading ? null : _handleLogin,
               child: _isLoading

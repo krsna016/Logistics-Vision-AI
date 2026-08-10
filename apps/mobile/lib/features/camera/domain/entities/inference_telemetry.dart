@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../../core/ai_engine/models/ai_model.dart';
 
 @immutable
 class InferenceTelemetry {
@@ -19,7 +20,7 @@ class InferenceTelemetry {
     this.postprocessingTimeMs = 0.0,
     this.droppedFramesCount = 0,
     this.totalDetectionsCount = 0,
-    this.modelVersion = 'yolo11n_carton_seg_v1_3',
+    this.modelVersion = AIModel.activeVersion,
   });
 
   InferenceTelemetry copyWith({

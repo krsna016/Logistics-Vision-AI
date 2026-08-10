@@ -9,8 +9,10 @@ class DetectionOverlayWidget extends StatelessWidget {
   final BoxFit fit;
   final String? selectedId;
   final bool showLabels;
+  final bool showNumbers;
   final ValueChanged<Detection>? onDetectionTapped;
   final ValueChanged<Offset>? onEmptyAreaTapped;
+  final ValueChanged<Rect>? onBoxDrawn;
 
   const DetectionOverlayWidget({
     super.key,
@@ -20,14 +22,47 @@ class DetectionOverlayWidget extends StatelessWidget {
     this.fit = BoxFit.cover,
     this.selectedId,
     this.showLabels = true,
+    this.showNumbers = false,
     this.onDetectionTapped,
     this.onEmptyAreaTapped,
+    this.onBoxDrawn,
   });
 
   @override
   Widget build(BuildContext context) {
+    Offset? dragStart;
+    Rect? normalizedDragRect;
     return GestureDetector(
+      behavior: HitTestBehavior.translucent,
       onTapUp: (details) => _handleTap(context, details.localPosition),
+      onPanStart: onBoxDrawn == null
+          ? null
+          : (details) => dragStart = _toNormalized(
+                context,
+                details.localPosition,
+              ),
+      onPanEnd: onBoxDrawn == null
+          ? null
+          : (_) {
+              final rect = normalizedDragRect;
+              normalizedDragRect = null;
+              if (rect != null && rect.width >= 0.015 && rect.height >= 0.015) {
+                onBoxDrawn!(rect);
+              }
+            },
+      onPanUpdate: onBoxDrawn == null
+          ? null
+          : (details) {
+              final start = dragStart;
+              if (start == null) return;
+              final current = _toNormalized(context, details.localPosition);
+              normalizedDragRect = Rect.fromLTRB(
+                start.dx < current.dx ? start.dx : current.dx,
+                start.dy < current.dy ? start.dy : current.dy,
+                start.dx > current.dx ? start.dx : current.dx,
+                start.dy > current.dy ? start.dy : current.dy,
+              );
+            },
       child: CustomPaint(
         painter: DetectionPainter(
           detections: detections,
@@ -35,9 +70,26 @@ class DetectionOverlayWidget extends StatelessWidget {
           fit: fit,
           selectedId: selectedId,
           showLabels: showLabels,
+          showNumbers: showNumbers,
         ),
         child: Container(),
       ),
+    );
+  }
+
+  Offset _toNormalized(BuildContext context, Offset localPosition) {
+    final renderBox = context.findRenderObject() as RenderBox;
+    final size = renderBox.size;
+    final scaleX = size.width / cameraSize.width;
+    final scaleY = size.height / cameraSize.height;
+    final scale = fit == BoxFit.cover
+        ? (scaleX > scaleY ? scaleX : scaleY)
+        : (scaleX < scaleY ? scaleX : scaleY);
+    final dx = (size.width - cameraSize.width * scale) / 2;
+    final dy = (size.height - cameraSize.height * scale) / 2;
+    return Offset(
+      ((localPosition.dx - dx) / (cameraSize.width * scale)).clamp(0.0, 1.0),
+      ((localPosition.dy - dy) / (cameraSize.height * scale)).clamp(0.0, 1.0),
     );
   }
 

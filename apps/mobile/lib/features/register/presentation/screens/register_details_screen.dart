@@ -134,7 +134,7 @@ class RegisterDetailsScreen extends ConsumerWidget {
     showDialog<void>(
       context: context,
       builder: (ctx) => StrictActionWarningDialog(
-        title: 'Delete Wagon Permanently?',
+        title: 'Remove Wagon?',
         content:
             'This removes the wagon from the app and Digital Registers. Enter the wagon number to confirm.',
         expectedConfirmationText: register.wagonNumber,

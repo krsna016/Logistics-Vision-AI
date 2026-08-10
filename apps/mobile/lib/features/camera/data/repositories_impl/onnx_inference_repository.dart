@@ -1,5 +1,4 @@
-import 'dart:io';
-import 'package:image/image.dart' as img;
+import 'dart:isolate';
 import 'package:camera/camera.dart';
 
 import '../../../../core/ai_engine/inference_pipeline.dart';
@@ -21,7 +20,10 @@ class ONNXInferenceRepository implements InferenceRepository {
     _pipeline = InferencePipeline(
       modelManager: ModelManager(),
       preprocessor: ImagePreprocessor(),
-      postprocessor: Postprocessor(),
+      postprocessor: Postprocessor(
+        confidenceThreshold: 0.27,
+        iouThreshold: 0.70,
+      ),
       trackingEngine: TrackingEngine(),
       validator: DetectionValidator(),
       performanceMonitor: PerformanceMonitor(),
@@ -40,17 +42,20 @@ class ONNXInferenceRepository implements InferenceRepository {
 
   @override
   Future<List<Detection>> runGalleryInference(String imagePath) async {
-    final bytes = await File(imagePath).readAsBytes();
-    final decoded = img.decodeImage(bytes);
-    if (decoded == null) return [];
-
-    final image = img.bakeOrientation(decoded);
-    final input = _pipeline.preprocessor.processRgbImage(image);
-    final rawOutput = await _pipeline.modelManager.run(input);
-    final decodedResults = _pipeline.postprocessor.process(
-      rawOutput is List ? rawOutput.cast<dynamic>() : const [],
-      imageWidth: image.width,
-      imageHeight: image.height,
+    final image = await _pipeline.preprocessor.processImageFileAsync(imagePath);
+    final rawOutput = await _pipeline.modelManager.run(image.tensor);
+    final outputList =
+        rawOutput is List ? rawOutput.cast<dynamic>() : const <dynamic>[];
+    final decodedResults = await Isolate.run(
+      () => Postprocessor(
+        confidenceThreshold: 0.27,
+        iouThreshold: 0.70,
+      ).process(
+        outputList,
+        imageWidth: image.width,
+        imageHeight: image.height,
+        decodeMasks: true,
+      ),
     );
     return _pipeline.validator.validate(decodedResults).map((d) {
       return Detection(
@@ -63,6 +68,7 @@ class ONNXInferenceRepository implements InferenceRepository {
           xMax: d.xMax,
           yMax: d.yMax,
         ),
+        polygon: d.polygon,
       );
     }).toList(growable: false);
   }
@@ -79,7 +85,9 @@ class ONNXInferenceRepository implements InferenceRepository {
 
     return InferenceTelemetry(
       fps: metrics.fps,
+      preprocessingTimeMs: metrics.preProcessingTime,
       inferenceTimeMs: metrics.averageInferenceTime,
+      postprocessingTimeMs: metrics.postProcessingTime,
       totalDetectionsCount: metrics.totalDetections,
       droppedFramesCount: 0,
     );

@@ -55,6 +55,8 @@ dependencies:
   excel: ^4.0.6
   qr_flutter: ^4.1.0
   jwt_decoder: ^2.0.1
+  file_selector: ^1.1.0
+  desktop_drop: ^0.7.1
 
   path: any
   sqlite3: any
@@ -75,4 +77,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/models/carton_model_b.onnx
+    - assets/models/

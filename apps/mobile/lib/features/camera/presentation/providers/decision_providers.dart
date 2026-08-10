@@ -40,6 +40,32 @@ class CountingDecisionNotifier extends StateNotifier<DecisionState> {
     state = nextState;
   }
 
+  /// A gallery image is already a single finalized capture, so it should not
+  /// be blocked by the live-camera multi-frame stability gate.
+  void acceptGalleryDetections(List<Detection> detections) {
+    final averageConfidence = detections.isEmpty
+        ? 0.0
+        : detections.fold<double>(
+              0.0,
+              (total, detection) => total + detection.confidence,
+            ) /
+            detections.length;
+    state = DecisionState(
+      status: detections.isEmpty
+          ? CountingDecisionState.rejected
+          : CountingDecisionState.readyForReview,
+      stableCount: detections.length,
+      averageConfidence: averageConfidence,
+      stabilityScore: detections.isEmpty ? 0.0 : 1.0,
+      qualityScore: averageConfidence,
+      recommendedAction:
+          detections.isEmpty ? 'No cartons detected' : 'Ready to review count',
+      warnings:
+          detections.isEmpty ? const ['No cartons were detected.'] : const [],
+      processedFramesCount: 1,
+    );
+  }
+
   void resetAnalyzer() {
     _analyzer.reset();
     state = const DecisionState(status: CountingDecisionState.collecting);

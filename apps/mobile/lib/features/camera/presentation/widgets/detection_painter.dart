@@ -7,6 +7,7 @@ class DetectionPainter extends CustomPainter {
   final BoxFit fit;
   final String? selectedId;
   final bool showLabels;
+  final bool showNumbers;
 
   DetectionPainter({
     required this.detections,
@@ -14,6 +15,7 @@ class DetectionPainter extends CustomPainter {
     this.fit = BoxFit.cover,
     this.selectedId,
     this.showLabels = true,
+    this.showNumbers = false,
   });
 
   @override
@@ -41,20 +43,30 @@ class DetectionPainter extends CustomPainter {
       dy = (size.height - cameraSize.height * scale) / 2;
     }
 
-    final boxPaint = Paint()
+    final outlinePaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0;
+      ..strokeWidth = 1.65
+      ..strokeJoin = StrokeJoin.round
+      ..strokeCap = StrokeCap.round;
+    final fillPaint = Paint()..style = PaintingStyle.fill;
 
     final textPainter = TextPainter(
       textDirection: TextDirection.ltr,
     );
 
-    for (final detection in detections) {
+    for (var detectionIndex = 0;
+        detectionIndex < detections.length;
+        detectionIndex++) {
+      final detection = detections[detectionIndex];
       final isSelected = detection.id == selectedId;
+      final isManual = detection.metadata['manuallyAdded'] == true;
+      final color = isManual
+          ? const Color(0xFF34D399)
+          : _palette[detection.id.hashCode.abs() % _palette.length];
 
-      // Configure drawing color based on selection states
-      boxPaint.color = isSelected ? Colors.yellow : detection.color;
-      boxPaint.strokeWidth = isSelected ? 5.0 : 3.0;
+      outlinePaint.color = isSelected ? Colors.white : color;
+      outlinePaint.strokeWidth = isSelected ? 2.7 : 1.65;
+      fillPaint.color = color.withValues(alpha: isSelected ? 0.16 : 0.09);
 
       // Map normalized coordinates to scaled canvas positions
       final double left =
@@ -67,7 +79,37 @@ class DetectionPainter extends CustomPainter {
           detection.boundingBox.yMax * cameraSize.height * scale + dy;
 
       final rect = Rect.fromLTRB(left, top, right, bottom);
-      canvas.drawRect(rect, boxPaint);
+      if (detection.polygon.length >= 3) {
+        final path = Path();
+        for (var i = 0; i < detection.polygon.length; i++) {
+          final point = detection.polygon[i];
+          if (point.length < 2) continue;
+          final px = point[0] * cameraSize.width * scale + dx;
+          final py = point[1] * cameraSize.height * scale + dy;
+          if (i == 0) {
+            path.moveTo(px, py);
+          } else {
+            path.lineTo(px, py);
+          }
+        }
+        path.close();
+        canvas.drawPath(path, fillPaint);
+        canvas.drawPath(path, outlinePaint);
+      } else {
+        final rounded = RRect.fromRectAndRadius(rect, const Radius.circular(3));
+        canvas.drawRRect(rounded, fillPaint);
+        canvas.drawRRect(rounded, outlinePaint);
+      }
+
+      if (showNumbers) {
+        _drawNumberBadge(
+          canvas,
+          textPainter,
+          rect.topLeft + const Offset(2, 2),
+          isManual ? '+' : '${detectionIndex + 1}',
+          color,
+        );
+      }
 
       if (!showLabels) continue;
 
@@ -81,9 +123,8 @@ class DetectionPainter extends CustomPainter {
           color: isSelected ? Colors.black : Colors.white,
           fontSize: 12,
           fontWeight: FontWeight.bold,
-          backgroundColor: isSelected
-              ? Colors.yellow
-              : detection.color.withValues(alpha: 0.85),
+          backgroundColor:
+              isSelected ? Colors.yellow : color.withValues(alpha: 0.85),
         ),
       );
 
@@ -99,6 +140,44 @@ class DetectionPainter extends CustomPainter {
         oldDelegate.cameraSize != cameraSize ||
         oldDelegate.fit != fit ||
         oldDelegate.selectedId != selectedId ||
-        oldDelegate.showLabels != showLabels;
+        oldDelegate.showLabels != showLabels ||
+        oldDelegate.showNumbers != showNumbers;
   }
+
+  void _drawNumberBadge(Canvas canvas, TextPainter painter, Offset anchor,
+      String value, Color color) {
+    painter.text = TextSpan(
+      text: value,
+      style: const TextStyle(
+        color: Colors.white,
+        fontSize: 9,
+        height: 1,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+    painter.layout();
+    final badgeSize = Size(painter.width + 7, 16);
+    final badge = RRect.fromRectAndRadius(
+      anchor & badgeSize,
+      const Radius.circular(8),
+    );
+    canvas.drawRRect(badge, Paint()..color = const Color(0xDD07131C));
+    canvas.drawRRect(
+      badge,
+      Paint()
+        ..color = color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.1,
+    );
+    painter.paint(
+        canvas, anchor + Offset((badgeSize.width - painter.width) / 2, 3));
+  }
+
+  static const _palette = <Color>[
+    Color(0xFF2DD4BF),
+    Color(0xFF38BDF8),
+    Color(0xFFFBBF24),
+    Color(0xFFC084FC),
+    Color(0xFFFB7185),
+  ];
 }

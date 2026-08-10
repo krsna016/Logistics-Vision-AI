@@ -32,7 +32,7 @@ class InferencePipeline {
     if (modelManager.activeModel == null) return [];
 
     final prepStart = DateTime.now();
-    final Float32List tensorInput = preprocessor.process(image);
+    final Float32List tensorInput = await preprocessor.processAsync(image);
     final infStart = DateTime.now();
     final rawOutput = await modelManager.run(tensorInput);
     final postStart = DateTime.now();
@@ -41,6 +41,10 @@ class InferencePipeline {
       rawOutput is List ? rawOutput.cast<dynamic>() : const [],
       imageWidth: image.width,
       imageHeight: image.height,
+      // Polygon reconstruction is substantially more expensive than carton
+      // counting. Live preview uses stable boxes; the captured final frame
+      // still receives the full segmentation masks.
+      decodeMasks: false,
     );
     final validated = validator.validate(decoded);
     final tracked = trackingEngine.update(validated);
@@ -64,6 +68,7 @@ class InferencePipeline {
                 xMax: d.xMax,
                 yMax: d.yMax,
               ),
+              polygon: d.polygon,
             ))
         .toList();
   }

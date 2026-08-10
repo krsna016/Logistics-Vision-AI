@@ -85,6 +85,10 @@ class _CaptureWorkspaceScreenState extends State<CaptureWorkspaceScreen> {
       onPointerMove: _handlePointerMove,
       onPointerUp: _handlePointerEnd,
       onPointerCancel: _handlePointerCancel,
+      // Keep both workspaces mounted. In particular, retaining CameraScreen
+      // preserves the CameraX controller and preview texture while Manual is
+      // visible, so returning to AI is an instant surface reveal instead of a
+      // camera teardown/reinitialization with a black frame.
       child: IndexedStack(
         index: aiActive ? 0 : 1,
         sizing: StackFit.expand,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +14,7 @@ import '../../../layer/domain/entities/layer.dart';
 import '../../../session/presentation/providers/session_providers.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
 import '../../../reports/presentation/widgets/generate_report_dialog.dart';
+import '../../../camera/presentation/providers/inference_notifier.dart';
 
 import '../widgets/truck_form_dialog.dart';
 import '../widgets/truck_header.dart';
@@ -63,6 +66,17 @@ class TruckDetailsScreen extends ConsumerWidget {
           child: Text('Truck record not found.',
               style: TextStyle(color: AppTheme.textSecondary)),
         ),
+      );
+    }
+
+    // Warm the single shared ONNX session while the operator reviews the
+    // truck. Camera navigation must never wait for model construction.
+    if (!allowArchivedEditing && !truck.isArchived) {
+      unawaited(
+        ref
+            .read(inferenceNotifierProvider.notifier)
+            .ensureModelReady()
+            .catchError((Object _) {}),
       );
     }
 
@@ -123,9 +137,9 @@ class TruckDetailsScreen extends ConsumerWidget {
                 showDialog<void>(
                   context: context,
                   builder: (BuildContext ctx) => StrictActionWarningDialog(
-                    title: 'Delete Truck?',
+                    title: 'Remove Truck?',
                     content:
-                        'Are you absolutely sure? This will permanently delete the truck and all its layers.',
+                        'This removes the truck and all its layers from active views and future reports. The action is recorded for audit.',
                     expectedConfirmationText: truck.truckNumber,
                     actionLabel: 'Delete',
                     actionColor: Colors.redAccent,
@@ -135,7 +149,8 @@ class TruckDetailsScreen extends ConsumerWidget {
                         context.pop();
                         ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                                content: Text('Truck deleted permanently.')));
+                                content:
+                                    Text('Truck and its layers removed.')));
                       }
                     },
                   ),
@@ -200,18 +215,22 @@ class TruckDetailsScreen extends ConsumerWidget {
                   LayerTimeline(
                     layers: layerState.layers,
                     isReadOnly: isLayerReadOnly,
-                    onEditNotes: (layer) =>
-                        _editLayerNotesDialog(context, layerNotifier, layer),
+                    onEditNotes: (layer) => _editLayerDialog(
+                      context,
+                      layerNotifier,
+                      layer,
+                      requireCorrectionReason: allowArchivedEditing,
+                    ),
                     onDeleteLayer: (layer) {
                       showDialog<void>(
                         context: context,
                         builder: (ctx) => StrictActionWarningDialog(
-                          title: 'Delete Layer ${layer.layerNumber}?',
+                          title: 'Remove Layer ${layer.layerNumber}?',
                           content:
-                              'Are you sure you want to delete this layer? This action cannot be undone.',
+                              'This voids the layer, removes it from reports, and recalculates the truck and session totals.',
                           expectedConfirmationText:
                               layer.layerNumber.toString(),
-                          actionLabel: 'Delete Layer',
+                          actionLabel: 'Remove Layer',
                           actionColor: Colors.redAccent,
                           onConfirm: () async {
                             await layerNotifier.deleteLayer(layer.id);
@@ -427,51 +446,118 @@ class TruckDetailsScreen extends ConsumerWidget {
     );
   }
 
-  void _editLayerNotesDialog(
-    BuildContext context,
-    LayerListNotifier notifier,
-    LayerRecord layer,
-  ) {
-    final controller = TextEditingController(text: layer.notes);
+  void _editLayerDialog(
+      BuildContext context, LayerListNotifier notifier, LayerRecord layer,
+      {required bool requireCorrectionReason}) {
+    final cartonController =
+        TextEditingController(text: layer.cartonCount.toString());
+    final defectController =
+        TextEditingController(text: layer.defectCount.toString());
+    final notesController = TextEditingController(text: layer.notes);
+    final reasonController = TextEditingController();
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('Notes — Layer #${layer.layerNumber}'),
-        content: TextField(
-          controller: controller,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Operator Notes',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(10)),
-              borderSide: BorderSide(color: AppTheme.dividerColor),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(10)),
-              borderSide: BorderSide(color: AppTheme.dividerColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.all(Radius.circular(10)),
-              borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
-            ),
+        title: Text('Correct Layer #${layer.layerNumber}'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: cartonController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Carton count',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: defectController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Defect count',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesController,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Operator notes',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: reasonController,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: requireCorrectionReason
+                      ? 'Correction reason (required)'
+                      : 'Correction reason',
+                  border: const OutlineInputBorder(),
+                ),
+              ),
+            ],
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
-            onPressed: () {
-              notifier.editNotes(
-                layer.id,
-                controller.text.trim().isEmpty ? null : controller.text.trim(),
-              );
-              Navigator.pop(ctx);
+            onPressed: () async {
+              final cartons = int.tryParse(cartonController.text.trim());
+              final defects = int.tryParse(defectController.text.trim());
+              final countChanged =
+                  cartons != layer.cartonCount || defects != layer.defectCount;
+              final reason = reasonController.text.trim();
+              if (cartons == null || defects == null) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Enter valid carton and defect counts.')));
+                return;
+              }
+              if ((requireCorrectionReason || countChanged) && reason.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    content: Text('Enter a reason for this correction.')));
+                return;
+              }
+              if (!countChanged && !requireCorrectionReason) {
+                await notifier.editNotes(
+                  layer.id,
+                  notesController.text.trim().isEmpty
+                      ? null
+                      : notesController.text.trim(),
+                );
+              } else {
+                final error = await notifier.correctLayer(
+                  layerId: layer.id,
+                  cartonCount: cartons,
+                  defectCount: defects,
+                  notes: notesController.text.trim().isEmpty
+                      ? null
+                      : notesController.text.trim(),
+                  reason: reason,
+                );
+                if (error != null && context.mounted) {
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(error)));
+                  return;
+                }
+              }
+              if (ctx.mounted) Navigator.pop(ctx);
             },
-            child: const Text('Save Notes'),
+            child: const Text('Save Correction'),
           ),
         ],
       ),
-    );
+    ).whenComplete(() {
+      cartonController.dispose();
+      defectController.dispose();
+      notesController.dispose();
+      reasonController.dispose();
+    });
   }
 
   Widget _buildMetricSub(String label, String value, {bool isAlert = false}) {
@@ -545,7 +631,7 @@ class TruckDetailsScreen extends ConsumerWidget {
       builder: (ctx) => ActionWarningDialog(
         title: 'Archive Session?',
         content:
-            'This truck will be removed from the active loading view and shown only in Digital Registers. No further edits will be possible.',
+            'This truck will leave the active loading view and remain in Digital Registers. Operational loading is locked, while controlled corrections remain available there.',
         actionLabel: 'Archive',
         actionColor: AppTheme.textSecondary,
         onConfirm: () {

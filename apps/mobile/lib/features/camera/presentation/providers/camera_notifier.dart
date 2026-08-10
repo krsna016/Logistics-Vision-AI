@@ -53,6 +53,7 @@ class CameraNotifier extends StateNotifier<CameraState>
     }
 
     final operation = ++_cameraOperation;
+    final startupWatch = Stopwatch()..start();
     _reconnectTimer?.cancel();
     state = const CameraState(status: CameraStatus.initializing);
     try {
@@ -105,6 +106,11 @@ class CameraNotifier extends StateNotifier<CameraState>
         controller: controller,
         availableCameras: cameras,
         selectedCameraIndex: defaultIndex,
+      );
+      startupWatch.stop();
+      AppLogger.info(
+        'Camera ready in ${startupWatch.elapsedMilliseconds}ms '
+        'at ${controller.value.previewSize}',
       );
       _reconnectTimer?.cancel();
     } catch (e, stack) {

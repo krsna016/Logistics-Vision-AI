@@ -106,6 +106,12 @@ class LocalRegisterRepository implements RegisterRepository {
     final reg = await getRegisterById(registerId);
     if (reg != null) {
       _customRemarks[reg.wagonId] = remarks;
+      final wagon = await wagonRepo.getWagonById(reg.wagonId);
+      if (wagon != null) {
+        await wagonRepo.updateWagon(
+          wagon.copyWith(remarks: remarks, updatedAt: DateTime.now()),
+        );
+      }
     }
   }
 

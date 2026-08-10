@@ -49,10 +49,10 @@ class PdfReportServiceImpl implements PdfReportService {
   @override
   Future<File> generateTruckReport({required String truckId}) async {
     final truck = await (_db.select(_db.trucks)
-          ..where((t) => t.id.equals(truckId)))
+          ..where((t) => t.id.equals(truckId) & t.isDeleted.equals(false)))
         .getSingleOrNull();
     final layers = await (_db.select(_db.layers)
-          ..where((l) => l.truckId.equals(truckId)))
+          ..where((l) => l.truckId.equals(truckId) & l.isDeleted.equals(false)))
         .get();
 
     if (truck == null) throw Exception('Truck not found');
@@ -66,9 +66,11 @@ class PdfReportServiceImpl implements PdfReportService {
       'company': truck.company,
       'warehouse': truck.warehouse,
       'status': truck.status,
-      'totalLayers': truck.totalLayers,
-      'totalCartons': truck.totalCartons,
-      'totalDefects': truck.totalDefects,
+      'totalLayers': layers.length,
+      'totalCartons':
+          layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount),
+      'totalDefects':
+          layers.fold<int>(0, (sum, layer) => sum + layer.defectCount),
       'layers': layers
           .map<Map<String, Object?>>(
             (layer) => {
@@ -102,6 +104,17 @@ class PdfReportServiceImpl implements PdfReportService {
     final trucks = await (_db.select(_db.trucks)
           ..where((t) => t.wagonId.equals(wagonId) & t.isDeleted.equals(false)))
         .get();
+    final truckIds = trucks.map((truck) => truck.id).toList(growable: false);
+    final layers = truckIds.isEmpty
+        ? <Layer>[]
+        : await (_db.select(_db.layers)
+              ..where(
+                  (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false)))
+            .get();
+    final layersByTruck = <String, List<Layer>>{
+      for (final truck in trucks)
+        truck.id: layers.where((layer) => layer.truckId == truck.id).toList(),
+    };
     final reportData = <String, Object?>{
       'wagonNumber': wagon.wagonNumber,
       'loadingDate': wagon.loadingDate.toString().split(' ')[0],
@@ -116,9 +129,11 @@ class PdfReportServiceImpl implements PdfReportService {
               'vehicleNumber': truck.vehicleNumber,
               'driverName': truck.driverName,
               'driverMobile': truck.driverMobile ?? 'N/A',
-              'totalLayers': truck.totalLayers,
-              'totalCartons': truck.totalCartons,
-              'totalDefects': truck.totalDefects,
+              'totalLayers': layersByTruck[truck.id]!.length,
+              'totalCartons': layersByTruck[truck.id]!
+                  .fold<int>(0, (sum, layer) => sum + layer.cartonCount),
+              'totalDefects': layersByTruck[truck.id]!
+                  .fold<int>(0, (sum, layer) => sum + layer.defectCount),
               'status': truck.status,
             },
           )
@@ -156,9 +171,9 @@ class PdfReportServiceImpl implements PdfReportService {
                   (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false)))
             .get();
     final totalCartons =
-        trucks.fold<int>(0, (sum, truck) => sum + truck.totalCartons);
+        layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
     final totalDefects =
-        trucks.fold<int>(0, (sum, truck) => sum + truck.totalDefects);
+        layers.fold<int>(0, (sum, layer) => sum + layer.defectCount);
 
     final reportTrucks = trucks;
     final layerByTruck = <String, Map<int, Layer>>{
@@ -212,13 +227,24 @@ class PdfReportServiceImpl implements PdfReportService {
 
   @override
   Future<File> generateAnalyticsReport() async {
-    final wagons = await _db.select(_db.wagons).get();
-    final trucks = await (_db.select(_db.trucks)
+    final wagons = await (_db.select(_db.wagons)
+          ..where((wagon) => wagon.isDeleted.equals(false)))
+        .get();
+    final allActiveTrucks = await (_db.select(_db.trucks)
           ..where((t) => t.isDeleted.equals(false)))
         .get();
-    final layers = await (_db.select(_db.layers)
+    final activeWagonIds = wagons.map((wagon) => wagon.id).toSet();
+    final trucks = allActiveTrucks
+        .where((truck) =>
+            truck.wagonId == null || activeWagonIds.contains(truck.wagonId))
+        .toList(growable: false);
+    final validTruckIds = trucks.map((truck) => truck.id).toSet();
+    final allActiveLayers = await (_db.select(_db.layers)
           ..where((l) => l.isDeleted.equals(false)))
         .get();
+    final layers = allActiveLayers
+        .where((layer) => validTruckIds.contains(layer.truckId))
+        .toList(growable: false);
 
     final totalCartons = layers.fold<int>(0, (sum, l) => sum + l.cartonCount);
     final totalDefects = layers.fold<int>(0, (sum, l) => sum + l.defectCount);

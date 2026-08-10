@@ -79,10 +79,12 @@ class LocalLayerRepository implements LayerRepository {
   }
 
   @override
-  Future<void> updateLayer(LayerRecord layer) async {
+  Future<void> updateLayer(LayerRecord layer,
+      {String? correctionReason}) async {
     final existing = await (_db.select(_db.layers)
           ..where((t) => t.id.equals(layer.id)))
         .getSingleOrNull();
+    if (existing == null || existing.isDeleted) return;
     await _db.transaction(() async {
       await (_db.update(_db.layers)..where((t) => t.id.equals(layer.id)))
           .write(LayersCompanion(
@@ -99,15 +101,69 @@ class LocalLayerRepository implements LayerRepository {
         updatedAt: drift.Value(DateTime.now()),
       ));
 
+      final activeLayers = await (_db.select(_db.layers)
+            ..where((item) =>
+                item.truckId.equals(layer.truckId) &
+                item.isDeleted.equals(false)))
+          .get();
+      final totalCartons =
+          activeLayers.fold<int>(0, (sum, item) => sum + item.cartonCount);
+      final totalDefects =
+          activeLayers.fold<int>(0, (sum, item) => sum + item.defectCount);
+      final averageConfidence = activeLayers.isEmpty
+          ? 0.0
+          : activeLayers.fold<double>(
+                  0, (sum, item) => sum + item.averageConfidence) /
+              activeLayers.length;
+      await (_db.update(_db.trucks)
+            ..where((truck) => truck.id.equals(layer.truckId)))
+          .write(TrucksCompanion(
+        totalLayers: drift.Value(activeLayers.length),
+        totalCartons: drift.Value(totalCartons),
+        totalDefects: drift.Value(totalDefects),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+      await (_db.update(_db.loadingSessions)
+            ..where((session) =>
+                session.truckId.equals(layer.truckId) &
+                session.isDeleted.equals(false)))
+          .write(LoadingSessionsCompanion(
+        totalLayers: drift.Value(activeLayers.length),
+        totalCartons: drift.Value(totalCartons),
+        totalDefects: drift.Value(totalDefects),
+        averageConfidence: drift.Value(averageConfidence),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+
+      final countChanged = existing.cartonCount != layer.cartonCount ||
+          existing.defectCount != layer.defectCount;
+      if (countChanged) {
+        await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
+              id: 'audit_layer_correct_${DateTime.now().microsecondsSinceEpoch}',
+              entityId: layer.id,
+              entityType: 'Layer',
+              action: 'correct',
+              userId: layer.operatorId,
+              details: drift.Value(
+                'Layer ${layer.layerNumber}: cartons '
+                '${existing.cartonCount} -> ${layer.cartonCount}, defects '
+                '${existing.defectCount} -> ${layer.defectCount}. Reason: '
+                '${correctionReason?.trim().isNotEmpty == true ? correctionReason!.trim() : 'Not provided'}',
+              ),
+            ));
+      }
+
       await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-            id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'sync_l_${DateTime.now().microsecondsSinceEpoch}',
             entityId: layer.id,
             entityType: 'Layer',
             operation: 'UPDATE',
-            payloadData: '{}',
+            payloadData: correctionReason?.trim().isNotEmpty == true
+                ? '{"correctionReason":"${correctionReason!.trim().replaceAll('"', '\\"')}"}'
+                : '{}',
           ));
     });
-    if (existing?.photoPath != null && existing!.photoPath != layer.photoPath) {
+    if (existing.photoPath != null && existing.photoPath != layer.photoPath) {
       await _imageStorage.deleteImage(existing.photoPath!);
     }
     AppLogger.info('Updated layer record: ${layer.id}');
@@ -118,20 +174,78 @@ class LocalLayerRepository implements LayerRepository {
     final existing = await (_db.select(_db.layers)
           ..where((t) => t.id.equals(id)))
         .getSingleOrNull();
+    if (existing == null || existing.isDeleted) return;
     await _db.transaction(() async {
       await (_db.update(_db.layers)..where((t) => t.id.equals(id)))
-          .write(const LayersCompanion(isDeleted: drift.Value(true)));
+          .write(LayersCompanion(
+        isDeleted: const drift.Value(true),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+      await (_db.update(_db.detections)
+            ..where((detection) => detection.layerId.equals(id)))
+          .write(DetectionsCompanion(
+        isDeleted: const drift.Value(true),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+
+      final activeLayers = await (_db.select(_db.layers)
+            ..where((layer) =>
+                layer.truckId.equals(existing.truckId) &
+                layer.isDeleted.equals(false)))
+          .get();
+      final totalCartons =
+          activeLayers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
+      final totalDefects =
+          activeLayers.fold<int>(0, (sum, layer) => sum + layer.defectCount);
+      final averageConfidence = activeLayers.isEmpty
+          ? 0.0
+          : activeLayers.fold<double>(
+                  0, (sum, layer) => sum + layer.averageConfidence) /
+              activeLayers.length;
+
+      await (_db.update(_db.trucks)
+            ..where((truck) => truck.id.equals(existing.truckId)))
+          .write(TrucksCompanion(
+        totalLayers: drift.Value(activeLayers.length),
+        totalCartons: drift.Value(totalCartons),
+        totalDefects: drift.Value(totalDefects),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+
+      await (_db.update(_db.loadingSessions)
+            ..where((session) =>
+                session.truckId.equals(existing.truckId) &
+                session.isDeleted.equals(false)))
+          .write(LoadingSessionsCompanion(
+        totalLayers: drift.Value(activeLayers.length),
+        totalCartons: drift.Value(totalCartons),
+        totalDefects: drift.Value(totalDefects),
+        averageConfidence: drift.Value(averageConfidence),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+
+      await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
+            id: 'audit_layer_delete_${DateTime.now().microsecondsSinceEpoch}',
+            entityId: id,
+            entityType: 'Layer',
+            action: 'delete',
+            userId: existing.operatorId ?? 'local_operator',
+            details: drift.Value(
+              'Voided layer ${existing.layerNumber}; removed '
+              '${existing.cartonCount} cartons and ${existing.defectCount} defects.',
+            ),
+          ));
 
       await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-            id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'sync_l_${DateTime.now().microsecondsSinceEpoch}',
             entityId: id,
             entityType: 'Layer',
             operation: 'DELETE',
-            payloadData: '{}',
+            payloadData: '{"cascadeTotals":true}',
           ));
     });
-    if (existing?.photoPath != null) {
-      await _imageStorage.deleteImage(existing!.photoPath!);
+    if (existing.photoPath != null) {
+      await _imageStorage.deleteImage(existing.photoPath!);
     }
     AppLogger.info('Soft deleted layer: $id');
   }

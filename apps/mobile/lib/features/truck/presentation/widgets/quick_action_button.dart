@@ -41,7 +41,7 @@ class QuickActionButton extends StatelessWidget {
               horizontal: AppResponsive.isCompact(context) ? 12 : 20,
             ),
             shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -84,7 +84,7 @@ class QuickActionButton extends StatelessWidget {
             horizontal: AppResponsive.isCompact(context) ? 12 : 20,
           ),
           shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           elevation: onPressed == null ? 0 : 2,
         ),
         child: Row(

@@ -107,19 +107,80 @@ class LocalWagonRepository implements WagonRepository {
 
   @override
   Future<void> deleteWagon(String id) async {
+    final wagon = await (_db.select(_db.wagons)
+          ..where((row) => row.id.equals(id)))
+        .getSingleOrNull();
+    if (wagon == null || wagon.isDeleted) return;
     await _db.transaction(() async {
+      final trucks = await (_db.select(_db.trucks)
+            ..where((truck) => truck.wagonId.equals(id)))
+          .get();
+      final truckIds = trucks.map((truck) => truck.id).toList(growable: false);
+      final layers = truckIds.isEmpty
+          ? <db.Layer>[]
+          : await (_db.select(_db.layers)
+                ..where((layer) => layer.truckId.isIn(truckIds)))
+              .get();
+      final layerIds = layers.map((layer) => layer.id).toList(growable: false);
+
       await (_db.update(_db.wagons)..where((t) => t.id.equals(id))).write(
           db.WagonsCompanion(
               isDeleted: const drift.Value(true),
               updatedAt: drift.Value(DateTime.now())) // soft delete
           );
+      if (truckIds.isNotEmpty) {
+        await (_db.update(_db.trucks)
+              ..where((truck) => truck.id.isIn(truckIds)))
+            .write(db.TrucksCompanion(
+          isDeleted: const drift.Value(true),
+          updatedAt: drift.Value(DateTime.now()),
+        ));
+        await (_db.update(_db.layers)
+              ..where((layer) => layer.truckId.isIn(truckIds)))
+            .write(db.LayersCompanion(
+          isDeleted: const drift.Value(true),
+          updatedAt: drift.Value(DateTime.now()),
+        ));
+        await (_db.update(_db.loadingSessions)
+              ..where((session) => session.truckId.isIn(truckIds)))
+            .write(db.LoadingSessionsCompanion(
+          isDeleted: const drift.Value(true),
+          status: const drift.Value('cancelled'),
+          endTime: drift.Value(DateTime.now()),
+          updatedAt: drift.Value(DateTime.now()),
+        ));
+      }
+      if (layerIds.isNotEmpty) {
+        await (_db.update(_db.detections)
+              ..where((detection) => detection.layerId.isIn(layerIds)))
+            .write(db.DetectionsCompanion(
+          isDeleted: const drift.Value(true),
+          updatedAt: drift.Value(DateTime.now()),
+        ));
+      }
+      await (_db.update(_db.digitalRegisters)
+            ..where((register) => register.wagonId.equals(id)))
+          .write(db.DigitalRegistersCompanion(
+        isDeleted: const drift.Value(true),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
+
+      await _db.into(_db.auditLogs).insert(db.AuditLogsCompanion.insert(
+            id: 'audit_wagon_delete_${DateTime.now().microsecondsSinceEpoch}',
+            entityId: id,
+            entityType: 'Wagon',
+            action: 'delete',
+            userId: 'local_operator',
+            details: drift.Value(
+                'Voided wagon ${wagon.wagonNumber}, ${trucks.length} trucks and ${layers.length} layers.'),
+          ));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_w_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'sync_w_${DateTime.now().microsecondsSinceEpoch}',
             entityId: id,
             entityType: 'Wagon',
             operation: 'DELETE',
-            payloadData: '{}',
+            payloadData: '{"cascadeChildren":true}',
           ));
     });
     AppLogger.info('Deleted wagon record locally: $id');

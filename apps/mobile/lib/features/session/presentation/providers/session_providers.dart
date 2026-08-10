@@ -10,6 +10,7 @@ import '../../../../core/utils/audit_logger.dart';
 import '../../../../utils/logger.dart';
 
 import '../../../../core/providers/database_provider.dart';
+import '../../../../core/ai_engine/models/ai_model.dart';
 
 final loadingSessionRepositoryProvider =
     Provider<LoadingSessionRepository>((ref) {
@@ -92,7 +93,7 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
         operatorId: 'usr_loader_01', // Mock user profile
         startTime: DateTime.now(),
         status: SessionStatus.started,
-        modelVersion: 'yolo11n_carton_seg_v1_3',
+        modelVersion: AIModel.activeVersion,
       );
 
       await _repository.saveSession(newSession);
@@ -140,6 +141,15 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
     await _repository.saveSession(updated);
     state = state.copyWith(activeSession: updated);
     AppLogger.info('Updated session stats for: ${session.id}');
+  }
+
+  Future<void> refreshTotalsForTruck(String truckId) async {
+    final session = state.activeSession;
+    if (session == null || session.truckId != truckId) return;
+    final refreshed = await _repository.getSessionById(session.id);
+    if (refreshed != null) {
+      state = ActiveSessionState(activeSession: refreshed);
+    }
   }
 
   Future<void> completeSession() async {

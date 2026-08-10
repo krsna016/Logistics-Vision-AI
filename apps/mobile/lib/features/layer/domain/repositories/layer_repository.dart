@@ -8,7 +8,7 @@ abstract class LayerRepository {
   Future<List<LayerRecord>> getLayersByTruck(String truckId);
 
   /// Update an existing layer record (e.g. notes or audit entries).
-  Future<void> updateLayer(LayerRecord layer);
+  Future<void> updateLayer(LayerRecord layer, {String? correctionReason});
 
   /// Soft delete a layer record.
   Future<void> softDeleteLayer(String id);

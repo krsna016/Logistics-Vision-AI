@@ -119,28 +119,19 @@ class WagonDetailsScreen extends ConsumerWidget {
               showDialog<void>(
                 context: context,
                 builder: (ctx) => StrictActionWarningDialog(
-                  title: 'Delete Wagon?',
+                  title: 'Remove Wagon?',
                   content:
-                      'Are you absolutely sure? This will permanently delete the wagon and all associated trucks and layers.',
+                      'This removes the wagon and all associated trucks and layers from active views and future reports. The action is recorded for audit.',
                   expectedConfirmationText: wagon.wagonNumber,
                   actionLabel: 'Delete',
                   actionColor: Colors.redAccent,
                   onConfirm: () async {
-                    final truckNotifier = ref.read(truckListProvider.notifier);
-                    final trucks = ref
-                        .read(truckListProvider)
-                        .trucks
-                        .where((t) => t.wagonId == wagon.id)
-                        .toList();
-                    for (final t in trucks) {
-                      await truckNotifier.deleteTruck(t.id);
-                    }
-
                     await notifier.deleteWagon(wagon.id);
+                    await ref.read(truckListProvider.notifier).refresh();
                     if (context.mounted) {
                       context.go('/wagons');
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                          content: Text('Wagon deleted permanently.')));
+                          content: Text('Wagon and related records removed.')));
                     }
                   },
                 ),
@@ -551,7 +542,7 @@ class WagonDetailsScreen extends ConsumerWidget {
       builder: (ctx) => ActionWarningDialog(
         title: 'Archive Wagon?',
         content:
-            'This wagon will be removed from the active loading view and shown only in Digital Registers. No further edits will be possible.',
+            'This wagon will leave the active loading view and remain in Digital Registers. Operational loading is locked, while controlled corrections remain available there.',
         actionLabel: 'Archive',
         actionColor: AppTheme.textSecondary,
         icon: Icons.archive_outlined,
@@ -800,7 +791,7 @@ class _WagonBottomBar extends StatelessWidget {
                   minimumSize: const Size.fromHeight(_actionHeight),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                      borderRadius: BorderRadius.circular(24)),
                 ),
               ),
             )
@@ -824,7 +815,7 @@ class _WagonBottomBar extends StatelessWidget {
                       minimumSize: const Size.fromHeight(_actionHeight),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14)),
+                          borderRadius: BorderRadius.circular(24)),
                     ),
                   ),
                 ),

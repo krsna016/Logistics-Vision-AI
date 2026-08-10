@@ -23,9 +23,6 @@ class LocationTrackingService {
   /// requires the employee to approve the request; apps cannot grant this
   /// permission silently.
   Future<LocationPermission> requestPermission() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      return LocationPermission.denied;
-    }
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -38,6 +35,9 @@ class LocationTrackingService {
     final permission = await requestPermission();
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
+      return false;
+    }
+    if (!await Geolocator.isLocationServiceEnabled()) {
       return false;
     }
 

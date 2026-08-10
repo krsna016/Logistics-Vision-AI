@@ -14,6 +14,8 @@ class DetectionValidator {
   /// Filters out boxes that are below an absolute minimum acceptable tier
   List<DetectionResult> validate(List<DetectionResult> detections) {
     // In strict enterprise settings, we might reject boxes that completely fail sanity checks
-    return detections.where((det) => det.confidence >= 0.40).toList();
+    // The deployed Stage-1 checkpoint was count-calibrated at 0.27. Do not
+    // silently apply a second, stricter threshold after post-processing.
+    return detections.where((det) => det.confidence >= 0.27).toList();
   }
 }

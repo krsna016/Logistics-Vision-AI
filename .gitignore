@@ -31,3 +31,8 @@ Thumbs.db
 ai/model_audit/.venv/
 ai/model_audit/**/labels.cache
 runs/
+
+# Local package stores and local AI models
+.pnpm-store/
+ai/sam2-local/
+ai/sam3-local/

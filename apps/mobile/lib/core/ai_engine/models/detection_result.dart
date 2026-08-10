@@ -7,6 +7,9 @@ class DetectionResult {
   final double xMax;
   final double yMax;
 
+  /// Normalized polygon vertices in display-image coordinates.
+  final List<List<double>> polygon;
+
   const DetectionResult({
     required this.id,
     required this.label,
@@ -15,5 +18,6 @@ class DetectionResult {
     required this.yMin,
     required this.xMax,
     required this.yMax,
+    this.polygon = const [],
   });
 }

@@ -48,12 +48,22 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   double _minimumZoom = 1;
   double _maximumZoom = 1;
   bool _isGalleryAnalyzing = false;
+  bool _isFinalizingCapture = false;
   bool _torchOn = false;
-  bool _routeCovered = false;
+  bool _aiStarted = false;
   CameraController? _previewReadyController;
+
+  @override
+  void didUpdateWidget(covariant CameraScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive && !widget.isActive && _torchOn) {
+      unawaited(_toggleTorch(_zoomController));
+    }
+  }
 
   Future<void> _pickImage() async {
     try {
+      if (!_aiStarted) setState(() => _aiStarted = true);
       final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
       if (image != null) {
         setState(() {
@@ -146,29 +156,22 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     _syncNativeZoom(!isGallery && cameraState.status == CameraStatus.ready
         ? cameraState.controller
         : null);
-    final inferenceReady = ref.watch(
-      inferenceNotifierProvider.select((state) => state.isModelLoaded),
-    );
-    final inferenceState = isGallery
-        ? ref.watch(inferenceNotifierProvider)
-        : ref.read(inferenceNotifierProvider);
-    final decisionState = isGallery
-        ? ref.watch(countingDecisionProvider)
-        : ref.read(countingDecisionProvider);
-    final decisionNotifier = ref.read(countingDecisionProvider.notifier);
+    final inferenceState = _aiStarted
+        ? (isGallery
+            ? ref.watch(inferenceNotifierProvider)
+            : ref.read(inferenceNotifierProvider))
+        : const InferenceState();
+    final decisionState = _aiStarted
+        ? (isGallery
+            ? ref.watch(countingDecisionProvider)
+            : ref.read(countingDecisionProvider))
+        : const DecisionState(status: CountingDecisionState.collecting);
+    final decisionNotifier =
+        _aiStarted ? ref.read(countingDecisionProvider.notifier) : null;
     final routerState = GoRouterState.of(context);
     final truckId = routerState.pathParameters['id'] ?? '';
     final bool isReadyForReview =
         decisionState.status == CountingDecisionState.readyForReview;
-    final previewReady = isGallery ||
-        (cameraState.controller != null &&
-            identical(_previewReadyController, cameraState.controller));
-    final hostsStartupCurtain = !isGallery &&
-        (cameraState.status == CameraStatus.initializing ||
-            cameraState.status == CameraStatus.switching ||
-            cameraState.status == CameraStatus.ready);
-    final awaitingPreview = hostsStartupCurtain && !previewReady;
-
     return Scaffold(
       backgroundColor: Colors.black,
       extendBody: true,
@@ -194,34 +197,28 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                       decisionState: decisionState,
                       detections: inferenceState.detections,
                     )
-                  : AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 220),
-                      reverseDuration: const Duration(milliseconds: 160),
-                      switchInCurve: Curves.easeOut,
-                      switchOutCurve: Curves.easeIn,
-                      child: KeyedSubtree(
-                        key: ValueKey(cameraState.status),
-                        child: _buildMainContent(
-                          context,
-                          cameraState,
-                          cameraNotifier,
-                          inferenceReady && widget.isActive && !_routeCovered,
-                          () {
-                            final controller = cameraState.controller;
-                            if (!mounted || controller == null) return;
-                            if (identical(
-                                _previewReadyController, controller)) {
-                              return;
-                            }
-                            setState(
-                              () => _previewReadyController = controller,
-                            );
-                          },
-                        ),
-                      ),
+                  : _buildMainContent(
+                      context,
+                      cameraState,
+                      cameraNotifier,
+                      () {
+                        final controller = cameraState.controller;
+                        if (!mounted || controller == null) return;
+                        if (identical(_previewReadyController, controller)) {
+                          return;
+                        }
+                        setState(() => _previewReadyController = controller);
+                      },
                     ),
             ),
           ),
+
+          if (!isGallery && cameraState.status == CameraStatus.ready)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: _AlignmentGuide(isVisible: true),
+              ),
+            ),
 
           // ── Layer 1: Simple camera header ──────────────────────────────
           Positioned(
@@ -267,6 +264,51 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
               ),
             ),
 
+          if (_isFinalizingCapture)
+            const Positioned.fill(
+              child: ColoredBox(
+                color: Color(0x99000000),
+                child: IgnorePointer(
+                  child: Center(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Color(0xEE101820),
+                        borderRadius: BorderRadius.all(Radius.circular(16)),
+                      ),
+                      child: Padding(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 24,
+                              height: 24,
+                              child:
+                                  CircularProgressIndicator(strokeWidth: 2.5),
+                            ),
+                            SizedBox(height: 12),
+                            Text(
+                              'Verifying final carton count…',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Using the captured high-quality photo',
+                              style: TextStyle(color: Colors.white60),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
           // ── Layer 2: Minimal controls over the camera preview ──────────
           if (cameraState.status == CameraStatus.ready || isGallery)
             Positioned(
@@ -291,7 +333,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                     });
                     cameraNotifier.switchCamera();
                   }
-                  decisionNotifier.resetAnalyzer();
+                  decisionNotifier?.resetAnalyzer();
                 },
                 onReview: isReadyForReview
                     ? () => _navigateToReview(
@@ -301,57 +343,22 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                           decisionState,
                         )
                     : null,
-                onCapture: !isGallery
+                onCapture: !isGallery && !_isFinalizingCapture
                     ? () {
                         _captureLayerPhoto(
                           context,
                           truckId,
-                          ref.read(inferenceNotifierProvider),
-                          ref.read(countingDecisionProvider),
                         );
                       }
                     : null,
               ),
             ),
 
-          // Keep every intermediate camera/overlay frame behind one stable
-          // surface. The complete camera workspace fades in only after the
-          // first frame from the active controller is available.
-          if (hostsStartupCurtain)
-            Positioned.fill(
-              child: IgnorePointer(
-                ignoring: !awaitingPreview,
-                child: AnimatedOpacity(
-                  opacity: awaitingPreview ? 1 : 0,
-                  duration: const Duration(milliseconds: 140),
-                  curve: Curves.easeOut,
-                  child: const ColoredBox(
-                    color: Colors.black,
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.4,
-                            ),
-                          ),
-                          SizedBox(height: 14),
-                          Text(
-                            'Preparing camera...',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
+          if (_isFinalizingCapture)
+            const Positioned.fill(
+              child: ModalBarrier(
+                dismissible: false,
+                color: Colors.transparent,
               ),
             ),
         ],
@@ -361,34 +368,41 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
 
   Future<void> _navigateToReview(BuildContext context, String truckId,
       InferenceState inferenceState, DecisionState decisionState,
-      {String? photoPath, int? capturedCount}) async {
+      {String? photoPath,
+      int? capturedCount,
+      Future<AIResult>? finalResult}) async {
     final aiResult = AIResult(
       detections: inferenceState.detections,
       count: capturedCount ??
           (_pickedImagePath != null
               ? inferenceState.detections.length
               : decisionState.stableCount),
-      averageConfidence: 0.96,
-      processingTimeMs: 15.0,
-      modelVersion: 'yolo11n_carton_seg_v1_3',
+      averageConfidence: inferenceState.detections.isEmpty
+          ? 0.0
+          : inferenceState.detections.fold<double>(
+                0.0,
+                (total, detection) => total + detection.confidence,
+              ) /
+              inferenceState.detections.length,
+      processingTimeMs: inferenceState.telemetry.inferenceTimeMs,
+      modelVersion: AIModel.activeVersion,
       inferenceTimestamp: DateTime.now(),
       frameSize: const Size(720, 1280),
     );
 
-    if (mounted) setState(() => _routeCovered = true);
     await context.push('/trucks/$truckId/review', extra: {
       'aiResult': aiResult,
       'photoPath': photoPath ?? _pickedImagePath,
+      'finalResult': finalResult,
     });
-    if (mounted) setState(() => _routeCovered = false);
   }
 
   Future<void> _captureLayerPhoto(
     BuildContext context,
     String truckId,
-    InferenceState inferenceState,
-    DecisionState decisionState,
   ) async {
+    if (_isFinalizingCapture) return;
+    setState(() => _isFinalizingCapture = true);
     try {
       final photo = await _streamKey.currentState?.capturePhoto();
       if (photo == null || !context.mounted) return;
@@ -399,16 +413,17 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       );
       if (!context.mounted) return;
 
-      final capturedCount = decisionState.stableCount > 0
-          ? decisionState.stableCount
-          : inferenceState.detections.length;
-      _navigateToReview(
+      // Start the full-resolution pass, but do not make navigation wait for
+      // mask decoding. Review appears with the latest live result and updates
+      // atomically when this future completes.
+      final finalResult = _finalizeCapturedResult(savedPath);
+      await _navigateToReview(
         context,
         truckId,
-        inferenceState,
-        decisionState,
+        const InferenceState(),
+        const DecisionState(status: CountingDecisionState.collecting),
         photoPath: savedPath,
-        capturedCount: capturedCount,
+        finalResult: finalResult,
       );
     } catch (e, stack) {
       AppLogger.error('Failed to capture layer photo', e, stack);
@@ -417,14 +432,46 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
           const SnackBar(content: Text('Could not capture the layer photo.')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isFinalizingCapture = false);
     }
+  }
+
+  Future<AIResult> _finalizeCapturedResult(String imagePath) async {
+    final watch = Stopwatch()..start();
+    final detections = await ref
+        .read(inferenceNotifierProvider.notifier)
+        .finalizeCapturedImage(imagePath);
+    watch.stop();
+    final inferenceState = ref.read(inferenceNotifierProvider);
+    final averageConfidence = detections.isEmpty
+        ? 0.0
+        : detections.fold<double>(
+              0.0,
+              (total, detection) => total + detection.confidence,
+            ) /
+            detections.length;
+    AppLogger.info(
+      'Final captured-image analysis completed in '
+      '${watch.elapsedMilliseconds}ms with ${detections.length} cartons.',
+    );
+    return AIResult(
+      detections: detections,
+      count: detections.length,
+      averageConfidence: averageConfidence,
+      processingTimeMs: inferenceState.telemetry.preprocessingTimeMs +
+          inferenceState.telemetry.inferenceTimeMs +
+          inferenceState.telemetry.postprocessingTimeMs,
+      modelVersion: AIModel.activeVersion,
+      inferenceTimestamp: DateTime.now(),
+      frameSize: const Size(720, 1280),
+    );
   }
 
   Widget _buildMainContent(
     BuildContext context,
     CameraState state,
     CameraNotifier notifier,
-    bool inferenceReady,
     VoidCallback onPreviewReady,
   ) {
     switch (state.status) {
@@ -473,7 +520,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         return _CameraStreamAdapter(
           key: _streamKey,
           controller: state.controller!,
-          inferenceReady: inferenceReady,
           onPreviewReady: onPreviewReady,
         );
 
@@ -1494,205 +1540,39 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
 }
 
 // ─── CAMERA STREAM ADAPTER ────────────────────────────────────────────────────
-class _CameraStreamAdapter extends ConsumerStatefulWidget {
+class _CameraStreamAdapter extends StatefulWidget {
   final CameraController controller;
-  final bool inferenceReady;
   final VoidCallback onPreviewReady;
 
   const _CameraStreamAdapter({
     super.key,
     required this.controller,
-    required this.inferenceReady,
     required this.onPreviewReady,
   });
 
   @override
-  ConsumerState<_CameraStreamAdapter> createState() =>
-      _CameraStreamAdapterState();
+  State<_CameraStreamAdapter> createState() => _CameraStreamAdapterState();
 }
 
-class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
-  bool _isStreaming = false;
-  bool _isStarting = false;
-  bool _hasReceivedFrame = false;
-  bool _inferenceEnabled = false;
-  Timer? _streamStartTimer;
-  Timer? _inferenceStartTimer;
-  Timer? _previewRecoveryTimer;
-  Timer? _streamWatchdogTimer;
-  DateTime? _lastFrameAt;
-  int _consecutiveBlackFrames = 0;
-  int _consecutiveDarkFrames = 0;
-  int _consecutiveUsableFrames = 0;
-  bool _isLowLight = false;
-  bool _recoveryRequested = false;
-
+class _CameraStreamAdapterState extends State<_CameraStreamAdapter> {
   @override
   void initState() {
     super.initState();
-    _scheduleStreamStart();
+    _reportPreviewReady();
   }
 
   @override
   void didUpdateWidget(covariant _CameraStreamAdapter oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
-      _streamStartTimer?.cancel();
-      _inferenceStartTimer?.cancel();
-      _streamWatchdogTimer?.cancel();
-      _hasReceivedFrame = false;
-      _inferenceEnabled = false;
-      _lastFrameAt = null;
-      _consecutiveBlackFrames = 0;
-      _consecutiveDarkFrames = 0;
-      _consecutiveUsableFrames = 0;
-      _isLowLight = false;
-      _recoveryRequested = false;
-      unawaited(_replaceStream(oldWidget.controller));
+      _reportPreviewReady();
     }
   }
 
-  void _scheduleStreamStart() {
-    _streamStartTimer?.cancel();
-    _previewRecoveryTimer?.cancel();
-    // Controller initialization does not mean that CameraX has produced a
-    // usable surface frame. Keep the curtain until a real analysis frame and
-    // rebuild the session if the device never delivers one.
-    _previewRecoveryTimer = Timer(const Duration(milliseconds: 2500), () {
-      if (mounted && !_hasReceivedFrame) {
-        unawaited(
-          ref.read(cameraNotifierProvider.notifier).recoverCamera(),
-        );
-      }
+  void _reportPreviewReady() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.onPreviewReady();
     });
-    // Let the platform preview texture and route transition settle before
-    // starting the more expensive YUV image stream used by inference.
-    _streamStartTimer = Timer(const Duration(milliseconds: 520), () {
-      if (mounted) unawaited(_startStream());
-    });
-    _streamWatchdogTimer?.cancel();
-    _streamWatchdogTimer = Timer.periodic(
-      const Duration(milliseconds: 750),
-      (_) => _checkStreamHealth(),
-    );
-  }
-
-  void _checkStreamHealth() {
-    if (!mounted || !_isStreaming || _recoveryRequested) return;
-    if (widget.controller.value.hasError) {
-      _requestRecovery(
-        'Camera controller reported: ${widget.controller.value.errorDescription}',
-      );
-      return;
-    }
-    final lastFrameAt = _lastFrameAt;
-    if (lastFrameAt != null &&
-        DateTime.now().difference(lastFrameAt) >
-            const Duration(milliseconds: 1800)) {
-      _requestRecovery('Camera image stream stopped delivering frames.');
-    }
-  }
-
-  void _inspectFrameBrightness(CameraImage image) {
-    if (image.planes.isEmpty || _recoveryRequested) return;
-    final luminance = image.planes.first.bytes;
-    if (luminance.isEmpty) return;
-
-    // Sample only a few hundred Y-plane pixels, keeping this check negligible
-    // compared with inference. Normal YUV black is commonly around 16, so a
-    // dark scene must never be treated as a broken CameraX session.
-    final step = math.max(1, luminance.length ~/ 320);
-    var total = 0;
-    var samples = 0;
-    var minimum = 255;
-    var maximum = 0;
-    for (var index = 0; index < luminance.length; index += step) {
-      final value = luminance[index];
-      total += value;
-      minimum = math.min(minimum, value);
-      maximum = math.max(maximum, value);
-      samples++;
-    }
-    final average = samples == 0 ? 255 : total / samples;
-    final isCameraBlackFrame = average < 1.5 && maximum - minimum <= 1;
-    _consecutiveBlackFrames =
-        isCameraBlackFrame ? _consecutiveBlackFrames + 1 : 0;
-    if (_consecutiveBlackFrames >= 30) {
-      _requestRecovery('Camera image stream returned corrupted zero frames.');
-      return;
-    }
-
-    final lowLight = average < 38;
-    _consecutiveDarkFrames = lowLight ? _consecutiveDarkFrames + 1 : 0;
-    _consecutiveUsableFrames = lowLight ? 0 : _consecutiveUsableFrames + 1;
-    if (!_isLowLight && _consecutiveDarkFrames >= 12 && mounted) {
-      setState(() => _isLowLight = true);
-    } else if (_isLowLight && _consecutiveUsableFrames >= 6 && mounted) {
-      setState(() => _isLowLight = false);
-    }
-  }
-
-  void _requestRecovery(String reason) {
-    if (_recoveryRequested || !mounted) return;
-    _recoveryRequested = true;
-    AppLogger.warning(reason);
-    unawaited(ref.read(cameraNotifierProvider.notifier).recoverCamera());
-  }
-
-  Future<void> _replaceStream(CameraController oldController) async {
-    await _stopStream(oldController);
-    if (mounted) _scheduleStreamStart();
-  }
-
-  Future<void> _startStream() async {
-    if (_isStreaming || _isStarting) return;
-    _isStarting = true;
-    final controller = widget.controller;
-    try {
-      final notifier = ref.read(inferenceNotifierProvider.notifier);
-      await controller.startImageStream((image) {
-        if (mounted) {
-          _lastFrameAt = DateTime.now();
-          _inspectFrameBrightness(image);
-          if (!_hasReceivedFrame) {
-            _previewRecoveryTimer?.cancel();
-            setState(() => _hasReceivedFrame = true);
-            widget.onPreviewReady();
-            _inferenceStartTimer?.cancel();
-            _inferenceStartTimer = Timer(
-              const Duration(milliseconds: 320),
-              () {
-                if (mounted) _inferenceEnabled = true;
-              },
-            );
-          }
-          if (_inferenceEnabled && widget.inferenceReady) {
-            notifier.processImageFrame(image);
-          }
-        }
-      });
-      if (!mounted || !identical(controller, widget.controller)) {
-        await controller.stopImageStream();
-        return;
-      }
-      _isStreaming = true;
-    } catch (e, stack) {
-      AppLogger.error('Failed to start camera frame stream', e, stack);
-    } finally {
-      _isStarting = false;
-    }
-  }
-
-  Future<void> _stopStream(CameraController controller) async {
-    if (!_isStreaming && !_isStarting) return;
-    _isStreaming = false;
-    try {
-      if (controller.value.isStreamingImages) {
-        await controller.stopImageStream();
-      }
-    } catch (e, stack) {
-      AppLogger.error('Failed to halt camera stream', e, stack);
-    }
   }
 
   Future<XFile?> capturePhoto() async {
@@ -1700,25 +1580,12 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     if (!controller.value.isInitialized) return null;
 
     try {
-      // CameraX binds Preview, ImageCapture and ImageAnalysis concurrently.
-      // Taking a picture does not require tearing down and recreating the
-      // analysis surface, which could leave some Xiaomi devices black.
       final photo = await controller.takePicture();
       return photo;
     } catch (e, stack) {
       AppLogger.error('Failed to capture camera photo', e, stack);
       return null;
     }
-  }
-
-  @override
-  void dispose() {
-    _streamStartTimer?.cancel();
-    _inferenceStartTimer?.cancel();
-    _previewRecoveryTimer?.cancel();
-    _streamWatchdogTimer?.cancel();
-    unawaited(_stopStream(widget.controller));
-    super.dispose();
   }
 
   @override
@@ -1733,76 +1600,25 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     // CameraPreview applies the platform-specific rotation and aspect-ratio
     // transform internally. Keep the overlay as its child so its canvas is
     // exactly the same rectangle as the displayed camera frame.
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        FittedBox(
-          fit: BoxFit.cover,
-          clipBehavior: Clip.hardEdge,
-          child: SizedBox(
-            width: cameraSize.width,
-            height: cameraSize.height,
-            child: CameraPreview(
-              widget.controller,
-              child: Consumer(
-                builder: (context, ref, child) {
-                  final detections = ref.watch(
-                    inferenceNotifierProvider.select(
-                      (state) => state.detections,
-                    ),
-                  );
-                  return Positioned.fill(
-                    child: RepaintBoundary(
-                      child: DetectionOverlayWidget(
-                        detections: detections,
-                        cameraSize: cameraSize,
-                        fit: BoxFit.fill,
-                        showLabels: false,
-                      ),
-                    ),
-                  );
-                },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewportAspect = constraints.maxWidth / constraints.maxHeight;
+        final previewAspect = cameraSize.width / cameraSize.height;
+        final coverScale = previewAspect > viewportAspect
+            ? previewAspect / viewportAspect
+            : viewportAspect / previewAspect;
+        return ClipRect(
+          child: Center(
+            child: Transform.scale(
+              scale: coverScale,
+              child: AspectRatio(
+                aspectRatio: previewAspect,
+                child: CameraPreview(widget.controller),
               ),
             ),
           ),
-        ),
-        if (_isLowLight)
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 72,
-            left: 24,
-            right: 24,
-            child: IgnorePointer(
-              child: Center(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.72),
-                    borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: Colors.white24),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.flash_on_rounded,
-                            color: Colors.amber, size: 18),
-                        SizedBox(width: 8),
-                        Text(
-                          'Too dark — turn on flash',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-      ],
+        );
+      },
     );
   }
 }

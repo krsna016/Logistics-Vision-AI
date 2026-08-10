@@ -13,11 +13,16 @@ import '../../../camera/presentation/widgets/detection_overlay_widget.dart';
 import '../../../../utils/logger.dart';
 import '../../../camera/domain/entities/detection.dart';
 
+// Retained only for the legacy, non-rendered toolbar implementation below.
+// The active review experience is now fully tap-driven.
+enum _CorrectionMode { inspect, add, remove }
+
 class LayerReviewScreen extends ConsumerStatefulWidget {
   final String truckId;
   final AIResult aiResult;
   final String? photoPath;
   final String? initialNotes;
+  final Future<AIResult>? finalResult;
 
   const LayerReviewScreen({
     super.key,
@@ -25,6 +30,7 @@ class LayerReviewScreen extends ConsumerStatefulWidget {
     required this.aiResult,
     this.photoPath,
     this.initialNotes,
+    this.finalResult,
   });
 
   @override
@@ -38,6 +44,9 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   String? _errorMessage;
   late int _correctedCount;
   late List<Detection> _editableDetections;
+  late AIResult _aiResult;
+  bool _isFinalizing = false;
+  bool _finalizationFailed = false;
   final Set<String> _hiddenDetectionIds = <String>{};
   final List<_ReviewSnapshot> _history = <_ReviewSnapshot>[];
 
@@ -45,8 +54,39 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   void initState() {
     super.initState();
     _notesCtrl.text = widget.initialNotes ?? '';
-    _correctedCount = widget.aiResult.count;
-    _editableDetections = List<Detection>.of(widget.aiResult.detections);
+    _aiResult = widget.aiResult;
+    _correctedCount = _aiResult.count;
+    _editableDetections = List<Detection>.of(_aiResult.detections);
+    final pendingResult = widget.finalResult;
+    if (pendingResult != null) {
+      _isFinalizing = true;
+      _resolveFinalResult(pendingResult);
+    }
+  }
+
+  Future<void> _resolveFinalResult(Future<AIResult> pendingResult) async {
+    try {
+      final result = await pendingResult;
+      if (!mounted) return;
+      setState(() {
+        _aiResult = result;
+        _editableDetections = List<Detection>.of(result.detections);
+        _hiddenDetectionIds.clear();
+        _history.clear();
+        _correctedCount = result.count;
+        _isFinalizing = false;
+        _finalizationFailed = false;
+      });
+    } catch (error, stack) {
+      AppLogger.error('Final layer analysis failed in review', error, stack);
+      if (!mounted) return;
+      setState(() {
+        _isFinalizing = false;
+        _finalizationFailed = true;
+        _errorMessage =
+            'Final AI verification failed. Retake this layer before saving.';
+      });
+    }
   }
 
   @override
@@ -65,6 +105,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   void _saveSnapshot() {
     _history.add(_ReviewSnapshot(
       hiddenIds: Set<String>.of(_hiddenDetectionIds),
+      detections: List<Detection>.of(_editableDetections),
       count: _correctedCount,
     ));
     if (_history.length > 20) _history.removeAt(0);
@@ -90,10 +131,51 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     });
   }
 
+  void _addDetectionAt(Offset center) {
+    final visible = _visibleDetections;
+    final widths = visible
+        .map((detection) =>
+            detection.boundingBox.xMax - detection.boundingBox.xMin)
+        .where((width) => width > 0.01)
+        .toList()
+      ..sort();
+    final heights = visible
+        .map((detection) =>
+            detection.boundingBox.yMax - detection.boundingBox.yMin)
+        .where((height) => height > 0.01)
+        .toList()
+      ..sort();
+    final width = widths.isEmpty ? 0.12 : widths[widths.length ~/ 2];
+    final height = heights.isEmpty ? 0.10 : heights[heights.length ~/ 2];
+    final left = (center.dx - width / 2).clamp(0.0, 1.0 - width);
+    final top = (center.dy - height / 2).clamp(0.0, 1.0 - height);
+    setState(() {
+      _saveSnapshot();
+      _editableDetections.add(
+        Detection(
+          id: 'manual_${DateTime.now().microsecondsSinceEpoch}',
+          boundingBox: BoundingBox(
+            xMin: left,
+            yMin: top,
+            xMax: left + width,
+            yMax: top + height,
+          ),
+          label: 'carton',
+          confidence: 1,
+          color: const Color(0xFF34D399),
+          metadata: const {'manuallyAdded': true},
+        ),
+      );
+      _animateCountTo(_visibleDetections.length);
+    });
+  }
+
+  // ignore: unused_element
   void _undoLastChange() {
     if (_history.isEmpty) return;
     setState(() {
       final snapshot = _history.removeLast();
+      _editableDetections = List<Detection>.of(snapshot.detections);
       _hiddenDetectionIds
         ..clear()
         ..addAll(snapshot.hiddenIds);
@@ -101,19 +183,22 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     });
   }
 
+  // ignore: unused_element
   void _resetReview() {
     setState(() {
       if (_hiddenDetectionIds.isNotEmpty ||
-          _correctedCount != widget.aiResult.count) {
+          _editableDetections.length != _aiResult.detections.length ||
+          _correctedCount != _aiResult.count) {
         _saveSnapshot();
       }
       _hiddenDetectionIds.clear();
-      _animateCountTo(widget.aiResult.count);
+      _editableDetections = List<Detection>.of(_aiResult.detections);
+      _animateCountTo(_aiResult.count);
     });
   }
 
   Future<void> _onSave() async {
-    if (_isSaving) return;
+    if (_isSaving || _isFinalizing || _finalizationFailed) return;
     setState(() {
       _isSaving = true;
       _errorMessage = null;
@@ -121,16 +206,19 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
 
     try {
       final noteText = [
-        if (widget.aiResult.modelVersion == 'MANUAL_COUNT')
+        if (_aiResult.modelVersion == 'MANUAL_COUNT')
           'Count method: Manual operator entry',
         if (_notesCtrl.text.isNotEmpty) _notesCtrl.text.trim(),
+        if (_aiResult.modelVersion != 'MANUAL_COUNT')
+          'AI count: ${_aiResult.count}; manually added: $_manualAddedCount; '
+              'AI detections removed: $_removedAiCount; final: $_correctedCount',
       ].join(' | ');
 
       final error =
           await ref.read(layerListProvider(widget.truckId).notifier).saveLayer(
                 cartonCount: _correctedCount,
-                defectCount: widget.aiResult.defectCount,
-                confidence: widget.aiResult.averageConfidence,
+                defectCount: _aiResult.defectCount,
+                confidence: _aiResult.averageConfidence,
                 notes: noteText.isEmpty ? null : noteText,
                 photoPath: widget.photoPath,
               );
@@ -154,6 +242,16 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
       });
     }
   }
+
+  int get _manualAddedCount => _visibleDetections
+      .where((detection) => detection.metadata['manuallyAdded'] == true)
+      .length;
+
+  int get _removedAiCount => _editableDetections
+      .where((detection) =>
+          detection.metadata['manuallyAdded'] != true &&
+          _hiddenDetectionIds.contains(detection.id))
+      .length;
 
   @override
   Widget build(BuildContext context) {
@@ -189,12 +287,20 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
             detections: _visibleDetections,
             allDetections: _editableDetections,
             onDetectionTapped: _toggleDetection,
+            onEmptyAreaTapped: _addDetectionAt,
           ),
+          if (_isFinalizing)
+            const Positioned(
+              top: 14,
+              left: 20,
+              right: 20,
+              child: _FinalizingBanner(),
+            ),
           if (_errorMessage != null)
             Positioned(
               left: 16,
               right: 16,
-              bottom: 106,
+              bottom: 176,
               child: Material(
                 color: AppTheme.errorColor,
                 borderRadius: BorderRadius.circular(10),
@@ -207,14 +313,14 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                 ),
               ),
             ),
-
-          // ── Sticky Bottom Action Bar ────────────────────────────────────
           Positioned(
             bottom: 0,
             left: 0,
             right: 0,
             child: _ReviewBottomBar(
               isSaving: _isSaving,
+              isFinalizing: _isFinalizing,
+              finalizationFailed: _finalizationFailed,
               correctedCount: _correctedCount,
               onIncrease: () => _adjustCount(1),
               onDecrease: () => _adjustCount(-1),
@@ -234,12 +340,14 @@ class _ImagePreviewSection extends StatefulWidget {
   final List<Detection> detections;
   final List<Detection> allDetections;
   final ValueChanged<Detection> onDetectionTapped;
+  final ValueChanged<Offset> onEmptyAreaTapped;
 
   const _ImagePreviewSection({
     required this.photoPath,
     required this.detections,
     required this.allDetections,
     required this.onDetectionTapped,
+    required this.onEmptyAreaTapped,
   });
 
   @override
@@ -290,6 +398,7 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
           minScale: 1,
           maxScale: 4,
           boundaryMargin: const EdgeInsets.all(80),
+          panEnabled: true,
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -309,7 +418,9 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
                   cameraSize: _photoSize,
                   fit: BoxFit.contain,
                   showLabels: false,
+                  showNumbers: true,
                   onDetectionTapped: widget.onDetectionTapped,
+                  onEmptyAreaTapped: widget.onEmptyAreaTapped,
                 ),
               ),
             ],
@@ -743,13 +854,181 @@ class _CounterButton extends StatelessWidget {
 
 class _ReviewSnapshot {
   final Set<String> hiddenIds;
+  final List<Detection> detections;
   final int count;
 
-  const _ReviewSnapshot({required this.hiddenIds, required this.count});
+  const _ReviewSnapshot({
+    required this.hiddenIds,
+    required this.detections,
+    required this.count,
+  });
+}
+
+// Legacy widget retained temporarily for source compatibility; it is not
+// rendered by the tap-driven review screen.
+// ignore: unused_element
+class _CorrectionToolbar extends StatelessWidget {
+  final _CorrectionMode mode;
+  final int aiCount;
+  final int finalCount;
+  final int addedCount;
+  final int removedCount;
+  final bool canUndo;
+  final bool enabled;
+  final ValueChanged<_CorrectionMode> onModeChanged;
+  final VoidCallback onUndo;
+  final VoidCallback onReset;
+
+  const _CorrectionToolbar({
+    required this.mode,
+    required this.aiCount,
+    required this.finalCount,
+    required this.addedCount,
+    required this.removedCount,
+    required this.canUndo,
+    required this.enabled,
+    required this.onModeChanged,
+    required this.onUndo,
+    required this.onReset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final instruction = switch (mode) {
+      _CorrectionMode.inspect => 'Pinch to zoom and inspect every carton',
+      _CorrectionMode.add => 'Drag a box around each missing carton',
+      _CorrectionMode.remove => 'Tap an incorrect carton outline to remove it',
+    };
+    return Material(
+      elevation: 8,
+      color: const Color(0xF20D1B2A),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'AI $aiCount  •  +$addedCount  −$removedCount  •  Final $finalCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Undo correction',
+                  onPressed: enabled && canUndo ? onUndo : null,
+                  icon: const Icon(Icons.undo_rounded, size: 20),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Reset AI result',
+                  onPressed: enabled ? onReset : null,
+                  icon: const Icon(Icons.restart_alt_rounded, size: 20),
+                ),
+              ],
+            ),
+            Row(
+              children: [
+                _ModeButton(
+                  label: 'Inspect',
+                  icon: Icons.zoom_in_rounded,
+                  selected: mode == _CorrectionMode.inspect,
+                  enabled: enabled,
+                  onTap: () => onModeChanged(_CorrectionMode.inspect),
+                ),
+                const SizedBox(width: 6),
+                _ModeButton(
+                  label: 'Add',
+                  icon: Icons.add_box_outlined,
+                  selected: mode == _CorrectionMode.add,
+                  enabled: enabled,
+                  onTap: () => onModeChanged(_CorrectionMode.add),
+                ),
+                const SizedBox(width: 6),
+                _ModeButton(
+                  label: 'Remove',
+                  icon: Icons.indeterminate_check_box_outlined,
+                  selected: mode == _CorrectionMode.remove,
+                  enabled: enabled,
+                  onTap: () => onModeChanged(_CorrectionMode.remove),
+                ),
+              ],
+            ),
+            const SizedBox(height: 5),
+            Text(
+              instruction,
+              style: const TextStyle(color: Colors.white60, fontSize: 10.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ModeButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _ModeButton({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Material(
+        color: selected
+            ? AppTheme.primaryColor.withValues(alpha: 0.28)
+            : Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(10),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon,
+                    size: 16,
+                    color: selected ? AppTheme.primaryColor : Colors.white70),
+                const SizedBox(width: 5),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: selected ? Colors.white : Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _ReviewBottomBar extends StatelessWidget {
   final bool isSaving;
+  final bool isFinalizing;
+  final bool finalizationFailed;
   final int correctedCount;
   final VoidCallback onIncrease;
   final VoidCallback onDecrease;
@@ -757,6 +1036,8 @@ class _ReviewBottomBar extends StatelessWidget {
 
   const _ReviewBottomBar({
     required this.isSaving,
+    required this.isFinalizing,
+    required this.finalizationFailed,
     required this.correctedCount,
     required this.onIncrease,
     required this.onDecrease,
@@ -765,6 +1046,7 @@ class _ReviewBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isBusy = isSaving || isFinalizing || finalizationFailed;
     return Container(
       padding: EdgeInsets.only(
         left: 16,
@@ -805,7 +1087,7 @@ class _ReviewBottomBar extends StatelessWidget {
                 children: [
                   _CounterButton(
                     icon: Icons.remove,
-                    onTap: isSaving ? () {} : onDecrease,
+                    onTap: isBusy ? () {} : onDecrease,
                     color: Colors.white,
                   ),
                   const SizedBox(width: 8),
@@ -819,7 +1101,7 @@ class _ReviewBottomBar extends StatelessWidget {
                   const SizedBox(width: 8),
                   _CounterButton(
                     icon: Icons.add,
-                    onTap: isSaving ? () {} : onIncrease,
+                    onTap: isBusy ? () {} : onIncrease,
                     color: Colors.white,
                   ),
                 ],
@@ -831,8 +1113,8 @@ class _ReviewBottomBar extends StatelessWidget {
             child: SizedBox(
               height: 56,
               child: ElevatedButton.icon(
-                onPressed: isSaving ? null : onConfirm,
-                icon: isSaving
+                onPressed: isBusy ? null : onConfirm,
+                icon: isBusy
                     ? const SizedBox(
                         width: 20,
                         height: 20,
@@ -840,7 +1122,13 @@ class _ReviewBottomBar extends StatelessWidget {
                             strokeWidth: 2, color: Colors.white),
                       )
                     : const Icon(Icons.check, size: 24),
-                label: Text(isSaving ? 'Saving…' : 'Confirm'),
+                label: Text(isSaving
+                    ? 'Saving…'
+                    : finalizationFailed
+                        ? 'Retake required'
+                        : isFinalizing
+                            ? 'Analyzing…'
+                            : 'Confirm'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(horizontal: 18),
                   shape: RoundedRectangleBorder(
@@ -852,6 +1140,43 @@ class _ReviewBottomBar extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _FinalizingBanner extends StatelessWidget {
+  const _FinalizingBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return const SafeArea(
+      child: Material(
+        color: Color(0xEE102438),
+        borderRadius: BorderRadius.all(Radius.circular(14)),
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 10),
+              Flexible(
+                child: Text(
+                  'Finalizing high-quality carton count…',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

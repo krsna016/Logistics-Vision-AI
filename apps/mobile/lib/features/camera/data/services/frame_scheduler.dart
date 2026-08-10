@@ -6,13 +6,12 @@ import '../../../../utils/logger.dart';
 
 class FrameScheduler {
   final InferenceRepository _repository;
-  static const _minimumInferenceInterval = Duration(milliseconds: 140);
+  static const _minimumInferenceGap = Duration(milliseconds: 120);
 
   bool _isProcessing = false;
+  bool _isPaused = false;
   bool _isDisposed = false;
-  CameraImage? _nextFrame;
-  Timer? _wakeTimer;
-  DateTime? _lastInferenceStart;
+  DateTime _nextEligibleAt = DateTime.now();
   int _droppedFrames = 0;
 
   final _detectionController = StreamController<List<Detection>>.broadcast();
@@ -21,43 +20,21 @@ class FrameScheduler {
 
   Stream<List<Detection>> get detectionsStream => _detectionController.stream;
   int get droppedFramesCount => _droppedFrames;
+  Future<void> get whenIdle async {
+    while (_isProcessing && !_isDisposed) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+    }
+  }
 
   /// Schedule a camera frame for processing. Drops intermediate frames if busy.
   void scheduleFrame(CameraImage image) {
-    if (_isDisposed) return;
-
-    // Keep only the newest frame. Camera streams can deliver 30+ frames per
-    // second while ONNX inference is much slower; retaining every frame makes
-    // the queue stale and increases memory pressure.
-    if (_nextFrame != null) {
+    if (_isDisposed || _isPaused) return;
+    if (_isProcessing || DateTime.now().isBefore(_nextEligibleAt)) {
       _droppedFrames++;
-    }
-    _nextFrame = image;
-    _scheduleNextIfDue();
-  }
-
-  void _scheduleNextIfDue() {
-    if (_isDisposed || _isProcessing || _nextFrame == null) return;
-
-    final lastStart = _lastInferenceStart;
-    final elapsed = lastStart == null
-        ? _minimumInferenceInterval
-        : DateTime.now().difference(lastStart);
-    final remaining = _minimumInferenceInterval - elapsed;
-
-    if (remaining > Duration.zero) {
-      _wakeTimer ??= Timer(remaining, () {
-        _wakeTimer = null;
-        _scheduleNextIfDue();
-      });
       return;
     }
-
-    final frame = _nextFrame;
-    _nextFrame = null;
     _isProcessing = true;
-    _lastInferenceStart = DateTime.now();
-    unawaited(_processFrame(frame!));
+    unawaited(_processFrame(image));
   }
 
   Future<void> _processFrame(CameraImage image) async {
@@ -71,9 +48,7 @@ class FrameScheduler {
           'Inference pipeline execution error in scheduler', e, stack);
     } finally {
       _isProcessing = false;
-
-      // If a newer frame arrived while we were busy, execute it now.
-      _scheduleNextIfDue();
+      _nextEligibleAt = DateTime.now().add(_minimumInferenceGap);
     }
   }
 
@@ -81,11 +56,18 @@ class FrameScheduler {
     _droppedFrames = 0;
   }
 
+  void pause() {
+    _isPaused = true;
+  }
+
+  void resume() {
+    if (_isDisposed) return;
+    _isPaused = false;
+    _nextEligibleAt = DateTime.now();
+  }
+
   void dispose() {
     _isDisposed = true;
-    _wakeTimer?.cancel();
-    _wakeTimer = null;
-    _nextFrame = null;
     _detectionController.close();
   }
 }
