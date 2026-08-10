@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 import 'dart:typed_data';
 import 'package:crypto/crypto.dart';
 
@@ -11,7 +12,7 @@ import 'package:onnxruntime/onnxruntime.dart';
 class ModelManager {
   AIModel? _activeModel;
   OrtSession? _session;
-  OrtSessionOptions? _sessionOptions;
+  _OwnedSessionIsolate? _sessionOwner;
   bool _envInitialized = false;
   Future<void> _lastRun = Future<void>.value();
   Future<void>? _loadInProgress;
@@ -51,30 +52,27 @@ class ModelManager {
   }
 
   Future<void> _loadBytes(Uint8List bytes, AIModel model) async {
-    final integrityWatch = Stopwatch()..start();
-    final actualSha256 = sha256.convert(bytes).toString();
-    integrityWatch.stop();
-    if (model.expectedSha256.isNotEmpty &&
-        actualSha256 != model.expectedSha256) {
-      throw StateError(
-        'Model integrity verification failed for ${model.assetPath}',
-      );
-    }
-    final sessionWatch = Stopwatch()..start();
+    // The worker owns expensive integrity verification and native ONNX graph
+    // construction. Only the lightweight pointer wrapper is created here.
+    final ownedSession = await _OwnedSessionIsolate.create(
+      bytes: bytes,
+      expectedSha256: model.expectedSha256,
+    );
     OrtEnv.instance.init();
     _envInitialized = true;
-    _sessionOptions = OrtSessionOptions()
-      ..setIntraOpNumThreads(2)
-      ..setInterOpNumThreads(1)
-      ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortEnableAll);
-    _session = OrtSession.fromBuffer(bytes, _sessionOptions!);
-    sessionWatch.stop();
+    try {
+      _session = OrtSession.fromAddress(ownedSession.sessionAddress);
+      _sessionOwner = ownedSession;
+    } catch (_) {
+      await ownedSession.dispose(releaseSession: true);
+      rethrow;
+    }
     _activeModel = model;
     AppLogger.info(
       'Loaded ONNX model: ${model.name} v${model.version} '
       '(${_session!.inputNames} -> ${_session!.outputNames}); '
-      'integrity=${integrityWatch.elapsedMilliseconds}ms, '
-      'session=${sessionWatch.elapsedMilliseconds}ms',
+      'integrity=${ownedSession.integrityMs}ms, '
+      'session=${ownedSession.sessionMs}ms (background worker)',
     );
   }
 
@@ -82,13 +80,13 @@ class ModelManager {
     await _lastRun;
     _session?.release();
     _session = null;
-    _sessionOptions?.release();
-    _sessionOptions = null;
     _activeModel = null;
     if (_envInitialized) {
       OrtEnv.instance.release();
       _envInitialized = false;
     }
+    await _sessionOwner?.dispose();
+    _sessionOwner = null;
     AppLogger.info('Unloaded AI model');
   }
 
@@ -132,5 +130,137 @@ class ModelManager {
       runOptions.release();
       runComplete.complete();
     }
+  }
+}
+
+class _OwnedSessionIsolate {
+  final Isolate _isolate;
+  final SendPort _controlPort;
+  final int sessionAddress;
+  final int integrityMs;
+  final int sessionMs;
+
+  const _OwnedSessionIsolate._({
+    required Isolate isolate,
+    required SendPort controlPort,
+    required this.sessionAddress,
+    required this.integrityMs,
+    required this.sessionMs,
+  })  : _isolate = isolate,
+        _controlPort = controlPort;
+
+  static Future<_OwnedSessionIsolate> create({
+    required Uint8List bytes,
+    required String expectedSha256,
+  }) async {
+    final replies = ReceivePort();
+    final errors = ReceivePort();
+    final isolate = await Isolate.spawn<Map<String, Object?>>(
+      _createOwnedOnnxSession,
+      <String, Object?>{
+        'replyPort': replies.sendPort,
+        'bytes': TransferableTypedData.fromList(<Uint8List>[bytes]),
+        'expectedSha256': expectedSha256,
+      },
+      debugName: 'SmartLoadAiRuntimeInitializer',
+      onError: errors.sendPort,
+    );
+
+    try {
+      final response = await Future.any<Object?>(<Future<Object?>>[
+        replies.first,
+        errors.first,
+      ]);
+      if (response is! Map) {
+        throw StateError('AI runtime worker stopped unexpectedly: $response');
+      }
+      if (response['error'] != null) {
+        throw StateError('${response['error']}');
+      }
+      return _OwnedSessionIsolate._(
+        isolate: isolate,
+        controlPort: response['controlPort']! as SendPort,
+        sessionAddress: response['sessionAddress']! as int,
+        integrityMs: response['integrityMs']! as int,
+        sessionMs: response['sessionMs']! as int,
+      );
+    } catch (_) {
+      isolate.kill(priority: Isolate.immediate);
+      rethrow;
+    } finally {
+      replies.close();
+      errors.close();
+    }
+  }
+
+  Future<void> dispose({bool releaseSession = false}) async {
+    final reply = ReceivePort();
+    _controlPort.send(<String, Object?>{
+      'replyPort': reply.sendPort,
+      'releaseSession': releaseSession,
+    });
+    try {
+      await reply.first.timeout(const Duration(seconds: 2));
+    } catch (_) {
+      // The native session has already been released by the main owner during
+      // normal shutdown; a dead worker can be terminated safely here.
+    } finally {
+      reply.close();
+      _isolate.kill(priority: Isolate.immediate);
+    }
+  }
+}
+
+Future<void> _createOwnedOnnxSession(Map<String, Object?> message) async {
+  final replyPort = message['replyPort']! as SendPort;
+  OrtSession? session;
+  OrtSessionOptions? options;
+  try {
+    final transferable = message['bytes']! as TransferableTypedData;
+    final bytes = transferable.materialize().asUint8List();
+    final integrityWatch = Stopwatch()..start();
+    final actualSha256 = sha256.convert(bytes).toString();
+    integrityWatch.stop();
+    final expectedSha256 = message['expectedSha256']! as String;
+    if (expectedSha256.isNotEmpty && actualSha256 != expectedSha256) {
+      throw StateError('Model integrity verification failed.');
+    }
+
+    final sessionWatch = Stopwatch()..start();
+    OrtEnv.instance.init();
+    options = OrtSessionOptions()
+      ..setIntraOpNumThreads(2)
+      ..setInterOpNumThreads(1)
+      ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortEnableAll);
+    session = OrtSession.fromBuffer(bytes, options);
+    options.release();
+    options = null;
+    sessionWatch.stop();
+
+    final controls = ReceivePort();
+    replyPort.send(<String, Object?>{
+      'sessionAddress': session.address,
+      'integrityMs': integrityWatch.elapsedMilliseconds,
+      'sessionMs': sessionWatch.elapsedMilliseconds,
+      'controlPort': controls.sendPort,
+    });
+
+    await for (final command in controls) {
+      if (command is! Map) continue;
+      final commandReply = command['replyPort'] as SendPort?;
+      if (command['releaseSession'] == true) session.release();
+      OrtEnv.instance.release();
+      commandReply?.send(true);
+      controls.close();
+      return;
+    }
+  } catch (error, stack) {
+    options?.release();
+    session?.release();
+    OrtEnv.instance.release();
+    replyPort.send(<String, Object?>{
+      'error': error.toString(),
+      'stack': stack.toString(),
+    });
   }
 }

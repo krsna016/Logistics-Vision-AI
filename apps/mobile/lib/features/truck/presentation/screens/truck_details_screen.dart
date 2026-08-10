@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -14,7 +12,6 @@ import '../../../layer/domain/entities/layer.dart';
 import '../../../session/presentation/providers/session_providers.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
 import '../../../reports/presentation/widgets/generate_report_dialog.dart';
-import '../../../camera/presentation/providers/inference_notifier.dart';
 
 import '../widgets/truck_form_dialog.dart';
 import '../widgets/truck_header.dart';
@@ -66,17 +63,6 @@ class TruckDetailsScreen extends ConsumerWidget {
           child: Text('Truck record not found.',
               style: TextStyle(color: AppTheme.textSecondary)),
         ),
-      );
-    }
-
-    // Warm the single shared ONNX session while the operator reviews the
-    // truck. Camera navigation must never wait for model construction.
-    if (!allowArchivedEditing && !truck.isArchived) {
-      unawaited(
-        ref
-            .read(inferenceNotifierProvider.notifier)
-            .ensureModelReady()
-            .catchError((Object _) {}),
       );
     }
 

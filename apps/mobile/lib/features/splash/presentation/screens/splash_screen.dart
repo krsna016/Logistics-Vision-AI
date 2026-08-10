@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../auth/domain/entities/user.dart';
+import '../../../camera/presentation/providers/inference_notifier.dart';
+import '../../../../utils/logger.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -15,7 +17,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _logoScale;
-  late Animation<double> _indicatorFade;
   bool _hasNavigated = false;
 
   @override
@@ -34,14 +35,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       CurvedAnimation(
         parent: _controller,
         curve: const Interval(0.0, 0.4, curve: Curves.easeOutCubic),
-      ),
-    );
-
-    // 4. Loading indicator fades in at the end
-    _indicatorFade = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.75, 1.0, curve: Curves.easeIn),
       ),
     );
 
@@ -65,8 +58,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             if (mounted && !_hasNavigated) {
               _hasNavigated = true;
               if (user != null) {
-                // Manually update the state notifier so the app knows who is logged in
-                // (In a real app you'd have an init method on AuthNotifier)
+                await _prepareSharedAiRuntime();
+                if (!mounted) return;
                 context.go('/wagons');
               } else {
                 context.go('/login');
@@ -76,6 +69,15 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         });
       }
     });
+  }
+
+  Future<void> _prepareSharedAiRuntime() async {
+    try {
+      await ref.read(inferenceNotifierProvider.notifier).ensureModelReady();
+    } catch (error, stack) {
+      // Keep the dashboard usable. Capture can retry this same shared runtime.
+      AppLogger.error('Startup AI preparation failed', error, stack);
+    }
   }
 
   @override
@@ -140,37 +142,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             ),
           ),
 
-          // Bottom loading indicators & version details
-          Positioned(
-            bottom: 48,
-            left: 0,
-            right: 0,
-            child: FadeTransition(
-              opacity: _indicatorFade,
-              child: Column(
-                children: [
-                  const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.0,
-                      valueColor:
-                          AlwaysStoppedAnimation<Color>(Colors.blueAccent),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    'v1.0.0',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDark ? Colors.white24 : Colors.grey.shade400,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
         ],
       ),
     );

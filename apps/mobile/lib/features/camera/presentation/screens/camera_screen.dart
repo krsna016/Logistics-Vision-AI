@@ -59,6 +59,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     if (oldWidget.isActive && !widget.isActive && _torchOn) {
       unawaited(_toggleTorch(_zoomController));
     }
+    // Keep the CameraX preview surface warm while Manual mode covers it.
+    // Pausing here forces CameraX to reconnect that surface on the next AI
+    // selection, which makes the mode switch visibly stutter. The workspace's
+    // IndexedStack already keeps this widget mounted, while app lifecycle
+    // handling still releases the camera whenever the whole app backgrounds.
   }
 
   Future<void> _pickImage() async {
@@ -187,6 +192,13 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     final truckId = routerState.pathParameters['id'] ?? '';
     final bool isReadyForReview =
         decisionState.status == CountingDecisionState.readyForReview;
+    final previewReady = isGallery ||
+        (cameraState.controller != null &&
+            identical(_previewReadyController, cameraState.controller));
+    final awaitingPreview = !isGallery &&
+        (cameraState.status == CameraStatus.initializing ||
+            cameraState.status == CameraStatus.switching ||
+            (cameraState.status == CameraStatus.ready && !previewReady));
     return Scaffold(
       backgroundColor: Colors.black,
       extendBody: true,
@@ -216,6 +228,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                       context,
                       cameraState,
                       cameraNotifier,
+                      widget.isActive,
                       () {
                         final controller = cameraState.controller;
                         if (!mounted || controller == null) return;
@@ -318,6 +331,35 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                           ],
                         ),
                       ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+
+          if (awaitingPreview)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: ColoredBox(
+                  color: Colors.black,
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2.4,
+                          ),
+                        ),
+                        SizedBox(height: 14),
+                        Text(
+                          'Preparing camera...',
+                          style: TextStyle(color: Colors.white70, fontSize: 14),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -487,6 +529,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     BuildContext context,
     CameraState state,
     CameraNotifier notifier,
+    bool isActive,
     VoidCallback onPreviewReady,
   ) {
     switch (state.status) {
@@ -517,24 +560,20 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         );
 
       case CameraStatus.error:
-        return const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(color: Colors.white),
-              SizedBox(height: 16),
-              Text(
-                'Reconnecting camera…',
-                style: TextStyle(color: Colors.white70, fontSize: 15),
-              ),
-            ],
-          ),
+        return _CameraErrorState(
+          icon: Icons.videocam_off_outlined,
+          title: 'Camera Connection Interrupted',
+          subtitle: state.errorMessage ??
+              'The camera could not reconnect automatically.',
+          buttonLabel: 'Retry Camera',
+          onRetry: notifier.retryCamera,
         );
 
       case CameraStatus.ready:
         return _CameraStreamAdapter(
           key: _streamKey,
           controller: state.controller!,
+          isActive: isActive,
           onPreviewReady: onPreviewReady,
         );
 
@@ -1555,39 +1594,159 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
 }
 
 // ─── CAMERA STREAM ADAPTER ────────────────────────────────────────────────────
-class _CameraStreamAdapter extends StatefulWidget {
+class _CameraStreamAdapter extends ConsumerStatefulWidget {
   final CameraController controller;
+  final bool isActive;
   final VoidCallback onPreviewReady;
 
   const _CameraStreamAdapter({
     super.key,
     required this.controller,
+    required this.isActive,
     required this.onPreviewReady,
   });
 
   @override
-  State<_CameraStreamAdapter> createState() => _CameraStreamAdapterState();
+  ConsumerState<_CameraStreamAdapter> createState() =>
+      _CameraStreamAdapterState();
 }
 
-class _CameraStreamAdapterState extends State<_CameraStreamAdapter> {
+class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
+  static const _streamStartDelay = Duration(milliseconds: 420);
+  static const _firstFrameTimeout = Duration(seconds: 3);
+
+  bool _isStreaming = false;
+  bool _isStarting = false;
+  bool _streamStartCompleted = false;
+  bool _hasReceivedFrame = false;
+  bool _recoveryRequested = false;
+  Timer? _streamStartTimer;
+  Timer? _firstFrameTimer;
+
   @override
   void initState() {
     super.initState();
-    _reportPreviewReady();
+    widget.controller.addListener(_handleControllerValue);
+    _scheduleHealthMonitoring();
   }
 
   @override
   void didUpdateWidget(covariant _CameraStreamAdapter oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
-      _reportPreviewReady();
+      oldWidget.controller.removeListener(_handleControllerValue);
+      widget.controller.addListener(_handleControllerValue);
+      _cancelTimers();
+      _isStreaming = false;
+      _isStarting = false;
+      _streamStartCompleted = false;
+      _hasReceivedFrame = false;
+      _recoveryRequested = false;
+      unawaited(_replaceController(oldWidget.controller));
+    } else if (!oldWidget.isActive && widget.isActive) {
+      if (!_hasReceivedFrame) _armFirstFrameTimeout();
     }
   }
 
-  void _reportPreviewReady() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) widget.onPreviewReady();
+  void _handleControllerValue() => _checkHealth();
+
+  void _scheduleHealthMonitoring() {
+    _streamStartTimer = Timer(_streamStartDelay, () {
+      if (mounted) unawaited(_startStream());
     });
+    _armFirstFrameTimeout();
+  }
+
+  void _armFirstFrameTimeout() {
+    _firstFrameTimer?.cancel();
+    _firstFrameTimer = Timer(_firstFrameTimeout, () {
+      if (mounted && widget.isActive && !_hasReceivedFrame) {
+        _requestRecovery('Camera initialized but produced no preview frames.');
+      }
+    });
+  }
+
+  void _checkHealth() {
+    if (!mounted || !widget.isActive || _recoveryRequested) return;
+    final value = widget.controller.value;
+    if (value.hasError) {
+      _requestRecovery(
+        'Camera controller error: ${value.errorDescription ?? 'unknown'}',
+      );
+      return;
+    }
+    if (!value.isInitialized || value.isPreviewPaused) {
+      _requestRecovery('Camera preview became unavailable.');
+      return;
+    }
+  }
+
+  void _requestRecovery(String reason) {
+    if (!mounted || _recoveryRequested) return;
+    _recoveryRequested = true;
+    AppLogger.warning(reason);
+    unawaited(ref.read(cameraNotifierProvider.notifier).recoverCamera());
+  }
+
+  Future<void> _replaceController(CameraController oldController) async {
+    await _stopStream(oldController);
+    if (mounted) _scheduleHealthMonitoring();
+  }
+
+  Future<void> _startStream() async {
+    if (_isStreaming || _isStarting || !widget.controller.value.isInitialized) {
+      return;
+    }
+    _isStarting = true;
+    _streamStartCompleted = false;
+    final controller = widget.controller;
+    try {
+      await controller.startImageStream((_) {
+        if (!mounted || !identical(controller, widget.controller)) return;
+        if (!_hasReceivedFrame) {
+          _hasReceivedFrame = true;
+          _firstFrameTimer?.cancel();
+          ref.read(cameraNotifierProvider.notifier).markPreviewHealthy();
+          widget.onPreviewReady();
+          // ImageAnalysis is needed only to prove startup. Remove that extra
+          // CameraX use case immediately so the operational session contains
+          // only the visible preview and full-quality still capture.
+          if (_streamStartCompleted) {
+            unawaited(_stopStream(controller));
+          }
+        }
+      });
+      if (!mounted || !identical(controller, widget.controller)) {
+        if (controller.value.isStreamingImages) {
+          await controller.stopImageStream();
+        }
+        return;
+      }
+      _isStreaming = true;
+      _streamStartCompleted = true;
+      if (_hasReceivedFrame) await _stopStream(controller);
+    } catch (error, stack) {
+      AppLogger.error('Failed to start camera health stream', error, stack);
+      _requestRecovery('Camera preview health stream could not start.');
+    } finally {
+      _isStarting = false;
+    }
+  }
+
+  Future<void> _stopStream(CameraController controller) async {
+    _isStreaming = false;
+    try {
+      if (controller.value.isStreamingImages) {
+        await controller.stopImageStream();
+      }
+    } catch (error, stack) {
+      AppLogger.error('Failed to stop camera health stream', error, stack);
+    }
+  }
+
+  void _cancelTimers() {
+    _streamStartTimer?.cancel();
+    _firstFrameTimer?.cancel();
   }
 
   Future<XFile?> capturePhoto() async {
@@ -1601,6 +1760,14 @@ class _CameraStreamAdapterState extends State<_CameraStreamAdapter> {
       AppLogger.error('Failed to capture camera photo', e, stack);
       return null;
     }
+  }
+
+  @override
+  void dispose() {
+    _cancelTimers();
+    widget.controller.removeListener(_handleControllerValue);
+    unawaited(_stopStream(widget.controller));
+    super.dispose();
   }
 
   @override

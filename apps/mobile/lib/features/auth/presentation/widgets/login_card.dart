@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/presentation/layout/responsive.dart';
 import '../providers/auth_providers.dart';
+import '../../../camera/presentation/providers/inference_notifier.dart';
+import '../../../../utils/logger.dart';
 
 class LoginCard extends ConsumerStatefulWidget {
   final VoidCallback onLoginSuccess;
@@ -31,12 +33,18 @@ class _LoginCardState extends ConsumerState<LoginCard> {
           _employeeIdController.text,
           _passwordController.text,
         );
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-
     if (success) {
+      try {
+        await ref.read(inferenceNotifierProvider.notifier).ensureModelReady();
+      } catch (error, stack) {
+        AppLogger.error('Post-login AI preparation failed', error, stack);
+      }
+      if (!mounted) return;
+      setState(() => _isLoading = false);
       widget.onLoginSuccess();
     } else {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

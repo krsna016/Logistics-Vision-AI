@@ -35,16 +35,35 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
   final InferenceRepository _repository;
   final FrameScheduler _scheduler;
   StreamSubscription<List<Detection>>? _detectionsSubscription;
-  late final Future<void> _initialization;
+  Future<void>? _initialization;
 
   InferenceNotifier(this._repository, this._scheduler)
-      : super(const InferenceState()) {
-    _initialization = _initialize();
+      : super(const InferenceState());
+
+  /// Prepares the single app-scoped runtime. Concurrent callers share one
+  /// Future and every workflow reuses the resulting ONNX session.
+  Future<void> ensureModelReady() {
+    if (state.isModelLoaded) return Future<void>.value();
+    final existing = _initialization;
+    if (existing != null) return existing;
+    final initialization = _initialize();
+    _initialization = initialization;
+    unawaited(initialization.then<void>(
+      (_) {},
+      onError: (Object _, StackTrace __) {
+        if (identical(_initialization, initialization)) {
+          _initialization = null;
+        }
+      },
+    ));
+    return initialization;
   }
 
-  Future<void> ensureModelReady() => _initialization;
-
   Future<void> _initialize() async {
+    state = state.copyWith(
+      modelStatus: InferenceModelStatus.loading,
+      clearError: true,
+    );
     try {
       await _repository.loadModel();
 
@@ -60,12 +79,17 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
         );
       });
 
-      state = state.copyWith(isModelLoaded: true);
+      state = state.copyWith(
+        isModelLoaded: true,
+        modelStatus: InferenceModelStatus.ready,
+        clearError: true,
+      );
       AppLogger.info('InferenceNotifier setup completed successfully.');
     } catch (e, stack) {
       AppLogger.error(
           'Failed to configure InferenceNotifier session', e, stack);
       state = state.copyWith(
+        modelStatus: InferenceModelStatus.error,
         errorMessage: 'Failed to configure neural network session.',
       );
       rethrow;
@@ -81,7 +105,7 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
   Future<bool> processGalleryImage(String imagePath) async {
     if (!state.isModelLoaded) {
       try {
-        await _initialization;
+        await ensureModelReady();
       } catch (_) {
         return false;
       }
@@ -106,7 +130,7 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
   /// Live frames are paused and any in-flight pass is allowed to finish first,
   /// preventing the final count from racing stale camera work.
   Future<List<Detection>> finalizeCapturedImage(String imagePath) async {
-    if (!state.isModelLoaded) await _initialization;
+    if (!state.isModelLoaded) await ensureModelReady();
     _scheduler.pause();
     try {
       await _scheduler.whenIdle;
@@ -139,5 +163,6 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
   Future<void> releaseEngine() async {
     await _detectionsSubscription?.cancel();
     await _repository.release();
+    _initialization = null;
   }
 }

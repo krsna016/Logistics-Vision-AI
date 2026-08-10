@@ -38,6 +38,11 @@ class CameraNotifier extends StateNotifier<CameraState>
   final CameraRepository _repository;
   int _cameraOperation = 0;
   Timer? _reconnectTimer;
+  bool _isRecovering = false;
+  int _consecutiveRecoveries = 0;
+  int _initializationFailures = 0;
+  AppLifecycleState _lifecycleState =
+      WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
 
   CameraNotifier(this._repository)
       : super(const CameraState(status: CameraStatus.initializing)) {
@@ -93,7 +98,7 @@ class CameraNotifier extends StateNotifier<CameraState>
         // Keep the operator preview and saved layer photo at Full HD. The
         // inference encoder independently samples frames down to its bounded
         // working size, so preview quality does not dictate inference cost.
-        resolutionPreset: ResolutionPreset.veryHigh,
+        resolutionPreset: ResolutionPreset.high,
       );
 
       if (!mounted || operation != _cameraOperation) {
@@ -113,6 +118,7 @@ class CameraNotifier extends StateNotifier<CameraState>
         'at ${controller.value.previewSize}',
       );
       _reconnectTimer?.cancel();
+      _initializationFailures = 0;
     } catch (e, stack) {
       if (!mounted || operation != _cameraOperation) return;
       AppLogger.error('Fatal initialization error in CameraNotifier', e, stack);
@@ -120,14 +126,17 @@ class CameraNotifier extends StateNotifier<CameraState>
         status: CameraStatus.error,
         errorMessage: e.toString(),
       );
-      _scheduleReconnect();
+      _initializationFailures++;
+      if (_initializationFailures <= 2) _scheduleReconnect();
     }
   }
 
   void _scheduleReconnect() {
     _reconnectTimer?.cancel();
     _reconnectTimer = Timer(const Duration(milliseconds: 900), () {
-      if (mounted && state.status == CameraStatus.error) {
+      if (mounted &&
+          _lifecycleState == AppLifecycleState.resumed &&
+          state.status == CameraStatus.error) {
         unawaited(initialize());
       }
     });
@@ -156,7 +165,7 @@ class CameraNotifier extends StateNotifier<CameraState>
 
       final nextController = await _repository.initializeCameraController(
         description: state.availableCameras[nextIndex],
-        resolutionPreset: ResolutionPreset.veryHigh,
+        resolutionPreset: ResolutionPreset.high,
       );
 
       state = state.copyWith(
@@ -176,9 +185,36 @@ class CameraNotifier extends StateNotifier<CameraState>
   /// Rebuilds the complete CameraX session after a surface/frame timeout.
   /// Disposal and initialization are serialized by [_pendingCameraRelease].
   Future<void> recoverCamera() async {
+    if (_isRecovering || !mounted) return;
+    if (_consecutiveRecoveries >= 2) {
+      state = state.copyWith(
+        status: CameraStatus.error,
+        errorMessage:
+            'Camera could not reconnect automatically. Tap Retry Camera.',
+      );
+      return;
+    }
+    _consecutiveRecoveries++;
+    _isRecovering = true;
     AppLogger.warning('Camera preview stalled. Rebuilding camera session.');
-    await disposeCamera();
-    if (mounted) await initialize();
+    try {
+      await disposeCamera();
+      if (mounted && _lifecycleState == AppLifecycleState.resumed) {
+        await initialize();
+      }
+    } finally {
+      _isRecovering = false;
+    }
+  }
+
+  void markPreviewHealthy() {
+    _consecutiveRecoveries = 0;
+  }
+
+  Future<void> retryCamera() async {
+    _consecutiveRecoveries = 0;
+    _initializationFailures = 0;
+    await recoverCamera();
   }
 
   Future<void> disposeCamera() async {
@@ -210,9 +246,15 @@ class CameraNotifier extends StateNotifier<CameraState>
   // Keep the descriptive local name to avoid shadowing StateNotifier.state.
   // ignore: avoid_renaming_method_parameters
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
-    if (lifecycleState == AppLifecycleState.paused ||
+    _lifecycleState = lifecycleState;
+    if (lifecycleState == AppLifecycleState.inactive ||
+        lifecycleState == AppLifecycleState.hidden ||
+        lifecycleState == AppLifecycleState.paused ||
         lifecycleState == AppLifecycleState.detached) {
-      AppLogger.info('App paused. Suspending camera hardware.');
+      AppLogger.info(
+        'App left the active foreground ($lifecycleState). '
+        'Suspending camera hardware.',
+      );
       unawaited(disposeCamera());
     } else if (lifecycleState == AppLifecycleState.resumed) {
       AppLogger.info('App resumed. Re-initializing camera hardware.');
@@ -220,8 +262,5 @@ class CameraNotifier extends StateNotifier<CameraState>
       // existing controller here or the UI remains permanently "disconnected".
       unawaited(initialize());
     }
-    // `inactive` is commonly emitted for notification shade, focus changes,
-    // permission overlays and transitions. Keep the active carton camera
-    // session alive so these temporary interruptions do not disconnect it.
   }
 }

@@ -3,6 +3,11 @@ const String userManualMarkdown = '''
 
 Welcome to the **Vinayak SmartLoad** User Manual! This document provides an in-depth, step-by-step guide to everything you need to know to operate the system effectively.
 
+SmartLoad prepares one shared AI counting engine during signed-in startup. The
+same engine is reused for every truck and layer, so camera screens do not reload
+the model repeatedly. During this one-time preparation, the splash screen keeps
+the clean SmartLoad branding visible without a loading circle or status text.
+
 ---
 
 ## 1. What is Vinayak SmartLoad?
@@ -92,6 +97,13 @@ This is the flagship feature of SmartLoad. You use this screen while standing at
 4. If the count looks correct, tap **Confirm & Save**. If the AI missed a box, tap **Reject & Retake**.
 5. Every confirmed layer is permanently logged to the truck, and the total carton count goes up automatically!
 
+If Android temporarily interrupts the camera—for example during screen lock,
+app switching, or a system overlay—SmartLoad may briefly show **Preparing
+camera...** while it reconnects automatically. Keep the app open and do not
+tap Capture until the live picture returns. The startup analysis stream closes
+after the first valid frame, leaving a lighter Preview + ImageCapture camera
+session. If two automatic recovery attempts fail, use **Retry Camera**.
+
 ### G. Completing the Process
 1. **Complete the Truck**: Once the truck is fully packed, go back to the Truck Workspace and tap **Complete Loading Session**. It will show you a strict summary of your layers and cartons before locking the truck. The truck is then ready to be sent to the warehouse.
 2. **Send the Truck to the Warehouse**: Move the completed truck to the destination warehouse according to your transport process. SmartLoad keeps the loading record and carton count for that truck.
@@ -106,6 +118,11 @@ const String userManualHindiMarkdown = '''
 # विनायक स्मार्टलोड - संपूर्ण उपयोगकर्ता मैनुअल (User Manual)
 
 **विनायक स्मार्टलोड** उपयोगकर्ता मैनुअल में आपका स्वागत है! यह दस्तावेज़ आपको सिस्टम को प्रभावी ढंग से संचालित करने के लिए चरण-दर-चरण मार्गदर्शन प्रदान करता है।
+
+SmartLoad साइन-इन स्टार्टअप के दौरान साझा AI गिनती इंजन को केवल एक बार तैयार
+करता है। बाद में हर ट्रक और लेयर के लिए उसी इंजन का उपयोग होता है, इसलिए कैमरा
+स्क्रीन मॉडल को बार-बार लोड नहीं करती। इस एक बार की तैयारी के दौरान स्प्लैश
+स्क्रीन बिना लोडिंग गोले या स्टेटस टेक्स्ट के साफ SmartLoad ब्रांडिंग दिखाती है।
 
 ---
 
@@ -194,6 +211,12 @@ const String userManualHindiMarkdown = '''
 3. बड़े **Capture Layer** बटन (नीचे दाएँ) पर टैप करें।
 4. यदि गिनती सही दिखती है, तो **Confirm & Save** पर टैप करें। यदि AI ने एक बॉक्स को याद किया (छोड़ दिया), तो **Reject & Retake** पर टैप करें।
 5. प्रत्येक पुष्ट लेयर स्थायी रूप से ट्रक में लॉग इन हो जाती है, और कुल कार्टन गिनती स्वचालित रूप से बढ़ जाती है!
+
+यदि स्क्रीन लॉक, ऐप बदलने या किसी सिस्टम ओवरले के कारण Android कैमरे को
+अस्थायी रूप से रोकता है, तो SmartLoad अपने-आप दोबारा कनेक्ट होते समय थोड़ी देर
+**Preparing camera...** दिखा सकता है। लाइव तस्वीर वापस आने तक ऐप खुला रखें और
+Capture बटन न दबाएँ। पहला सही फ्रेम मिलने के बाद स्टार्टअप एनालिसिस स्ट्रीम बंद
+हो जाती है। यदि दो ऑटोमैटिक प्रयास असफल हों, तो **Retry Camera** दबाएँ।
 
 ### G. प्रक्रिया को पूरा करना (Completing the Process)
 1. **ट्रक को पूरा करें**: एक बार जब ट्रक पूरी तरह से पैक हो जाता है, तो ट्रक वर्कस्पेस पर वापस जाएं और **Complete Loading Session** पर टैप करें। यह आपको ट्रक को लॉक करने से पहले आपकी लेयर्स और डिब्बों का एक सख्त सारांश दिखाएगा। इसके बाद ट्रक को वेयरहाउस भेजा जा सकता है।
