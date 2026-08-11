@@ -1101,22 +1101,10 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
       decoration: const pw.BoxDecoration(
         border: pw.Border(top: pw.BorderSide(color: PdfColors.grey500)),
       ),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text('VEHICLES: ${trucks.length}',
-              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
-          pw.Text('LAYERS: $totalLayers',
-              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
-          pw.Text('CARTONS: ${report['totalCartons']}',
-              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
-          pw.Text('DEFECTS: ${report['totalDefects']}',
-              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
-          pw.Text('SUPERVISOR: $supervisor',
-              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
-          pw.Text('PAGE ${context.pageNumber} OF ${context.pagesCount}',
-              style: const pw.TextStyle(fontSize: 7)),
-        ],
+      child: pw.Align(
+        alignment: pw.Alignment.centerRight,
+        child: pw.Text('PAGE ${context.pageNumber} OF ${context.pagesCount}',
+            style: const pw.TextStyle(fontSize: 7)),
       ),
     ),
     build: (context) => [
@@ -1150,9 +1138,46 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
         headerCount: 2,
         data: legacyRows,
       ),
-      pw.SizedBox(height: 6),
-      pw.Text('REMARKS: ${_reportValue(report['remarks'])}',
-          style: const pw.TextStyle(fontSize: 7)),
+      pw.SizedBox(height: 8),
+      pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.black, width: 0.7),
+            ),
+            child: pw.Row(
+              children: [
+                for (final value in [
+                  'VEHICLES: ${trucks.length}',
+                  'LAYERS: $totalLayers',
+                  'CARTONS: ${report['totalCartons']}',
+                  'DEFECTS: ${report['totalDefects']}',
+                ])
+                  pw.Expanded(
+                    child: pw.Text(
+                      value,
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        fontSize: 8,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 7),
+          pw.Text(
+            'SUPERVISOR: $supervisor',
+            style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text('REMARKS: ${_reportValue(report['remarks'])}',
+              style: const pw.TextStyle(fontSize: 7)),
+        ],
+      ),
     ],
   ));
   pdf.addPage(pw.MultiPage(
