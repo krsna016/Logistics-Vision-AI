@@ -51,3 +51,25 @@ runtime, and run:
 
 Evaluate `best.pt` on the test split before copying any model into the mobile
 app. Keep the test images untouched during training.
+
+## Build the Stage-1 segmentation dataset
+
+`build_stage1_seg_dataset.py` creates the portable YOLO segmentation package
+used for YOLO26 Stage-1 training. It validates polygon labels, keeps custom
+validation/test images out of training, selects OSCD scenes deterministically,
+weights custom training images, resizes oversized sources, and records a source
+manifest and build report.
+
+```bash
+python3 ai/dataset_tools/build_stage1_seg_dataset.py \
+  --custom "/path/to/Dataset-1" \
+  --lscd "/path/to/Dataset-2 (LSCD)" \
+  --oscd "/path/to/Dataset-2 (OSCD)" \
+  --output ai/datasets/carton_seg_stage1 \
+  --overwrite
+```
+
+Use `data.yaml` for public validation during Stage 1. Use `domain_val.yaml` to
+measure transfer to the held-out truck images without changing the checkpoint
+selection protocol. Repeated custom training files are explicitly marked as
+weighted copies in `source_manifest.csv`; they are not unique observations.

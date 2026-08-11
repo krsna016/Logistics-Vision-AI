@@ -1,7 +1,0 @@
-path: ai/model_audit/carton_yolo11n
-train: validation/images
-val: validation/images
-test: validation/images
-nc: 1
-names:
-  0: carton

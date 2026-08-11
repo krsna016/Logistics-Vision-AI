@@ -32,6 +32,13 @@ ai/model_audit/.venv/
 ai/model_audit/**/labels.cache
 runs/
 
+# Local benchmark app runtime and generated training artifacts
+tools/Carton Count Benchmark App/.venv/
+tools/Carton Count Benchmark App/.runtime/
+tools/Carton Count Benchmark App/carton-counter.log
+.stage1-benchmark-build/
+ai/datasets/yolo26m_seg_stage1_960/
+
 # Local package stores and local AI models
 .pnpm-store/
 ai/sam2-local/

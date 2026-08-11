@@ -1,6 +1,0 @@
-path: d3
-train: train/images
-val: valid/images
-test: test/images
-names:
-  0: carton

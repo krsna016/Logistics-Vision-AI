@@ -248,14 +248,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     });
 
     try {
-      final noteText = [
-        if (_aiResult.modelVersion == 'MANUAL_COUNT')
-          'Count method: Manual operator entry',
-        if (_notesCtrl.text.isNotEmpty) _notesCtrl.text.trim(),
-        if (_aiResult.modelVersion != 'MANUAL_COUNT')
-          'AI count: ${_aiResult.count}; manually added: $_manualAddedCount; '
-              'AI detections removed: $_removedAiCount; final: $_correctedCount',
-      ].join(' | ');
+      final noteText = _notesCtrl.text.trim();
 
       final error =
           await ref.read(layerListProvider(widget.truckId).notifier).saveLayer(
@@ -285,16 +278,6 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
       });
     }
   }
-
-  int get _manualAddedCount => _visibleDetections
-      .where((detection) => detection.metadata['manuallyAdded'] == true)
-      .length;
-
-  int get _removedAiCount => _editableDetections
-      .where((detection) =>
-          detection.metadata['manuallyAdded'] != true &&
-          _hiddenDetectionIds.contains(detection.id))
-      .length;
 
   void _cycleOutlineColorMode() {
     setState(() {

@@ -197,16 +197,12 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
     });
     try {
       final operatorNotes = _notesController.text.trim();
-      final notes = [
-        'Count method: Manual operator entry',
-        if (operatorNotes.isNotEmpty) operatorNotes,
-      ].join(' | ');
       final error =
           await ref.read(layerListProvider(widget.truckId).notifier).saveLayer(
                 cartonCount: count,
                 defectCount: defectCount,
                 confidence: 0,
-                notes: notes,
+                notes: operatorNotes.isEmpty ? null : operatorNotes,
                 photoPath: _referencePhotoPath,
               );
       if (!mounted) return;

@@ -46,6 +46,39 @@ class PdfReportServiceImpl implements PdfReportService {
     return item;
   }
 
+  String _operatorNotesForReport(String? notes) {
+    if (notes == null || notes.trim().isEmpty) return 'N/A';
+    final operatorNotes = notes
+        .split('|')
+        .map((part) => part.trim())
+        .where((part) =>
+            part.isNotEmpty &&
+            !part.startsWith('AI count:') &&
+            !part.startsWith('Count method:'))
+        .join(' | ');
+    return operatorNotes.isEmpty ? 'N/A' : operatorNotes;
+  }
+
+  Map<String, String> _correctionForReport(String? details) {
+    if (details == null || details.trim().isEmpty) {
+      return const {'changes': 'N/A', 'reason': 'N/A'};
+    }
+    final match = RegExp(
+      r'cartons\s+(\d+)\s*->\s*(\d+),\s*defects\s+(\d+)\s*->\s*(\d+)\.\s*Reason:\s*(.*)$',
+      caseSensitive: false,
+    ).firstMatch(details.trim());
+    if (match == null) {
+      return {'changes': details.trim(), 'reason': 'N/A'};
+    }
+    return {
+      'changes': 'Cartons: ${match.group(1)} -> ${match.group(2)}; '
+          'Defects: ${match.group(3)} -> ${match.group(4)}',
+      'reason': match.group(5)?.trim().isNotEmpty == true
+          ? match.group(5)!.trim()
+          : 'Not provided',
+    };
+  }
+
   @override
   Future<File> generateTruckReport({required String truckId}) async {
     final truck = await (_db.select(_db.trucks)
@@ -56,6 +89,20 @@ class PdfReportServiceImpl implements PdfReportService {
         .get();
 
     if (truck == null) throw Exception('Truck not found');
+
+    final layerIds = layers.map((layer) => layer.id).toList(growable: false);
+    final correctionLogs = layerIds.isEmpty
+        ? <AuditLog>[]
+        : await (_db.select(_db.auditLogs)
+              ..where((log) =>
+                  log.entityId.isIn(layerIds) &
+                  log.entityType.equals('Layer') &
+                  log.action.equals('correct'))
+              ..orderBy([(log) => drift.OrderingTerm.asc(log.timestamp)]))
+            .get();
+    final layerNumberById = {
+      for (final layer in layers) layer.id: layer.layerNumber,
+    };
 
     final reportData = <String, Object?>{
       'truckNumber': truck.truckNumber,
@@ -79,9 +126,20 @@ class PdfReportServiceImpl implements PdfReportService {
               'defectCount': layer.defectCount,
               'timestamp': layer.timestamp.toString().split('.')[0],
               'operator': layer.operatorId ?? 'N/A',
+              'operatorNotes': _operatorNotesForReport(layer.notes),
             },
           )
           .toList(growable: false),
+      'corrections': correctionLogs.map<Map<String, Object?>>((log) {
+        final correction = _correctionForReport(log.details);
+        return {
+          'layerNumber': layerNumberById[log.entityId] ?? 'N/A',
+          'timestamp': log.timestamp.toString().split('.')[0],
+          'operator': log.userId,
+          'changes': correction['changes']!,
+          'reason': correction['reason']!,
+        };
+      }).toList(growable: false),
     };
     final logoBytes = await _loadReportLogoBytes();
     final supervisor = _supervisor;
@@ -401,8 +459,7 @@ Future<Uint8List> _buildWagonPdfBytes(
               pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
           cellStyle: const pw.TextStyle(fontSize: 8),
           headers: const [
-            'Truck No.',
-            'Vehicle No.',
+            'Vehicle Number',
             'Driver',
             'Phone',
             'Layers',
@@ -413,7 +470,6 @@ Future<Uint8List> _buildWagonPdfBytes(
           data: trucks
               .map(
                 (truck) => [
-                  truck['truckNumber'].toString(),
                   truck['vehicleNumber'].toString(),
                   truck['driverName'].toString(),
                   truck['driverMobile'].toString(),
@@ -470,6 +526,7 @@ Future<Uint8List> _buildTruckPdfBytes(
   String supervisor,
 ) async {
   final layers = _reportMaps(report['layers']);
+  final corrections = _reportMaps(report['corrections']);
   final pdf = pw.Document();
   pdf.addPage(
     pw.MultiPage(
@@ -497,6 +554,10 @@ Future<Uint8List> _buildTruckPdfBytes(
           pw.Text('Warehouse: ${report['warehouse']}'),
           pw.Text('Status: ${report['status']}'),
         ]),
+        pw.Align(
+          alignment: pw.Alignment.centerRight,
+          child: pw.Text('Supervisor: $supervisor'),
+        ),
         pw.SizedBox(height: 28),
         pw.Text('Layers Summary',
             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
@@ -504,23 +565,73 @@ Future<Uint8List> _buildTruckPdfBytes(
         pw.TableHelper.fromTextArray(
           context: context,
           headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+          headerStyle:
+              pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+          cellStyle: const pw.TextStyle(fontSize: 8),
           headers: const [
             'Layer No.',
             'Cartons',
             'Defects',
+            'Operator Notes',
             'Layer Added',
             'Operator',
           ],
+          columnWidths: const {
+            0: pw.FlexColumnWidth(1),
+            1: pw.FlexColumnWidth(1),
+            2: pw.FlexColumnWidth(1),
+            3: pw.FlexColumnWidth(2.5),
+            4: pw.FlexColumnWidth(2.2),
+            5: pw.FlexColumnWidth(1.8),
+          },
           data: layers
               .map((layer) => [
                     layer['layerNumber'].toString(),
                     layer['cartonCount'].toString(),
                     layer['defectCount'].toString(),
+                    layer['operatorNotes'].toString(),
                     layer['timestamp'].toString(),
                     layer['operator'].toString(),
                   ])
               .toList(growable: false),
         ),
+        pw.SizedBox(height: 18),
+        pw.Text('Layer Correction History',
+            style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+        pw.SizedBox(height: 10),
+        if (corrections.isEmpty)
+          pw.Text('No layer corrections recorded.')
+        else
+          pw.TableHelper.fromTextArray(
+            context: context,
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+            headerStyle:
+                pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
+            cellStyle: const pw.TextStyle(fontSize: 7),
+            headers: const [
+              'Layer',
+              'Changed At',
+              'Operator',
+              'Changes',
+              'Reason',
+            ],
+            columnWidths: const {
+              0: pw.FlexColumnWidth(0.7),
+              1: pw.FlexColumnWidth(1.8),
+              2: pw.FlexColumnWidth(1.5),
+              3: pw.FlexColumnWidth(3),
+              4: pw.FlexColumnWidth(2.5),
+            },
+            data: corrections
+                .map((correction) => [
+                      correction['layerNumber'].toString(),
+                      correction['timestamp'].toString(),
+                      correction['operator'].toString(),
+                      correction['changes'].toString(),
+                      correction['reason'].toString(),
+                    ])
+                .toList(growable: false),
+          ),
         pw.SizedBox(height: 20),
         pw.Container(
           padding: const pw.EdgeInsets.all(10),
