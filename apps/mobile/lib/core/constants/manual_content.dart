@@ -5,6 +5,75 @@ This manual explains the complete mobile app in easy English. Follow it from top
 
 > Important: The app stores operational records such as wagons, vehicles, layers, item quantities, photos, corrections and reports. Always check information before saving. Use correction tools with a clear reason. Do not load demo data on a phone containing real work.
 
+## From Loading Dock to Digital Proof
+
+**Vinayak SmartLoad transforms every carton movement into a clear, accountable and report-ready digital record.**
+
+Warehouses do not lose control because they lack hardworking people. They lose control when fast physical work depends on scattered paper notes, memory, repeated manual counting and reports prepared after the event. SmartLoad connects the physical loading floor with management information while the work is happening.
+
+> **Count with confidence. Load with control. Report with proof.**
+
+### The purpose
+
+SmartLoad is built to give logistics teams one dependable answer to a simple but costly question: **What exactly moved from the wagon, into which vehicle, in which layer, at what time, and what is still left?**
+
+It creates a continuous digital chain from incoming wagon inventory to the final vehicle and layer report. Supervisors gain live visibility, operators receive a guided workflow, and management receives structured records instead of reconstructing the day from paper.
+
+### Business value for an enterprise
+
+- **Operational visibility:** See declared, loaded and remaining cartons item by item.
+- **Faster reconciliation:** Compare the wagon manifest with saved vehicle layers without manually rebuilding totals.
+- **Better accountability:** Connect each layer with its operator, time, photo, items, cartons, defects and corrections.
+- **Controlled corrections:** Preserve what changed, who changed it and why it changed.
+- **Consistent execution:** Guide operators through the same creation, capture, review, completion and archive process.
+- **Decision-ready reporting:** Generate professional PDF and Excel records from the work already captured.
+- **Mixed-load intelligence:** Track multiple items inside the same physical layer instead of hiding complexity in one total.
+- **Reduced reporting effort:** Reuse operational data for vehicle, wagon and Digital Register reports.
+- **Scalable records:** Handle one wagon with multiple vehicles and many layers while keeping every movement traceable.
+- **Management confidence:** Make shortages, remaining inventory, defects and mismatches visible before final submission.
+
+### Why SmartLoad is different
+
+SmartLoad is more than a carton counter. A count alone cannot explain where the cartons went. SmartLoad joins counting with inventory allocation, vehicle identity, layer history, operator responsibility, correction audit and enterprise reporting.
+
+It combines:
+
+- AI-assisted carton detection with human verification
+- Manual counting for difficult real-world conditions
+- Item-wise and mixed-item allocation
+- Wagon-to-vehicle reconciliation
+- Photo-supported layer history
+- Supervisor-controlled historical corrections
+- Multi-page operational registers
+- PDF and Excel exports
+- Offline-first local operations with structured sync-ready records
+
+### Designed for real logistics conditions
+
+SmartLoad is suitable for logistics companies, distribution centres, manufacturing dispatch yards, FMCG warehouses, third-party logistics providers, transport contractors and organizations that move high volumes of cartons through multiple vehicles.
+
+The system does not demand perfect conditions. It supports AI capture when the view is clear, manual entry when conditions are difficult, correction when verified information changes, and audit history when management needs proof.
+
+### Value that can be measured
+
+An organization can evaluate SmartLoad using its own operating data:
+
+- Time required to prepare a final loading register
+- Difference between manifest cartons and recorded loaded cartons
+- Number of recounts or unresolved shortages
+- Time required to find a specific vehicle or layer record
+- Percentage of layers with complete item allocation and photo evidence
+- Number of corrections with a documented reason
+- Time from physical completion to report submission
+
+SmartLoad does not replace operational responsibility. It strengthens it with structure, visibility and evidence.
+
+### Our product promise
+
+**Every wagon understood. Every vehicle accounted for. Every layer traceable. Every report ready.**
+
+For clients, SmartLoad offers a practical path from paper-dependent loading to controlled digital operations. For operators, it keeps the process simple. For supervisors, it keeps totals visible. For management, it turns loading activity into reliable business information.
+
 ## Contents
 
 1. Purpose and complete workflow
@@ -692,6 +761,75 @@ const String userManualHindiMarkdown = '''
 यह मैनुअल ऐप की पूरी प्रक्रिया आसान हिंदी में समझाता है। पहली बार ऐप सीखते समय इसे शुरू से अंत तक पढ़ें। काम के दौरान किसी विशेष स्थिति में इसे संदर्भ के रूप में खोलें।
 
 > महत्वपूर्ण: ऐप वैगन, वाहन, लेयर, आइटम मात्रा, फोटो, सुधार और रिपोर्ट जैसे संचालन रिकॉर्ड सुरक्षित करता है। सेव करने से पहले हर जानकारी जांचें। सुधार करते समय स्पष्ट कारण लिखें। वास्तविक डेटा वाले फोन पर डेमो डेटा लोड न करें।
+
+## लोडिंग डॉक से डिजिटल प्रमाण तक
+
+**विनायक SmartLoad हर कार्टन की आवाजाही को साफ, जिम्मेदार और रिपोर्ट के लिए तैयार डिजिटल रिकॉर्ड में बदलता है।**
+
+वेयरहाउस में नियंत्रण केवल मेहनती लोगों से नहीं आता। तेज भौतिक काम जब अलग-अलग कागज, याददाश्त, बार-बार मैनुअल गिनती और बाद में बनाई गई रिपोर्ट पर निर्भर होता है, तब जानकारी टूट जाती है। SmartLoad काम होते समय ही लोडिंग फ्लोर को प्रबंधन की जानकारी से जोड़ता है।
+
+> **विश्वास के साथ गिनें। नियंत्रण के साथ लोड करें। प्रमाण के साथ रिपोर्ट करें।**
+
+### उद्देश्य
+
+SmartLoad लॉजिस्टिक्स टीम को एक सरल लेकिन महंगे सवाल का भरोसेमंद उत्तर देने के लिए बनाया गया है: **वैगन से वास्तव में क्या निकला, किस वाहन में गया, किस लेयर में गया, किस समय गया और अभी कितना बाकी है?**
+
+यह आने वाले वैगन की इन्वेंटरी से लेकर अंतिम वाहन और लेयर रिपोर्ट तक लगातार डिजिटल श्रृंखला बनाता है। सुपरवाइजर को लाइव स्थिति, ऑपरेटर को आसान प्रक्रिया और प्रबंधन को कागज से दोबारा तैयार किए बिना व्यवस्थित रिकॉर्ड मिलता है।
+
+### बड़े संगठन के लिए व्यावसायिक लाभ
+
+- **संचालन की स्पष्टता:** हर आइटम का Total, Loaded और Remaining देखें।
+- **तेज मिलान:** मैनिफेस्ट और वाहन लेयर का कुल दोबारा हाथ से बनाए बिना तुलना करें।
+- **बेहतर जवाबदेही:** हर लेयर को ऑपरेटर, समय, फोटो, आइटम, कार्टन, डिफेक्ट और सुधार से जोड़ें।
+- **नियंत्रित सुधार:** क्या बदला, किसने बदला और क्यों बदला, यह सुरक्षित रखें।
+- **एक समान प्रक्रिया:** सभी ऑपरेटर Creation, Capture, Review, Completion और Archive का समान तरीका अपनाएं।
+- **तुरंत उपयोग वाली रिपोर्ट:** दर्ज काम से प्रोफेशनल PDF और Excel बनाएं।
+- **मिश्रित माल की सही जानकारी:** एक लेयर में कई आइटम को केवल एक कुल संख्या में छिपाने के बजाय अलग-अलग ट्रैक करें।
+- **रिपोर्ट बनाने का कम काम:** वाहन, वैगन और Digital Register के लिए वही संचालन डेटा उपयोग करें।
+- **बड़े काम के लिए तैयार रिकॉर्ड:** एक वैगन, कई वाहन और बहुत सी लेयर को पूरी traceability के साथ संभालें।
+- **प्रबंधन का भरोसा:** अंतिम submission से पहले कमी, बाकी इन्वेंटरी, डिफेक्ट और mismatch साफ देखें।
+
+### SmartLoad अलग क्यों है
+
+SmartLoad केवल कार्टन गिनने वाला ऐप नहीं है। केवल गिनती यह नहीं बताती कि कार्टन कहां गए। SmartLoad गिनती को आइटम इन्वेंटरी, वाहन पहचान, लेयर इतिहास, ऑपरेटर जिम्मेदारी, Correction Audit और Enterprise Report से जोड़ता है।
+
+इसमें एक साथ मिलता है:
+
+- ऑपरेटर जांच के साथ AI-assisted carton detection
+- कठिन वास्तविक स्थिति के लिए Manual counting
+- Item-wise और mixed-item allocation
+- Wagon-to-vehicle reconciliation
+- फोटो के साथ Layer History
+- सुपरवाइजर नियंत्रित ऐतिहासिक सुधार
+- कई पेज वाला संचालन रजिस्टर
+- PDF और Excel export
+- Offline-first लोकल संचालन और sync-ready structured records
+
+### वास्तविक लॉजिस्टिक्स परिस्थितियों के लिए
+
+SmartLoad लॉजिस्टिक्स कंपनी, distribution centre, manufacturing dispatch yard, FMCG warehouse, third-party logistics provider, transport contractor और कई वाहनों में बड़ी मात्रा में कार्टन भेजने वाले संगठन के लिए उपयोगी है।
+
+सिस्टम केवल आदर्श स्थिति पर निर्भर नहीं है। साफ दृश्य में AI Capture, कठिन स्थिति में Manual Entry, सत्यापित बदलाव के लिए Correction और प्रबंधन प्रमाण के लिए Audit History उपलब्ध है।
+
+### जिसे संगठन माप सकता है
+
+कंपनी SmartLoad का लाभ अपने संचालन डेटा से माप सकती है:
+
+- अंतिम loading register बनाने में लगा समय
+- Manifest और recorded loaded cartons का अंतर
+- दोबारा गिनती या अनसुलझी कमी की संख्या
+- किसी विशेष वाहन या लेयर का रिकॉर्ड खोजने में लगा समय
+- पूरी item allocation और photo evidence वाली लेयर का प्रतिशत
+- स्पष्ट कारण वाले corrections की संख्या
+- भौतिक completion से report submission तक लगा समय
+
+SmartLoad संचालन जिम्मेदारी को हटाता नहीं है। यह उसे structure, visibility और evidence से मजबूत बनाता है।
+
+### हमारा उत्पाद वादा
+
+**हर वैगन की पूरी समझ। हर वाहन का पूरा हिसाब। हर लेयर की पहचान। हर रिपोर्ट तैयार।**
+
+क्लाइंट के लिए SmartLoad कागज-आधारित लोडिंग से नियंत्रित डिजिटल संचालन तक व्यावहारिक रास्ता देता है। ऑपरेटर के लिए प्रक्रिया आसान रखता है। सुपरवाइजर के लिए कुल मात्रा दिखाई देती है। प्रबंधन के लिए लोडिंग काम भरोसेमंद व्यावसायिक जानकारी बन जाता है।
 
 ## विषय सूची
 
