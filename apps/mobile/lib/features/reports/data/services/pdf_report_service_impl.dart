@@ -939,6 +939,9 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
   Uint8List? logoBytes,
   String supervisor,
 ) async {
+  if (report.containsKey('items')) {
+    return _buildDigitalRegisterPdfBytesV2(report, logoBytes, supervisor);
+  }
   final trucks = _reportMaps(report['trucks']);
   final rowCount = report['rowCount']! as int;
   final tableRows = <List<String>>[
@@ -1049,6 +1052,162 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
   );
   return pdf.save();
 }
+
+Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
+  Map<String, Object?> report,
+  Uint8List? logoBytes,
+  String supervisor,
+) async {
+  final trucks = _reportMaps(report['trucks']);
+  final items = _reportMaps(report['items']);
+  final corrections = _reportMaps(report['corrections']);
+  final pdf = pw.Document();
+  pdf.addPage(pw.MultiPage(
+    pageFormat: PdfPageFormat.a4,
+    header: (context) => ReportTemplateServiceImpl.buildHeader(
+      title: 'Digital Wagon Register',
+      logo: logoBytes == null ? null : pw.MemoryImage(logoBytes),
+      subtitle: 'Wagon ${report['wagonNumber']} | ${report['loadingDate']}',
+    ),
+    footer: (context) => ReportTemplateServiceImpl.buildFooter(context),
+    build: (context) => [
+      _registerSectionTitle('Executive Summary'),
+      pw.TableHelper.fromTextArray(
+        headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+        headers: const ['From', 'To', 'Trucks', 'Cartons', 'Defects'],
+        data: [
+          [
+            _reportValue(report['origin']),
+            _reportValue(report['destination']),
+            trucks.length,
+            report['totalCartons'],
+            report['totalDefects'],
+          ]
+        ],
+      ),
+      pw.SizedBox(height: 16),
+      _registerSectionTitle('Item Reconciliation'),
+      if (items.isEmpty)
+        pw.Text('No item manifest recorded.')
+      else
+        pw.TableHelper.fromTextArray(
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+          headers: const ['Item', 'Manifest', 'Loaded', 'Remaining', 'Status'],
+          data: items
+              .map((item) => [
+                    item['name'],
+                    item['manifest'],
+                    item['loaded'],
+                    item['remaining'],
+                    (item['remaining'] as int) == 0
+                        ? 'Complete'
+                        : 'In progress',
+                  ])
+              .toList(),
+        ),
+      pw.SizedBox(height: 16),
+      _registerSectionTitle('Truck Summary'),
+      pw.TableHelper.fromTextArray(
+        headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+        headerStyle: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
+        cellStyle: const pw.TextStyle(fontSize: 7),
+        headers: const [
+          'Truck',
+          'Vehicle',
+          'Driver',
+          'Status',
+          'Layers',
+          'Cartons',
+          'Def.'
+        ],
+        data: trucks
+            .map((truck) => [
+                  truck['truckNumber'],
+                  truck['vehicleNumber'],
+                  truck['driverName'],
+                  truck['status'],
+                  truck['totalLayers'],
+                  truck['totalCartons'],
+                  truck['totalDefects'],
+                ])
+            .toList(),
+      ),
+      pw.SizedBox(height: 16),
+      ...trucks.expand((truck) {
+        final layers = _reportMaps(truck['layers']);
+        return <pw.Widget>[
+          pw.Text('${truck['vehicleNumber']} - Layer Details',
+              style:
+                  pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 5),
+          pw.TableHelper.fromTextArray(
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+            headerStyle:
+                pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
+            cellStyle: const pw.TextStyle(fontSize: 6),
+            headers: const [
+              'Layer',
+              'Cartons',
+              'Items',
+              'Def.',
+              'Operator',
+              'Added',
+              'Notes'
+            ],
+            data: layers
+                .map((layer) => [
+                      layer['number'],
+                      layer['cartons'],
+                      layer['items'],
+                      layer['defects'],
+                      layer['operator'],
+                      layer['added'],
+                      layer['notes'],
+                    ])
+                .toList(),
+          ),
+          pw.SizedBox(height: 12),
+        ];
+      }),
+      if (corrections.isNotEmpty) ...[
+        _registerSectionTitle('Correction Audit'),
+        pw.TableHelper.fromTextArray(
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+          headerStyle:
+              pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
+          cellStyle: const pw.TextStyle(fontSize: 6),
+          headers: const [
+            'Layer',
+            'Changed At',
+            'Operator',
+            'Changes',
+            'Reason'
+          ],
+          data: corrections
+              .map((item) => [
+                    item['layer'],
+                    item['when'],
+                    item['operator'],
+                    item['changes'],
+                    item['reason'],
+                  ])
+              .toList(),
+        ),
+      ],
+      pw.SizedBox(height: 14),
+      pw.Text('Remarks: ${_reportValue(report['remarks'])}'),
+      pw.SizedBox(height: 20),
+      ReportTemplateServiceImpl.buildSignatures(supervisorName: supervisor),
+    ],
+  ));
+  return pdf.save();
+}
+
+pw.Widget _registerSectionTitle(String text) => pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 7),
+      child: pw.Text(text,
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+    );
 
 Future<Uint8List> _buildAnalyticsPdfBytes(
   Map<String, Object?> report,

@@ -347,6 +347,137 @@ class ExcelReportServiceImpl implements ExcelReportService {
     final register = await (_db.select(_db.digitalRegisters)
           ..where((r) => r.wagonId.equals(wagonId) & r.isDeleted.equals(false)))
         .getSingleOrNull();
+    void writeRow(Sheet target, int row, List<CellValue> values) {
+      for (var column = 0; column < values.length; column++) {
+        target
+            .cell(
+                CellIndex.indexByColumnRow(columnIndex: column, rowIndex: row))
+            .value = values[column];
+      }
+    }
+
+    final summarySheet = excel['Register Summary'];
+    final itemSheet = excel['Item Inventory'];
+    final truckSheet = excel['Truck Summary'];
+    final layerSheet = excel['Layer Details'];
+    final correctionSheet = excel['Corrections'];
+    writeRow(summarySheet, 0, [
+      TextCellValue('DIGITAL WAGON REGISTER'),
+    ]);
+    final summaryRows = <List<CellValue>>[
+      [TextCellValue('Wagon'), TextCellValue(wagon.wagonNumber)],
+      [TextCellValue('From'), TextCellValue(wagon.origin ?? 'Not provided')],
+      [TextCellValue('To'), TextCellValue(wagon.destination ?? 'Not provided')],
+      [TextCellValue('Supervisor'), TextCellValue(_supervisor)],
+      [TextCellValue('Trucks'), IntCellValue(trucks.length)],
+      [TextCellValue('Layers'), IntCellValue(layers.length)],
+      [TextCellValue('Loaded Cartons'), IntCellValue(totalCartons)],
+      [TextCellValue('Defects'), IntCellValue(totalDefects)],
+    ];
+    for (var row = 0; row < summaryRows.length; row++) {
+      writeRow(summarySheet, row + 2, summaryRows[row]);
+    }
+
+    writeRow(itemSheet, 0, [
+      TextCellValue('Item'),
+      TextCellValue('Manifest'),
+      TextCellValue('Loaded'),
+      TextCellValue('Remaining'),
+    ]);
+    final loadedByItem = <String, int>{};
+    for (final layer in layers) {
+      for (final allocation in _layerAllocations(layer).entries) {
+        loadedByItem[allocation.key] =
+            (loadedByItem[allocation.key] ?? 0) + allocation.value;
+      }
+    }
+    final manifest = (jsonDecode(wagon.itemManifestJson) as List<dynamic>)
+        .whereType<Map<String, dynamic>>()
+        .toList();
+    for (var row = 0; row < manifest.length; row++) {
+      final name = manifest[row]['name'] as String;
+      final total = (manifest[row]['quantity'] as num).toInt();
+      final loaded = loadedByItem[name] ?? 0;
+      writeRow(itemSheet, row + 1, [
+        TextCellValue(name),
+        IntCellValue(total),
+        IntCellValue(loaded),
+        IntCellValue(total - loaded),
+      ]);
+    }
+
+    writeRow(truckSheet, 0, [
+      TextCellValue('Truck'),
+      TextCellValue('Vehicle'),
+      TextCellValue('Driver'),
+      TextCellValue('Phone'),
+      TextCellValue('Carrier'),
+      TextCellValue('Status'),
+      TextCellValue('Layers'),
+      TextCellValue('Cartons'),
+      TextCellValue('Defects'),
+    ]);
+    for (var row = 0; row < trucks.length; row++) {
+      final truck = trucks[row];
+      writeRow(truckSheet, row + 1, [
+        TextCellValue(truck.truckNumber),
+        TextCellValue(truck.vehicleNumber),
+        TextCellValue(truck.driverName),
+        TextCellValue(truck.driverMobile ?? 'Not provided'),
+        TextCellValue(truck.company),
+        TextCellValue(truck.status),
+        IntCellValue(truck.totalLayers),
+        IntCellValue(truck.totalCartons),
+        IntCellValue(truck.totalDefects),
+      ]);
+    }
+
+    writeRow(layerSheet, 0, [
+      TextCellValue('Truck'),
+      TextCellValue('Layer'),
+      TextCellValue('Cartons'),
+      TextCellValue('Items'),
+      TextCellValue('Defects'),
+      TextCellValue('Operator'),
+      TextCellValue('Added'),
+      TextCellValue('Notes'),
+    ]);
+    for (var row = 0; row < layers.length; row++) {
+      final layer = layers[row];
+      final truck = trucks.firstWhere((item) => item.id == layer.truckId);
+      writeRow(layerSheet, row + 1, [
+        TextCellValue(truck.vehicleNumber),
+        IntCellValue(layer.layerNumber),
+        IntCellValue(layer.cartonCount),
+        TextCellValue(_layerItemLabel(layer)),
+        IntCellValue(layer.defectCount),
+        TextCellValue(layer.operatorId ?? 'Not provided'),
+        TextCellValue(layer.timestamp?.toString().split('.')[0] ?? ''),
+        TextCellValue(layer.notes ?? 'No notes'),
+      ]);
+    }
+    final layerIds = layers.map((layer) => layer.id).toList();
+    final audits = layerIds.isEmpty
+        ? <AuditLog>[]
+        : await (_db.select(_db.auditLogs)
+              ..where((log) =>
+                  log.entityId.isIn(layerIds) & log.action.equals('correct')))
+            .get();
+    writeRow(correctionSheet, 0, [
+      TextCellValue('Entity'),
+      TextCellValue('Changed At'),
+      TextCellValue('Operator'),
+      TextCellValue('Details'),
+    ]);
+    for (var row = 0; row < audits.length; row++) {
+      final audit = audits[row];
+      writeRow(correctionSheet, row + 1, [
+        TextCellValue(audit.entityId),
+        TextCellValue(audit.timestamp.toString()),
+        TextCellValue(audit.userId),
+        TextCellValue(audit.details ?? ''),
+      ]);
+    }
     final headerStyle = CellStyle(
       bold: true,
       horizontalAlign: HorizontalAlign.Center,
