@@ -265,7 +265,7 @@ class AppDrawer extends ConsumerWidget {
         title: 'Load Demo Data?',
         content:
             'This replaces all operational records with a fresh enterprise demo dataset: wagons, trucks, layers, sessions, registers, reports, sync entries and audit history. User accounts, login and app settings remain safe.',
-        actionLabel: 'Replace with Demo Data',
+        actionLabel: 'Load Demo Data',
         actionColor: Colors.redAccent,
         icon: Icons.bug_report_rounded,
         onConfirm: () async {

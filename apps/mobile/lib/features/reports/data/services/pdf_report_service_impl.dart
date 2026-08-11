@@ -660,7 +660,8 @@ Future<Uint8List> _buildWagonPdfBytes(
       header: (context) => ReportTemplateServiceImpl.buildHeader(
         title: 'Wagon Loading Report',
         logo: logo,
-        subtitle: 'Wagon Number: $wagonNumber | Date: $loadingDate',
+        reference: wagonNumber,
+        date: loadingDate,
       ),
       footer: (context) => ReportTemplateServiceImpl.buildFooter(context),
       build: (context) => [
@@ -798,8 +799,9 @@ Future<Uint8List> _buildTruckPdfBytes(
       header: (context) => ReportTemplateServiceImpl.buildHeader(
         title: 'Truck Loading Report',
         logo: logoBytes == null ? null : pw.MemoryImage(logoBytes),
-        subtitle:
-            'Truck Number: ${report['truckNumber']} | Date: ${report['generatedDate']}',
+        reference: report['truckNumber'].toString(),
+        date: report['generatedDate'].toString(),
+        useTruckIcon: true,
       ),
       footer: (context) => ReportTemplateServiceImpl.buildFooter(context),
       build: (context) => [
@@ -1094,7 +1096,8 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
     header: (context) => ReportTemplateServiceImpl.buildHeader(
       title: 'Digital Wagon Register',
       logo: logoBytes == null ? null : pw.MemoryImage(logoBytes),
-      subtitle: 'Wagon ${report['wagonNumber']} | ${report['loadingDate']}',
+      reference: report['wagonNumber'].toString(),
+      date: report['loadingDate'].toString(),
     ),
     footer: (context) => pw.Container(
       padding: const pw.EdgeInsets.only(top: 6),
@@ -1185,7 +1188,8 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
     header: (context) => ReportTemplateServiceImpl.buildHeader(
       title: 'Digital Wagon Register',
       logo: logoBytes == null ? null : pw.MemoryImage(logoBytes),
-      subtitle: 'Wagon ${report['wagonNumber']} | ${report['loadingDate']}',
+      reference: report['wagonNumber'].toString(),
+      date: report['loadingDate'].toString(),
     ),
     footer: (context) => ReportTemplateServiceImpl.buildFooter(context),
     build: (context) => [

@@ -4,7 +4,10 @@ import 'package:pdf/widgets.dart' as pw;
 class ReportTemplateServiceImpl {
   static pw.Widget buildHeader({
     required String title,
-    required String subtitle,
+    String? subtitle,
+    String? reference,
+    String? date,
+    bool useTruckIcon = false,
     pw.ImageProvider? logo,
   }) {
     return pw
@@ -30,11 +33,105 @@ class ReportTemplateServiceImpl {
       pw.SizedBox(height: 10),
       pw.Text(title,
           style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-      pw.Text(subtitle,
-          style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey600)),
+      if (reference != null && date != null) ...[
+        pw.SizedBox(height: 7),
+        pw.Wrap(
+          spacing: 8,
+          runSpacing: 6,
+          children: [
+            _metadataBadge(
+              icon: useTruckIcon ? _truckIcon : _wagonIcon,
+              value: reference,
+              emphasized: true,
+            ),
+            _metadataBadge(icon: _calendarIcon, value: _displayDate(date)),
+          ],
+        ),
+      ] else if (subtitle != null)
+        pw.Text(subtitle,
+            style: const pw.TextStyle(fontSize: 14, color: PdfColors.grey600)),
       pw.SizedBox(height: 20),
     ]);
   }
+
+  static pw.Widget _metadataBadge({
+    required String icon,
+    required String value,
+    bool emphasized = false,
+  }) {
+    return pw.Container(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: pw.BoxDecoration(
+        color: const PdfColor.fromInt(0xFFF1F6FA),
+        border: pw.Border.all(
+          color: const PdfColor.fromInt(0xFFCBD9E5),
+          width: 0.7,
+        ),
+        borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
+      ),
+      child: pw.Row(
+        mainAxisSize: pw.MainAxisSize.min,
+        children: [
+          pw.SvgImage(svg: icon, width: 13, height: 13),
+          pw.SizedBox(width: 6),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: 10,
+              fontWeight:
+                  emphasized ? pw.FontWeight.bold : pw.FontWeight.normal,
+              color: emphasized ? PdfColors.blue900 : PdfColors.grey800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _displayDate(String raw) {
+    final parsed = DateTime.tryParse(raw.trim());
+    if (parsed == null) return raw;
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
+    return '${parsed.day.toString().padLeft(2, '0')} '
+        '${months[parsed.month - 1]} ${parsed.year}';
+  }
+
+  static const _wagonIcon = '''
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" stroke="#0D47A1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M3 6h18v10H3z"/><path d="M6 9h12M7 16v2m10-2v2M4 20h16"/>
+    <circle cx="7" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>
+  </g>
+</svg>''';
+
+  static const _truckIcon = '''
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" stroke="#0D47A1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M2.5 6h12v10h-12zM14.5 10h4l3 3v3h-7zM18.5 10v3h3"/>
+    <circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/>
+  </g>
+</svg>''';
+
+  static const _calendarIcon = '''
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <g fill="none" stroke="#455A64" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/>
+    <path d="M7 14h2m3 0h2m3 0h1M7 17h2m3 0h2"/>
+  </g>
+</svg>''';
 
   static pw.Widget buildFooter(pw.Context context) {
     return pw.Column(children: [
