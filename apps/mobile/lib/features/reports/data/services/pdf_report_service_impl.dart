@@ -1063,6 +1063,10 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
   final corrections = _reportMaps(report['corrections']);
   final pdf = pw.Document();
   final rowCount = report['rowCount'] as int? ?? 0;
+  final totalLayers = trucks.fold<int>(
+    0,
+    (total, truck) => total + _reportMaps(truck['layers']).length,
+  );
   final legacyRows = <List<String>>[
     [
       'S.NO.',
@@ -1084,65 +1088,72 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
         for (final truck in trucks) ..._digitalRegisterCells(truck, row),
       ],
   ];
-  pdf.addPage(pw.Page(
+  pdf.addPage(pw.MultiPage(
     pageFormat: PdfPageFormat.a4.landscape,
     margin: const pw.EdgeInsets.fromLTRB(24, 22, 24, 22),
-    build: (context) => pw.Column(
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
-        ReportTemplateServiceImpl.buildHeader(
-          title: 'Digital Wagon Register',
-          logo: logoBytes == null ? null : pw.MemoryImage(logoBytes),
-          subtitle: 'Wagon ${report['wagonNumber']} | ${report['loadingDate']}',
-        ),
-        pw.Container(
-          padding: const pw.EdgeInsets.all(6),
-          decoration: pw.BoxDecoration(
-              border: pw.Border.all(color: PdfColors.black, width: 0.7)),
-          child: pw.Row(children: [
-            for (final value in [
-              'FROM: ${_reportValue(report['origin'])}',
-              'TO: ${_reportValue(report['destination'])}',
-              'WAGON: ${report['wagonNumber']}',
-              'CARTONS: ${report['totalCartons']}',
-              'DATE: ${report['loadingDate']}',
-            ])
-              pw.Expanded(
-                  child: pw.Text(value,
-                      style: pw.TextStyle(
-                          fontSize: 8, fontWeight: pw.FontWeight.bold))),
-          ]),
-        ),
-        pw.SizedBox(height: 7),
-        pw.Expanded(
-          child: pw.TableHelper.fromTextArray(
-            context: context,
-            border: pw.TableBorder.all(color: PdfColors.black, width: 0.45),
-            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-            headerStyle:
-                pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
-            cellStyle: const pw.TextStyle(fontSize: 6),
-            cellAlignment: pw.Alignment.center,
-            headerCount: 2,
-            data: legacyRows,
-          ),
-        ),
-        pw.SizedBox(height: 6),
-        pw.Row(
-          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-          children: [
-            pw.Text('REMARKS: ${_reportValue(report['remarks'])}',
-                style: const pw.TextStyle(fontSize: 7)),
-            pw.Text('DEFECTS: ${report['totalDefects']}',
-                style:
-                    pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
-            pw.Text('SUPERVISOR: $supervisor',
-                style:
-                    pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
-          ],
-        ),
-      ],
+    header: (context) => ReportTemplateServiceImpl.buildHeader(
+      title: 'Digital Wagon Register',
+      logo: logoBytes == null ? null : pw.MemoryImage(logoBytes),
+      subtitle: 'Wagon ${report['wagonNumber']} | ${report['loadingDate']}',
     ),
+    footer: (context) => pw.Container(
+      padding: const pw.EdgeInsets.only(top: 6),
+      decoration: const pw.BoxDecoration(
+        border: pw.Border(top: pw.BorderSide(color: PdfColors.grey500)),
+      ),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text('VEHICLES: ${trucks.length}',
+              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
+          pw.Text('LAYERS: $totalLayers',
+              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
+          pw.Text('CARTONS: ${report['totalCartons']}',
+              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
+          pw.Text('DEFECTS: ${report['totalDefects']}',
+              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
+          pw.Text('SUPERVISOR: $supervisor',
+              style: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
+          pw.Text('PAGE ${context.pageNumber} OF ${context.pagesCount}',
+              style: const pw.TextStyle(fontSize: 7)),
+        ],
+      ),
+    ),
+    build: (context) => [
+      pw.Container(
+        padding: const pw.EdgeInsets.all(6),
+        decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.black, width: 0.7)),
+        child: pw.Row(children: [
+          for (final value in [
+            'FROM: ${_reportValue(report['origin'])}',
+            'TO: ${_reportValue(report['destination'])}',
+            'WAGON: ${report['wagonNumber']}',
+            'CARTONS: ${report['totalCartons']}',
+            'DATE: ${report['loadingDate']}',
+          ])
+            pw.Expanded(
+                child: pw.Text(value,
+                    style: pw.TextStyle(
+                        fontSize: 8, fontWeight: pw.FontWeight.bold))),
+        ]),
+      ),
+      pw.SizedBox(height: 7),
+      pw.TableHelper.fromTextArray(
+        context: context,
+        border: pw.TableBorder.all(color: PdfColors.black, width: 0.45),
+        headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+        headerStyle: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
+        cellStyle: const pw.TextStyle(fontSize: 6),
+        cellPadding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+        cellAlignment: pw.Alignment.center,
+        headerCount: 2,
+        data: legacyRows,
+      ),
+      pw.SizedBox(height: 6),
+      pw.Text('REMARKS: ${_reportValue(report['remarks'])}',
+          style: const pw.TextStyle(fontSize: 7)),
+    ],
   ));
   pdf.addPage(pw.MultiPage(
     pageFormat: PdfPageFormat.a4,
