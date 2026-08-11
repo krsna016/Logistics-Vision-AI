@@ -204,9 +204,10 @@ void main() {
     final truckRepository = LocalTruckRepository(database);
     final layerRepository = LocalLayerRepository(database);
 
-    await wagonRepository.loadDemoData();
-    await truckRepository.loadDemoData();
-    await layerRepository.loadDemoData();
+    const operator = 'Signed-in Supervisor';
+    await wagonRepository.loadDemoData(operatorName: operator);
+    await truckRepository.loadDemoData(operatorName: operator);
+    await layerRepository.loadDemoData(operatorName: operator);
 
     final visibleWagons = await wagonRepository.getActiveWagons();
     final visibleTrucks = await truckRepository.getActiveTrucks();
@@ -216,7 +217,7 @@ void main() {
         await wagonRepository.getLoadedItemQuantities('demo_wagon_completed');
 
     expect(visibleWagons, hasLength(5));
-    expect(visibleTrucks, hasLength(5));
+    expect(visibleTrucks, hasLength(10));
     expect(activeInventory, {
       'Premium Rice': 80,
       'Assam Tea': 50,
@@ -226,7 +227,32 @@ void main() {
       'Consumer Electronics': 140,
       'Home Appliances': 100,
     });
-    expect(await database.select(database.auditLogs).get(), hasLength(2));
+    expect(
+      await wagonRepository.getLoadedItemQuantities('demo_wagon_enterprise'),
+      {
+        'Packaged Foods': 1420,
+        'Personal Care': 1430,
+        'Household Goods': 1350,
+      },
+    );
+    final enterpriseTrucks = visibleTrucks
+        .where((truck) => truck.wagonId == 'demo_wagon_enterprise')
+        .toList();
+    expect(enterpriseTrucks, hasLength(6));
+    expect(enterpriseTrucks.map((truck) => truck.totalLayers),
+        containsAll([15, 16, 17, 18, 19, 20]));
+    expect(
+      (await database.select(database.layers).get())
+          .where((layer) => !layer.isDeleted)
+          .every((layer) => layer.operatorId == operator),
+      isTrue,
+    );
+    expect(
+      (await database.select(database.auditLogs).get())
+          .every((audit) => audit.userId == operator),
+      isTrue,
+    );
+    expect(await database.select(database.auditLogs).get(), hasLength(5));
     expect(await database.select(database.loadingSessions).get(), hasLength(1));
     expect(
         await database.select(database.digitalRegisters).get(), hasLength(1));

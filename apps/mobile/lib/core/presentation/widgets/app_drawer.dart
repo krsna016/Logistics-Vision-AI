@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
@@ -254,6 +255,7 @@ class AppDrawer extends ConsumerWidget {
     final truckRepo = ref.read(truckRepositoryProvider);
     final layerRepo = ref.read(layerRepositoryProvider);
     final database = ref.read(databaseProvider);
+    final operatorName = ref.read(authProvider)?.name.trim();
     final wagonNotifier = ref.read(wagonListProvider.notifier);
     final truckNotifier = ref.read(truckListProvider.notifier);
 
@@ -286,9 +288,74 @@ class AppDrawer extends ConsumerWidget {
           await wagonRepo.clearAllData();
 
           // Load data (must insert parents before children)
-          await wagonRepo.loadDemoData();
-          await truckRepo.loadDemoData();
-          await layerRepo.loadDemoData();
+          await wagonRepo.loadDemoData(operatorName: operatorName);
+          await truckRepo.loadDemoData(operatorName: operatorName);
+          await layerRepo.loadDemoData(operatorName: operatorName);
+
+          final activeLayers = (await database.select(database.layers).get())
+              .where((layer) => !layer.isDeleted)
+              .toList();
+          final activeTrucks = (await database.select(database.trucks).get())
+              .where((truck) => !truck.isDeleted)
+              .toList();
+          if (operatorName != null && operatorName.isNotEmpty) {
+            if (activeLayers.any((layer) => layer.operatorId != operatorName) ||
+                (await database.select(database.auditLogs).get())
+                    .any((audit) => audit.userId != operatorName)) {
+              throw StateError('Demo operator identity failed validation.');
+            }
+          }
+          for (final truck in activeTrucks) {
+            final truckLayers = activeLayers
+                .where((layer) => layer.truckId == truck.id)
+                .toList();
+            final cartons = truckLayers.fold<int>(
+                0, (sum, layer) => sum + layer.cartonCount);
+            final defects = truckLayers.fold<int>(
+                0, (sum, layer) => sum + layer.defectCount);
+            if (truck.totalLayers != truckLayers.length ||
+                truck.totalCartons != cartons ||
+                truck.totalDefects != defects) {
+              throw StateError('Demo truck totals failed validation.');
+            }
+          }
+          final wagons = (await database.select(database.wagons).get())
+              .where((wagon) => !wagon.isDeleted);
+          for (final wagon in wagons) {
+            final manifest = <String, int>{};
+            for (final item
+                in (jsonDecode(wagon.itemManifestJson) as List<dynamic>)) {
+              final value = item as Map<String, dynamic>;
+              manifest[value['name'] as String] = value['quantity'] as int;
+            }
+            final wagonTruckIds = activeTrucks
+                .where((truck) => truck.wagonId == wagon.id)
+                .map((truck) => truck.id)
+                .toSet();
+            final loaded = <String, int>{};
+            for (final layer in activeLayers
+                .where((layer) => wagonTruckIds.contains(layer.truckId))) {
+              final allocations =
+                  jsonDecode(layer.itemAllocationsJson) as List<dynamic>;
+              var allocated = 0;
+              for (final item in allocations) {
+                final value = item as Map<String, dynamic>;
+                final name = value['itemName'] as String;
+                final quantity = value['quantity'] as int;
+                allocated += quantity;
+                loaded[name] = (loaded[name] ?? 0) + quantity;
+              }
+              if (allocations.isNotEmpty && allocated != layer.cartonCount) {
+                throw StateError('Demo layer item totals failed validation.');
+              }
+            }
+            for (final entry in loaded.entries) {
+              if (!manifest.containsKey(entry.key) ||
+                  entry.value > manifest[entry.key]!) {
+                throw StateError('Demo wagon inventory failed validation.');
+              }
+            }
+          }
 
           wagonNotifier.refresh();
           truckNotifier.refresh();

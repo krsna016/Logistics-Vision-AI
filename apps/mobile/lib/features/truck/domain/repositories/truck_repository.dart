@@ -23,5 +23,5 @@ abstract class TruckRepository {
   Future<bool> isTruckNumberExists(String truckNumber,
       {String? excludeId, String? wagonId});
   Future<void> clearAllData();
-  Future<void> loadDemoData();
+  Future<void> loadDemoData({String? operatorName});
 }

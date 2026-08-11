@@ -262,7 +262,7 @@ class LocalWagonRepository implements WagonRepository {
   }
 
   @override
-  Future<void> loadDemoData() async {
+  Future<void> loadDemoData({String? operatorName}) async {
     await _db.transaction(() async {
       final now = DateTime.now();
       Future<void> add({
@@ -343,16 +343,18 @@ class LocalWagonRepository implements WagonRepository {
             {'name': 'Lubricants', 'quantity': 50},
           ]);
       await add(
-          id: 'demo_wagon_overload',
+          id: 'demo_wagon_enterprise',
           number: 'BCNHL-700301',
           status: WagonStatus.loading,
-          origin: 'Siliguri Yard',
+          origin: 'Kolkata Mega Hub',
           destination: 'Guwahati ICD',
           daysAgo: 0,
-          remarks:
-              'Intentional reconciliation edge case: loaded exceeds manifest.',
+          completedTrucks: 4,
+          remarks: 'Enterprise-scale six-truck loading operation.',
           items: const [
-            {'name': 'Sample Cartons', 'quantity': 50}
+            {'name': 'Packaged Foods', 'quantity': 1600},
+            {'name': 'Personal Care', 'quantity': 1600},
+            {'name': 'Household Goods', 'quantity': 1600},
           ]);
       await add(
           id: 'demo_wagon_deleted',

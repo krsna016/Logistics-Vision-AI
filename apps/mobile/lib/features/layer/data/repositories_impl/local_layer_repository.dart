@@ -270,7 +270,6 @@ class LocalLayerRepository implements LayerRepository {
               '${existing.cartonCount} cartons and ${existing.defectCount} defects.',
             ),
           ));
-
       await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
             id: 'sync_l_${DateTime.now().microsecondsSinceEpoch}',
             entityId: id,
@@ -302,9 +301,12 @@ class LocalLayerRepository implements LayerRepository {
   }
 
   @override
-  Future<void> loadDemoData() async {
+  Future<void> loadDemoData({String? operatorName}) async {
     await _db.transaction(() async {
       final now = DateTime.now();
+      final demoOperator = operatorName?.trim().isNotEmpty == true
+          ? operatorName!.trim()
+          : 'Logged-in User';
       Future<void> add(
           {required String id,
           required String truckId,
@@ -346,7 +348,7 @@ class LocalLayerRepository implements LayerRepository {
           number: 1,
           defects: 0,
           minutesAgo: 180,
-          operator: 'Anurag Pareek',
+          operator: demoOperator,
           notes: 'Seal verified | Count method: AI assisted',
           items: const [
             {'itemName': 'Premium Rice', 'quantity': 60},
@@ -357,7 +359,7 @@ class LocalLayerRepository implements LayerRepository {
           number: 2,
           defects: 2,
           minutesAgo: 120,
-          operator: 'Anurag Pareek',
+          operator: demoOperator,
           notes: 'Two dented cartons isolated for supervisor review',
           confidence: 0.87,
           items: const [
@@ -370,7 +372,7 @@ class LocalLayerRepository implements LayerRepository {
           number: 3,
           defects: 0,
           minutesAgo: 45,
-          operator: 'Priya Sharma',
+          operator: demoOperator,
           notes: 'Mixed SKU layer — manually verified',
           items: const [
             {'itemName': 'Assam Tea', 'quantity': 10},
@@ -382,7 +384,7 @@ class LocalLayerRepository implements LayerRepository {
           number: 1,
           defects: 0,
           minutesAgo: 7600,
-          operator: 'Rahul Singh',
+          operator: demoOperator,
           items: const [
             {'itemName': 'Consumer Electronics', 'quantity': 70}
           ]);
@@ -392,7 +394,7 @@ class LocalLayerRepository implements LayerRepository {
           number: 2,
           defects: 0,
           minutesAgo: 7540,
-          operator: 'Rahul Singh',
+          operator: demoOperator,
           items: const [
             {'itemName': 'Consumer Electronics', 'quantity': 30},
             {'itemName': 'Home Appliances', 'quantity': 20},
@@ -403,7 +405,7 @@ class LocalLayerRepository implements LayerRepository {
           number: 1,
           defects: 1,
           minutesAgo: 7480,
-          operator: 'Meera Bora',
+          operator: demoOperator,
           notes: 'One packaging tear recorded',
           items: const [
             {'itemName': 'Consumer Electronics', 'quantity': 40},
@@ -415,7 +417,7 @@ class LocalLayerRepository implements LayerRepository {
           number: 2,
           defects: 0,
           minutesAgo: 7420,
-          operator: 'Meera Bora',
+          operator: demoOperator,
           items: const [
             {'itemName': 'Home Appliances', 'quantity': 60}
           ]);
@@ -425,7 +427,7 @@ class LocalLayerRepository implements LayerRepository {
           number: 1,
           defects: 0,
           minutesAgo: 43300,
-          operator: 'Archive Operator',
+          operator: demoOperator,
           items: const [
             {'itemName': 'Auto Parts', 'quantity': 60}
           ]);
@@ -435,29 +437,47 @@ class LocalLayerRepository implements LayerRepository {
           number: 2,
           defects: 0,
           minutesAgo: 43240,
-          operator: 'Archive Operator',
+          operator: demoOperator,
           items: const [
             {'itemName': 'Auto Parts', 'quantity': 20},
             {'itemName': 'Lubricants', 'quantity': 10},
           ]);
-      await add(
-          id: 'demo_layer_overload_1',
-          truckId: 'demo_truck_overload',
-          number: 1,
-          defects: 0,
-          minutesAgo: 20,
-          operator: 'Edge Case Operator',
-          notes: 'Intentional over-manifest edge case',
-          items: const [
-            {'itemName': 'Sample Cartons', 'quantity': 60}
-          ]);
+      const enterpriseItems = [
+        'Packaged Foods',
+        'Personal Care',
+        'Household Goods',
+      ];
+      var enterpriseLayerId = 1;
+      for (var truckIndex = 0; truckIndex < 6; truckIndex++) {
+        final layerCount = 15 + truckIndex;
+        for (var layerIndex = 0; layerIndex < layerCount; layerIndex++) {
+          final first = enterpriseItems[layerIndex % 3];
+          final second = enterpriseItems[(layerIndex + 1) % 3];
+          await add(
+            id: 'demo_layer_enterprise_${enterpriseLayerId++}',
+            truckId: 'demo_truck_enterprise_${truckIndex + 1}',
+            number: layerIndex + 1,
+            defects: layerIndex == 7 && truckIndex % 3 != 0 ? 1 : 0,
+            minutesAgo: 600 - (truckIndex * 70 + layerIndex * 3),
+            operator: demoOperator,
+            notes: layerIndex % 7 == 0
+                ? 'Mixed-item layer manually verified'
+                : null,
+            confidence: 0.91 + ((layerIndex % 5) * 0.01),
+            items: [
+              {'itemName': first, 'quantity': 25},
+              {'itemName': second, 'quantity': 15},
+            ],
+          );
+        }
+      }
       await add(
           id: 'demo_layer_deleted',
           truckId: 'demo_truck_active_1',
           number: 99,
           defects: 0,
           minutesAgo: 10,
-          operator: 'Deleted Operator',
+          operator: demoOperator,
           deleted: true,
           items: const [
             {'itemName': 'Premium Rice', 'quantity': 10}
@@ -468,7 +488,7 @@ class LocalLayerRepository implements LayerRepository {
             entityId: 'demo_layer_active_2',
             entityType: 'Layer',
             action: 'correct',
-            userId: 'Anurag Pareek',
+            userId: demoOperator,
             timestamp: drift.Value(now.subtract(const Duration(minutes: 110))),
             details: const drift.Value(
                 'Layer 2: cartons 55 -> 60, defects 1 -> 2. Reason: Physical recount after damaged cartons were isolated. Items: [{"itemName":"Premium Rice","quantity":20},{"itemName":"Assam Tea","quantity":35}] -> [{"itemName":"Premium Rice","quantity":20},{"itemName":"Assam Tea","quantity":40}]'),
@@ -478,11 +498,31 @@ class LocalLayerRepository implements LayerRepository {
             entityId: 'demo_layer_deleted',
             entityType: 'Layer',
             action: 'delete',
-            userId: 'Supervisor Demo',
+            userId: demoOperator,
             timestamp: drift.Value(now.subtract(const Duration(minutes: 9))),
             details: const drift.Value(
                 'Soft-deleted test layer; excluded from totals and reports.'),
           ));
+      for (var index = 1; index <= 3; index++) {
+        const correctedLayerIds = [1, 16, 32];
+        await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
+              id: 'demo_audit_enterprise_$index',
+              entityId: 'demo_layer_enterprise_${correctedLayerIds[index - 1]}',
+              entityType: 'Layer',
+              action: 'correct',
+              userId: demoOperator,
+              timestamp: drift.Value(
+                  now.subtract(Duration(minutes: 500 - index * 40))),
+              details: drift.Value(
+                'Layer 1: cartons 40 -> 40, defects 0 -> 0. '
+                'Reason: Item-wise recount confirmed the layer total. '
+                'Items: [{"itemName":"Packaged Foods","quantity":20},'
+                '{"itemName":"Personal Care","quantity":20}] -> '
+                '[{"itemName":"Packaged Foods","quantity":25},'
+                '{"itemName":"Personal Care","quantity":15}]',
+              ),
+            ));
+      }
       await _db
           .into(_db.loadingSessions)
           .insert(LoadingSessionsCompanion.insert(
@@ -491,7 +531,7 @@ class LocalLayerRepository implements LayerRepository {
             startTime: now.subtract(const Duration(days: 5, hours: 3)),
             endTime:
                 drift.Value(now.subtract(const Duration(days: 5, hours: 1))),
-            operatorId: 'Rahul Singh',
+            operatorId: demoOperator,
             status: 'completed',
             totalLayers: const drift.Value(2),
             totalCartons: const drift.Value(120),
@@ -505,7 +545,7 @@ class LocalLayerRepository implements LayerRepository {
             id: 'demo_register_completed',
             wagonId: 'demo_wagon_completed',
             wagonNumber: 'BCNHL-699842',
-            generatedBy: 'Enterprise Demo Supervisor',
+            generatedBy: demoOperator,
             shift: 'Day Shift',
             verificationHash: 'DEMO-699842-VERIFIED',
             totalTrucks: 2,

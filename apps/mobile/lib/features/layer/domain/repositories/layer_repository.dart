@@ -16,5 +16,5 @@ abstract class LayerRepository {
   /// Verify if a layer number is already taken inside a truck session.
   Future<bool> isLayerNumberExists(String truckId, int layerNumber);
   Future<void> clearAllData();
-  Future<void> loadDemoData();
+  Future<void> loadDemoData({String? operatorName});
 }

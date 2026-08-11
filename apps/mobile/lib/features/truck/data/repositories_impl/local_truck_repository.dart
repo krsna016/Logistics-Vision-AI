@@ -230,7 +230,7 @@ class LocalTruckRepository implements TruckRepository {
   }
 
   @override
-  Future<void> loadDemoData() async {
+  Future<void> loadDemoData({String? operatorName}) async {
     await _db.transaction(() async {
       final now = DateTime.now();
       Future<void> add(
@@ -331,20 +331,40 @@ class LocalTruckRepository implements TruckRepository {
           defects: 0,
           daysAgo: 30,
           archived: true);
-      await add(
-          id: 'demo_truck_overload',
-          wagonId: 'demo_wagon_overload',
-          number: 'TRK-240811-X',
-          vehicle: 'WB 73 E 4406',
-          driver: 'Bikash Rai',
-          mobile: '+91 98320 54406',
-          company: 'Himalayan Surface Transport',
+      const enterpriseVehicles = [
+        'WB 23 F 4101',
+        'WB 23 F 4102',
+        'WB 23 F 4103',
+        'WB 23 F 4104',
+        'WB 23 F 4105',
+        'WB 23 F 4106',
+      ];
+      const enterpriseDrivers = [
+        'Amit Roy',
+        'Deepak Mandal',
+        'Niraj Das',
+        'Prakash Shah',
+        'Subhash Paul',
+        'Vikram Nath',
+      ];
+      for (var index = 0; index < 6; index++) {
+        final layerCount = 15 + index;
+        await add(
+          id: 'demo_truck_enterprise_${index + 1}',
+          wagonId: 'demo_wagon_enterprise',
+          number: 'ENT-TRK-${index + 1}',
+          vehicle: enterpriseVehicles[index],
+          driver: enterpriseDrivers[index],
+          mobile: '+91 98000 4100${index + 1}',
+          company: 'Eastern Enterprise Logistics',
           warehouse: 'Guwahati ICD',
-          status: TruckStatus.loading,
-          layers: 1,
-          cartons: 60,
-          defects: 0,
-          notes: 'Intentional 10-carton manifest variance.');
+          status: index < 4 ? TruckStatus.completed : TruckStatus.loading,
+          layers: layerCount,
+          cartons: layerCount * 40,
+          defects: index % 3 == 0 ? 0 : 1,
+          notes: 'Enterprise wagon truck ${index + 1} of 6.',
+        );
+      }
       await add(
           id: 'demo_truck_deleted',
           wagonId: 'demo_wagon_active',
