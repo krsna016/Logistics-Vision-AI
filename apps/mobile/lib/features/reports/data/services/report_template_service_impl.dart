@@ -169,6 +169,8 @@ class ReportTemplateServiceImpl {
                 pw.Text('Signature', style: const pw.TextStyle(fontSize: 12)),
               ]),
               pw.Column(children: [
+                pw.SizedBox(height: 13.2),
+                pw.SizedBox(height: 4),
                 pw.Container(
                     width: 150,
                     decoration: const pw.BoxDecoration(

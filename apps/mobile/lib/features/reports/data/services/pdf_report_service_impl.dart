@@ -181,6 +181,117 @@ String _reportValue(Object? value) {
       : text;
 }
 
+String compactDigitalRegisterItems(String value) => value
+    .split(' + ')
+    .map((item) => item.trim())
+    .where((item) => item.isNotEmpty)
+    .join('\n');
+
+pw.Widget _singleLineRegisterText(
+  String value, {
+  double fontSize = 6.5,
+  bool bold = false,
+  pw.Alignment alignment = pw.Alignment.center,
+}) =>
+    pw.FittedBox(
+      fit: pw.BoxFit.scaleDown,
+      alignment: alignment,
+      child: pw.Text(
+        value,
+        maxLines: 1,
+        softWrap: false,
+        style: pw.TextStyle(
+          fontSize: fontSize,
+          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
+    );
+
+pw.Widget? Function(int, dynamic, int) _digitalRegisterSingleLineCellBuilder(
+  double fontSize,
+) =>
+    (column, data, row) {
+      final value = data.toString();
+      final isCompactCell = column == 0 || column.isOdd || value == 'ITEM';
+      if (!isCompactCell) return null;
+      if (value.trim().isEmpty) return pw.SizedBox();
+      return _singleLineRegisterText(
+        value,
+        fontSize: fontSize,
+        bold: row < 2,
+      );
+    };
+
+List<Map<String, Object>> aggregateTruckItems(
+  Iterable<Map<String, int>> layerAllocations,
+  int totalCartons,
+) {
+  final totals = <String, int>{};
+  for (final allocations in layerAllocations) {
+    for (final allocation in allocations.entries) {
+      final name = allocation.key.trim();
+      if (name.isEmpty || allocation.value <= 0) continue;
+      totals[name] = (totals[name] ?? 0) + allocation.value;
+    }
+  }
+  final allocatedCartons =
+      totals.values.fold<int>(0, (sum, quantity) => sum + quantity);
+  if (allocatedCartons < totalCartons) {
+    totals['Unspecified item'] = totalCartons - allocatedCartons;
+  }
+  final entries = totals.entries.toList()
+    ..sort((first, second) => first.key.compareTo(second.key));
+  return entries
+      .map<Map<String, Object>>(
+        (entry) => {'name': entry.key, 'quantity': entry.value},
+      )
+      .toList(growable: false);
+}
+
+String formatTruckItemBreakdown(List<Map<String, Object>> items) => items
+    .map((item) => '${item['name']}: ${item['quantity']} cartons')
+    .join('\n');
+
+pw.Widget? _wagonTruckSummaryCellBuilder(int column, dynamic data, int row) {
+  if (column != 6) {
+    if (column == 0 || column == 1 || column == 2 || column == 7) {
+      return pw.FittedBox(
+        fit: pw.BoxFit.scaleDown,
+        alignment: pw.Alignment.centerLeft,
+        child: pw.Text(
+          data.toString(),
+          maxLines: 1,
+          softWrap: false,
+          style: const pw.TextStyle(fontSize: 8.5),
+        ),
+      );
+    }
+    return null;
+  }
+  final lines = data
+      .toString()
+      .split('\n')
+      .map((line) => line.trim())
+      .where((line) => line.isNotEmpty)
+      .toList(growable: false);
+  if (lines.isEmpty) return pw.Text('No items');
+  return pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+    children: [
+      for (final line in lines)
+        pw.Padding(
+          padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
+          child: pw.Text(
+            line,
+            maxLines: 1,
+            softWrap: false,
+            style: const pw.TextStyle(fontSize: 7.5),
+          ),
+        ),
+    ],
+  );
+}
+
 class PdfReportServiceImpl implements PdfReportService {
   static Future<Uint8List?>? _cachedReportLogoBytes;
   final AppDatabase _db;
@@ -233,7 +344,9 @@ class PdfReportServiceImpl implements PdfReportService {
       for (final value in values.whereType<Map<String, dynamic>>()) {
         final name = (value['itemName'] as String? ?? '').trim();
         final quantity = (value['quantity'] as num? ?? 0).toInt();
-        if (name.isNotEmpty && quantity > 0) result[name] = quantity;
+        if (name.isNotEmpty && quantity > 0) {
+          result[name] = (result[name] ?? 0) + quantity;
+        }
       }
     } catch (_) {
       // Use the single-item compatibility field below.
@@ -282,6 +395,12 @@ class PdfReportServiceImpl implements PdfReportService {
     final layerNumberById = {
       for (final layer in layers) layer.id: layer.layerNumber,
     };
+    final totalCartons =
+        layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
+    final itemSummary = aggregateTruckItems(
+      layers.map(_layerAllocations),
+      totalCartons,
+    );
     final reportData = <String, Object?>{
       'truckNumber': truck.truckNumber,
       'generatedDate': DateTime.now().toString().split(' ')[0],
@@ -292,8 +411,7 @@ class PdfReportServiceImpl implements PdfReportService {
       'warehouse': truck.warehouse,
       'status': truck.status,
       'totalLayers': layers.length,
-      'totalCartons':
-          layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount),
+      'totalCartons': totalCartons,
       'totalDefects':
           layers.fold<int>(0, (sum, layer) => sum + layer.defectCount),
       'layers': layers
@@ -309,6 +427,7 @@ class PdfReportServiceImpl implements PdfReportService {
             },
           )
           .toList(growable: false),
+      'itemSummary': itemSummary,
       'corrections': correctionLogs.map<Map<String, Object?>>((log) {
         final correction = parseLayerCorrectionDetails(log.details);
         return {
@@ -386,22 +505,31 @@ class PdfReportServiceImpl implements PdfReportService {
       'destination': wagon.destination,
       'remarks': wagon.remarks ?? '',
       'items': manifest,
-      'trucks': trucks
-          .map<Map<String, Object?>>(
-            (truck) => {
-              'truckNumber': truck.truckNumber,
-              'vehicleNumber': truck.vehicleNumber,
-              'driverName': truck.driverName,
-              'driverMobile': truck.driverMobile ?? 'N/A',
-              'totalLayers': layersByTruck[truck.id]!.length,
-              'totalCartons': layersByTruck[truck.id]!
-                  .fold<int>(0, (sum, layer) => sum + layer.cartonCount),
-              'totalDefects': layersByTruck[truck.id]!
-                  .fold<int>(0, (sum, layer) => sum + layer.defectCount),
-              'status': truck.status,
-            },
-          )
-          .toList(growable: false),
+      'trucks': trucks.map<Map<String, Object?>>(
+        (truck) {
+          final truckLayers = layersByTruck[truck.id]!;
+          final truckCartons =
+              truckLayers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
+          final itemBreakdown = formatTruckItemBreakdown(
+            aggregateTruckItems(
+              truckLayers.map(_layerAllocations),
+              truckCartons,
+            ),
+          );
+          return {
+            'truckNumber': truck.truckNumber,
+            'vehicleNumber': truck.vehicleNumber,
+            'driverName': truck.driverName,
+            'driverMobile': truck.driverMobile ?? 'N/A',
+            'totalLayers': truckLayers.length,
+            'totalCartons': truckCartons,
+            'totalDefects': truckLayers.fold<int>(
+                0, (sum, layer) => sum + layer.defectCount),
+            'itemBreakdown': itemBreakdown,
+            'status': truck.status,
+          };
+        },
+      ).toList(growable: false),
     };
     final logoBytes = await _loadReportLogoBytes();
     final supervisor = _supervisor;
@@ -735,17 +863,34 @@ Future<Uint8List> _buildWagonPdfBytes(
           context: context,
           headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
           headerStyle:
-              pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
-          cellStyle: const pw.TextStyle(fontSize: 8),
-          headers: const [
-            'Vehicle Number',
-            'Driver',
-            'Phone',
-            'Layers',
-            'Cartons',
-            'Defects',
-            'Status',
+              pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
+          cellStyle: const pw.TextStyle(fontSize: 8.5),
+          cellPadding:
+              const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 5),
+          cellBuilder: _wagonTruckSummaryCellBuilder,
+          headers: [
+            for (final label in const [
+              'Vehicle Number',
+              'Driver',
+              'Phone',
+              'Layers',
+              'Cartons',
+              'Defects',
+              'Item Breakdown',
+              'Status',
+            ])
+              _singleLineRegisterText(label, fontSize: 8.5, bold: true),
           ],
+          columnWidths: const {
+            0: pw.FlexColumnWidth(1.5),
+            1: pw.FlexColumnWidth(1.25),
+            2: pw.FlexColumnWidth(1.45),
+            3: pw.FlexColumnWidth(0.55),
+            4: pw.FlexColumnWidth(0.65),
+            5: pw.FlexColumnWidth(0.6),
+            6: pw.FlexColumnWidth(2.35),
+            7: pw.FlexColumnWidth(0.85),
+          },
           data: trucks
               .map(
                 (truck) => [
@@ -755,6 +900,7 @@ Future<Uint8List> _buildWagonPdfBytes(
                   truck['totalLayers'].toString(),
                   truck['totalCartons'].toString(),
                   truck['totalDefects'].toString(),
+                  truck['itemBreakdown'].toString(),
                   truck['status'].toString(),
                 ],
               )
@@ -799,6 +945,20 @@ Future<Uint8List> _buildWagonPdfBytes(
   return pdf.save();
 }
 
+@visibleForTesting
+Future<Uint8List> buildWagonPdfBytesForTesting(
+  Map<String, Object?> report, {
+  String supervisor = 'Test Supervisor',
+}) =>
+    _buildWagonPdfBytes(report, null, supervisor);
+
+@visibleForTesting
+Future<Uint8List> buildDigitalRegisterPdfBytesForTesting(
+  Map<String, Object?> report, {
+  String supervisor = 'Test Supervisor',
+}) =>
+    _buildDigitalRegisterPdfBytes(report, null, supervisor);
+
 Future<Uint8List> _buildTruckPdfBytes(
   Map<String, Object?> report,
   Uint8List? logoBytes,
@@ -806,6 +966,7 @@ Future<Uint8List> _buildTruckPdfBytes(
 ) async {
   final layers = _reportMaps(report['layers']);
   final corrections = _reportMaps(report['corrections']);
+  final itemSummary = _reportMaps(report['itemSummary']);
   final pdf = pw.Document();
   pdf.addPage(
     pw.MultiPage(
@@ -885,6 +1046,79 @@ Future<Uint8List> _buildTruckPdfBytes(
               .toList(growable: false),
         ),
         pw.SizedBox(height: 18),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey400),
+            color: PdfColors.grey100,
+          ),
+          child: pw.Row(
+            crossAxisAlignment: pw.CrossAxisAlignment.center,
+            children: [
+              pw.Expanded(
+                flex: 2,
+                child: pw.Column(children: [
+                  pw.Text('TOTAL CARTONS',
+                      style: const pw.TextStyle(
+                          fontSize: 8, color: PdfColors.grey700)),
+                  pw.SizedBox(height: 4),
+                  pw.Text('${report['totalCartons']}',
+                      style: pw.TextStyle(
+                          fontSize: 15, fontWeight: pw.FontWeight.bold)),
+                ]),
+              ),
+              pw.Container(width: 0.7, height: 42, color: PdfColors.grey400),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                flex: 5,
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                  children: [
+                    pw.Text('ITEM BREAKDOWN',
+                        style: const pw.TextStyle(
+                            fontSize: 8, color: PdfColors.grey700)),
+                    pw.SizedBox(height: 5),
+                    if (itemSummary.isEmpty)
+                      pw.Text('No cartons recorded.')
+                    else
+                      ...itemSummary.map(
+                        (item) => pw.Padding(
+                          padding: const pw.EdgeInsets.only(bottom: 3),
+                          child: pw.Row(
+                            mainAxisAlignment:
+                                pw.MainAxisAlignment.spaceBetween,
+                            children: [
+                              pw.Expanded(
+                                child: pw.Text(item['name'].toString(),
+                                    style: pw.TextStyle(
+                                        fontWeight: pw.FontWeight.bold)),
+                              ),
+                              pw.Text('${item['quantity']} cartons'),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 12),
+              pw.Container(width: 0.7, height: 42, color: PdfColors.grey400),
+              pw.Expanded(
+                flex: 2,
+                child: pw.Column(children: [
+                  pw.Text('TOTAL DEFECTS',
+                      style: const pw.TextStyle(
+                          fontSize: 8, color: PdfColors.grey700)),
+                  pw.SizedBox(height: 4),
+                  pw.Text('${report['totalDefects']}',
+                      style: pw.TextStyle(
+                          fontSize: 15, fontWeight: pw.FontWeight.bold)),
+                ]),
+              ),
+            ],
+          ),
+        ),
+        pw.SizedBox(height: 18),
         pw.Text('Layer Correction History',
             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 10),
@@ -925,24 +1159,8 @@ Future<Uint8List> _buildTruckPdfBytes(
                 .toList(growable: false),
           ),
         pw.SizedBox(height: 20),
-        pw.Container(
-          padding: const pw.EdgeInsets.all(10),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.grey400),
-            color: PdfColors.grey100,
-          ),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
-            children: [
-              pw.Text('Total Layers: ${report['totalLayers']}',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('Total Cartons: ${report['totalCartons']}',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-              pw.Text('Total Defects: ${report['totalDefects']}',
-                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-            ],
-          ),
-        ),
+        pw.Text('Total Layers: ${report['totalLayers']}',
+            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
         ReportTemplateServiceImpl.buildSignatures(supervisorName: supervisor),
       ],
     ),
@@ -960,17 +1178,24 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
   }
   final trucks = _reportMaps(report['trucks']);
   final rowCount = report['rowCount']! as int;
-  final tableRows = <List<String>>[
+  final tableRows = <List<dynamic>>[
     [
-      'S.NO.',
+      _singleLineRegisterText('S.NO.', fontSize: 7, bold: true),
       for (final truck in trucks) ...[
-        'VEHICLE: ${truck['vehicleNumber']}',
-        '',
+        _singleLineRegisterText(
+          'VEHICLE: ${truck['vehicleNumber']}',
+          fontSize: 7,
+          bold: true,
+        ),
+        pw.SizedBox(),
       ],
     ],
     [
-      '',
-      for (var index = 0; index < trucks.length; index++) ...['QTY', 'ITEM'],
+      pw.SizedBox(),
+      for (var index = 0; index < trucks.length; index++) ...[
+        _singleLineRegisterText('QTY', fontSize: 7, bold: true),
+        _singleLineRegisterText('ITEM', fontSize: 7, bold: true),
+      ],
     ],
   ];
   for (var row = 0; row < rowCount; row++) {
@@ -1019,9 +1244,12 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
               'UNLOADING DATE: ${report['loadingDate']}',
             ])
               pw.Expanded(
-                  child: pw.Text(text,
-                      style: pw.TextStyle(
-                          fontSize: 9, fontWeight: pw.FontWeight.bold))),
+                child: _singleLineRegisterText(
+                  text,
+                  fontSize: 9,
+                  bold: true,
+                ),
+              ),
           ]),
         ),
         pw.SizedBox(height: 8),
@@ -1034,6 +1262,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
           cellStyle: const pw.TextStyle(fontSize: 7),
           cellAlignment: pw.Alignment.center,
           headerCount: 2,
+          cellBuilder: _digitalRegisterSingleLineCellBuilder(7),
           data: tableRows,
         ),
         pw.SizedBox(height: 8),
@@ -1084,19 +1313,23 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
     0,
     (total, truck) => total + _reportMaps(truck['layers']).length,
   );
-  final legacyRows = <List<String>>[
+  final legacyRows = <List<dynamic>>[
     [
-      'S.NO.',
+      _singleLineRegisterText('S.NO.', fontSize: 6, bold: true),
       for (final truck in trucks) ...[
-        'VEHICLE: ${truck['vehicleNumber']}',
-        '',
+        _singleLineRegisterText(
+          'VEHICLE: ${truck['vehicleNumber']}',
+          fontSize: 6,
+          bold: true,
+        ),
+        pw.SizedBox(),
       ],
     ],
     [
-      '',
+      pw.SizedBox(),
       for (var index = 0; index < trucks.length; index++) ...[
-        'CARTONS',
-        'ITEM'
+        _singleLineRegisterText('CARTONS', fontSize: 6, bold: true),
+        _singleLineRegisterText('ITEM', fontSize: 6, bold: true),
       ],
     ],
     for (var row = 0; row < rowCount; row++)
@@ -1129,9 +1362,12 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
             'DATE: ${report['loadingDate']}',
           ])
             pw.Expanded(
-                child: pw.Text(value,
-                    style: pw.TextStyle(
-                        fontSize: 8, fontWeight: pw.FontWeight.bold))),
+              child: _singleLineRegisterText(
+                value,
+                fontSize: 8,
+                bold: true,
+              ),
+            ),
         ]),
       ),
       pw.SizedBox(height: 7),
@@ -1144,6 +1380,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
         cellPadding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 3),
         cellAlignment: pw.Alignment.center,
         headerCount: 2,
+        cellBuilder: _digitalRegisterSingleLineCellBuilder(6),
         data: legacyRows,
       ),
       pw.SizedBox(height: 8),
