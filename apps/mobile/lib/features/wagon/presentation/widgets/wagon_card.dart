@@ -7,7 +7,8 @@ import '../../domain/entities/wagon.dart';
 class WagonCard extends StatelessWidget {
   final Wagon wagon;
   final int totalCartons;
-  final int totalDefects;
+  final int loadedCartons;
+  final int remainingCartons;
   final int truckCount;
   final VoidCallback onTap;
 
@@ -15,7 +16,8 @@ class WagonCard extends StatelessWidget {
     super.key,
     required this.wagon,
     required this.totalCartons,
-    required this.totalDefects,
+    required this.loadedCartons,
+    required this.remainingCartons,
     required this.truckCount,
     required this.onTap,
   });
@@ -120,16 +122,19 @@ class WagonCard extends StatelessWidget {
             child: Divider(height: 1, color: Color(0xFF3A3A3A)),
           ),
 
-          // Bottom Stats Row: Cartons, Defects, Arrow
+          // Bottom Stats Row: live wagon loading balance
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildMetric('Cartons', '$totalCartons'),
-              _buildMetric('Trucks', '$truckCount'),
-              _buildMetric('Defects', '$totalDefects',
-                  isAlert: totalDefects > 0),
-              const Icon(Icons.arrow_forward,
-                  color: Color(0xFFBDBDBD), size: 20),
+              Expanded(child: _buildMetric('Trucks', '$truckCount')),
+              Expanded(child: _buildMetric('Total', '$totalCartons')),
+              Expanded(child: _buildMetric('Loaded', '$loadedCartons')),
+              Expanded(
+                child: _buildMetric(
+                  'Remaining',
+                  '$remainingCartons',
+                  isAlert: remainingCartons < 0,
+                ),
+              ),
             ],
           )
         ],

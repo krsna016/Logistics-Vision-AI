@@ -171,6 +171,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                     wagon: wagon,
                     loadedByItem: inventory?.valueOrNull ?? const {},
                     isLoading: inventory?.isLoading ?? false,
+                    matchTruckHeader: true,
                   ),
                 ],
                 const SizedBox(height: 20),

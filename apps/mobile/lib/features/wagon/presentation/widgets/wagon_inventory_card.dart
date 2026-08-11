@@ -8,12 +8,14 @@ class WagonInventoryCard extends StatelessWidget {
   final Wagon wagon;
   final Map<String, int> loadedByItem;
   final bool isLoading;
+  final bool matchTruckHeader;
 
   const WagonInventoryCard({
     super.key,
     required this.wagon,
     required this.loadedByItem,
     this.isLoading = false,
+    this.matchTruckHeader = false,
   });
 
   @override
@@ -28,96 +30,109 @@ class WagonInventoryCard extends StatelessWidget {
     final progress = total == 0 ? 0.0 : (loaded / total).clamp(0.0, 1.0);
     final percentage = (progress * 100).round();
 
-    return AppCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(11),
-                ),
-                child: const Icon(Icons.inventory_2_outlined,
-                    color: AppTheme.primaryColor, size: 21),
+    final content = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withValues(alpha: 0.14),
+                borderRadius: BorderRadius.circular(11),
               ),
-              const SizedBox(width: 10),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Wagon Item Inventory',
-                        style: TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.w800)),
-                    SizedBox(height: 2),
-                    Text('Live loading balance',
-                        style: TextStyle(
-                            color: AppTheme.textSecondary, fontSize: 10)),
-                  ],
-                ),
+              child: const Icon(Icons.inventory_2_outlined,
+                  color: AppTheme.primaryColor, size: 21),
+            ),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Wagon Item Inventory',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                  SizedBox(height: 2),
+                  Text('Live loading balance',
+                      style: TextStyle(
+                          color: AppTheme.textSecondary, fontSize: 10)),
+                ],
               ),
-              if (isLoading)
-                const SizedBox.square(
-                  dimension: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              else
-                _PercentageBadge(value: percentage),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: _SummaryValue(
-                  value: '$loaded',
-                  label: 'LOADED',
-                  color: AppTheme.primaryColor,
-                ),
+            ),
+            if (isLoading)
+              const SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              _PercentageBadge(value: percentage),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            Expanded(
+              child: _SummaryValue(
+                value: '$loaded',
+                label: 'LOADED',
+                color: AppTheme.primaryColor,
               ),
-              Container(width: 1, height: 36, color: AppTheme.dividerColor),
-              Expanded(
-                child: _SummaryValue(
-                  value: '$remaining',
-                  label: 'REMAINING',
-                  color: remaining < 0
-                      ? AppTheme.errorColor
-                      : AppTheme.warningColor,
-                ),
+            ),
+            Container(width: 1, height: 36, color: AppTheme.dividerColor),
+            Expanded(
+              child: _SummaryValue(
+                value: '$remaining',
+                label: 'REMAINING',
+                color:
+                    remaining < 0 ? AppTheme.errorColor : AppTheme.warningColor,
               ),
-              Container(width: 1, height: 36, color: AppTheme.dividerColor),
-              Expanded(
-                child: _SummaryValue(
-                  value: '$total',
-                  label: 'TOTAL',
-                  color: Colors.white,
-                ),
+            ),
+            Container(width: 1, height: 36, color: AppTheme.dividerColor),
+            Expanded(
+              child: _SummaryValue(
+                value: '$total',
+                label: 'TOTAL',
+                color: Colors.white,
               ),
-            ],
-          ),
-          const SizedBox(height: 13),
-          _ProgressBar(value: progress, color: AppTheme.primaryColor),
-          const SizedBox(height: 18),
-          ...wagon.items.indexed.map((entry) {
-            final index = entry.$1;
-            final item = entry.$2;
-            final itemLoaded = loadedByItem[item.name] ?? 0;
-            final itemRemaining = item.quantity - itemLoaded;
-            return Padding(
-              padding: EdgeInsets.only(
-                  bottom: index == wagon.items.length - 1 ? 0 : 10),
-              child: _InventoryItemRow(
-                item: item,
-                loaded: itemLoaded,
-                remaining: itemRemaining,
-              ),
-            );
-          }),
-        ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 13),
+        _ProgressBar(value: progress, color: AppTheme.primaryColor),
+        const SizedBox(height: 18),
+        ...wagon.items.indexed.map((entry) {
+          final index = entry.$1;
+          final item = entry.$2;
+          final itemLoaded = loadedByItem[item.name] ?? 0;
+          final itemRemaining = item.quantity - itemLoaded;
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: index == wagon.items.length - 1 ? 0 : 10),
+            child: _InventoryItemRow(
+              item: item,
+              loaded: itemLoaded,
+              remaining: itemRemaining,
+            ),
+          );
+        }),
+      ],
+    );
+
+    if (!matchTruckHeader) return AppCard(child: content);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0D1B2A), Color(0xFF1E2D3D)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
       ),
+      child: content,
     );
   }
 }

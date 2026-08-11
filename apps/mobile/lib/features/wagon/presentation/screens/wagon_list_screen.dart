@@ -264,16 +264,19 @@ class WagonListScreen extends ConsumerWidget {
                             // Calculate computed metrics
                             final wagonTrucks = truckState.trucks.where(
                                 (t) => t.wagonId == wagon.id && !t.isDeleted);
-                            final cartons = wagonTrucks.fold(
+                            final loadedCartons = wagonTrucks.fold(
                                 0, (sum, t) => sum + t.totalCartons);
-                            final defects = wagonTrucks.fold(
-                                0, (sum, t) => sum + t.totalDefects);
+                            final totalCartons = wagon.items.fold<int>(
+                                0, (sum, item) => sum + item.quantity);
+                            final remainingCartons =
+                                totalCartons - loadedCartons;
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
                               child: WagonCard(
                                 wagon: wagon,
-                                totalCartons: cartons,
-                                totalDefects: defects,
+                                totalCartons: totalCartons,
+                                loadedCartons: loadedCartons,
+                                remainingCartons: remainingCartons,
                                 truckCount: wagonTrucks.length,
                                 onTap: () =>
                                     context.push('/wagons/${wagon.id}'),
