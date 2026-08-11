@@ -277,6 +277,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     required int cartonCount,
     required int defectCount,
     String? notes,
+    required List<LayerItemAllocation> itemAllocations,
     required String reason,
   }) async {
     if (cartonCount < 0 || defectCount < 0 || defectCount > cartonCount) {
@@ -287,30 +288,44 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
       final index = state.layers.indexWhere((layer) => layer.id == layerId);
       if (index < 0) return 'Layer not found.';
       final current = state.layers[index];
-      final allocatedTotal = current.itemAllocations
-          .fold<int>(0, (sum, allocation) => sum + allocation.quantity);
-      if (current.itemAllocations.isNotEmpty && allocatedTotal != cartonCount) {
-        return 'This layer item breakdown totals $allocatedTotal cartons. Keep the carton count at $allocatedTotal or recapture the layer.';
-      }
+      final allocations =
+          itemAllocations.where((item) => item.quantity > 0).toList();
+      final allocatedTotal = allocations.fold<int>(
+          0, (sum, allocation) => sum + allocation.quantity);
       final truck =
           await _ref.read(truckRepositoryProvider).getTruckById(_truckId);
-      if (truck?.wagonId != null && current.itemName != null) {
+      if (truck?.wagonId != null) {
         final wagon = await _ref
             .read(wagonRepositoryProvider)
             .getWagonById(truck!.wagonId!);
-        final matches = wagon?.items
-                .where((item) => item.name == current.itemName)
-                .toList() ??
-            const [];
-        if (matches.isNotEmpty) {
+        if (wagon != null && wagon.items.isNotEmpty) {
+          if (allocatedTotal != cartonCount) {
+            return 'Item quantities must total exactly $cartonCount cartons.';
+          }
+          if (allocations.map((item) => item.itemName).toSet().length !=
+              allocations.length) {
+            return 'Each item can appear only once in the layer breakdown.';
+          }
           final loaded = await _ref
               .read(wagonRepositoryProvider)
               .getLoadedItemQuantities(truck.wagonId!);
-          final availableForLayer = matches.first.quantity -
-              (loaded[current.itemName] ?? 0) +
-              current.cartonCount;
-          if (cartonCount > availableForLayer) {
-            return 'Only $availableForLayer cartons of ${current.itemName} are available for this layer.';
+          final currentByItem = {
+            for (final allocation in current.itemAllocations)
+              allocation.itemName: allocation.quantity,
+          };
+          for (final allocation in allocations) {
+            final matches = wagon.items
+                .where((item) => item.name == allocation.itemName)
+                .toList();
+            if (matches.isEmpty) {
+              return 'Choose items only from the wagon manifest.';
+            }
+            final availableForLayer = matches.first.quantity -
+                (loaded[allocation.itemName] ?? 0) +
+                (currentByItem[allocation.itemName] ?? 0);
+            if (allocation.quantity > availableForLayer) {
+              return 'Only $availableForLayer cartons of ${allocation.itemName} are available for this layer.';
+            }
           }
         }
       }
@@ -318,6 +333,10 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         cartonCount: cartonCount,
         defectCount: defectCount,
         notes: notes,
+        itemName: allocations.length == 1
+            ? allocations.first.itemName
+            : current.itemName,
+        itemAllocations: allocations,
         updatedAt: DateTime.now(),
       );
       await _layerRepository.updateLayer(

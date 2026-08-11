@@ -109,6 +109,9 @@ class LocalLayerRepository implements LayerRepository {
           ..where((t) => t.id.equals(layer.id)))
         .getSingleOrNull();
     if (existing == null || existing.isDeleted) return;
+    final nextAllocationsJson = jsonEncode(layer.itemAllocations
+        .map((allocation) => allocation.toJson())
+        .toList());
     await _db.transaction(() async {
       await (_db.update(_db.layers)..where((t) => t.id.equals(layer.id)))
           .write(LayersCompanion(
@@ -119,9 +122,7 @@ class LocalLayerRepository implements LayerRepository {
         photoPath: drift.Value(layer.photoPath),
         notes: drift.Value(layer.notes),
         itemName: drift.Value(layer.itemName),
-        itemAllocationsJson: drift.Value(jsonEncode(layer.itemAllocations
-            .map((allocation) => allocation.toJson())
-            .toList())),
+        itemAllocationsJson: drift.Value(nextAllocationsJson),
         averageConfidence: drift.Value(layer.averageConfidence),
         timestamp: drift.Value(layer.timestamp),
         operatorId: drift.Value(layer.operatorId),
@@ -164,7 +165,8 @@ class LocalLayerRepository implements LayerRepository {
       ));
 
       final countChanged = existing.cartonCount != layer.cartonCount ||
-          existing.defectCount != layer.defectCount;
+          existing.defectCount != layer.defectCount ||
+          existing.itemAllocationsJson != nextAllocationsJson;
       if (countChanged) {
         await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
               id: 'audit_layer_correct_${DateTime.now().microsecondsSinceEpoch}',
@@ -176,7 +178,8 @@ class LocalLayerRepository implements LayerRepository {
                 'Layer ${layer.layerNumber}: cartons '
                 '${existing.cartonCount} -> ${layer.cartonCount}, defects '
                 '${existing.defectCount} -> ${layer.defectCount}. Reason: '
-                '${correctionReason?.trim().isNotEmpty == true ? correctionReason!.trim() : 'Not provided'}',
+                '${correctionReason?.trim().isNotEmpty == true ? correctionReason!.trim() : 'Not provided'}. '
+                'Items: ${existing.itemAllocationsJson} -> $nextAllocationsJson',
               ),
             ));
       }

@@ -95,8 +95,8 @@ class ExcelReportServiceImpl implements ExcelReportService {
     // Data Table Headers
     final headers = [
       'Layer No',
-      'Item',
       'Carton Count',
+      'Items',
       'Defects',
       'Layer Added',
       'Operator',
@@ -117,15 +117,15 @@ class ExcelReportServiceImpl implements ExcelReportService {
               CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow))
           .value = IntCellValue(layer.layerNumber);
       sheet
+          .cell(
+              CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow))
+          .value = IntCellValue(layer.cartonCount);
+      sheet
               .cell(CellIndex.indexByColumnRow(
-                  columnIndex: 1, rowIndex: currentRow))
+                  columnIndex: 2, rowIndex: currentRow))
               .value =
           TextCellValue(
               _layerItemLabel(layer).isEmpty ? 'N/A' : _layerItemLabel(layer));
-      sheet
-          .cell(
-              CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow))
-          .value = IntCellValue(layer.cartonCount);
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow))
@@ -152,7 +152,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
         .value = TextCellValue('TOTAL');
     sheet
             .cell(CellIndex.indexByColumnRow(
-                columnIndex: 2, rowIndex: currentRow + 1))
+                columnIndex: 1, rowIndex: currentRow + 1))
             .value =
         IntCellValue(
             layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount));

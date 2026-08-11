@@ -222,6 +222,8 @@ class TruckDetailsScreen extends ConsumerWidget {
                       context,
                       layerNotifier,
                       layer,
+                      wagon: wagon,
+                      loadedByItem: inventory?.valueOrNull ?? const {},
                       requireCorrectionReason: allowArchivedEditing,
                     ),
                     onDeleteLayer: (layer) {
@@ -446,115 +448,212 @@ class TruckDetailsScreen extends ConsumerWidget {
 
   void _editLayerDialog(
       BuildContext context, LayerListNotifier notifier, LayerRecord layer,
-      {required bool requireCorrectionReason}) {
+      {required bool requireCorrectionReason,
+      required Wagon? wagon,
+      required Map<String, int> loadedByItem}) {
     final cartonController =
         TextEditingController(text: layer.cartonCount.toString());
     final defectController =
         TextEditingController(text: layer.defectCount.toString());
     final notesController = TextEditingController(text: layer.notes);
     final reasonController = TextEditingController();
+    final existingByItem = {
+      for (final allocation in layer.itemAllocations)
+        allocation.itemName: allocation.quantity,
+    };
+    final itemControllers = {
+      for (final item in wagon?.items ?? const <WagonItem>[])
+        item.name: TextEditingController(
+          text: (existingByItem[item.name] ?? 0) == 0
+              ? ''
+              : '${existingByItem[item.name]}',
+        ),
+    };
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Correct Layer #${layer.layerNumber}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: cartonController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Carton count',
-                  border: OutlineInputBorder(),
-                ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          final itemValues = {
+            for (final entry in itemControllers.entries)
+              entry.key: int.tryParse(entry.value.text.trim()) ?? 0,
+          };
+          final allocated =
+              itemValues.values.fold<int>(0, (sum, quantity) => sum + quantity);
+          return AlertDialog(
+            title: Text('Correct Layer #${layer.layerNumber}'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: cartonController,
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setDialogState(() {}),
+                    decoration: const InputDecoration(
+                      labelText: 'Carton count',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  if (wagon != null && wagon.items.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text('Item breakdown',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    ),
+                    const SizedBox(height: 4),
+                    ...wagon.items.map((item) {
+                      final currentLayerQuantity =
+                          existingByItem[item.name] ?? 0;
+                      final available = item.quantity -
+                          (loadedByItem[item.name] ?? 0) +
+                          currentLayerQuantity;
+                      final entered = itemValues[item.name] ?? 0;
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: TextField(
+                          controller: itemControllers[item.name],
+                          keyboardType: TextInputType.number,
+                          onChanged: (_) => setDialogState(() {}),
+                          decoration: InputDecoration(
+                            labelText: item.name,
+                            suffixText: '$available available',
+                            errorText: entered > available
+                                ? 'Maximum $available'
+                                : null,
+                            border: const OutlineInputBorder(),
+                          ),
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Assigned items: $allocated cartons',
+                      style: TextStyle(
+                        color: allocated ==
+                                (int.tryParse(cartonController.text.trim()) ??
+                                    -1)
+                            ? AppTheme.successColor
+                            : AppTheme.warningColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: defectController,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: 'Defect count',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: notesController,
+                    maxLines: 3,
+                    decoration: const InputDecoration(
+                      labelText: 'Operator notes',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: reasonController,
+                    maxLines: 2,
+                    decoration: InputDecoration(
+                      labelText: requireCorrectionReason
+                          ? 'Correction reason (required)'
+                          : 'Correction reason',
+                      border: const OutlineInputBorder(),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: defectController,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Defect count',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: notesController,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Operator notes',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: reasonController,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: requireCorrectionReason
-                      ? 'Correction reason (required)'
-                      : 'Correction reason',
-                  border: const OutlineInputBorder(),
-                ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel')),
+              ElevatedButton(
+                onPressed: () async {
+                  final cartons = int.tryParse(cartonController.text.trim());
+                  final defects = int.tryParse(defectController.text.trim());
+                  final countChanged = cartons != layer.cartonCount ||
+                      defects != layer.defectCount;
+                  final nextAllocations = itemValues.entries
+                      .where((entry) => entry.value > 0)
+                      .map((entry) => LayerItemAllocation(
+                          itemName: entry.key, quantity: entry.value))
+                      .toList();
+                  final allocationsChanged =
+                      nextAllocations.length != layer.itemAllocations.length ||
+                          nextAllocations.any((next) =>
+                              existingByItem[next.itemName] != next.quantity);
+                  final reason = reasonController.text.trim();
+                  if (cartons == null || defects == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content:
+                            Text('Enter valid carton and defect counts.')));
+                    return;
+                  }
+                  if (wagon != null && allocated != cartons) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text(
+                            'Item quantities must total exactly $cartons cartons.')));
+                    return;
+                  }
+                  if ((requireCorrectionReason ||
+                          countChanged ||
+                          allocationsChanged) &&
+                      reason.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                        content: Text('Enter a reason for this correction.')));
+                    return;
+                  }
+                  if (!countChanged &&
+                      !allocationsChanged &&
+                      !requireCorrectionReason) {
+                    await notifier.editNotes(
+                      layer.id,
+                      notesController.text.trim().isEmpty
+                          ? null
+                          : notesController.text.trim(),
+                    );
+                  } else {
+                    final error = await notifier.correctLayer(
+                      layerId: layer.id,
+                      cartonCount: cartons,
+                      defectCount: defects,
+                      notes: notesController.text.trim().isEmpty
+                          ? null
+                          : notesController.text.trim(),
+                      itemAllocations: nextAllocations,
+                      reason: reason,
+                    );
+                    if (error != null && context.mounted) {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(SnackBar(content: Text(error)));
+                      return;
+                    }
+                  }
+                  if (ctx.mounted) Navigator.pop(ctx);
+                },
+                child: const Text('Save Correction'),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final cartons = int.tryParse(cartonController.text.trim());
-              final defects = int.tryParse(defectController.text.trim());
-              final countChanged =
-                  cartons != layer.cartonCount || defects != layer.defectCount;
-              final reason = reasonController.text.trim();
-              if (cartons == null || defects == null) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Enter valid carton and defect counts.')));
-                return;
-              }
-              if ((requireCorrectionReason || countChanged) && reason.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Enter a reason for this correction.')));
-                return;
-              }
-              if (!countChanged && !requireCorrectionReason) {
-                await notifier.editNotes(
-                  layer.id,
-                  notesController.text.trim().isEmpty
-                      ? null
-                      : notesController.text.trim(),
-                );
-              } else {
-                final error = await notifier.correctLayer(
-                  layerId: layer.id,
-                  cartonCount: cartons,
-                  defectCount: defects,
-                  notes: notesController.text.trim().isEmpty
-                      ? null
-                      : notesController.text.trim(),
-                  reason: reason,
-                );
-                if (error != null && context.mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text(error)));
-                  return;
-                }
-              }
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Save Correction'),
-          ),
-        ],
+          );
+        },
       ),
     ).whenComplete(() {
       cartonController.dispose();
       defectController.dispose();
       notesController.dispose();
       reasonController.dispose();
+      for (final controller in itemControllers.values) {
+        controller.dispose();
+      }
     });
   }
 

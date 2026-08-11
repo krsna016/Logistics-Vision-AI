@@ -640,8 +640,8 @@ Future<Uint8List> _buildTruckPdfBytes(
           cellStyle: const pw.TextStyle(fontSize: 8),
           headers: const [
             'Layer No.',
-            'Item',
             'Cartons',
+            'Items',
             'Defects',
             'Operator Notes',
             'Layer Added',
@@ -649,8 +649,8 @@ Future<Uint8List> _buildTruckPdfBytes(
           ],
           columnWidths: const {
             0: pw.FlexColumnWidth(1),
-            1: pw.FlexColumnWidth(1.6),
-            2: pw.FlexColumnWidth(1),
+            1: pw.FlexColumnWidth(1),
+            2: pw.FlexColumnWidth(1.8),
             3: pw.FlexColumnWidth(1),
             4: pw.FlexColumnWidth(2.5),
             5: pw.FlexColumnWidth(2.2),
@@ -659,8 +659,8 @@ Future<Uint8List> _buildTruckPdfBytes(
           data: layers
               .map((layer) => [
                     layer['layerNumber'].toString(),
-                    layer['itemName'].toString(),
                     layer['cartonCount'].toString(),
+                    layer['itemName'].toString(),
                     layer['defectCount'].toString(),
                     layer['operatorNotes'].toString(),
                     layer['timestamp'].toString(),

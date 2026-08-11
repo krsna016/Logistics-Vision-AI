@@ -3,6 +3,7 @@ import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/database/app_database.dart';
 import 'package:mobile/features/layer/data/repositories_impl/local_layer_repository.dart';
+import 'package:mobile/features/layer/domain/entities/layer.dart';
 import 'package:mobile/features/truck/data/repositories_impl/local_truck_repository.dart';
 import 'package:mobile/features/wagon/data/repositories_impl/local_wagon_repository.dart';
 
@@ -165,6 +166,28 @@ void main() {
     await LocalLayerRepository(database).softDeleteLayer('layer-1');
     expect(await repository.getLoadedItemQuantities('wagon-1'), {
       'Item B': 20,
+    });
+  });
+
+  test('correcting a mixed layer updates item inventory totals', () async {
+    await seedWagonTruck();
+    final layerRepository = LocalLayerRepository(database);
+    final wagonRepository = LocalWagonRepository(database);
+    final layer = (await layerRepository.getLayersByTruck('truck-1')).first;
+
+    await layerRepository.updateLayer(
+      layer.copyWith(
+        itemAllocations: const [
+          LayerItemAllocation(itemName: 'Item A', quantity: 5),
+          LayerItemAllocation(itemName: 'Item B', quantity: 5),
+        ],
+      ),
+      correctionReason: 'Corrected mixed item quantities',
+    );
+
+    expect(await wagonRepository.getLoadedItemQuantities('wagon-1'), {
+      'Item A': 5,
+      'Item B': 25,
     });
   });
 }
