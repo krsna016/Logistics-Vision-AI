@@ -1386,7 +1386,23 @@ List<Map<String, Object?>> _reportMaps(Object? value) {
 
 List<String> _digitalRegisterCells(Map<String, Object?> truck, int row) {
   final layers = _reportMaps(truck['layers']);
-  final layer = layers[row];
+  final expectedLayerNumber = row + 1;
+  Map<String, Object?>? layer;
+  for (final candidate in layers) {
+    final number = candidate['number'] ?? candidate['layerNumber'];
+    if (number is num && number.toInt() == expectedLayerNumber) {
+      layer = candidate;
+      break;
+    }
+  }
+  if (layer == null && row < layers.length) {
+    final candidate = layers[row];
+    if (!candidate.containsKey('number') &&
+        !candidate.containsKey('layerNumber')) {
+      layer = candidate;
+    }
+  }
+  if (layer == null) return const ['', ''];
   return [
     layer['cartonCount']?.toString() ?? '',
     layer['item']?.toString() ?? '',
