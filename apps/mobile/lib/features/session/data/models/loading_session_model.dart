@@ -20,7 +20,8 @@ class LoadingSessionModel {
       totalCartons: json['totalCartons'] as int? ?? 0,
       totalDefects: json['totalDefects'] as int? ?? 0,
       averageConfidence: (json['averageConfidence'] as num? ?? 0.0).toDouble(),
-      modelVersion: json['modelVersion'] as String? ?? 'yolo11n_carton_seg_v1_3',
+      modelVersion:
+          json['modelVersion'] as String? ?? 'yolo11n_carton_seg_v1_3',
       notes: json['notes'] as String?,
       syncStatus: SyncStatus.values.firstWhere(
         (e) => e.name == (json['syncStatus'] as String? ?? 'pending'),

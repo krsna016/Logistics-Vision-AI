@@ -131,9 +131,8 @@ class ScannerCameraWarmup {
     // screen. The next truck/wagon scanner can then reveal a normal-zoom
     // preview immediately, without showing CameraX zooming back out.
     try {
-      final minimum = await controller
-          .getMinZoomLevel()
-          .timeout(_operationTimeout);
+      final minimum =
+          await controller.getMinZoomLevel().timeout(_operationTimeout);
       await controller.setZoomLevel(minimum).timeout(_operationTimeout);
     } catch (_) {
       // The scanner also verifies zoom before revealing its next preview.

@@ -27,8 +27,8 @@ class BackupManagementScreen extends ConsumerWidget {
               ref.read(syncEngineProvider).forceSync();
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.settings),
+          const IconButton(
+            icon: Icon(Icons.settings),
             onPressed: null,
           ),
           Builder(

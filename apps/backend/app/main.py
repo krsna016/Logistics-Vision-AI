@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .core.config import settings
 from .db.database import Base, engine, get_db
 from .routers import auth, inference, locations, users
-from .models.location import LocationPing, LocationSession
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

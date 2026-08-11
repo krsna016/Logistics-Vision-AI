@@ -5,10 +5,10 @@ class ScannerStartingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      key: const ValueKey('camera-loading'),
+    return const ColoredBox(
+      key: ValueKey('camera-loading'),
       color: Colors.black,
-      child: const Center(
+      child: Center(
         child: SizedBox.square(
           dimension: 34,
           child: CircularProgressIndicator(

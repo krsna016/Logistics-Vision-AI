@@ -513,7 +513,7 @@ class LocalLayerRepository implements LayerRepository {
               userId: demoOperator,
               timestamp: drift.Value(
                   now.subtract(Duration(minutes: 500 - index * 40))),
-              details: drift.Value(
+              details: const drift.Value(
                 'Layer 1: cartons 40 -> 40, defects 0 -> 0. '
                 'Reason: Item-wise recount confirmed the layer total. '
                 'Items: [{"itemName":"Packaged Foods","quantity":20},'

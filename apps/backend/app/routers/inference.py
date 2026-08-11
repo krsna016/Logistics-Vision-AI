@@ -1,7 +1,10 @@
+# FastAPI dependencies are intentionally declared as parameter defaults.
+# ruff: noqa: B008
+
 import base64
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 import httpx
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 
 from ..core.config import settings
 from ..core.security import get_current_user

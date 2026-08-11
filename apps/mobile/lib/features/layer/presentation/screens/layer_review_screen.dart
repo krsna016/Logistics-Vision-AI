@@ -761,6 +761,8 @@ class _ReviewOverlayButton extends StatelessWidget {
   }
 }
 
+// Legacy summary widget retained while the tap-driven review UI is active.
+// ignore: unused_element
 class _CountSummaryCard extends StatelessWidget {
   final int aiCount;
   final int correctedCount;
@@ -892,6 +894,8 @@ class _StatBadge extends StatelessWidget {
   }
 }
 
+// Legacy history widget retained while the tap-driven review UI is active.
+// ignore: unused_element
 class _LayerHistoryCard extends StatelessWidget {
   final List<LayerRecord> layers;
   final int currentCount;
@@ -996,6 +1000,8 @@ class _LayerHistoryChip extends StatelessWidget {
   }
 }
 
+// Legacy correction widget retained while the tap-driven review UI is active.
+// ignore: unused_element
 class _ManualCorrectionCard extends StatelessWidget {
   final int aiCount;
   final int correctedCount;

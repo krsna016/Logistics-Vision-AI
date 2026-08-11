@@ -1,3 +1,6 @@
+# FastAPI dependencies are intentionally declared as parameter defaults.
+# ruff: noqa: B008
+
 from datetime import datetime, timedelta, timezone
 
 import jwt
@@ -5,8 +8,8 @@ from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.security import get_current_user, require_admin
 from ..core.config import settings
+from ..core.security import get_current_user, require_admin
 from ..db.database import get_db
 from ..models.location import LocationPing, LocationSession
 from ..models.user import User
@@ -21,7 +24,7 @@ async def broadcast_location(location: LiveLocation) -> None:
     for websocket in tuple(admin_streams):
         try:
             await websocket.send_json(location.model_dump(mode="json"))
-        except Exception:
+        except Exception:  # noqa: BLE001 - discard any broken WebSocket client
             disconnected.append(websocket)
     for websocket in disconnected:
         admin_streams.discard(websocket)
@@ -32,7 +35,7 @@ async def broadcast_event(event: dict) -> None:
     for websocket in tuple(admin_streams):
         try:
             await websocket.send_json(event)
-        except Exception:
+        except Exception:  # noqa: BLE001 - discard any broken WebSocket client
             disconnected.append(websocket)
     for websocket in disconnected:
         admin_streams.discard(websocket)

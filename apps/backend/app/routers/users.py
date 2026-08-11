@@ -2,15 +2,15 @@
 # ruff: noqa: B008
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import delete
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import delete
 from sqlalchemy.future import select
 
 from ..core.security import get_current_user, get_password_hash, require_admin
 from ..db.database import get_db
-from ..models.user import User
 from ..models.location import LocationPing, LocationSession
+from ..models.user import User
 from ..schemas.user import UserCreate, UserResponse, UserUpdate
 
 router = APIRouter()
