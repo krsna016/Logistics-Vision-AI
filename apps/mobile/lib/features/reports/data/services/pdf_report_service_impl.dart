@@ -60,13 +60,60 @@ String _formatCorrectionItems(String? rawJson) {
         .map((item) {
           final name = (item['itemName'] as String? ?? '').trim();
           final quantity = (item['quantity'] as num? ?? 0).toInt();
-          return name.isEmpty ? '' : '  $name: $quantity';
+          return name.isEmpty ? '' : '$name: $quantity cartons';
         })
         .where((line) => line.isNotEmpty)
         .join('\n');
   } catch (_) {
     return '';
   }
+}
+
+pw.Widget? _truckLayerCellBuilder(int column, dynamic data, int row) {
+  if (column != 2) return null;
+  final rawItems = data.toString().trim();
+  if (rawItems.isEmpty || rawItems == 'N/A') {
+    return pw.Text('—', style: const pw.TextStyle(color: PdfColors.grey600));
+  }
+
+  final items = rawItems
+      .split(' + ')
+      .map((value) => value.split(':'))
+      .where((parts) => parts.length >= 2)
+      .toList(growable: false);
+  if (items.isEmpty) return pw.Text(rawItems);
+
+  return pw.Column(
+    crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+    children: [
+      for (var index = 0; index < items.length; index++) ...[
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Expanded(
+              child: pw.Text(
+                items[index].first.trim(),
+                style: pw.TextStyle(
+                  color: PdfColors.blue800,
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 8,
+                ),
+              ),
+            ),
+            pw.Text(
+              '${items[index].sublist(1).join(':').trim()} cartons',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 8),
+            ),
+          ],
+        ),
+        if (index != items.length - 1)
+          pw.Padding(
+            padding: const pw.EdgeInsets.symmetric(vertical: 3),
+            child: pw.Divider(height: 0.5, color: PdfColors.blue100),
+          ),
+      ],
+    ],
+  );
 }
 
 class PdfReportServiceImpl implements PdfReportService {
@@ -133,7 +180,7 @@ class PdfReportServiceImpl implements PdfReportService {
   }
 
   String _operatorNotesForReport(String? notes) {
-    if (notes == null || notes.trim().isEmpty) return 'N/A';
+    if (notes == null || notes.trim().isEmpty) return '—';
     final operatorNotes = notes
         .split('|')
         .map((part) => part.trim())
@@ -142,7 +189,7 @@ class PdfReportServiceImpl implements PdfReportService {
             !part.startsWith('AI count:') &&
             !part.startsWith('Count method:'))
         .join(' | ');
-    return operatorNotes.isEmpty ? 'N/A' : operatorNotes;
+    return operatorNotes.isEmpty ? '—' : operatorNotes;
   }
 
   @override
@@ -568,6 +615,12 @@ Future<Uint8List> _buildWagonPdfBytes(
           headerStyle:
               pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
           cellStyle: const pw.TextStyle(fontSize: 8),
+          cellPadding:
+              const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 6),
+          cellBuilder: _truckLayerCellBuilder,
+          cellDecoration: (column, data, row) => pw.BoxDecoration(
+            color: column == 2 ? PdfColors.blue50 : PdfColors.white,
+          ),
           headers: const [
             'Vehicle Number',
             'Driver',
@@ -688,11 +741,11 @@ Future<Uint8List> _buildTruckPdfBytes(
             'Operator',
           ],
           columnWidths: const {
-            0: pw.FlexColumnWidth(1),
-            1: pw.FlexColumnWidth(1),
-            2: pw.FlexColumnWidth(1.8),
-            3: pw.FlexColumnWidth(1),
-            4: pw.FlexColumnWidth(2.5),
+            0: pw.FlexColumnWidth(0.8),
+            1: pw.FlexColumnWidth(0.9),
+            2: pw.FlexColumnWidth(2.4),
+            3: pw.FlexColumnWidth(0.8),
+            4: pw.FlexColumnWidth(2.1),
             5: pw.FlexColumnWidth(2.2),
             6: pw.FlexColumnWidth(1.8),
           },

@@ -10,8 +10,8 @@ void main() {
     );
 
     expect(parsed['reason'], 'ggg');
-    expect(parsed['before'], 'Cartons: 1\nItems:\n  B: 1\nDefects: 0');
-    expect(parsed['after'], 'Cartons: 6\nItems:\n  B: 6\nDefects: 0');
+    expect(parsed['before'], 'Cartons: 1\nItems:\nB: 1 cartons\nDefects: 0');
+    expect(parsed['after'], 'Cartons: 6\nItems:\nB: 6 cartons\nDefects: 0');
   });
 
   test('formats multiple corrected items on separate lines', () {
@@ -24,7 +24,7 @@ void main() {
     );
 
     expect(parsed['reason'], 'Reallocated');
-    expect(parsed['before'], contains('A: 40\n  B: 24'));
-    expect(parsed['after'], contains('A: 35\n  B: 29'));
+    expect(parsed['before'], contains('A: 40 cartons\nB: 24 cartons'));
+    expect(parsed['after'], contains('A: 35 cartons\nB: 29 cartons'));
   });
 }
