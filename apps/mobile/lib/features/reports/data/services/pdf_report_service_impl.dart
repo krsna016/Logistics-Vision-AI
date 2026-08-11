@@ -1062,6 +1062,88 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
   final items = _reportMaps(report['items']);
   final corrections = _reportMaps(report['corrections']);
   final pdf = pw.Document();
+  final rowCount = report['rowCount'] as int? ?? 0;
+  final legacyRows = <List<String>>[
+    [
+      'S.NO.',
+      for (final truck in trucks) ...[
+        'TRUCK NO: ${truck['truckNumber']}',
+        '',
+      ],
+    ],
+    [
+      '',
+      for (var index = 0; index < trucks.length; index++) ...[
+        'CARTONS',
+        'ITEM'
+      ],
+    ],
+    for (var row = 0; row < rowCount; row++)
+      [
+        '${row + 1}',
+        for (final truck in trucks) ..._digitalRegisterCells(truck, row),
+      ],
+  ];
+  pdf.addPage(pw.Page(
+    pageFormat: PdfPageFormat.a4.landscape,
+    margin: const pw.EdgeInsets.fromLTRB(24, 22, 24, 22),
+    build: (context) => pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        ReportTemplateServiceImpl.buildHeader(
+          title: 'Digital Wagon Register',
+          logo: logoBytes == null ? null : pw.MemoryImage(logoBytes),
+          subtitle: 'Wagon ${report['wagonNumber']} | ${report['loadingDate']}',
+        ),
+        pw.Container(
+          padding: const pw.EdgeInsets.all(6),
+          decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.black, width: 0.7)),
+          child: pw.Row(children: [
+            for (final value in [
+              'FROM: ${_reportValue(report['origin'])}',
+              'TO: ${_reportValue(report['destination'])}',
+              'WAGON: ${report['wagonNumber']}',
+              'CARTONS: ${report['totalCartons']}',
+              'DATE: ${report['loadingDate']}',
+            ])
+              pw.Expanded(
+                  child: pw.Text(value,
+                      style: pw.TextStyle(
+                          fontSize: 8, fontWeight: pw.FontWeight.bold))),
+          ]),
+        ),
+        pw.SizedBox(height: 7),
+        pw.Expanded(
+          child: pw.TableHelper.fromTextArray(
+            context: context,
+            border: pw.TableBorder.all(color: PdfColors.black, width: 0.45),
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+            headerStyle:
+                pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
+            cellStyle: const pw.TextStyle(fontSize: 6),
+            cellAlignment: pw.Alignment.center,
+            headerCount: 2,
+            data: legacyRows,
+          ),
+        ),
+        pw.SizedBox(height: 6),
+        pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+          children: [
+            pw.Text('REMARKS: ${_reportValue(report['remarks'])}',
+                style: const pw.TextStyle(fontSize: 7)),
+            pw.Text('DEFECTS: ${report['totalDefects']}',
+                style:
+                    pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
+            pw.Text('SUPERVISOR: $supervisor',
+                style:
+                    pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold)),
+          ],
+        ),
+      ],
+    ),
+  ));
   pdf.addPage(pw.MultiPage(
     pageFormat: PdfPageFormat.a4,
     header: (context) => ReportTemplateServiceImpl.buildHeader(
