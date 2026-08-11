@@ -8,6 +8,7 @@ import '../../domain/repositories/camera_repository.dart';
 import '../../data/repositories_impl/camera_repository_impl.dart';
 import 'camera_state.dart';
 import '../../../../utils/logger.dart';
+import '../../../truck/data/services/scanner_camera_warmup.dart';
 
 // Android camera release is asynchronous. A new provider can be created on a
 // later route before the previous provider has finished closing the hardware,
@@ -62,6 +63,9 @@ class CameraNotifier extends StateNotifier<CameraState>
     _reconnectTimer?.cancel();
     state = const CameraState(status: CameraStatus.initializing);
     try {
+      // The number scanners and carton capture use the same physical camera.
+      // Complete their shutdown before CameraX creates this session.
+      await ScannerCameraWarmup.disposeNow();
       await _pendingCameraRelease;
       if (!mounted || operation != _cameraOperation) return;
 

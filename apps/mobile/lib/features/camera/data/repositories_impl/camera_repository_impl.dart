@@ -58,7 +58,7 @@ class CameraRepositoryImpl implements CameraRepository {
       );
 
       AppLogger.info('Initializing camera controller...');
-      await controller.initialize();
+      await controller.initialize().timeout(const Duration(seconds: 5));
       AppLogger.info('Camera initialization completed successfully.');
       return controller;
     } on CameraException catch (e, stack) {
@@ -78,7 +78,7 @@ class CameraRepositoryImpl implements CameraRepository {
   Future<void> disposeController(CameraController controller) async {
     try {
       AppLogger.info('Disposing camera controller...');
-      await controller.dispose();
+      await controller.dispose().timeout(const Duration(seconds: 3));
       AppLogger.info('Camera controller disposed.');
     } catch (e, stack) {
       AppLogger.error('Error disposing camera controller', e, stack);

@@ -15,21 +15,17 @@ class ScannerCameraWarmup {
 
   static const _initializationTimeout = Duration(seconds: 5);
   static const _operationTimeout = Duration(seconds: 2);
-  static const _retentionDuration = Duration(seconds: 15);
 
   static CameraController? _controller;
   static Future<CameraController>? _initializing;
   static Future<void> _disposalBarrier = Future<void>.value();
-  static Timer? _releaseTimer;
   static int _activeLeases = 0;
 
   static Future<void> prepare() async {
-    _releaseTimer?.cancel();
     await _ensureController();
   }
 
   static Future<CameraController?> takePrepared() async {
-    _releaseTimer?.cancel();
     final controller = await _ensureController();
     _activeLeases++;
     return controller;
@@ -44,24 +40,22 @@ class ScannerCameraWarmup {
 
     if (_activeLeases > 0) _activeLeases--;
     await _pauseController(controller);
-    _scheduleRelease();
+    if (_activeLeases == 0) await disposeNow();
   }
 
-  /// Releases an unused prewarmed controller after a short grace period.
-  static Future<void> release() async {
-    _scheduleRelease();
-  }
+  /// Releases an unused prewarmed controller immediately. Retaining real
+  /// camera hardware after a scanner closes can block carton capture on
+  /// Android devices that permit only one open camera session.
+  static Future<void> release() => disposeNow();
 
   /// Immediately releases the camera when the app leaves the foreground.
   static Future<void> disposeNow() {
-    _releaseTimer?.cancel();
     final disposal = _disposeManagedController();
     _disposalBarrier = disposal.catchError((_) {});
     return disposal;
   }
 
   static Future<CameraController> _ensureController() async {
-    _releaseTimer?.cancel();
     await _disposalBarrier;
 
     final current = _controller;
@@ -110,13 +104,6 @@ class ScannerCameraWarmup {
       await _disposeController(controller);
       rethrow;
     }
-  }
-
-  static void _scheduleRelease() {
-    _releaseTimer?.cancel();
-    _releaseTimer = Timer(_retentionDuration, () {
-      if (_activeLeases == 0) unawaited(disposeNow());
-    });
   }
 
   static Future<void> _pauseController(CameraController controller) async {

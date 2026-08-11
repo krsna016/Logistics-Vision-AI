@@ -58,11 +58,6 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     if (oldWidget.isActive && !widget.isActive && _torchOn) {
       unawaited(_toggleTorch(_zoomController));
     }
-    // Keep the CameraX preview surface warm while Manual mode covers it.
-    // Pausing here forces CameraX to reconnect that surface on the next AI
-    // selection, which makes the mode switch visibly stutter. The workspace's
-    // IndexedStack already keeps this widget mounted, while app lifecycle
-    // handling still releases the camera whenever the whole app backgrounds.
   }
 
   Future<void> _pickImage() async {
@@ -350,22 +345,24 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                   isReadyForReview: isReadyForReview,
                   isGallery: isGallery,
                   torchOn: _torchOn,
-                  onToggleTorch: isGallery
+                  onToggleTorch: isGallery || !previewReady
                       ? null
                       : () => _toggleTorch(cameraState.controller),
                   onGallery: () => _openGallery(cameraState.controller),
-                  onFlipCamera: () {
-                    if (isGallery) {
-                      setState(() => _pickedImagePath = null);
-                    } else if (cameraState.availableCameras.length > 1) {
-                      setState(() {
-                        _torchOn = false;
-                        _previewReadyController = null;
-                      });
-                      cameraNotifier.switchCamera();
-                    }
-                    decisionNotifier?.resetAnalyzer();
-                  },
+                  onFlipCamera: !previewReady && !isGallery
+                      ? () {}
+                      : () {
+                          if (isGallery) {
+                            setState(() => _pickedImagePath = null);
+                          } else if (cameraState.availableCameras.length > 1) {
+                            setState(() {
+                              _torchOn = false;
+                              _previewReadyController = null;
+                            });
+                            cameraNotifier.switchCamera();
+                          }
+                          decisionNotifier?.resetAnalyzer();
+                        },
                   onReview: isReadyForReview
                       ? () => _navigateToReview(
                             context,
@@ -374,7 +371,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                             decisionState,
                           )
                       : null,
-                  onCapture: !isGallery && !_isFinalizingCapture
+                  onCapture: !isGallery && previewReady && !_isFinalizingCapture
                       ? () {
                           _captureLayerPhoto(
                             context,
@@ -422,11 +419,20 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       frameSize: const Size(720, 1280),
     );
 
-    await context.push('/trucks/$truckId/review', extra: {
-      'aiResult': aiResult,
-      'photoPath': photoPath ?? _pickedImagePath,
-      'finalResult': finalResult,
-    });
+    final cameraAdapter = _streamKey.currentState;
+    if (_pickedImagePath == null) await cameraAdapter?.pausePreview();
+    if (!context.mounted) return;
+    try {
+      await context.push('/trucks/$truckId/review', extra: {
+        'aiResult': aiResult,
+        'photoPath': photoPath ?? _pickedImagePath,
+        'finalResult': finalResult,
+      });
+    } finally {
+      if (mounted && widget.isActive && _pickedImagePath == null) {
+        await cameraAdapter?.resumePreview();
+      }
+    }
   }
 
   Future<void> _captureLayerPhoto(
@@ -1588,22 +1594,21 @@ class _CameraStreamAdapter extends ConsumerStatefulWidget {
 }
 
 class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
-  static const _streamStartDelay = Duration(milliseconds: 420);
-  static const _firstFrameTimeout = Duration(seconds: 3);
+  static const _previewOperationTimeout = Duration(seconds: 2);
+  static const _captureTimeout = Duration(seconds: 5);
 
-  bool _isStreaming = false;
-  bool _isStarting = false;
-  bool _streamStartCompleted = false;
-  bool _hasReceivedFrame = false;
   bool _recoveryRequested = false;
-  Timer? _streamStartTimer;
-  Timer? _firstFrameTimer;
+  bool _previewReadyReported = false;
+  Future<void> _previewOperation = Future<void>.value();
 
   @override
   void initState() {
     super.initState();
     widget.controller.addListener(_handleControllerValue);
-    _scheduleHealthMonitoring();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _reportPreviewReady();
+    });
   }
 
   @override
@@ -1612,35 +1617,16 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_handleControllerValue);
       widget.controller.addListener(_handleControllerValue);
-      _cancelTimers();
-      _isStreaming = false;
-      _isStarting = false;
-      _streamStartCompleted = false;
-      _hasReceivedFrame = false;
       _recoveryRequested = false;
-      unawaited(_replaceController(oldWidget.controller));
-    } else if (!oldWidget.isActive && widget.isActive) {
-      if (!_hasReceivedFrame) _armFirstFrameTimeout();
+      _previewReadyReported = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _reportPreviewReady();
+      });
     }
   }
 
   void _handleControllerValue() => _checkHealth();
-
-  void _scheduleHealthMonitoring() {
-    _streamStartTimer = Timer(_streamStartDelay, () {
-      if (mounted) unawaited(_startStream());
-    });
-    _armFirstFrameTimeout();
-  }
-
-  void _armFirstFrameTimeout() {
-    _firstFrameTimer?.cancel();
-    _firstFrameTimer = Timer(_firstFrameTimeout, () {
-      if (mounted && widget.isActive && !_hasReceivedFrame) {
-        _requestRecovery('Camera initialized but produced no preview frames.');
-      }
-    });
-  }
 
   void _checkHealth() {
     if (!mounted || !widget.isActive || _recoveryRequested) return;
@@ -1651,9 +1637,8 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
       );
       return;
     }
-    if (!value.isInitialized || value.isPreviewPaused) {
+    if (!value.isInitialized) {
       _requestRecovery('Camera preview became unavailable.');
-      return;
     }
   }
 
@@ -1664,85 +1649,64 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
     unawaited(ref.read(cameraNotifierProvider.notifier).recoverCamera());
   }
 
-  Future<void> _replaceController(CameraController oldController) async {
-    await _stopStream(oldController);
-    if (mounted) _scheduleHealthMonitoring();
+  void _reportPreviewReady() {
+    if (_previewReadyReported || !mounted) return;
+    _previewReadyReported = true;
+    ref.read(cameraNotifierProvider.notifier).markPreviewHealthy();
+    widget.onPreviewReady();
   }
 
-  Future<void> _startStream() async {
-    if (_isStreaming || _isStarting || !widget.controller.value.isInitialized) {
-      return;
-    }
-    _isStarting = true;
-    _streamStartCompleted = false;
-    final controller = widget.controller;
-    try {
-      await controller.startImageStream((_) {
-        if (!mounted || !identical(controller, widget.controller)) return;
-        if (!_hasReceivedFrame) {
-          _hasReceivedFrame = true;
-          _firstFrameTimer?.cancel();
-          ref.read(cameraNotifierProvider.notifier).markPreviewHealthy();
-          widget.onPreviewReady();
-          // ImageAnalysis is needed only to prove startup. Remove that extra
-          // CameraX use case immediately so the operational session contains
-          // only the visible preview and full-quality still capture.
-          if (_streamStartCompleted) {
-            unawaited(_stopStream(controller));
-          }
+  Future<void> pausePreview() => _queuePreviewOperation(() async {
+        final controller = widget.controller;
+        if (!controller.value.isInitialized ||
+            controller.value.isPreviewPaused) {
+          return;
         }
-      });
-      if (!mounted || !identical(controller, widget.controller)) {
-        if (controller.value.isStreamingImages) {
-          await controller.stopImageStream();
+        await controller.pausePreview().timeout(_previewOperationTimeout);
+      }, 'Camera preview could not pause cleanly.');
+
+  Future<void> resumePreview() => _queuePreviewOperation(() async {
+        final controller = widget.controller;
+        if (!controller.value.isInitialized) {
+          return;
         }
-        return;
-      }
-      _isStreaming = true;
-      _streamStartCompleted = true;
-      if (_hasReceivedFrame) await _stopStream(controller);
-    } catch (error, stack) {
-      AppLogger.error('Failed to start camera health stream', error, stack);
-      _requestRecovery('Camera preview health stream could not start.');
-    } finally {
-      _isStarting = false;
-    }
-  }
+        if (controller.value.isPreviewPaused) {
+          await controller.resumePreview().timeout(_previewOperationTimeout);
+        }
+        _reportPreviewReady();
+      }, 'Camera preview could not resume.');
 
-  Future<void> _stopStream(CameraController controller) async {
-    _isStreaming = false;
-    try {
-      if (controller.value.isStreamingImages) {
-        await controller.stopImageStream();
-      }
-    } catch (error, stack) {
-      AppLogger.error('Failed to stop camera health stream', error, stack);
-    }
-  }
-
-  void _cancelTimers() {
-    _streamStartTimer?.cancel();
-    _firstFrameTimer?.cancel();
+  Future<void> _queuePreviewOperation(
+    Future<void> Function() operation,
+    String recoveryReason,
+  ) {
+    final next = _previewOperation.then((_) => operation());
+    _previewOperation = next.catchError((Object error, StackTrace stack) {
+      AppLogger.error(recoveryReason, error, stack);
+      _requestRecovery(recoveryReason);
+    });
+    return _previewOperation;
   }
 
   Future<XFile?> capturePhoto() async {
     final controller = widget.controller;
-    if (!controller.value.isInitialized) return null;
+    if (!controller.value.isInitialized || controller.value.isTakingPicture) {
+      return null;
+    }
 
     try {
-      final photo = await controller.takePicture();
+      final photo = await controller.takePicture().timeout(_captureTimeout);
       return photo;
     } catch (e, stack) {
       AppLogger.error('Failed to capture camera photo', e, stack);
+      _requestRecovery('Camera capture stalled and the session was restarted.');
       return null;
     }
   }
 
   @override
   void dispose() {
-    _cancelTimers();
     widget.controller.removeListener(_handleControllerValue);
-    unawaited(_stopStream(widget.controller));
     super.dispose();
   }
 
