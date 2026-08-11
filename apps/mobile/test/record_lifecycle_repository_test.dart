@@ -177,6 +177,7 @@ void main() {
 
     await layerRepository.updateLayer(
       layer.copyWith(
+        cartonCount: 99,
         itemAllocations: const [
           LayerItemAllocation(itemName: 'Item A', quantity: 5),
           LayerItemAllocation(itemName: 'Item B', quantity: 5),
@@ -189,6 +190,12 @@ void main() {
       'Item A': 5,
       'Item B': 25,
     });
+    expect(
+      (await database.select(database.layers).get())
+          .firstWhere((record) => record.id == 'layer-1')
+          .cartonCount,
+      10,
+    );
   });
 
   test('enterprise demo data is balanced and covers operational edge cases',

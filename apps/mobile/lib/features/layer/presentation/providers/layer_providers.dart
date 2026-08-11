@@ -299,9 +299,6 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
             .read(wagonRepositoryProvider)
             .getWagonById(truck!.wagonId!);
         if (wagon != null && wagon.items.isNotEmpty) {
-          if (allocatedTotal != cartonCount) {
-            return 'Item quantities must total exactly $cartonCount cartons.';
-          }
           if (allocations.map((item) => item.itemName).toSet().length !=
               allocations.length) {
             return 'Each item can appear only once in the layer breakdown.';
@@ -330,7 +327,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         }
       }
       final updated = current.copyWith(
-        cartonCount: cartonCount,
+        cartonCount: allocatedTotal > 0 ? allocatedTotal : cartonCount,
         defectCount: defectCount,
         notes: notes,
         itemName: allocations.length == 1

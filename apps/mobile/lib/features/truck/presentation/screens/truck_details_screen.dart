@@ -490,10 +490,13 @@ class TruckDetailsScreen extends ConsumerWidget {
                   TextField(
                     controller: cartonController,
                     keyboardType: TextInputType.number,
-                    onChanged: (_) => setDialogState(() {}),
-                    decoration: const InputDecoration(
+                    readOnly: wagon != null && wagon.items.isNotEmpty,
+                    decoration: InputDecoration(
                       labelText: 'Carton count',
-                      border: OutlineInputBorder(),
+                      helperText: wagon != null && wagon.items.isNotEmpty
+                          ? 'Calculated automatically from item quantities'
+                          : null,
+                      border: const OutlineInputBorder(),
                     ),
                   ),
                   if (wagon != null && wagon.items.isNotEmpty) ...[
@@ -516,7 +519,16 @@ class TruckDetailsScreen extends ConsumerWidget {
                         child: TextField(
                           controller: itemControllers[item.name],
                           keyboardType: TextInputType.number,
-                          onChanged: (_) => setDialogState(() {}),
+                          onChanged: (_) {
+                            final total = itemControllers.values.fold<int>(
+                              0,
+                              (sum, controller) =>
+                                  sum +
+                                  (int.tryParse(controller.text.trim()) ?? 0),
+                            );
+                            cartonController.text = '$total';
+                            setDialogState(() {});
+                          },
                           decoration: InputDecoration(
                             labelText: item.name,
                             suffixText: '$available available',

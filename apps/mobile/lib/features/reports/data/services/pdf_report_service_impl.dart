@@ -116,6 +116,58 @@ pw.Widget? _truckLayerCellBuilder(int column, dynamic data, int row) {
   );
 }
 
+String formatCorrectionChanges(String before, String after) {
+  Map<String, String> values(String text) {
+    final result = <String, String>{};
+    for (final rawLine in text.split('\n')) {
+      final line = rawLine.trim();
+      if (line.isEmpty || line == 'Items:') continue;
+      final separator = line.indexOf(':');
+      if (separator <= 0) continue;
+      final key = line.substring(0, separator).trim();
+      final value = line
+          .substring(separator + 1)
+          .trim()
+          .replaceFirst(RegExp(r'\s+cartons$'), '');
+      result[key] = value;
+    }
+    return result;
+  }
+
+  final previous = values(before);
+  final current = values(after);
+  final keys = <String>{...previous.keys, ...current.keys};
+  const priority = ['Cartons', 'Defects'];
+  final itemKeys = keys.where((key) => !priority.contains(key)).toList()
+    ..sort();
+  if (itemKeys.isNotEmpty) {
+    previous['Cartons'] = itemKeys
+        .fold<int>(
+          0,
+          (sum, key) => sum + (int.tryParse(previous[key] ?? '') ?? 0),
+        )
+        .toString();
+    current['Cartons'] = itemKeys
+        .fold<int>(
+          0,
+          (sum, key) => sum + (int.tryParse(current[key] ?? '') ?? 0),
+        )
+        .toString();
+  }
+  final ordered = ['Cartons', ...itemKeys, 'Defects'];
+  return ordered
+      .where((key) => keys.contains(key))
+      .map((key) => '$key: ${previous[key] ?? 0} -> ${current[key] ?? 0}')
+      .join('\n');
+}
+
+String _reportValue(Object? value) {
+  final text = value?.toString().trim() ?? '';
+  return text.isEmpty || text.toUpperCase() == 'NIL' || text == 'N/A'
+      ? 'Not provided'
+      : text;
+}
+
 class PdfReportServiceImpl implements PdfReportService {
   static Future<Uint8List?>? _cachedReportLogoBytes;
   final AppDatabase _db;
@@ -180,7 +232,7 @@ class PdfReportServiceImpl implements PdfReportService {
   }
 
   String _operatorNotesForReport(String? notes) {
-    if (notes == null || notes.trim().isEmpty) return '—';
+    if (notes == null || notes.trim().isEmpty) return 'No notes';
     final operatorNotes = notes
         .split('|')
         .map((part) => part.trim())
@@ -189,7 +241,7 @@ class PdfReportServiceImpl implements PdfReportService {
             !part.startsWith('AI count:') &&
             !part.startsWith('Count method:'))
         .join(' | ');
-    return operatorNotes.isEmpty ? '—' : operatorNotes;
+    return operatorNotes.isEmpty ? 'No notes' : operatorNotes;
   }
 
   @override
@@ -572,8 +624,8 @@ Future<Uint8List> _buildWagonPdfBytes(
         pw.Row(
           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
           children: [
-            pw.Text('From: ${report['origin']}'),
-            pw.Text('To: ${report['destination']}'),
+            pw.Text('From: ${_reportValue(report['origin'])}'),
+            pw.Text('To: ${_reportValue(report['destination'])}'),
           ],
         ),
         pw.Row(
@@ -615,12 +667,6 @@ Future<Uint8List> _buildWagonPdfBytes(
           headerStyle:
               pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
           cellStyle: const pw.TextStyle(fontSize: 8),
-          cellPadding:
-              const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 6),
-          cellBuilder: _truckLayerCellBuilder,
-          cellDecoration: (column, data, row) => pw.BoxDecoration(
-            color: column == 2 ? PdfColors.blue50 : PdfColors.white,
-          ),
           headers: const [
             'Vehicle Number',
             'Driver',
@@ -707,14 +753,14 @@ Future<Uint8List> _buildTruckPdfBytes(
         pw.SizedBox(height: 10),
         pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
           pw.Text('Vehicle Number: ${report['vehicleNumber']}'),
-          pw.Text('Driver: ${report['driverName']}'),
+          pw.Text('Driver: ${_reportValue(report['driverName'])}'),
         ]),
         pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-          pw.Text('Driver Phone: ${report['driverMobile']}'),
-          pw.Text('Company: ${report['company']}'),
+          pw.Text('Driver Phone: ${_reportValue(report['driverMobile'])}'),
+          pw.Text('Company: ${_reportValue(report['company'])}'),
         ]),
         pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-          pw.Text('Warehouse: ${report['warehouse']}'),
+          pw.Text('Warehouse: ${_reportValue(report['warehouse'])}'),
           pw.Text('Status: ${report['status']}'),
         ]),
         pw.Align(
@@ -731,23 +777,29 @@ Future<Uint8List> _buildTruckPdfBytes(
           headerStyle:
               pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
           cellStyle: const pw.TextStyle(fontSize: 8),
+          cellPadding:
+              const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+          cellBuilder: _truckLayerCellBuilder,
+          cellDecoration: (column, data, row) => pw.BoxDecoration(
+            color: column == 2 ? PdfColors.blue50 : PdfColors.white,
+          ),
           headers: const [
-            'Layer No.',
+            'Layer',
             'Cartons',
             'Items',
-            'Defects',
-            'Operator Notes',
-            'Layer Added',
+            'Def.',
+            'Notes',
+            'Added',
             'Operator',
           ],
           columnWidths: const {
-            0: pw.FlexColumnWidth(0.8),
-            1: pw.FlexColumnWidth(0.9),
-            2: pw.FlexColumnWidth(2.4),
-            3: pw.FlexColumnWidth(0.8),
-            4: pw.FlexColumnWidth(2.1),
-            5: pw.FlexColumnWidth(2.2),
-            6: pw.FlexColumnWidth(1.8),
+            0: pw.FlexColumnWidth(0.7),
+            1: pw.FlexColumnWidth(1),
+            2: pw.FlexColumnWidth(2.7),
+            3: pw.FlexColumnWidth(0.65),
+            4: pw.FlexColumnWidth(2),
+            5: pw.FlexColumnWidth(2.1),
+            6: pw.FlexColumnWidth(1.7),
           },
           data: layers
               .map((layer) => [
@@ -778,25 +830,25 @@ Future<Uint8List> _buildTruckPdfBytes(
               'Layer',
               'Changed At',
               'Operator',
-              'Before',
-              'After',
+              'Changes',
               'Reason',
             ],
             columnWidths: const {
               0: pw.FlexColumnWidth(0.7),
               1: pw.FlexColumnWidth(1.7),
               2: pw.FlexColumnWidth(1.4),
-              3: pw.FlexColumnWidth(2.2),
-              4: pw.FlexColumnWidth(2.2),
-              5: pw.FlexColumnWidth(1.5),
+              3: pw.FlexColumnWidth(3.4),
+              4: pw.FlexColumnWidth(1.8),
             },
             data: corrections
                 .map((correction) => [
                       correction['layerNumber'].toString(),
                       correction['timestamp'].toString(),
                       correction['operator'].toString(),
-                      correction['before'].toString(),
-                      correction['after'].toString(),
+                      formatCorrectionChanges(
+                        correction['before'].toString(),
+                        correction['after'].toString(),
+                      ),
                       correction['reason'].toString(),
                     ])
                 .toList(growable: false),

@@ -112,12 +112,16 @@ class LocalLayerRepository implements LayerRepository {
     final nextAllocationsJson = jsonEncode(layer.itemAllocations
         .map((allocation) => allocation.toJson())
         .toList());
+    final allocatedCartons = layer.itemAllocations
+        .fold<int>(0, (sum, allocation) => sum + allocation.quantity);
+    final effectiveCartons =
+        allocatedCartons > 0 ? allocatedCartons : layer.cartonCount;
     await _db.transaction(() async {
       await (_db.update(_db.layers)..where((t) => t.id.equals(layer.id)))
           .write(LayersCompanion(
         truckId: drift.Value(layer.truckId),
         layerNumber: drift.Value(layer.layerNumber),
-        cartonCount: drift.Value(layer.cartonCount),
+        cartonCount: drift.Value(effectiveCartons),
         defectCount: drift.Value(layer.defectCount),
         photoPath: drift.Value(layer.photoPath),
         notes: drift.Value(layer.notes),
@@ -164,7 +168,7 @@ class LocalLayerRepository implements LayerRepository {
         updatedAt: drift.Value(DateTime.now()),
       ));
 
-      final countChanged = existing.cartonCount != layer.cartonCount ||
+      final countChanged = existing.cartonCount != effectiveCartons ||
           existing.defectCount != layer.defectCount ||
           existing.itemAllocationsJson != nextAllocationsJson;
       if (countChanged) {
@@ -176,7 +180,7 @@ class LocalLayerRepository implements LayerRepository {
               userId: layer.operatorId,
               details: drift.Value(
                 'Layer ${layer.layerNumber}: cartons '
-                '${existing.cartonCount} -> ${layer.cartonCount}, defects '
+                '${existing.cartonCount} -> $effectiveCartons, defects '
                 '${existing.defectCount} -> ${layer.defectCount}. Reason: '
                 '${correctionReason?.trim().isNotEmpty == true ? correctionReason!.trim() : 'Not provided'}. '
                 'Items: ${existing.itemAllocationsJson} -> $nextAllocationsJson',

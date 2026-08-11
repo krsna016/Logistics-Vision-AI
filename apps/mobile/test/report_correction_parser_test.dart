@@ -27,4 +27,14 @@ void main() {
     expect(parsed['before'], contains('A: 40 cartons\nB: 24 cartons'));
     expect(parsed['after'], contains('A: 35 cartons\nB: 29 cartons'));
   });
+
+  test('formats correction history as a compact field comparison', () {
+    expect(
+      formatCorrectionChanges(
+        'Cartons: 71\nItems:\nA: 45 cartons\nB: 26 cartons\nDefects: 0',
+        'Cartons: 71\nItems:\nA: 44 cartons\nB: 27 cartons\nDefects: 0',
+      ),
+      'Cartons: 71 -> 71\nA: 45 -> 44\nB: 26 -> 27\nDefects: 0 -> 0',
+    );
+  });
 }
