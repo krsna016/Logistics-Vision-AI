@@ -17,6 +17,9 @@ import '../widgets/truck_form_dialog.dart';
 import '../widgets/truck_header.dart';
 import '../widgets/summary_stat_card.dart';
 import '../widgets/layer_timeline.dart';
+import '../../../wagon/domain/entities/wagon.dart';
+import '../../../wagon/presentation/providers/wagon_providers.dart';
+import '../../../wagon/presentation/widgets/wagon_inventory_card.dart';
 
 class TruckDetailsScreen extends ConsumerWidget {
   final String truckId;
@@ -38,6 +41,7 @@ class TruckDetailsScreen extends ConsumerWidget {
     final layerNotifier = ref.read(layerListProvider(truckId).notifier);
     final sessionState = ref.watch(activeSessionProvider);
     final sessionNotifier = ref.read(activeSessionProvider.notifier);
+    final wagonState = ref.watch(wagonListProvider);
 
     final truck = listState.trucks.firstWhere(
       (e) => e.id == truckId,
@@ -65,6 +69,15 @@ class TruckDetailsScreen extends ConsumerWidget {
         ),
       );
     }
+
+    final wagon = truck.wagonId == null
+        ? null
+        : wagonState.wagons.cast<Wagon?>().firstWhere(
+              (candidate) => candidate?.id == truck.wagonId,
+              orElse: () => null,
+            );
+    final inventory =
+        wagon == null ? null : ref.watch(wagonInventoryProvider(wagon.id));
 
     // Completed/dispatched trucks can still be corrected until archived.
     // Archiving is the explicit point at which layer editing is locked.
@@ -152,6 +165,14 @@ class TruckDetailsScreen extends ConsumerWidget {
               delegate: SliverChildListDelegate([
                 // ── 1. Header Card ─────────────────────────────────────────
                 TruckHeader(truck: truck),
+                if (wagon != null && wagon.items.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  WagonInventoryCard(
+                    wagon: wagon,
+                    loadedByItem: inventory?.valueOrNull ?? const {},
+                    isLoading: inventory?.isLoading ?? false,
+                  ),
+                ],
                 const SizedBox(height: 20),
 
                 Row(

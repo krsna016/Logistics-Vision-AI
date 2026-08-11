@@ -532,6 +532,14 @@ class $WagonsTable extends Wagons with TableInfo<$WagonsTable, Wagon> {
   late final GeneratedColumn<String> remarks = GeneratedColumn<String>(
       'remarks', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _itemManifestJsonMeta =
+      const VerificationMeta('itemManifestJson');
+  @override
+  late final GeneratedColumn<String> itemManifestJson = GeneratedColumn<String>(
+      'item_manifest_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
   static const VerificationMeta _completedTruckCountMeta =
       const VerificationMeta('completedTruckCount');
   @override
@@ -556,6 +564,7 @@ class $WagonsTable extends Wagons with TableInfo<$WagonsTable, Wagon> {
         destination,
         loadingDate,
         remarks,
+        itemManifestJson,
         completedTruckCount
       ];
   @override
@@ -643,6 +652,12 @@ class $WagonsTable extends Wagons with TableInfo<$WagonsTable, Wagon> {
       context.handle(_remarksMeta,
           remarks.isAcceptableOrUnknown(data['remarks']!, _remarksMeta));
     }
+    if (data.containsKey('item_manifest_json')) {
+      context.handle(
+          _itemManifestJsonMeta,
+          itemManifestJson.isAcceptableOrUnknown(
+              data['item_manifest_json']!, _itemManifestJsonMeta));
+    }
     if (data.containsKey('completed_truck_count')) {
       context.handle(
           _completedTruckCountMeta,
@@ -686,6 +701,8 @@ class $WagonsTable extends Wagons with TableInfo<$WagonsTable, Wagon> {
           .read(DriftSqlType.dateTime, data['${effectivePrefix}loading_date']),
       remarks: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}remarks']),
+      itemManifestJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}item_manifest_json'])!,
       completedTruckCount: attachedDatabase.typeMapping.read(
           DriftSqlType.int, data['${effectivePrefix}completed_truck_count'])!,
     );
@@ -712,6 +729,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
   final String? destination;
   final DateTime? loadingDate;
   final String? remarks;
+  final String itemManifestJson;
   final int completedTruckCount;
   const Wagon(
       {required this.id,
@@ -728,6 +746,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
       this.destination,
       this.loadingDate,
       this.remarks,
+      required this.itemManifestJson,
       required this.completedTruckCount});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -756,6 +775,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
     if (!nullToAbsent || remarks != null) {
       map['remarks'] = Variable<String>(remarks);
     }
+    map['item_manifest_json'] = Variable<String>(itemManifestJson);
     map['completed_truck_count'] = Variable<int>(completedTruckCount);
     return map;
   }
@@ -785,6 +805,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
       remarks: remarks == null && nullToAbsent
           ? const Value.absent()
           : Value(remarks),
+      itemManifestJson: Value(itemManifestJson),
       completedTruckCount: Value(completedTruckCount),
     );
   }
@@ -807,6 +828,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
       destination: serializer.fromJson<String?>(json['destination']),
       loadingDate: serializer.fromJson<DateTime?>(json['loadingDate']),
       remarks: serializer.fromJson<String?>(json['remarks']),
+      itemManifestJson: serializer.fromJson<String>(json['itemManifestJson']),
       completedTruckCount:
           serializer.fromJson<int>(json['completedTruckCount']),
     );
@@ -829,6 +851,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
       'destination': serializer.toJson<String?>(destination),
       'loadingDate': serializer.toJson<DateTime?>(loadingDate),
       'remarks': serializer.toJson<String?>(remarks),
+      'itemManifestJson': serializer.toJson<String>(itemManifestJson),
       'completedTruckCount': serializer.toJson<int>(completedTruckCount),
     };
   }
@@ -848,6 +871,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
           Value<String?> destination = const Value.absent(),
           Value<DateTime?> loadingDate = const Value.absent(),
           Value<String?> remarks = const Value.absent(),
+          String? itemManifestJson,
           int? completedTruckCount}) =>
       Wagon(
         id: id ?? this.id,
@@ -864,6 +888,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
         destination: destination.present ? destination.value : this.destination,
         loadingDate: loadingDate.present ? loadingDate.value : this.loadingDate,
         remarks: remarks.present ? remarks.value : this.remarks,
+        itemManifestJson: itemManifestJson ?? this.itemManifestJson,
         completedTruckCount: completedTruckCount ?? this.completedTruckCount,
       );
   Wagon copyWithCompanion(WagonsCompanion data) {
@@ -889,6 +914,9 @@ class Wagon extends DataClass implements Insertable<Wagon> {
       loadingDate:
           data.loadingDate.present ? data.loadingDate.value : this.loadingDate,
       remarks: data.remarks.present ? data.remarks.value : this.remarks,
+      itemManifestJson: data.itemManifestJson.present
+          ? data.itemManifestJson.value
+          : this.itemManifestJson,
       completedTruckCount: data.completedTruckCount.present
           ? data.completedTruckCount.value
           : this.completedTruckCount,
@@ -912,6 +940,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
           ..write('destination: $destination, ')
           ..write('loadingDate: $loadingDate, ')
           ..write('remarks: $remarks, ')
+          ..write('itemManifestJson: $itemManifestJson, ')
           ..write('completedTruckCount: $completedTruckCount')
           ..write(')'))
         .toString();
@@ -933,6 +962,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
       destination,
       loadingDate,
       remarks,
+      itemManifestJson,
       completedTruckCount);
   @override
   bool operator ==(Object other) =>
@@ -952,6 +982,7 @@ class Wagon extends DataClass implements Insertable<Wagon> {
           other.destination == this.destination &&
           other.loadingDate == this.loadingDate &&
           other.remarks == this.remarks &&
+          other.itemManifestJson == this.itemManifestJson &&
           other.completedTruckCount == this.completedTruckCount);
 }
 
@@ -970,6 +1001,7 @@ class WagonsCompanion extends UpdateCompanion<Wagon> {
   final Value<String?> destination;
   final Value<DateTime?> loadingDate;
   final Value<String?> remarks;
+  final Value<String> itemManifestJson;
   final Value<int> completedTruckCount;
   final Value<int> rowid;
   const WagonsCompanion({
@@ -987,6 +1019,7 @@ class WagonsCompanion extends UpdateCompanion<Wagon> {
     this.destination = const Value.absent(),
     this.loadingDate = const Value.absent(),
     this.remarks = const Value.absent(),
+    this.itemManifestJson = const Value.absent(),
     this.completedTruckCount = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -1005,6 +1038,7 @@ class WagonsCompanion extends UpdateCompanion<Wagon> {
     this.destination = const Value.absent(),
     this.loadingDate = const Value.absent(),
     this.remarks = const Value.absent(),
+    this.itemManifestJson = const Value.absent(),
     this.completedTruckCount = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -1026,6 +1060,7 @@ class WagonsCompanion extends UpdateCompanion<Wagon> {
     Expression<String>? destination,
     Expression<DateTime>? loadingDate,
     Expression<String>? remarks,
+    Expression<String>? itemManifestJson,
     Expression<int>? completedTruckCount,
     Expression<int>? rowid,
   }) {
@@ -1045,6 +1080,7 @@ class WagonsCompanion extends UpdateCompanion<Wagon> {
       if (destination != null) 'destination': destination,
       if (loadingDate != null) 'loading_date': loadingDate,
       if (remarks != null) 'remarks': remarks,
+      if (itemManifestJson != null) 'item_manifest_json': itemManifestJson,
       if (completedTruckCount != null)
         'completed_truck_count': completedTruckCount,
       if (rowid != null) 'rowid': rowid,
@@ -1066,6 +1102,7 @@ class WagonsCompanion extends UpdateCompanion<Wagon> {
       Value<String?>? destination,
       Value<DateTime?>? loadingDate,
       Value<String?>? remarks,
+      Value<String>? itemManifestJson,
       Value<int>? completedTruckCount,
       Value<int>? rowid}) {
     return WagonsCompanion(
@@ -1083,6 +1120,7 @@ class WagonsCompanion extends UpdateCompanion<Wagon> {
       destination: destination ?? this.destination,
       loadingDate: loadingDate ?? this.loadingDate,
       remarks: remarks ?? this.remarks,
+      itemManifestJson: itemManifestJson ?? this.itemManifestJson,
       completedTruckCount: completedTruckCount ?? this.completedTruckCount,
       rowid: rowid ?? this.rowid,
     );
@@ -1133,6 +1171,9 @@ class WagonsCompanion extends UpdateCompanion<Wagon> {
     if (remarks.present) {
       map['remarks'] = Variable<String>(remarks.value);
     }
+    if (itemManifestJson.present) {
+      map['item_manifest_json'] = Variable<String>(itemManifestJson.value);
+    }
     if (completedTruckCount.present) {
       map['completed_truck_count'] = Variable<int>(completedTruckCount.value);
     }
@@ -1159,6 +1200,7 @@ class WagonsCompanion extends UpdateCompanion<Wagon> {
           ..write('destination: $destination, ')
           ..write('loadingDate: $loadingDate, ')
           ..write('remarks: $remarks, ')
+          ..write('itemManifestJson: $itemManifestJson, ')
           ..write('completedTruckCount: $completedTruckCount, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2198,6 +2240,12 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
       'notes', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _itemNameMeta =
+      const VerificationMeta('itemName');
+  @override
+  late final GeneratedColumn<String> itemName = GeneratedColumn<String>(
+      'item_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _averageConfidenceMeta =
       const VerificationMeta('averageConfidence');
   @override
@@ -2238,6 +2286,7 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
         defectCount,
         photoPath,
         notes,
+        itemName,
         averageConfidence,
         timestamp,
         operatorId,
@@ -2316,6 +2365,10 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
       context.handle(
           _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
     }
+    if (data.containsKey('item_name')) {
+      context.handle(_itemNameMeta,
+          itemName.isAcceptableOrUnknown(data['item_name']!, _itemNameMeta));
+    }
     if (data.containsKey('average_confidence')) {
       context.handle(
           _averageConfidenceMeta,
@@ -2371,6 +2424,8 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
           .read(DriftSqlType.string, data['${effectivePrefix}photo_path']),
       notes: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}notes']),
+      itemName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}item_name']),
       averageConfidence: attachedDatabase.typeMapping.read(
           DriftSqlType.double, data['${effectivePrefix}average_confidence'])!,
       timestamp: attachedDatabase.typeMapping
@@ -2401,6 +2456,7 @@ class Layer extends DataClass implements Insertable<Layer> {
   final int defectCount;
   final String? photoPath;
   final String? notes;
+  final String? itemName;
   final double averageConfidence;
   final DateTime? timestamp;
   final String? operatorId;
@@ -2418,6 +2474,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       required this.defectCount,
       this.photoPath,
       this.notes,
+      this.itemName,
       required this.averageConfidence,
       this.timestamp,
       this.operatorId,
@@ -2440,6 +2497,9 @@ class Layer extends DataClass implements Insertable<Layer> {
     }
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
+    }
+    if (!nullToAbsent || itemName != null) {
+      map['item_name'] = Variable<String>(itemName);
     }
     map['average_confidence'] = Variable<double>(averageConfidence);
     if (!nullToAbsent || timestamp != null) {
@@ -2471,6 +2531,9 @@ class Layer extends DataClass implements Insertable<Layer> {
           : Value(photoPath),
       notes:
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
+      itemName: itemName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(itemName),
       averageConfidence: Value(averageConfidence),
       timestamp: timestamp == null && nullToAbsent
           ? const Value.absent()
@@ -2500,6 +2563,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       defectCount: serializer.fromJson<int>(json['defectCount']),
       photoPath: serializer.fromJson<String?>(json['photoPath']),
       notes: serializer.fromJson<String?>(json['notes']),
+      itemName: serializer.fromJson<String?>(json['itemName']),
       averageConfidence: serializer.fromJson<double>(json['averageConfidence']),
       timestamp: serializer.fromJson<DateTime?>(json['timestamp']),
       operatorId: serializer.fromJson<String?>(json['operatorId']),
@@ -2522,6 +2586,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       'defectCount': serializer.toJson<int>(defectCount),
       'photoPath': serializer.toJson<String?>(photoPath),
       'notes': serializer.toJson<String?>(notes),
+      'itemName': serializer.toJson<String?>(itemName),
       'averageConfidence': serializer.toJson<double>(averageConfidence),
       'timestamp': serializer.toJson<DateTime?>(timestamp),
       'operatorId': serializer.toJson<String?>(operatorId),
@@ -2542,6 +2607,7 @@ class Layer extends DataClass implements Insertable<Layer> {
           int? defectCount,
           Value<String?> photoPath = const Value.absent(),
           Value<String?> notes = const Value.absent(),
+          Value<String?> itemName = const Value.absent(),
           double? averageConfidence,
           Value<DateTime?> timestamp = const Value.absent(),
           Value<String?> operatorId = const Value.absent(),
@@ -2559,6 +2625,7 @@ class Layer extends DataClass implements Insertable<Layer> {
         defectCount: defectCount ?? this.defectCount,
         photoPath: photoPath.present ? photoPath.value : this.photoPath,
         notes: notes.present ? notes.value : this.notes,
+        itemName: itemName.present ? itemName.value : this.itemName,
         averageConfidence: averageConfidence ?? this.averageConfidence,
         timestamp: timestamp.present ? timestamp.value : this.timestamp,
         operatorId: operatorId.present ? operatorId.value : this.operatorId,
@@ -2583,6 +2650,7 @@ class Layer extends DataClass implements Insertable<Layer> {
           data.defectCount.present ? data.defectCount.value : this.defectCount,
       photoPath: data.photoPath.present ? data.photoPath.value : this.photoPath,
       notes: data.notes.present ? data.notes.value : this.notes,
+      itemName: data.itemName.present ? data.itemName.value : this.itemName,
       averageConfidence: data.averageConfidence.present
           ? data.averageConfidence.value
           : this.averageConfidence,
@@ -2610,6 +2678,7 @@ class Layer extends DataClass implements Insertable<Layer> {
           ..write('defectCount: $defectCount, ')
           ..write('photoPath: $photoPath, ')
           ..write('notes: $notes, ')
+          ..write('itemName: $itemName, ')
           ..write('averageConfidence: $averageConfidence, ')
           ..write('timestamp: $timestamp, ')
           ..write('operatorId: $operatorId, ')
@@ -2632,6 +2701,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       defectCount,
       photoPath,
       notes,
+      itemName,
       averageConfidence,
       timestamp,
       operatorId,
@@ -2652,6 +2722,7 @@ class Layer extends DataClass implements Insertable<Layer> {
           other.defectCount == this.defectCount &&
           other.photoPath == this.photoPath &&
           other.notes == this.notes &&
+          other.itemName == this.itemName &&
           other.averageConfidence == this.averageConfidence &&
           other.timestamp == this.timestamp &&
           other.operatorId == this.operatorId &&
@@ -2671,6 +2742,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
   final Value<int> defectCount;
   final Value<String?> photoPath;
   final Value<String?> notes;
+  final Value<String?> itemName;
   final Value<double> averageConfidence;
   final Value<DateTime?> timestamp;
   final Value<String?> operatorId;
@@ -2689,6 +2761,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     this.defectCount = const Value.absent(),
     this.photoPath = const Value.absent(),
     this.notes = const Value.absent(),
+    this.itemName = const Value.absent(),
     this.averageConfidence = const Value.absent(),
     this.timestamp = const Value.absent(),
     this.operatorId = const Value.absent(),
@@ -2708,6 +2781,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     this.defectCount = const Value.absent(),
     this.photoPath = const Value.absent(),
     this.notes = const Value.absent(),
+    this.itemName = const Value.absent(),
     this.averageConfidence = const Value.absent(),
     this.timestamp = const Value.absent(),
     this.operatorId = const Value.absent(),
@@ -2730,6 +2804,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     Expression<int>? defectCount,
     Expression<String>? photoPath,
     Expression<String>? notes,
+    Expression<String>? itemName,
     Expression<double>? averageConfidence,
     Expression<DateTime>? timestamp,
     Expression<String>? operatorId,
@@ -2749,6 +2824,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
       if (defectCount != null) 'defect_count': defectCount,
       if (photoPath != null) 'photo_path': photoPath,
       if (notes != null) 'notes': notes,
+      if (itemName != null) 'item_name': itemName,
       if (averageConfidence != null) 'average_confidence': averageConfidence,
       if (timestamp != null) 'timestamp': timestamp,
       if (operatorId != null) 'operator_id': operatorId,
@@ -2770,6 +2846,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
       Value<int>? defectCount,
       Value<String?>? photoPath,
       Value<String?>? notes,
+      Value<String?>? itemName,
       Value<double>? averageConfidence,
       Value<DateTime?>? timestamp,
       Value<String?>? operatorId,
@@ -2788,6 +2865,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
       defectCount: defectCount ?? this.defectCount,
       photoPath: photoPath ?? this.photoPath,
       notes: notes ?? this.notes,
+      itemName: itemName ?? this.itemName,
       averageConfidence: averageConfidence ?? this.averageConfidence,
       timestamp: timestamp ?? this.timestamp,
       operatorId: operatorId ?? this.operatorId,
@@ -2835,6 +2913,9 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
+    if (itemName.present) {
+      map['item_name'] = Variable<String>(itemName.value);
+    }
     if (averageConfidence.present) {
       map['average_confidence'] = Variable<double>(averageConfidence.value);
     }
@@ -2868,6 +2949,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
           ..write('defectCount: $defectCount, ')
           ..write('photoPath: $photoPath, ')
           ..write('notes: $notes, ')
+          ..write('itemName: $itemName, ')
           ..write('averageConfidence: $averageConfidence, ')
           ..write('timestamp: $timestamp, ')
           ..write('operatorId: $operatorId, ')
@@ -12256,6 +12338,7 @@ typedef $$WagonsTableCreateCompanionBuilder = WagonsCompanion Function({
   Value<String?> destination,
   Value<DateTime?> loadingDate,
   Value<String?> remarks,
+  Value<String> itemManifestJson,
   Value<int> completedTruckCount,
   Value<int> rowid,
 });
@@ -12274,6 +12357,7 @@ typedef $$WagonsTableUpdateCompanionBuilder = WagonsCompanion Function({
   Value<String?> destination,
   Value<DateTime?> loadingDate,
   Value<String?> remarks,
+  Value<String> itemManifestJson,
   Value<int> completedTruckCount,
   Value<int> rowid,
 });
@@ -12377,6 +12461,10 @@ class $$WagonsTableFilterComposer
 
   ColumnFilters<String> get remarks => $composableBuilder(
       column: $table.remarks, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get itemManifestJson => $composableBuilder(
+      column: $table.itemManifestJson,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<int> get completedTruckCount => $composableBuilder(
       column: $table.completedTruckCount,
@@ -12494,6 +12582,10 @@ class $$WagonsTableOrderingComposer
   ColumnOrderings<String> get remarks => $composableBuilder(
       column: $table.remarks, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get itemManifestJson => $composableBuilder(
+      column: $table.itemManifestJson,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<int> get completedTruckCount => $composableBuilder(
       column: $table.completedTruckCount,
       builder: (column) => ColumnOrderings(column));
@@ -12566,6 +12658,9 @@ class $$WagonsTableAnnotationComposer
 
   GeneratedColumn<String> get remarks =>
       $composableBuilder(column: $table.remarks, builder: (column) => column);
+
+  GeneratedColumn<String> get itemManifestJson => $composableBuilder(
+      column: $table.itemManifestJson, builder: (column) => column);
 
   GeneratedColumn<int> get completedTruckCount => $composableBuilder(
       column: $table.completedTruckCount, builder: (column) => column);
@@ -12671,6 +12766,7 @@ class $$WagonsTableTableManager extends RootTableManager<
             Value<String?> destination = const Value.absent(),
             Value<DateTime?> loadingDate = const Value.absent(),
             Value<String?> remarks = const Value.absent(),
+            Value<String> itemManifestJson = const Value.absent(),
             Value<int> completedTruckCount = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -12689,6 +12785,7 @@ class $$WagonsTableTableManager extends RootTableManager<
             destination: destination,
             loadingDate: loadingDate,
             remarks: remarks,
+            itemManifestJson: itemManifestJson,
             completedTruckCount: completedTruckCount,
             rowid: rowid,
           ),
@@ -12707,6 +12804,7 @@ class $$WagonsTableTableManager extends RootTableManager<
             Value<String?> destination = const Value.absent(),
             Value<DateTime?> loadingDate = const Value.absent(),
             Value<String?> remarks = const Value.absent(),
+            Value<String> itemManifestJson = const Value.absent(),
             Value<int> completedTruckCount = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -12725,6 +12823,7 @@ class $$WagonsTableTableManager extends RootTableManager<
             destination: destination,
             loadingDate: loadingDate,
             remarks: remarks,
+            itemManifestJson: itemManifestJson,
             completedTruckCount: completedTruckCount,
             rowid: rowid,
           ),
@@ -13474,6 +13573,7 @@ typedef $$LayersTableCreateCompanionBuilder = LayersCompanion Function({
   Value<int> defectCount,
   Value<String?> photoPath,
   Value<String?> notes,
+  Value<String?> itemName,
   Value<double> averageConfidence,
   Value<DateTime?> timestamp,
   Value<String?> operatorId,
@@ -13493,6 +13593,7 @@ typedef $$LayersTableUpdateCompanionBuilder = LayersCompanion Function({
   Value<int> defectCount,
   Value<String?> photoPath,
   Value<String?> notes,
+  Value<String?> itemName,
   Value<double> averageConfidence,
   Value<DateTime?> timestamp,
   Value<String?> operatorId,
@@ -13574,6 +13675,9 @@ class $$LayersTableFilterComposer
 
   ColumnFilters<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get itemName => $composableBuilder(
+      column: $table.itemName, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get averageConfidence => $composableBuilder(
       column: $table.averageConfidence,
@@ -13672,6 +13776,9 @@ class $$LayersTableOrderingComposer
   ColumnOrderings<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get itemName => $composableBuilder(
+      column: $table.itemName, builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<double> get averageConfidence => $composableBuilder(
       column: $table.averageConfidence,
       builder: (column) => ColumnOrderings(column));
@@ -13748,6 +13855,9 @@ class $$LayersTableAnnotationComposer
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
+
+  GeneratedColumn<String> get itemName =>
+      $composableBuilder(column: $table.itemName, builder: (column) => column);
 
   GeneratedColumn<double> get averageConfidence => $composableBuilder(
       column: $table.averageConfidence, builder: (column) => column);
@@ -13838,6 +13948,7 @@ class $$LayersTableTableManager extends RootTableManager<
             Value<int> defectCount = const Value.absent(),
             Value<String?> photoPath = const Value.absent(),
             Value<String?> notes = const Value.absent(),
+            Value<String?> itemName = const Value.absent(),
             Value<double> averageConfidence = const Value.absent(),
             Value<DateTime?> timestamp = const Value.absent(),
             Value<String?> operatorId = const Value.absent(),
@@ -13857,6 +13968,7 @@ class $$LayersTableTableManager extends RootTableManager<
             defectCount: defectCount,
             photoPath: photoPath,
             notes: notes,
+            itemName: itemName,
             averageConfidence: averageConfidence,
             timestamp: timestamp,
             operatorId: operatorId,
@@ -13876,6 +13988,7 @@ class $$LayersTableTableManager extends RootTableManager<
             Value<int> defectCount = const Value.absent(),
             Value<String?> photoPath = const Value.absent(),
             Value<String?> notes = const Value.absent(),
+            Value<String?> itemName = const Value.absent(),
             Value<double> averageConfidence = const Value.absent(),
             Value<DateTime?> timestamp = const Value.absent(),
             Value<String?> operatorId = const Value.absent(),
@@ -13895,6 +14008,7 @@ class $$LayersTableTableManager extends RootTableManager<
             defectCount: defectCount,
             photoPath: photoPath,
             notes: notes,
+            itemName: itemName,
             averageConfidence: averageConfidence,
             timestamp: timestamp,
             operatorId: operatorId,

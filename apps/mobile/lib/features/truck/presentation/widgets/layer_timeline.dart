@@ -189,6 +189,15 @@ class _TimelineItem extends StatelessWidget {
                         // Stats row
                         Row(
                           children: [
+                            if (layer.itemName != null &&
+                                layer.itemName!.trim().isNotEmpty) ...[
+                              _ChipLabel(
+                                icon: Icons.category_outlined,
+                                label: layer.itemName!,
+                                color: AppTheme.successColor,
+                              ),
+                              const SizedBox(width: 6),
+                            ],
                             _ChipLabel(
                               icon: Icons.inventory_2_outlined,
                               label: '${layer.cartonCount} Cartons',

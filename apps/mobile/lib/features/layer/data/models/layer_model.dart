@@ -13,7 +13,9 @@ class LayerModel {
       operatorId: json['operatorId'] as String,
       photoPath: json['photoPath'] as String?,
       notes: json['notes'] as String?,
-      modelVersion: json['modelVersion'] as String? ?? 'yolo11n_carton_seg_v1_3',
+      itemName: json['itemName'] as String?,
+      modelVersion:
+          json['modelVersion'] as String? ?? 'yolo11n_carton_seg_v1_3',
       averageConfidence: (json['averageConfidence'] as num? ?? 0.0).toDouble(),
       syncStatus: SyncStatus.values.firstWhere(
         (e) => e.name == (json['syncStatus'] as String? ?? 'pending'),
@@ -36,6 +38,7 @@ class LayerModel {
       'operatorId': record.operatorId,
       'photoPath': record.photoPath,
       'notes': record.notes,
+      'itemName': record.itemName,
       'modelVersion': record.modelVersion,
       'averageConfidence': record.averageConfidence,
       'syncStatus': record.syncStatus.name,

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
 import 'package:excel/excel.dart';
 import '../../domain/services/report_services.dart';
@@ -71,6 +72,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
     // Data Table Headers
     final headers = [
       'Layer No',
+      'Item',
       'Carton Count',
       'Defects',
       'Layer Added',
@@ -94,22 +96,26 @@ class ExcelReportServiceImpl implements ExcelReportService {
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow))
-          .value = IntCellValue(layer.cartonCount);
+          .value = TextCellValue(layer.itemName ?? 'N/A');
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow))
-          .value = IntCellValue(layer.defectCount);
+          .value = IntCellValue(layer.cartonCount);
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow))
-          .value = TextCellValue(layer.timestamp.toString().split('.')[0]);
+          .value = IntCellValue(layer.defectCount);
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow))
-          .value = TextCellValue(layer.operatorId ?? 'N/A');
+          .value = TextCellValue(layer.timestamp.toString().split('.')[0]);
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow))
+          .value = TextCellValue(layer.operatorId ?? 'N/A');
+      sheet
+          .cell(
+              CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow))
           .value = TextCellValue(layer.modelVersion ?? 'N/A');
       currentRow++;
     }
@@ -121,13 +127,13 @@ class ExcelReportServiceImpl implements ExcelReportService {
         .value = TextCellValue('TOTAL');
     sheet
             .cell(CellIndex.indexByColumnRow(
-                columnIndex: 1, rowIndex: currentRow + 1))
+                columnIndex: 2, rowIndex: currentRow + 1))
             .value =
         IntCellValue(
             layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount));
     sheet
             .cell(CellIndex.indexByColumnRow(
-                columnIndex: 2, rowIndex: currentRow + 1))
+                columnIndex: 3, rowIndex: currentRow + 1))
             .value =
         IntCellValue(
             layers.fold<int>(0, (sum, layer) => sum + layer.defectCount));
@@ -164,6 +170,17 @@ class ExcelReportServiceImpl implements ExcelReportService {
       for (final truck in trucks)
         truck.id: layers.where((layer) => layer.truckId == truck.id).toList(),
     };
+    final loadedByItem = <String, int>{};
+    for (final layer in layers) {
+      final itemName = layer.itemName?.trim();
+      if (itemName != null && itemName.isNotEmpty) {
+        loadedByItem[itemName] =
+            (loadedByItem[itemName] ?? 0) + layer.cartonCount;
+      }
+    }
+    final manifest = (jsonDecode(wagon.itemManifestJson) as List<dynamic>)
+        .whereType<Map<String, dynamic>>()
+        .toList(growable: false);
     final headerStyle = CellStyle(
       bold: true,
       horizontalAlign: HorizontalAlign.Center,
@@ -244,6 +261,35 @@ class ExcelReportServiceImpl implements ExcelReportService {
         .cell(CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow))
         .value = TextCellValue(_supervisorLabel);
     currentRow += 2;
+    if (manifest.isNotEmpty) {
+      sheet
+          .cell(
+              CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow))
+          .value = TextCellValue('ITEM INVENTORY');
+      currentRow++;
+      const inventoryHeaders = ['Item', 'Total', 'Loaded', 'Remaining'];
+      for (var column = 0; column < inventoryHeaders.length; column++) {
+        final cell = sheet.cell(CellIndex.indexByColumnRow(
+            columnIndex: column, rowIndex: currentRow));
+        cell.value = TextCellValue(inventoryHeaders[column]);
+        cell.cellStyle = headerStyle;
+      }
+      currentRow++;
+      for (final item in manifest) {
+        final name = item['name'] as String? ?? '';
+        final total = (item['quantity'] as num? ?? 0).toInt();
+        final loaded = loadedByItem[name] ?? 0;
+        final values = [name, '$total', '$loaded', '${total - loaded}'];
+        for (var column = 0; column < values.length; column++) {
+          sheet
+              .cell(CellIndex.indexByColumnRow(
+                  columnIndex: column, rowIndex: currentRow))
+              .value = TextCellValue(values[column]);
+        }
+        currentRow++;
+      }
+      currentRow++;
+    }
     sheet
         .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow))
         .value = TextCellValue('REMARKS: ${wagon.remarks ?? ''}');

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
@@ -42,7 +43,9 @@ class PdfReportServiceImpl implements PdfReportService {
   }
 
   String _layerItem(Layer? layer) {
-    final item = layer?.notes?.split('|').first.trim() ?? '';
+    final item = layer?.itemName?.trim().isNotEmpty == true
+        ? layer!.itemName!.trim()
+        : layer?.notes?.split('|').first.trim() ?? '';
     return item;
   }
 
@@ -124,6 +127,7 @@ class PdfReportServiceImpl implements PdfReportService {
               'layerNumber': layer.layerNumber,
               'cartonCount': layer.cartonCount,
               'defectCount': layer.defectCount,
+              'itemName': layer.itemName ?? 'N/A',
               'timestamp': layer.timestamp.toString().split('.')[0],
               'operator': layer.operatorId ?? 'N/A',
               'operatorNotes': _operatorNotesForReport(layer.notes),
@@ -173,6 +177,27 @@ class PdfReportServiceImpl implements PdfReportService {
       for (final truck in trucks)
         truck.id: layers.where((layer) => layer.truckId == truck.id).toList(),
     };
+    final loadedByItem = <String, int>{};
+    for (final layer in layers) {
+      final itemName = layer.itemName?.trim();
+      if (itemName != null && itemName.isNotEmpty) {
+        loadedByItem[itemName] =
+            (loadedByItem[itemName] ?? 0) + layer.cartonCount;
+      }
+    }
+    final manifest = (jsonDecode(wagon.itemManifestJson) as List<dynamic>)
+        .whereType<Map<String, dynamic>>()
+        .map((item) {
+      final name = item['name'] as String? ?? '';
+      final total = (item['quantity'] as num? ?? 0).toInt();
+      final loaded = loadedByItem[name] ?? 0;
+      return <String, Object?>{
+        'name': name,
+        'total': total,
+        'loaded': loaded,
+        'remaining': total - loaded,
+      };
+    }).toList(growable: false);
     final reportData = <String, Object?>{
       'wagonNumber': wagon.wagonNumber,
       'loadingDate': wagon.loadingDate.toString().split(' ')[0],
@@ -180,6 +205,7 @@ class PdfReportServiceImpl implements PdfReportService {
       'origin': wagon.origin,
       'destination': wagon.destination,
       'remarks': wagon.remarks ?? '',
+      'items': manifest,
       'trucks': trucks
           .map<Map<String, Object?>>(
             (truck) => {
@@ -393,6 +419,7 @@ Future<Uint8List> _buildWagonPdfBytes(
       .cast<Map<Object?, Object?>>()
       .map((truck) => truck.cast<String, Object?>())
       .toList(growable: false);
+  final items = _reportMaps(report['items']);
   final totalCartons = trucks.fold<int>(
     0,
     (sum, truck) => sum + (truck['totalCartons']! as int),
@@ -447,6 +474,26 @@ Future<Uint8List> _buildWagonPdfBytes(
           ],
         ),
         pw.SizedBox(height: 20),
+        if (items.isNotEmpty) ...[
+          pw.Text('Item Inventory',
+              style:
+                  pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 10),
+          pw.TableHelper.fromTextArray(
+            context: context,
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+            headers: const ['Item', 'Total', 'Loaded', 'Remaining'],
+            data: items
+                .map((item) => [
+                      item['name'].toString(),
+                      item['total'].toString(),
+                      item['loaded'].toString(),
+                      item['remaining'].toString(),
+                    ])
+                .toList(growable: false),
+          ),
+          pw.SizedBox(height: 20),
+        ],
         pw.Text(
           'Truck Summary',
           style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
@@ -570,6 +617,7 @@ Future<Uint8List> _buildTruckPdfBytes(
           cellStyle: const pw.TextStyle(fontSize: 8),
           headers: const [
             'Layer No.',
+            'Item',
             'Cartons',
             'Defects',
             'Operator Notes',
@@ -578,15 +626,17 @@ Future<Uint8List> _buildTruckPdfBytes(
           ],
           columnWidths: const {
             0: pw.FlexColumnWidth(1),
-            1: pw.FlexColumnWidth(1),
+            1: pw.FlexColumnWidth(1.6),
             2: pw.FlexColumnWidth(1),
-            3: pw.FlexColumnWidth(2.5),
-            4: pw.FlexColumnWidth(2.2),
-            5: pw.FlexColumnWidth(1.8),
+            3: pw.FlexColumnWidth(1),
+            4: pw.FlexColumnWidth(2.5),
+            5: pw.FlexColumnWidth(2.2),
+            6: pw.FlexColumnWidth(1.8),
           },
           data: layers
               .map((layer) => [
                     layer['layerNumber'].toString(),
+                    layer['itemName'].toString(),
                     layer['cartonCount'].toString(),
                     layer['defectCount'].toString(),
                     layer['operatorNotes'].toString(),

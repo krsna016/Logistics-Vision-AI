@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration {
@@ -78,6 +78,10 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(modelHistory);
           await m.createTable(deviceSessions);
           await m.createTable(reportExports);
+        }
+        if (from < 5) {
+          await m.addColumn(wagons, wagons.itemManifestJson);
+          await m.addColumn(layers, layers.itemName);
         }
       },
     );

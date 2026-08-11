@@ -31,6 +31,7 @@ class Wagons extends Table with SyncMetadata {
   TextColumn get destination => text().nullable()();
   DateTimeColumn get loadingDate => dateTime().nullable()();
   TextColumn get remarks => text().nullable()();
+  TextColumn get itemManifestJson => text().withDefault(const Constant('[]'))();
   IntColumn get completedTruckCount =>
       integer().withDefault(const Constant(0))();
 }
@@ -63,6 +64,7 @@ class Layers extends Table with SyncMetadata {
   IntColumn get defectCount => integer().withDefault(const Constant(0))();
   TextColumn get photoPath => text().nullable()(); // local path
   TextColumn get notes => text().nullable()();
+  TextColumn get itemName => text().nullable()();
   RealColumn get averageConfidence => real().withDefault(const Constant(0.0))();
   DateTimeColumn get timestamp => dateTime().nullable()();
   TextColumn get operatorId => text().nullable()();

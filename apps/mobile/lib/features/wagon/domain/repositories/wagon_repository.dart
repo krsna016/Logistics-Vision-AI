@@ -7,6 +7,7 @@ abstract class WagonRepository {
   Future<void> updateWagon(Wagon wagon);
   Future<void> deleteWagon(String id);
   Future<bool> isWagonNumberExists(String wagonNumber, {String? excludeId});
+  Future<Map<String, int>> getLoadedItemQuantities(String wagonId);
   Future<void> clearAllData();
   Future<void> loadDemoData();
 }

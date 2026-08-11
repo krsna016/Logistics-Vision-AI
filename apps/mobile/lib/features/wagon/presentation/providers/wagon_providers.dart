@@ -129,6 +129,7 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
     required DateTime loadingDate,
     required int expectedTruckCount,
     String? remarks,
+    List<WagonItem> items = const [],
   }) async {
     final cleanNum = wagonNumber.trim();
     if (cleanNum.isEmpty) return 'Wagon number is required.';
@@ -143,6 +144,7 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
       completedTruckCount: 0,
       status: WagonStatus.planning,
       remarks: remarks?.trim(),
+      items: items,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -162,9 +164,22 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
     }
   }
 
-  Future<void> updateWagon(Wagon wagon) async {
+  Future<String?> updateWagon(Wagon wagon) async {
+    final loaded = await _repository.getLoadedItemQuantities(wagon.id);
+    for (final item in wagon.items) {
+      final loadedQuantity = loaded[item.name] ?? 0;
+      if (item.quantity < loadedQuantity) {
+        return '${item.name} already has $loadedQuantity cartons loaded. Its total cannot be reduced below that.';
+      }
+    }
+    final removedLoadedItem = loaded.entries.where((entry) =>
+        entry.value > 0 && !wagon.items.any((item) => item.name == entry.key));
+    if (removedLoadedItem.isNotEmpty) {
+      return '${removedLoadedItem.first.key} cannot be removed because cartons are already loaded.';
+    }
     await _repository.updateWagon(wagon.copyWith(updatedAt: DateTime.now()));
     await refresh();
+    return null;
   }
 
   Future<void> deleteWagon(String id) async {
@@ -191,6 +206,12 @@ final wagonListProvider =
   final repo = ref.watch(wagonRepositoryProvider);
   final truckRepo = ref.watch(truckRepositoryProvider);
   return WagonListNotifier(repo, truckRepo);
+});
+
+final wagonInventoryProvider = FutureProvider.autoDispose
+    .family<Map<String, int>, String>((ref, wagonId) async {
+  final repository = ref.watch(wagonRepositoryProvider);
+  return repository.getLoadedItemQuantities(wagonId);
 });
 
 // Computed wagon stats provider: (activeWagonsCount, completedWagonsCount, todayCartons, todayTrucksCount)

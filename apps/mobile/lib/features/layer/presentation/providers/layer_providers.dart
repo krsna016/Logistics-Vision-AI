@@ -12,6 +12,7 @@ import '../../../../core/utils/audit_logger.dart';
 import '../../../../utils/logger.dart';
 import '../../../../services/storage_service.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../wagon/presentation/providers/wagon_providers.dart';
 
 import '../../../../core/providers/database_provider.dart';
 import '../../../../core/ai_engine/models/ai_model.dart';
@@ -129,6 +130,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     int defectCount = 0,
     required double confidence,
     String? notes,
+    String? itemName,
     String? photoPath,
   }) async {
     state = state.copyWith(isLoading: true);
@@ -144,6 +146,34 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         return 'Layer number $nextLayerNum already registered.';
       }
 
+      final truckRepo = _ref.read(truckRepositoryProvider);
+      final currentTruck = await truckRepo.getTruckById(_truckId);
+      final wagonId = currentTruck?.wagonId;
+      if (wagonId != null) {
+        final wagon =
+            await _ref.read(wagonRepositoryProvider).getWagonById(wagonId);
+        if (wagon != null && wagon.items.isNotEmpty) {
+          final selected = itemName?.trim();
+          if (selected == null || selected.isEmpty) {
+            state = state.copyWith(isLoading: false);
+            return 'Choose the item loaded in this layer.';
+          }
+          final matches = wagon.items.where((item) => item.name == selected);
+          if (matches.isEmpty) {
+            state = state.copyWith(isLoading: false);
+            return 'Choose an item from the wagon manifest.';
+          }
+          final loaded = await _ref
+              .read(wagonRepositoryProvider)
+              .getLoadedItemQuantities(wagonId);
+          final remaining = matches.first.quantity - (loaded[selected] ?? 0);
+          if (cartonCount > remaining) {
+            state = state.copyWith(isLoading: false);
+            return 'Only $remaining cartons of $selected remain in the wagon.';
+          }
+        }
+      }
+
       final newRecord = LayerRecord(
         id: const Uuid().v4(),
         truckId: _truckId,
@@ -154,6 +184,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         operatorId: await _operatorName(),
         photoPath: photoPath,
         notes: notes,
+        itemName: itemName,
         modelVersion: AIModel.activeVersion,
         averageConfidence: confidence,
         createdAt: DateTime.now(),
@@ -163,8 +194,6 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
       await _layerRepository.saveLayer(newRecord);
 
       // Business Rule BR-02: Automatically update parent truck total counts
-      final truckRepo = _ref.read(truckRepositoryProvider);
-      final currentTruck = await truckRepo.getTruckById(_truckId);
       if (currentTruck != null) {
         final updatedTruck = currentTruck.copyWith(
           totalLayers: currentTruck.totalLayers + 1,
@@ -193,6 +222,9 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
           });
 
       await refresh();
+      if (wagonId != null) {
+        _ref.invalidate(wagonInventoryProvider(wagonId));
+      }
       return null;
     } catch (e) {
       state = state.copyWith(isLoading: false);
@@ -236,6 +268,28 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
       final index = state.layers.indexWhere((layer) => layer.id == layerId);
       if (index < 0) return 'Layer not found.';
       final current = state.layers[index];
+      final truck =
+          await _ref.read(truckRepositoryProvider).getTruckById(_truckId);
+      if (truck?.wagonId != null && current.itemName != null) {
+        final wagon = await _ref
+            .read(wagonRepositoryProvider)
+            .getWagonById(truck!.wagonId!);
+        final matches = wagon?.items
+                .where((item) => item.name == current.itemName)
+                .toList() ??
+            const [];
+        if (matches.isNotEmpty) {
+          final loaded = await _ref
+              .read(wagonRepositoryProvider)
+              .getLoadedItemQuantities(truck.wagonId!);
+          final availableForLayer = matches.first.quantity -
+              (loaded[current.itemName] ?? 0) +
+              current.cartonCount;
+          if (cartonCount > availableForLayer) {
+            return 'Only $availableForLayer cartons of ${current.itemName} are available for this layer.';
+          }
+        }
+      }
       final updated = current.copyWith(
         cartonCount: cartonCount,
         defectCount: defectCount,
@@ -251,6 +305,9 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
           .refreshTotalsForTruck(_truckId);
       await _ref.read(truckListProvider.notifier).refresh();
       await refresh();
+      if (truck?.wagonId != null) {
+        _ref.invalidate(wagonInventoryProvider(truck!.wagonId!));
+      }
       return null;
     } catch (error) {
       AppLogger.error('Failed to correct layer', error);
@@ -266,6 +323,11 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
           .refreshTotalsForTruck(_truckId);
       await _ref.read(truckListProvider.notifier).refresh();
       await refresh();
+      final truck =
+          await _ref.read(truckRepositoryProvider).getTruckById(_truckId);
+      if (truck?.wagonId != null) {
+        _ref.invalidate(wagonInventoryProvider(truck!.wagonId!));
+      }
     } catch (e) {
       AppLogger.error('Failed to delete layer', e);
     }

@@ -1,5 +1,20 @@
 import 'package:flutter/foundation.dart';
 
+@immutable
+class WagonItem {
+  final String name;
+  final int quantity;
+
+  const WagonItem({required this.name, required this.quantity});
+
+  Map<String, dynamic> toJson() => {'name': name, 'quantity': quantity};
+
+  factory WagonItem.fromJson(Map<String, dynamic> json) => WagonItem(
+        name: (json['name'] as String? ?? '').trim(),
+        quantity: (json['quantity'] as num? ?? 0).toInt(),
+      );
+}
+
 enum WagonStatus {
   planning,
   loading,
@@ -31,6 +46,7 @@ class Wagon {
   final int completedTruckCount;
   final WagonStatus status;
   final String? remarks;
+  final List<WagonItem> items;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -44,6 +60,7 @@ class Wagon {
     required this.completedTruckCount,
     required this.status,
     this.remarks,
+    this.items = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -58,6 +75,7 @@ class Wagon {
     int? completedTruckCount,
     WagonStatus? status,
     String? remarks,
+    List<WagonItem>? items,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -71,6 +89,7 @@ class Wagon {
       completedTruckCount: completedTruckCount ?? this.completedTruckCount,
       status: status ?? this.status,
       remarks: remarks ?? this.remarks,
+      items: items ?? this.items,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

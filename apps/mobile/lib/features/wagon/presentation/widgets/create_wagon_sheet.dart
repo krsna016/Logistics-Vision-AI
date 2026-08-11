@@ -28,6 +28,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
   DateTime _selectedDate = DateTime.now();
   bool _isSaving = false;
   String? _errorMessage;
+  final List<_ItemControllers> _items = [];
 
   @override
   void initState() {
@@ -40,6 +41,10 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
         text: wagon == null ? '' : '${wagon.expectedTruckCount}');
     _remarksCtrl = TextEditingController(text: wagon?.remarks);
     _selectedDate = wagon?.loadingDate ?? DateTime.now();
+    _items.addAll((wagon?.items ?? const <WagonItem>[]).map(
+      (item) => _ItemControllers(item.name, item.quantity.toString()),
+    ));
+    if (_items.isEmpty) _items.add(_ItemControllers('', ''));
     // Let the sheet transition finish before opening the native camera. Starting
     // Camera2 during the route animation produces a visible hitch on Android.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -56,6 +61,9 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
     _destinationCtrl.dispose();
     _expectedTrucksCtrl.dispose();
     _remarksCtrl.dispose();
+    for (final item in _items) {
+      item.dispose();
+    }
     unawaited(ScannerCameraWarmup.release());
     super.dispose();
   }
@@ -77,6 +85,14 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final manifest = _manifestItems();
+    final normalizedNames =
+        manifest.map((item) => item.name.toLowerCase()).toList();
+    if (normalizedNames.toSet().length != normalizedNames.length) {
+      setState(() => _errorMessage = 'Each item name must be unique.');
+      return;
+    }
+
     setState(() {
       _isSaving = true;
       _errorMessage = null;
@@ -95,8 +111,9 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
             loadingDate: _selectedDate,
             expectedTruckCount: expectedCount,
             remarks: _remarksCtrl.text.isEmpty ? 'NIL' : _remarksCtrl.text,
+            items: manifest,
           )
-        : await _updateExistingWagon(notifier, expectedCount);
+        : await _updateExistingWagon(notifier, expectedCount, manifest);
 
     if (mounted) {
       setState(() {
@@ -122,10 +139,10 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
     }
   }
 
-  Future<String?> _updateExistingWagon(
-      WagonListNotifier notifier, int expectedCount) async {
+  Future<String?> _updateExistingWagon(WagonListNotifier notifier,
+      int expectedCount, List<WagonItem> items) async {
     final current = widget.existingWagon!;
-    await notifier.updateWagon(current.copyWith(
+    return notifier.updateWagon(current.copyWith(
       wagonNumber: _numberCtrl.text.trim(),
       origin: _originCtrl.text.trim().isEmpty ? 'NIL' : _originCtrl.text.trim(),
       destination: _destinationCtrl.text.trim().isEmpty
@@ -135,8 +152,26 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       expectedTruckCount: expectedCount,
       remarks:
           _remarksCtrl.text.trim().isEmpty ? 'NIL' : _remarksCtrl.text.trim(),
+      items: items,
     ));
-    return null;
+  }
+
+  List<WagonItem> _manifestItems() => _items
+      .where((row) => row.name.text.trim().isNotEmpty)
+      .map((row) => WagonItem(
+            name: row.name.text.trim(),
+            quantity: int.parse(row.quantity.text.trim()),
+          ))
+      .toList();
+
+  void _addItem() => setState(() => _items.add(_ItemControllers('', '')));
+
+  void _removeItem(int index) {
+    setState(() {
+      final removed = _items.removeAt(index);
+      removed.dispose();
+      if (_items.isEmpty) _items.add(_ItemControllers('', ''));
+    });
   }
 
   @override
@@ -332,6 +367,90 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                         const InputDecoration(labelText: 'Remarks (Optional)'),
                   ),
                   const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Wagon Item Manifest',
+                            style: TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                      ),
+                      TextButton.icon(
+                        onPressed: _isSaving ? null : _addItem,
+                        icon: const Icon(Icons.add, size: 18),
+                        label: const Text('Add Item'),
+                      ),
+                    ],
+                  ),
+                  const Text(
+                    'Enter the carton quantity received in this wagon for every item.',
+                    style:
+                        TextStyle(color: AppTheme.textSecondary, fontSize: 11),
+                  ),
+                  const SizedBox(height: 10),
+                  ...List.generate(_items.length, (index) {
+                    final row = _items[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: TextFormField(
+                              controller: row.name,
+                              decoration: InputDecoration(
+                                labelText: 'Item ${index + 1}',
+                                hintText: 'e.g. Item A',
+                              ),
+                              validator: (value) {
+                                final quantityEntered =
+                                    row.quantity.text.trim().isNotEmpty;
+                                if (quantityEntered &&
+                                    (value == null || value.trim().isEmpty)) {
+                                  return 'Enter item name.';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: TextFormField(
+                              controller: row.quantity,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                labelText: 'Cartons',
+                                hintText: '0',
+                              ),
+                              validator: (value) {
+                                final nameEntered =
+                                    row.name.text.trim().isNotEmpty;
+                                if (!nameEntered &&
+                                    (value == null || value.trim().isEmpty)) {
+                                  return null;
+                                }
+                                final quantity =
+                                    int.tryParse(value?.trim() ?? '');
+                                if (quantity == null || quantity <= 0) {
+                                  return 'Enter > 0.';
+                                }
+                                return null;
+                              },
+                            ),
+                          ),
+                          IconButton(
+                            onPressed:
+                                _isSaving ? null : () => _removeItem(index),
+                            icon: const Icon(Icons.remove_circle_outline,
+                                color: AppTheme.errorColor),
+                            tooltip: 'Remove item',
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 20),
 
                   ElevatedButton(
                     onPressed: _isSaving ? null : _submit,
@@ -354,5 +473,19 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
         ),
       ),
     );
+  }
+}
+
+class _ItemControllers {
+  final TextEditingController name;
+  final TextEditingController quantity;
+
+  _ItemControllers(String itemName, String itemQuantity)
+      : name = TextEditingController(text: itemName),
+        quantity = TextEditingController(text: itemQuantity);
+
+  void dispose() {
+    name.dispose();
+    quantity.dispose();
   }
 }

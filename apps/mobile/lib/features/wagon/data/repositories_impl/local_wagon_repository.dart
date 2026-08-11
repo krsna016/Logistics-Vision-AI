@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
 import '../../domain/entities/wagon.dart';
 import '../../domain/repositories/wagon_repository.dart';
@@ -10,6 +11,16 @@ class LocalWagonRepository implements WagonRepository {
   LocalWagonRepository(this._db);
 
   Wagon _map(db.Wagon data) {
+    final decodedItems = <WagonItem>[];
+    try {
+      final decoded = jsonDecode(data.itemManifestJson) as List<dynamic>;
+      decodedItems.addAll(decoded
+          .whereType<Map<String, dynamic>>()
+          .map(WagonItem.fromJson)
+          .where((item) => item.name.isNotEmpty && item.quantity > 0));
+    } catch (_) {
+      // Old or malformed local data is treated as an empty manifest.
+    }
     return Wagon(
       id: data.id,
       wagonNumber: data.wagonNumber,
@@ -21,6 +32,7 @@ class LocalWagonRepository implements WagonRepository {
       status: WagonStatus.values.firstWhere((e) => e.name == data.status,
           orElse: () => WagonStatus.planning),
       remarks: data.remarks,
+      items: decodedItems,
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
     );
@@ -62,6 +74,8 @@ class LocalWagonRepository implements WagonRepository {
             destination: drift.Value(wagon.destination),
             loadingDate: drift.Value(wagon.loadingDate),
             remarks: drift.Value(wagon.remarks),
+            itemManifestJson: drift.Value(
+                jsonEncode(wagon.items.map((item) => item.toJson()).toList())),
             completedTruckCount: drift.Value(wagon.completedTruckCount),
             createdAt: drift.Value(wagon.createdAt),
             updatedAt: drift.Value(wagon.updatedAt),
@@ -90,6 +104,8 @@ class LocalWagonRepository implements WagonRepository {
         destination: drift.Value(wagon.destination),
         loadingDate: drift.Value(wagon.loadingDate),
         remarks: drift.Value(wagon.remarks),
+        itemManifestJson: drift.Value(
+            jsonEncode(wagon.items.map((item) => item.toJson()).toList())),
         completedTruckCount: drift.Value(wagon.completedTruckCount),
         updatedAt: drift.Value(DateTime.now()),
       ));
@@ -199,6 +215,28 @@ class LocalWagonRepository implements WagonRepository {
     }
     final rows = await query.get();
     return rows.isNotEmpty;
+  }
+
+  @override
+  Future<Map<String, int>> getLoadedItemQuantities(String wagonId) async {
+    final query = _db.select(_db.layers).join([
+      drift.innerJoin(
+        _db.trucks,
+        _db.trucks.id.equalsExp(_db.layers.truckId),
+      ),
+    ])
+      ..where(_db.trucks.wagonId.equals(wagonId) &
+          _db.trucks.isDeleted.equals(false) &
+          _db.layers.isDeleted.equals(false));
+    final rows = await query.get();
+    final totals = <String, int>{};
+    for (final row in rows) {
+      final layer = row.readTable(_db.layers);
+      final itemName = layer.itemName?.trim();
+      if (itemName == null || itemName.isEmpty) continue;
+      totals[itemName] = (totals[itemName] ?? 0) + layer.cartonCount;
+    }
+    return totals;
   }
 
   @override

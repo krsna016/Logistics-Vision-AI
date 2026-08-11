@@ -19,6 +19,7 @@ import '../../../truck/presentation/widgets/truck_form_dialog.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
 import '../../../reports/presentation/widgets/generate_report_dialog.dart';
 import '../widgets/create_wagon_sheet.dart';
+import '../widgets/wagon_inventory_card.dart';
 
 class WagonDetailsScreen extends ConsumerWidget {
   final String wagonId;
@@ -75,6 +76,7 @@ class WagonDetailsScreen extends ConsumerWidget {
         : 0.0;
     final int progressPct = (progress * 100).toInt();
     final statusColor = _getStatusColor(wagon.status);
+    final inventory = ref.watch(wagonInventoryProvider(wagonId));
 
     return Scaffold(
       appBar: AppBar(
@@ -201,6 +203,16 @@ class WagonDetailsScreen extends ConsumerWidget {
                 ),
               ),
             ),
+
+            if (wagon.items.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: WagonInventoryCard(
+                  wagon: wagon,
+                  loadedByItem: inventory.valueOrNull ?? const {},
+                  isLoading: inventory.isLoading,
+                ),
+              ),
 
             // Statistics Row
             Padding(

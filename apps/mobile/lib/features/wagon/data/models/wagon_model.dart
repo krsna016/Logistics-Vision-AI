@@ -15,6 +15,10 @@ class WagonModel {
         orElse: () => WagonStatus.planning,
       ),
       remarks: json['remarks'] as String?,
+      items: (json['items'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(WagonItem.fromJson)
+          .toList(),
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
     );
@@ -31,6 +35,7 @@ class WagonModel {
       'completedTruckCount': wagon.completedTruckCount,
       'status': wagon.status.name,
       'remarks': wagon.remarks,
+      'items': wagon.items.map((item) => item.toJson()).toList(),
       'createdAt': wagon.createdAt.toIso8601String(),
       'updatedAt': wagon.updatedAt.toIso8601String(),
     };

@@ -52,6 +52,7 @@ void main() {
             truckId: 'truck-1',
             layerNumber: 1,
             cartonCount: 10,
+            itemName: const Value('Item A'),
             defectCount: const Value(1),
             averageConfidence: const Value(0.8),
           ),
@@ -62,6 +63,7 @@ void main() {
             truckId: 'truck-1',
             layerNumber: 2,
             cartonCount: 20,
+            itemName: const Value('Item B'),
             defectCount: const Value(2),
             averageConfidence: const Value(0.6),
           ),
@@ -148,5 +150,20 @@ void main() {
     expect(
         (await database.select(database.loadingSessions).getSingle()).isDeleted,
         isTrue);
+  });
+
+  test('wagon inventory totals are grouped by layer item', () async {
+    await seedWagonTruck();
+    final repository = LocalWagonRepository(database);
+
+    expect(await repository.getLoadedItemQuantities('wagon-1'), {
+      'Item A': 10,
+      'Item B': 20,
+    });
+
+    await LocalLayerRepository(database).softDeleteLayer('layer-1');
+    expect(await repository.getLoadedItemQuantities('wagon-1'), {
+      'Item B': 20,
+    });
   });
 }

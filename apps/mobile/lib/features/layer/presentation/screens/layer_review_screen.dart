@@ -13,6 +13,9 @@ import '../../domain/entities/layer.dart';
 import '../../../camera/presentation/widgets/detection_overlay_widget.dart';
 import '../../../../utils/logger.dart';
 import '../../../camera/domain/entities/detection.dart';
+import '../../../truck/presentation/providers/truck_providers.dart';
+import '../../../wagon/domain/entities/wagon.dart';
+import '../../../wagon/presentation/providers/wagon_providers.dart';
 
 // Retained only for the legacy, non-rendered toolbar implementation below.
 // The active review experience is now fully tap-driven.
@@ -55,6 +58,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   _OutlineColorMode _outlineColorMode = _OutlineColorMode.auto;
   final Set<String> _hiddenDetectionIds = <String>{};
   final List<_ReviewSnapshot> _history = <_ReviewSnapshot>[];
+  String? _selectedItemName;
 
   @override
   void initState() {
@@ -248,6 +252,41 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     });
 
     try {
+      final trucks = ref
+          .read(truckListProvider)
+          .trucks
+          .where((entry) => entry.id == widget.truckId);
+      final truck = trucks.isEmpty ? null : trucks.first;
+      final wagons = truck?.wagonId == null
+          ? const <Wagon>[]
+          : ref
+              .read(wagonListProvider)
+              .wagons
+              .where((entry) => entry.id == truck!.wagonId)
+              .toList();
+      final wagon = wagons.isEmpty ? null : wagons.first;
+      if (wagon != null && wagon.items.isNotEmpty) {
+        final itemName = _selectedItemName;
+        if (itemName == null) {
+          setState(() {
+            _isSaving = false;
+            _errorMessage = 'Choose the item loaded in this layer.';
+          });
+          return;
+        }
+        final manifestItem =
+            wagon.items.firstWhere((item) => item.name == itemName);
+        final loaded = await ref.read(wagonInventoryProvider(wagon.id).future);
+        final remaining = manifestItem.quantity - (loaded[itemName] ?? 0);
+        if (_correctedCount > remaining) {
+          setState(() {
+            _isSaving = false;
+            _errorMessage =
+                'Only $remaining cartons of $itemName remain in the wagon.';
+          });
+          return;
+        }
+      }
       final noteText = _notesCtrl.text.trim();
 
       final error =
@@ -256,6 +295,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                 defectCount: _correctedDefectCount,
                 confidence: _aiResult.averageConfidence,
                 notes: noteText.isEmpty ? null : noteText,
+                itemName: _selectedItemName,
                 photoPath: widget.photoPath,
               );
 
@@ -292,6 +332,21 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   @override
   Widget build(BuildContext context) {
     final layerState = ref.watch(layerListProvider(widget.truckId));
+    final matchingTrucks = ref
+        .watch(truckListProvider)
+        .trucks
+        .where((entry) => entry.id == widget.truckId);
+    final truck = matchingTrucks.isEmpty ? null : matchingTrucks.first;
+    final matchingWagons = truck?.wagonId == null
+        ? const <Wagon>[]
+        : ref
+            .watch(wagonListProvider)
+            .wagons
+            .where((entry) => entry.id == truck!.wagonId)
+            .toList();
+    final wagon = matchingWagons.isEmpty ? null : matchingWagons.first;
+    final inventory =
+        wagon == null ? null : ref.watch(wagonInventoryProvider(wagon.id));
     final currentLayerNum = layerState.layers.length + 1;
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
@@ -386,6 +441,11 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
               onDefectDecrease: () => _adjustDefectCount(-1),
               onCartonValueChanged: _setCartonCount,
               onDefectValueChanged: _setDefectCount,
+              items: wagon?.items ?? const [],
+              loadedByItem: inventory?.valueOrNull ?? const {},
+              selectedItemName: _selectedItemName,
+              onItemChanged: (value) =>
+                  setState(() => _selectedItemName = value),
               onConfirm: _onSave,
             ),
           ),
@@ -1179,6 +1239,10 @@ class _ReviewBottomBar extends StatelessWidget {
   final ValueChanged<int> onCartonValueChanged;
   final ValueChanged<int> onDefectValueChanged;
   final VoidCallback onConfirm;
+  final List<WagonItem> items;
+  final Map<String, int> loadedByItem;
+  final String? selectedItemName;
+  final ValueChanged<String?> onItemChanged;
 
   const _ReviewBottomBar({
     required this.isSaving,
@@ -1193,6 +1257,10 @@ class _ReviewBottomBar extends StatelessWidget {
     required this.onCartonValueChanged,
     required this.onDefectValueChanged,
     required this.onConfirm,
+    required this.items,
+    required this.loadedByItem,
+    required this.selectedItemName,
+    required this.onItemChanged,
   });
 
   @override
@@ -1216,62 +1284,91 @@ class _ReviewBottomBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            flex: 3,
-            child: _BottomCounter(
-              value: correctedCount,
-              label: 'Cartons',
-              color: AppTheme.primaryColor,
-              onDecrease: isBusy ? () {} : onDecrease,
-              onIncrease: isBusy ? () {} : onIncrease,
-              onValueChanged: isBusy ? (_) {} : onCartonValueChanged,
+          if (items.isNotEmpty) ...[
+            DropdownButtonFormField<String>(
+              initialValue: selectedItemName,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                labelText: 'Item loaded in this layer *',
+                prefixIcon: Icon(Icons.category_outlined),
+                isDense: true,
+              ),
+              hint: const Text('Choose from wagon manifest'),
+              items: items.map((item) {
+                final remaining =
+                    item.quantity - (loadedByItem[item.name] ?? 0);
+                return DropdownMenuItem<String>(
+                  value: item.name,
+                  enabled: remaining > 0,
+                  child: Text('${item.name}  •  $remaining left',
+                      overflow: TextOverflow.ellipsis),
+                );
+              }).toList(),
+              onChanged: isBusy ? null : onItemChanged,
             ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 3,
-            child: _BottomCounter(
-              value: defectCount,
-              label: 'Defects',
-              color: AppTheme.warningColor,
-              onDecrease: isBusy ? () {} : onDefectDecrease,
-              onIncrease: isBusy ? () {} : onDefectIncrease,
-              onValueChanged: isBusy ? (_) {} : onDefectValueChanged,
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            flex: 4,
-            child: SizedBox(
-              height: 56,
-              child: ElevatedButton.icon(
-                onPressed: isBusy ? null : onConfirm,
-                icon: isBusy
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white),
-                      )
-                    : const Icon(Icons.check, size: 24),
-                label: Text(isSaving
-                    ? 'Saving…'
-                    : finalizationFailed
-                        ? 'Retake required'
-                        : isFinalizing
-                            ? 'Analyzing…'
-                            : 'Confirm'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 18),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24)),
-                  backgroundColor: AppTheme.successColor,
-                  foregroundColor: Colors.white,
+            const SizedBox(height: 10),
+          ],
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _BottomCounter(
+                  value: correctedCount,
+                  label: 'Cartons',
+                  color: AppTheme.primaryColor,
+                  onDecrease: isBusy ? () {} : onDecrease,
+                  onIncrease: isBusy ? () {} : onIncrease,
+                  onValueChanged: isBusy ? (_) {} : onCartonValueChanged,
                 ),
               ),
-            ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 3,
+                child: _BottomCounter(
+                  value: defectCount,
+                  label: 'Defects',
+                  color: AppTheme.warningColor,
+                  onDecrease: isBusy ? () {} : onDefectDecrease,
+                  onIncrease: isBusy ? () {} : onDefectIncrease,
+                  onValueChanged: isBusy ? (_) {} : onDefectValueChanged,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 4,
+                child: SizedBox(
+                  height: 56,
+                  child: ElevatedButton.icon(
+                    onPressed: isBusy ? null : onConfirm,
+                    icon: isBusy
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Icon(Icons.check, size: 24),
+                    label: Text(isSaving
+                        ? 'Saving…'
+                        : finalizationFailed
+                            ? 'Retake required'
+                            : isFinalizing
+                                ? 'Analyzing…'
+                                : 'Confirm'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 18),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24)),
+                      backgroundColor: AppTheme.successColor,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),

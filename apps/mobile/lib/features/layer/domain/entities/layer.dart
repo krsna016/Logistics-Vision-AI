@@ -14,6 +14,7 @@ class LayerRecord {
   final String operatorId;
   final String? photoPath;
   final String? notes;
+  final String? itemName;
   final String modelVersion;
   final double averageConfidence;
   final SyncStatus syncStatus;
@@ -31,6 +32,7 @@ class LayerRecord {
     required this.operatorId,
     this.photoPath,
     this.notes,
+    this.itemName,
     required this.modelVersion,
     required this.averageConfidence,
     this.syncStatus = SyncStatus.pending,
@@ -49,6 +51,7 @@ class LayerRecord {
     String? operatorId,
     String? photoPath,
     String? notes,
+    String? itemName,
     String? modelVersion,
     double? averageConfidence,
     SyncStatus? syncStatus,
@@ -66,6 +69,7 @@ class LayerRecord {
       operatorId: operatorId ?? this.operatorId,
       photoPath: photoPath ?? this.photoPath,
       notes: notes ?? this.notes,
+      itemName: itemName ?? this.itemName,
       modelVersion: modelVersion ?? this.modelVersion,
       averageConfidence: averageConfidence ?? this.averageConfidence,
       syncStatus: syncStatus ?? this.syncStatus,
