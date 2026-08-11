@@ -10,6 +10,65 @@ import '../../../../core/database/app_database.dart';
 import 'report_template_service_impl.dart';
 import 'package:drift/drift.dart' as drift;
 
+Map<String, String> parseLayerCorrectionDetails(String? details) {
+  if (details == null || details.trim().isEmpty) {
+    return const {
+      'before': 'Not recorded',
+      'after': 'Not recorded',
+      'reason': 'Not provided',
+    };
+  }
+  final match = RegExp(
+    r'cartons\s+(\d+)\s*->\s*(\d+),\s*defects\s+(\d+)\s*->\s*(\d+)\.\s*Reason:\s*(.*?)(?:\.\s*Items:\s*(\[.*\])\s*->\s*(\[.*\]))?$',
+    caseSensitive: false,
+  ).firstMatch(details.trim());
+  if (match == null) {
+    return {
+      'before': 'Previous values unavailable',
+      'after': 'Correction recorded',
+      'reason': details.trim(),
+    };
+  }
+
+  final beforeItems = _formatCorrectionItems(match.group(6));
+  final afterItems = _formatCorrectionItems(match.group(7));
+  final beforeLines = <String>[
+    'Cartons: ${match.group(1)}',
+    if (beforeItems.isNotEmpty) 'Items:\n$beforeItems',
+    'Defects: ${match.group(3)}',
+  ];
+  final afterLines = <String>[
+    'Cartons: ${match.group(2)}',
+    if (afterItems.isNotEmpty) 'Items:\n$afterItems',
+    'Defects: ${match.group(4)}',
+  ];
+  return {
+    'before': beforeLines.join('\n'),
+    'after': afterLines.join('\n'),
+    'reason': match.group(5)?.trim().isNotEmpty == true
+        ? match.group(5)!.trim()
+        : 'Not provided',
+  };
+}
+
+String _formatCorrectionItems(String? rawJson) {
+  if (rawJson == null || rawJson.trim().isEmpty) return '';
+  try {
+    final allocations = jsonDecode(rawJson) as List<dynamic>;
+    return allocations
+        .whereType<Map<String, dynamic>>()
+        .map((item) {
+          final name = (item['itemName'] as String? ?? '').trim();
+          final quantity = (item['quantity'] as num? ?? 0).toInt();
+          return name.isEmpty ? '' : '  $name: $quantity';
+        })
+        .where((line) => line.isNotEmpty)
+        .join('\n');
+  } catch (_) {
+    return '';
+  }
+}
+
 class PdfReportServiceImpl implements PdfReportService {
   static Future<Uint8List?>? _cachedReportLogoBytes;
   final AppDatabase _db;
@@ -86,26 +145,6 @@ class PdfReportServiceImpl implements PdfReportService {
     return operatorNotes.isEmpty ? 'N/A' : operatorNotes;
   }
 
-  Map<String, String> _correctionForReport(String? details) {
-    if (details == null || details.trim().isEmpty) {
-      return const {'changes': 'N/A', 'reason': 'N/A'};
-    }
-    final match = RegExp(
-      r'cartons\s+(\d+)\s*->\s*(\d+),\s*defects\s+(\d+)\s*->\s*(\d+)\.\s*Reason:\s*(.*)$',
-      caseSensitive: false,
-    ).firstMatch(details.trim());
-    if (match == null) {
-      return {'changes': details.trim(), 'reason': 'N/A'};
-    }
-    return {
-      'changes': 'Cartons: ${match.group(1)} -> ${match.group(2)}; '
-          'Defects: ${match.group(3)} -> ${match.group(4)}',
-      'reason': match.group(5)?.trim().isNotEmpty == true
-          ? match.group(5)!.trim()
-          : 'Not provided',
-    };
-  }
-
   @override
   Future<File> generateTruckReport({required String truckId}) async {
     final truck = await (_db.select(_db.trucks)
@@ -159,12 +198,13 @@ class PdfReportServiceImpl implements PdfReportService {
           )
           .toList(growable: false),
       'corrections': correctionLogs.map<Map<String, Object?>>((log) {
-        final correction = _correctionForReport(log.details);
+        final correction = parseLayerCorrectionDetails(log.details);
         return {
           'layerNumber': layerNumberById[log.entityId] ?? 'N/A',
           'timestamp': log.timestamp.toString().split('.')[0],
           'operator': log.userId,
-          'changes': correction['changes']!,
+          'before': correction['before']!,
+          'after': correction['after']!,
           'reason': correction['reason']!,
         };
       }).toList(growable: false),
@@ -685,22 +725,25 @@ Future<Uint8List> _buildTruckPdfBytes(
               'Layer',
               'Changed At',
               'Operator',
-              'Changes',
+              'Before',
+              'After',
               'Reason',
             ],
             columnWidths: const {
               0: pw.FlexColumnWidth(0.7),
-              1: pw.FlexColumnWidth(1.8),
-              2: pw.FlexColumnWidth(1.5),
-              3: pw.FlexColumnWidth(3),
-              4: pw.FlexColumnWidth(2.5),
+              1: pw.FlexColumnWidth(1.7),
+              2: pw.FlexColumnWidth(1.4),
+              3: pw.FlexColumnWidth(2.2),
+              4: pw.FlexColumnWidth(2.2),
+              5: pw.FlexColumnWidth(1.5),
             },
             data: corrections
                 .map((correction) => [
                       correction['layerNumber'].toString(),
                       correction['timestamp'].toString(),
                       correction['operator'].toString(),
-                      correction['changes'].toString(),
+                      correction['before'].toString(),
+                      correction['after'].toString(),
                       correction['reason'].toString(),
                     ])
                 .toList(growable: false),
