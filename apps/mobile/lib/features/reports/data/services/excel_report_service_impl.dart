@@ -18,6 +18,29 @@ class ExcelReportServiceImpl implements ExcelReportService {
 
   String get _supervisorLabel => 'Supervisor: $_supervisor';
 
+  Map<String, int> _layerAllocations(Layer layer) {
+    final result = <String, int>{};
+    try {
+      final values = jsonDecode(layer.itemAllocationsJson) as List<dynamic>;
+      for (final value in values.whereType<Map<String, dynamic>>()) {
+        final name = (value['itemName'] as String? ?? '').trim();
+        final quantity = (value['quantity'] as num? ?? 0).toInt();
+        if (name.isNotEmpty && quantity > 0) result[name] = quantity;
+      }
+    } catch (_) {
+      // Use the single-item compatibility value below.
+    }
+    if (result.isEmpty && layer.itemName?.trim().isNotEmpty == true) {
+      result[layer.itemName!.trim()] = layer.cartonCount;
+    }
+    return result;
+  }
+
+  String _layerItemLabel(Layer layer) => _layerAllocations(layer)
+      .entries
+      .map((entry) => '${entry.key}: ${entry.value}')
+      .join(' + ');
+
   Future<File> _saveExcel(Excel excel, String prefix) async {
     final dir = await getApplicationDocumentsDirectory();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -94,9 +117,11 @@ class ExcelReportServiceImpl implements ExcelReportService {
               CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow))
           .value = IntCellValue(layer.layerNumber);
       sheet
-          .cell(
-              CellIndex.indexByColumnRow(columnIndex: 1, rowIndex: currentRow))
-          .value = TextCellValue(layer.itemName ?? 'N/A');
+              .cell(CellIndex.indexByColumnRow(
+                  columnIndex: 1, rowIndex: currentRow))
+              .value =
+          TextCellValue(
+              _layerItemLabel(layer).isEmpty ? 'N/A' : _layerItemLabel(layer));
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 2, rowIndex: currentRow))
@@ -172,10 +197,9 @@ class ExcelReportServiceImpl implements ExcelReportService {
     };
     final loadedByItem = <String, int>{};
     for (final layer in layers) {
-      final itemName = layer.itemName?.trim();
-      if (itemName != null && itemName.isNotEmpty) {
-        loadedByItem[itemName] =
-            (loadedByItem[itemName] ?? 0) + layer.cartonCount;
+      for (final allocation in _layerAllocations(layer).entries) {
+        loadedByItem[allocation.key] =
+            (loadedByItem[allocation.key] ?? 0) + allocation.value;
       }
     }
     final manifest = (jsonDecode(wagon.itemManifestJson) as List<dynamic>)

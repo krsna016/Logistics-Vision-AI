@@ -58,7 +58,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   _OutlineColorMode _outlineColorMode = _OutlineColorMode.auto;
   final Set<String> _hiddenDetectionIds = <String>{};
   final List<_ReviewSnapshot> _history = <_ReviewSnapshot>[];
-  String? _selectedItemName;
+  Map<String, int> _itemAllocations = {};
 
   @override
   void initState() {
@@ -133,6 +133,127 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     setState(() {
       _correctedDefectCount = value.clamp(0, _correctedCount);
     });
+  }
+
+  Future<void> _editItemBreakdown(
+      Wagon wagon, Map<String, int> loadedByItem) async {
+    final controllers = {
+      for (final item in wagon.items)
+        item.name: TextEditingController(
+            text: (_itemAllocations[item.name] ?? 0) == 0
+                ? ''
+                : '${_itemAllocations[item.name]}'),
+    };
+    final result = await showModalBottomSheet<Map<String, int>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final values = {
+            for (final entry in controllers.entries)
+              entry.key: int.tryParse(entry.value.text.trim()) ?? 0,
+          };
+          final allocated =
+              values.values.fold<int>(0, (sum, quantity) => sum + quantity);
+          final validStock = wagon.items.every((item) {
+            final remaining = item.quantity - (loadedByItem[item.name] ?? 0);
+            return (values[item.name] ?? 0) <= remaining;
+          });
+          final canApply = allocated == _correctedCount && validStock;
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text('Layer Item Breakdown',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Assign all $_correctedCount camera-counted cartons to one or more items.',
+                    style: const TextStyle(
+                        color: AppTheme.textSecondary, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  ...wagon.items.map((item) {
+                    final remaining =
+                        item.quantity - (loadedByItem[item.name] ?? 0);
+                    final entered = values[item.name] ?? 0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: TextField(
+                        controller: controllers[item.name],
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly
+                        ],
+                        onChanged: (_) => setSheetState(() {}),
+                        decoration: InputDecoration(
+                          labelText: item.name,
+                          suffixText: '$remaining left',
+                          errorText: entered > remaining
+                              ? 'Only $remaining cartons available'
+                              : null,
+                        ),
+                      ),
+                    );
+                  }),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: (allocated == _correctedCount
+                              ? AppTheme.successColor
+                              : AppTheme.warningColor)
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      allocated == _correctedCount
+                          ? 'Assigned: $allocated / $_correctedCount cartons ✓'
+                          : 'Assigned: $allocated / $_correctedCount cartons  •  ${(_correctedCount - allocated).abs()} ${allocated < _correctedCount ? 'still unassigned' : 'too many'}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: allocated == _correctedCount
+                            ? AppTheme.successColor
+                            : AppTheme.warningColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: canApply
+                        ? () => Navigator.pop(sheetContext, {
+                              for (final entry in values.entries)
+                                if (entry.value > 0) entry.key: entry.value,
+                            })
+                        : null,
+                    child: const Text('Apply Item Breakdown'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    for (final controller in controllers.values) {
+      controller.dispose();
+    }
+    if (result != null && mounted) {
+      setState(() => _itemAllocations = result);
+    }
   }
 
   void _saveSnapshot() {
@@ -266,25 +387,29 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
               .toList();
       final wagon = wagons.isEmpty ? null : wagons.first;
       if (wagon != null && wagon.items.isNotEmpty) {
-        final itemName = _selectedItemName;
-        if (itemName == null) {
-          setState(() {
-            _isSaving = false;
-            _errorMessage = 'Choose the item loaded in this layer.';
-          });
-          return;
-        }
-        final manifestItem =
-            wagon.items.firstWhere((item) => item.name == itemName);
-        final loaded = await ref.read(wagonInventoryProvider(wagon.id).future);
-        final remaining = manifestItem.quantity - (loaded[itemName] ?? 0);
-        if (_correctedCount > remaining) {
+        final allocated = _itemAllocations.values
+            .fold<int>(0, (sum, quantity) => sum + quantity);
+        if (allocated != _correctedCount) {
           setState(() {
             _isSaving = false;
             _errorMessage =
-                'Only $remaining cartons of $itemName remain in the wagon.';
+                'Assign all $_correctedCount cartons in the item breakdown.';
           });
           return;
+        }
+        final loaded = await ref.read(wagonInventoryProvider(wagon.id).future);
+        for (final entry in _itemAllocations.entries) {
+          final manifestItem =
+              wagon.items.firstWhere((item) => item.name == entry.key);
+          final remaining = manifestItem.quantity - (loaded[entry.key] ?? 0);
+          if (entry.value > remaining) {
+            setState(() {
+              _isSaving = false;
+              _errorMessage =
+                  'Only $remaining cartons of ${entry.key} remain in the wagon.';
+            });
+            return;
+          }
         }
       }
       final noteText = _notesCtrl.text.trim();
@@ -295,7 +420,10 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                 defectCount: _correctedDefectCount,
                 confidence: _aiResult.averageConfidence,
                 notes: noteText.isEmpty ? null : noteText,
-                itemName: _selectedItemName,
+                itemAllocations: _itemAllocations.entries
+                    .map((entry) => LayerItemAllocation(
+                        itemName: entry.key, quantity: entry.value))
+                    .toList(),
                 photoPath: widget.photoPath,
               );
 
@@ -442,10 +570,11 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
               onCartonValueChanged: _setCartonCount,
               onDefectValueChanged: _setDefectCount,
               items: wagon?.items ?? const [],
-              loadedByItem: inventory?.valueOrNull ?? const {},
-              selectedItemName: _selectedItemName,
-              onItemChanged: (value) =>
-                  setState(() => _selectedItemName = value),
+              allocations: _itemAllocations,
+              onEditItems: wagon == null
+                  ? null
+                  : () => _editItemBreakdown(
+                      wagon, inventory?.valueOrNull ?? const {}),
               onConfirm: _onSave,
             ),
           ),
@@ -1240,9 +1369,8 @@ class _ReviewBottomBar extends StatelessWidget {
   final ValueChanged<int> onDefectValueChanged;
   final VoidCallback onConfirm;
   final List<WagonItem> items;
-  final Map<String, int> loadedByItem;
-  final String? selectedItemName;
-  final ValueChanged<String?> onItemChanged;
+  final Map<String, int> allocations;
+  final VoidCallback? onEditItems;
 
   const _ReviewBottomBar({
     required this.isSaving,
@@ -1258,9 +1386,8 @@ class _ReviewBottomBar extends StatelessWidget {
     required this.onDefectValueChanged,
     required this.onConfirm,
     required this.items,
-    required this.loadedByItem,
-    required this.selectedItemName,
-    required this.onItemChanged,
+    required this.allocations,
+    required this.onEditItems,
   });
 
   @override
@@ -1288,26 +1415,31 @@ class _ReviewBottomBar extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (items.isNotEmpty) ...[
-            DropdownButtonFormField<String>(
-              initialValue: selectedItemName,
-              isExpanded: true,
-              decoration: const InputDecoration(
-                labelText: 'Item loaded in this layer *',
-                prefixIcon: Icon(Icons.category_outlined),
-                isDense: true,
+            OutlinedButton.icon(
+              onPressed: isBusy ? null : onEditItems,
+              icon: const Icon(Icons.playlist_add_outlined),
+              label: Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  allocations.isEmpty
+                      ? 'Set item breakdown *'
+                      : allocations.entries
+                          .map((entry) => '${entry.key}: ${entry.value}')
+                          .join('  •  '),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              hint: const Text('Choose from wagon manifest'),
-              items: items.map((item) {
-                final remaining =
-                    item.quantity - (loadedByItem[item.name] ?? 0);
-                return DropdownMenuItem<String>(
-                  value: item.name,
-                  enabled: remaining > 0,
-                  child: Text('${item.name}  •  $remaining left',
-                      overflow: TextOverflow.ellipsis),
-                );
-              }).toList(),
-              onChanged: isBusy ? null : onItemChanged,
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size.fromHeight(52),
+                side: BorderSide(
+                  color: allocations.values.fold<int>(
+                              0, (sum, quantity) => sum + quantity) ==
+                          correctedCount
+                      ? AppTheme.successColor
+                      : AppTheme.warningColor,
+                ),
+              ),
             ),
             const SizedBox(height: 10),
           ],

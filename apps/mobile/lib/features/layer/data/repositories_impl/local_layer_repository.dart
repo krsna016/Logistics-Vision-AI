@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
 import '../../domain/entities/layer.dart';
 import '../../domain/repositories/layer_repository.dart';
@@ -13,6 +14,23 @@ class LocalLayerRepository implements LayerRepository {
   LocalLayerRepository(this._db);
 
   LayerRecord _map(Layer data) {
+    var allocations = <LayerItemAllocation>[];
+    try {
+      allocations = (jsonDecode(data.itemAllocationsJson) as List<dynamic>)
+          .whereType<Map<String, dynamic>>()
+          .map(LayerItemAllocation.fromJson)
+          .where((allocation) =>
+              allocation.itemName.isNotEmpty && allocation.quantity > 0)
+          .toList();
+    } catch (_) {
+      // Fall through to the version-5 single-item compatibility value.
+    }
+    if (allocations.isEmpty && data.itemName?.trim().isNotEmpty == true) {
+      allocations = [
+        LayerItemAllocation(
+            itemName: data.itemName!.trim(), quantity: data.cartonCount),
+      ];
+    }
     return LayerRecord(
       id: data.id,
       truckId: data.truckId,
@@ -24,6 +42,7 @@ class LocalLayerRepository implements LayerRepository {
       photoPath: data.photoPath,
       notes: data.notes,
       itemName: data.itemName,
+      itemAllocations: allocations,
       modelVersion: data.modelVersion ?? '',
       averageConfidence: data.averageConfidence,
       syncStatus: SyncStatus.values.firstWhere((e) => e.name == data.syncStatus,
@@ -60,6 +79,9 @@ class LocalLayerRepository implements LayerRepository {
             photoPath: drift.Value(layer.photoPath),
             notes: drift.Value(layer.notes),
             itemName: drift.Value(layer.itemName),
+            itemAllocationsJson: drift.Value(jsonEncode(layer.itemAllocations
+                .map((allocation) => allocation.toJson())
+                .toList())),
             averageConfidence: drift.Value(layer.averageConfidence),
             timestamp: drift.Value(layer.timestamp),
             operatorId: drift.Value(layer.operatorId),
@@ -97,6 +119,9 @@ class LocalLayerRepository implements LayerRepository {
         photoPath: drift.Value(layer.photoPath),
         notes: drift.Value(layer.notes),
         itemName: drift.Value(layer.itemName),
+        itemAllocationsJson: drift.Value(jsonEncode(layer.itemAllocations
+            .map((allocation) => allocation.toJson())
+            .toList())),
         averageConfidence: drift.Value(layer.averageConfidence),
         timestamp: drift.Value(layer.timestamp),
         operatorId: drift.Value(layer.operatorId),

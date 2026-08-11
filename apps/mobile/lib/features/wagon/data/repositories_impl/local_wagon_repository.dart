@@ -232,9 +232,26 @@ class LocalWagonRepository implements WagonRepository {
     final totals = <String, int>{};
     for (final row in rows) {
       final layer = row.readTable(_db.layers);
-      final itemName = layer.itemName?.trim();
-      if (itemName == null || itemName.isEmpty) continue;
-      totals[itemName] = (totals[itemName] ?? 0) + layer.cartonCount;
+      var foundAllocations = false;
+      try {
+        final allocations =
+            jsonDecode(layer.itemAllocationsJson) as List<dynamic>;
+        for (final value in allocations.whereType<Map<String, dynamic>>()) {
+          final itemName = (value['itemName'] as String? ?? '').trim();
+          final quantity = (value['quantity'] as num? ?? 0).toInt();
+          if (itemName.isEmpty || quantity <= 0) continue;
+          totals[itemName] = (totals[itemName] ?? 0) + quantity;
+          foundAllocations = true;
+        }
+      } catch (_) {
+        // Use the version-5 single-item fallback below.
+      }
+      if (!foundAllocations) {
+        final itemName = layer.itemName?.trim();
+        if (itemName != null && itemName.isNotEmpty) {
+          totals[itemName] = (totals[itemName] ?? 0) + layer.cartonCount;
+        }
+      }
     }
     return totals;
   }

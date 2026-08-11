@@ -43,10 +43,34 @@ class PdfReportServiceImpl implements PdfReportService {
   }
 
   String _layerItem(Layer? layer) {
-    final item = layer?.itemName?.trim().isNotEmpty == true
-        ? layer!.itemName!.trim()
-        : layer?.notes?.split('|').first.trim() ?? '';
-    return item;
+    if (layer == null) return '';
+    final allocations = _layerAllocations(layer);
+    if (allocations.isNotEmpty) {
+      return allocations.entries
+          .map((item) => '${item.key}: ${item.value}')
+          .join(' + ');
+    }
+    return layer.itemName?.trim().isNotEmpty == true
+        ? layer.itemName!.trim()
+        : layer.notes?.split('|').first.trim() ?? '';
+  }
+
+  Map<String, int> _layerAllocations(Layer layer) {
+    final result = <String, int>{};
+    try {
+      final values = jsonDecode(layer.itemAllocationsJson) as List<dynamic>;
+      for (final value in values.whereType<Map<String, dynamic>>()) {
+        final name = (value['itemName'] as String? ?? '').trim();
+        final quantity = (value['quantity'] as num? ?? 0).toInt();
+        if (name.isNotEmpty && quantity > 0) result[name] = quantity;
+      }
+    } catch (_) {
+      // Use the single-item compatibility field below.
+    }
+    if (result.isEmpty && layer.itemName?.trim().isNotEmpty == true) {
+      result[layer.itemName!.trim()] = layer.cartonCount;
+    }
+    return result;
   }
 
   String _operatorNotesForReport(String? notes) {
@@ -127,7 +151,7 @@ class PdfReportServiceImpl implements PdfReportService {
               'layerNumber': layer.layerNumber,
               'cartonCount': layer.cartonCount,
               'defectCount': layer.defectCount,
-              'itemName': layer.itemName ?? 'N/A',
+              'itemName': _layerItem(layer).isEmpty ? 'N/A' : _layerItem(layer),
               'timestamp': layer.timestamp.toString().split('.')[0],
               'operator': layer.operatorId ?? 'N/A',
               'operatorNotes': _operatorNotesForReport(layer.notes),
@@ -179,10 +203,9 @@ class PdfReportServiceImpl implements PdfReportService {
     };
     final loadedByItem = <String, int>{};
     for (final layer in layers) {
-      final itemName = layer.itemName?.trim();
-      if (itemName != null && itemName.isNotEmpty) {
-        loadedByItem[itemName] =
-            (loadedByItem[itemName] ?? 0) + layer.cartonCount;
+      for (final allocation in _layerAllocations(layer).entries) {
+        loadedByItem[allocation.key] =
+            (loadedByItem[allocation.key] ?? 0) + allocation.value;
       }
     }
     final manifest = (jsonDecode(wagon.itemManifestJson) as List<dynamic>)

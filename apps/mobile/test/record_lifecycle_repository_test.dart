@@ -52,7 +52,8 @@ void main() {
             truckId: 'truck-1',
             layerNumber: 1,
             cartonCount: 10,
-            itemName: const Value('Item A'),
+            itemAllocationsJson: const Value(
+                '[{"itemName":"Item A","quantity":6},{"itemName":"Item B","quantity":4}]'),
             defectCount: const Value(1),
             averageConfidence: const Value(0.8),
           ),
@@ -157,8 +158,8 @@ void main() {
     final repository = LocalWagonRepository(database);
 
     expect(await repository.getLoadedItemQuantities('wagon-1'), {
-      'Item A': 10,
-      'Item B': 20,
+      'Item A': 6,
+      'Item B': 24,
     });
 
     await LocalLayerRepository(database).softDeleteLayer('layer-1');

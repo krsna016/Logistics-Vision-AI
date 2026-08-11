@@ -189,11 +189,13 @@ class _TimelineItem extends StatelessWidget {
                         // Stats row
                         Row(
                           children: [
-                            if (layer.itemName != null &&
-                                layer.itemName!.trim().isNotEmpty) ...[
+                            if (layer.itemAllocations.isNotEmpty) ...[
                               _ChipLabel(
                                 icon: Icons.category_outlined,
-                                label: layer.itemName!,
+                                label: layer.itemAllocations
+                                    .map((allocation) =>
+                                        '${allocation.itemName}: ${allocation.quantity}')
+                                    .join(' • '),
                                 color: AppTheme.successColor,
                               ),
                               const SizedBox(width: 6),

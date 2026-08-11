@@ -2246,6 +2246,14 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
   late final GeneratedColumn<String> itemName = GeneratedColumn<String>(
       'item_name', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _itemAllocationsJsonMeta =
+      const VerificationMeta('itemAllocationsJson');
+  @override
+  late final GeneratedColumn<String> itemAllocationsJson =
+      GeneratedColumn<String>('item_allocations_json', aliasedName, false,
+          type: DriftSqlType.string,
+          requiredDuringInsert: false,
+          defaultValue: const Constant('[]'));
   static const VerificationMeta _averageConfidenceMeta =
       const VerificationMeta('averageConfidence');
   @override
@@ -2287,6 +2295,7 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
         photoPath,
         notes,
         itemName,
+        itemAllocationsJson,
         averageConfidence,
         timestamp,
         operatorId,
@@ -2369,6 +2378,12 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
       context.handle(_itemNameMeta,
           itemName.isAcceptableOrUnknown(data['item_name']!, _itemNameMeta));
     }
+    if (data.containsKey('item_allocations_json')) {
+      context.handle(
+          _itemAllocationsJsonMeta,
+          itemAllocationsJson.isAcceptableOrUnknown(
+              data['item_allocations_json']!, _itemAllocationsJsonMeta));
+    }
     if (data.containsKey('average_confidence')) {
       context.handle(
           _averageConfidenceMeta,
@@ -2426,6 +2441,9 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
           .read(DriftSqlType.string, data['${effectivePrefix}notes']),
       itemName: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}item_name']),
+      itemAllocationsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string,
+          data['${effectivePrefix}item_allocations_json'])!,
       averageConfidence: attachedDatabase.typeMapping.read(
           DriftSqlType.double, data['${effectivePrefix}average_confidence'])!,
       timestamp: attachedDatabase.typeMapping
@@ -2457,6 +2475,7 @@ class Layer extends DataClass implements Insertable<Layer> {
   final String? photoPath;
   final String? notes;
   final String? itemName;
+  final String itemAllocationsJson;
   final double averageConfidence;
   final DateTime? timestamp;
   final String? operatorId;
@@ -2475,6 +2494,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       this.photoPath,
       this.notes,
       this.itemName,
+      required this.itemAllocationsJson,
       required this.averageConfidence,
       this.timestamp,
       this.operatorId,
@@ -2501,6 +2521,7 @@ class Layer extends DataClass implements Insertable<Layer> {
     if (!nullToAbsent || itemName != null) {
       map['item_name'] = Variable<String>(itemName);
     }
+    map['item_allocations_json'] = Variable<String>(itemAllocationsJson);
     map['average_confidence'] = Variable<double>(averageConfidence);
     if (!nullToAbsent || timestamp != null) {
       map['timestamp'] = Variable<DateTime>(timestamp);
@@ -2534,6 +2555,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       itemName: itemName == null && nullToAbsent
           ? const Value.absent()
           : Value(itemName),
+      itemAllocationsJson: Value(itemAllocationsJson),
       averageConfidence: Value(averageConfidence),
       timestamp: timestamp == null && nullToAbsent
           ? const Value.absent()
@@ -2564,6 +2586,8 @@ class Layer extends DataClass implements Insertable<Layer> {
       photoPath: serializer.fromJson<String?>(json['photoPath']),
       notes: serializer.fromJson<String?>(json['notes']),
       itemName: serializer.fromJson<String?>(json['itemName']),
+      itemAllocationsJson:
+          serializer.fromJson<String>(json['itemAllocationsJson']),
       averageConfidence: serializer.fromJson<double>(json['averageConfidence']),
       timestamp: serializer.fromJson<DateTime?>(json['timestamp']),
       operatorId: serializer.fromJson<String?>(json['operatorId']),
@@ -2587,6 +2611,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       'photoPath': serializer.toJson<String?>(photoPath),
       'notes': serializer.toJson<String?>(notes),
       'itemName': serializer.toJson<String?>(itemName),
+      'itemAllocationsJson': serializer.toJson<String>(itemAllocationsJson),
       'averageConfidence': serializer.toJson<double>(averageConfidence),
       'timestamp': serializer.toJson<DateTime?>(timestamp),
       'operatorId': serializer.toJson<String?>(operatorId),
@@ -2608,6 +2633,7 @@ class Layer extends DataClass implements Insertable<Layer> {
           Value<String?> photoPath = const Value.absent(),
           Value<String?> notes = const Value.absent(),
           Value<String?> itemName = const Value.absent(),
+          String? itemAllocationsJson,
           double? averageConfidence,
           Value<DateTime?> timestamp = const Value.absent(),
           Value<String?> operatorId = const Value.absent(),
@@ -2626,6 +2652,7 @@ class Layer extends DataClass implements Insertable<Layer> {
         photoPath: photoPath.present ? photoPath.value : this.photoPath,
         notes: notes.present ? notes.value : this.notes,
         itemName: itemName.present ? itemName.value : this.itemName,
+        itemAllocationsJson: itemAllocationsJson ?? this.itemAllocationsJson,
         averageConfidence: averageConfidence ?? this.averageConfidence,
         timestamp: timestamp.present ? timestamp.value : this.timestamp,
         operatorId: operatorId.present ? operatorId.value : this.operatorId,
@@ -2651,6 +2678,9 @@ class Layer extends DataClass implements Insertable<Layer> {
       photoPath: data.photoPath.present ? data.photoPath.value : this.photoPath,
       notes: data.notes.present ? data.notes.value : this.notes,
       itemName: data.itemName.present ? data.itemName.value : this.itemName,
+      itemAllocationsJson: data.itemAllocationsJson.present
+          ? data.itemAllocationsJson.value
+          : this.itemAllocationsJson,
       averageConfidence: data.averageConfidence.present
           ? data.averageConfidence.value
           : this.averageConfidence,
@@ -2679,6 +2709,7 @@ class Layer extends DataClass implements Insertable<Layer> {
           ..write('photoPath: $photoPath, ')
           ..write('notes: $notes, ')
           ..write('itemName: $itemName, ')
+          ..write('itemAllocationsJson: $itemAllocationsJson, ')
           ..write('averageConfidence: $averageConfidence, ')
           ..write('timestamp: $timestamp, ')
           ..write('operatorId: $operatorId, ')
@@ -2702,6 +2733,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       photoPath,
       notes,
       itemName,
+      itemAllocationsJson,
       averageConfidence,
       timestamp,
       operatorId,
@@ -2723,6 +2755,7 @@ class Layer extends DataClass implements Insertable<Layer> {
           other.photoPath == this.photoPath &&
           other.notes == this.notes &&
           other.itemName == this.itemName &&
+          other.itemAllocationsJson == this.itemAllocationsJson &&
           other.averageConfidence == this.averageConfidence &&
           other.timestamp == this.timestamp &&
           other.operatorId == this.operatorId &&
@@ -2743,6 +2776,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
   final Value<String?> photoPath;
   final Value<String?> notes;
   final Value<String?> itemName;
+  final Value<String> itemAllocationsJson;
   final Value<double> averageConfidence;
   final Value<DateTime?> timestamp;
   final Value<String?> operatorId;
@@ -2762,6 +2796,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     this.photoPath = const Value.absent(),
     this.notes = const Value.absent(),
     this.itemName = const Value.absent(),
+    this.itemAllocationsJson = const Value.absent(),
     this.averageConfidence = const Value.absent(),
     this.timestamp = const Value.absent(),
     this.operatorId = const Value.absent(),
@@ -2782,6 +2817,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     this.photoPath = const Value.absent(),
     this.notes = const Value.absent(),
     this.itemName = const Value.absent(),
+    this.itemAllocationsJson = const Value.absent(),
     this.averageConfidence = const Value.absent(),
     this.timestamp = const Value.absent(),
     this.operatorId = const Value.absent(),
@@ -2805,6 +2841,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     Expression<String>? photoPath,
     Expression<String>? notes,
     Expression<String>? itemName,
+    Expression<String>? itemAllocationsJson,
     Expression<double>? averageConfidence,
     Expression<DateTime>? timestamp,
     Expression<String>? operatorId,
@@ -2825,6 +2862,8 @@ class LayersCompanion extends UpdateCompanion<Layer> {
       if (photoPath != null) 'photo_path': photoPath,
       if (notes != null) 'notes': notes,
       if (itemName != null) 'item_name': itemName,
+      if (itemAllocationsJson != null)
+        'item_allocations_json': itemAllocationsJson,
       if (averageConfidence != null) 'average_confidence': averageConfidence,
       if (timestamp != null) 'timestamp': timestamp,
       if (operatorId != null) 'operator_id': operatorId,
@@ -2847,6 +2886,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
       Value<String?>? photoPath,
       Value<String?>? notes,
       Value<String?>? itemName,
+      Value<String>? itemAllocationsJson,
       Value<double>? averageConfidence,
       Value<DateTime?>? timestamp,
       Value<String?>? operatorId,
@@ -2866,6 +2906,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
       photoPath: photoPath ?? this.photoPath,
       notes: notes ?? this.notes,
       itemName: itemName ?? this.itemName,
+      itemAllocationsJson: itemAllocationsJson ?? this.itemAllocationsJson,
       averageConfidence: averageConfidence ?? this.averageConfidence,
       timestamp: timestamp ?? this.timestamp,
       operatorId: operatorId ?? this.operatorId,
@@ -2916,6 +2957,10 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     if (itemName.present) {
       map['item_name'] = Variable<String>(itemName.value);
     }
+    if (itemAllocationsJson.present) {
+      map['item_allocations_json'] =
+          Variable<String>(itemAllocationsJson.value);
+    }
     if (averageConfidence.present) {
       map['average_confidence'] = Variable<double>(averageConfidence.value);
     }
@@ -2950,6 +2995,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
           ..write('photoPath: $photoPath, ')
           ..write('notes: $notes, ')
           ..write('itemName: $itemName, ')
+          ..write('itemAllocationsJson: $itemAllocationsJson, ')
           ..write('averageConfidence: $averageConfidence, ')
           ..write('timestamp: $timestamp, ')
           ..write('operatorId: $operatorId, ')
@@ -13574,6 +13620,7 @@ typedef $$LayersTableCreateCompanionBuilder = LayersCompanion Function({
   Value<String?> photoPath,
   Value<String?> notes,
   Value<String?> itemName,
+  Value<String> itemAllocationsJson,
   Value<double> averageConfidence,
   Value<DateTime?> timestamp,
   Value<String?> operatorId,
@@ -13594,6 +13641,7 @@ typedef $$LayersTableUpdateCompanionBuilder = LayersCompanion Function({
   Value<String?> photoPath,
   Value<String?> notes,
   Value<String?> itemName,
+  Value<String> itemAllocationsJson,
   Value<double> averageConfidence,
   Value<DateTime?> timestamp,
   Value<String?> operatorId,
@@ -13678,6 +13726,10 @@ class $$LayersTableFilterComposer
 
   ColumnFilters<String> get itemName => $composableBuilder(
       column: $table.itemName, builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get itemAllocationsJson => $composableBuilder(
+      column: $table.itemAllocationsJson,
+      builder: (column) => ColumnFilters(column));
 
   ColumnFilters<double> get averageConfidence => $composableBuilder(
       column: $table.averageConfidence,
@@ -13779,6 +13831,10 @@ class $$LayersTableOrderingComposer
   ColumnOrderings<String> get itemName => $composableBuilder(
       column: $table.itemName, builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get itemAllocationsJson => $composableBuilder(
+      column: $table.itemAllocationsJson,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<double> get averageConfidence => $composableBuilder(
       column: $table.averageConfidence,
       builder: (column) => ColumnOrderings(column));
@@ -13858,6 +13914,9 @@ class $$LayersTableAnnotationComposer
 
   GeneratedColumn<String> get itemName =>
       $composableBuilder(column: $table.itemName, builder: (column) => column);
+
+  GeneratedColumn<String> get itemAllocationsJson => $composableBuilder(
+      column: $table.itemAllocationsJson, builder: (column) => column);
 
   GeneratedColumn<double> get averageConfidence => $composableBuilder(
       column: $table.averageConfidence, builder: (column) => column);
@@ -13949,6 +14008,7 @@ class $$LayersTableTableManager extends RootTableManager<
             Value<String?> photoPath = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             Value<String?> itemName = const Value.absent(),
+            Value<String> itemAllocationsJson = const Value.absent(),
             Value<double> averageConfidence = const Value.absent(),
             Value<DateTime?> timestamp = const Value.absent(),
             Value<String?> operatorId = const Value.absent(),
@@ -13969,6 +14029,7 @@ class $$LayersTableTableManager extends RootTableManager<
             photoPath: photoPath,
             notes: notes,
             itemName: itemName,
+            itemAllocationsJson: itemAllocationsJson,
             averageConfidence: averageConfidence,
             timestamp: timestamp,
             operatorId: operatorId,
@@ -13989,6 +14050,7 @@ class $$LayersTableTableManager extends RootTableManager<
             Value<String?> photoPath = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             Value<String?> itemName = const Value.absent(),
+            Value<String> itemAllocationsJson = const Value.absent(),
             Value<double> averageConfidence = const Value.absent(),
             Value<DateTime?> timestamp = const Value.absent(),
             Value<String?> operatorId = const Value.absent(),
@@ -14009,6 +14071,7 @@ class $$LayersTableTableManager extends RootTableManager<
             photoPath: photoPath,
             notes: notes,
             itemName: itemName,
+            itemAllocationsJson: itemAllocationsJson,
             averageConfidence: averageConfidence,
             timestamp: timestamp,
             operatorId: operatorId,

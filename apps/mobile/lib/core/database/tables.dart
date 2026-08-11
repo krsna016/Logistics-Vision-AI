@@ -65,6 +65,8 @@ class Layers extends Table with SyncMetadata {
   TextColumn get photoPath => text().nullable()(); // local path
   TextColumn get notes => text().nullable()();
   TextColumn get itemName => text().nullable()();
+  TextColumn get itemAllocationsJson =>
+      text().withDefault(const Constant('[]'))();
   RealColumn get averageConfidence => real().withDefault(const Constant(0.0))();
   DateTimeColumn get timestamp => dateTime().nullable()();
   TextColumn get operatorId => text().nullable()();

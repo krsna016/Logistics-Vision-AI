@@ -130,7 +130,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     int defectCount = 0,
     required double confidence,
     String? notes,
-    String? itemName,
+    List<LayerItemAllocation> itemAllocations = const [],
     String? photoPath,
   }) async {
     state = state.copyWith(isLoading: true);
@@ -153,23 +153,40 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         final wagon =
             await _ref.read(wagonRepositoryProvider).getWagonById(wagonId);
         if (wagon != null && wagon.items.isNotEmpty) {
-          final selected = itemName?.trim();
-          if (selected == null || selected.isEmpty) {
+          final allocations = itemAllocations
+              .where((allocation) => allocation.quantity > 0)
+              .toList();
+          if (allocations.isEmpty) {
             state = state.copyWith(isLoading: false);
-            return 'Choose the item loaded in this layer.';
+            return 'Enter the item breakdown for this layer.';
           }
-          final matches = wagon.items.where((item) => item.name == selected);
-          if (matches.isEmpty) {
+          if (allocations.map((item) => item.itemName).toSet().length !=
+              allocations.length) {
             state = state.copyWith(isLoading: false);
-            return 'Choose an item from the wagon manifest.';
+            return 'Each item can appear only once in the layer breakdown.';
+          }
+          final allocatedTotal = allocations.fold<int>(
+              0, (sum, allocation) => sum + allocation.quantity);
+          if (allocatedTotal != cartonCount) {
+            state = state.copyWith(isLoading: false);
+            return 'Item quantities must total exactly $cartonCount cartons.';
           }
           final loaded = await _ref
               .read(wagonRepositoryProvider)
               .getLoadedItemQuantities(wagonId);
-          final remaining = matches.first.quantity - (loaded[selected] ?? 0);
-          if (cartonCount > remaining) {
-            state = state.copyWith(isLoading: false);
-            return 'Only $remaining cartons of $selected remain in the wagon.';
+          for (final allocation in allocations) {
+            final matches =
+                wagon.items.where((item) => item.name == allocation.itemName);
+            if (matches.isEmpty) {
+              state = state.copyWith(isLoading: false);
+              return 'Choose items only from the wagon manifest.';
+            }
+            final remaining =
+                matches.first.quantity - (loaded[allocation.itemName] ?? 0);
+            if (allocation.quantity > remaining) {
+              state = state.copyWith(isLoading: false);
+              return 'Only $remaining cartons of ${allocation.itemName} remain in the wagon.';
+            }
           }
         }
       }
@@ -184,7 +201,9 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         operatorId: await _operatorName(),
         photoPath: photoPath,
         notes: notes,
-        itemName: itemName,
+        itemName:
+            itemAllocations.length == 1 ? itemAllocations.first.itemName : null,
+        itemAllocations: itemAllocations,
         modelVersion: AIModel.activeVersion,
         averageConfidence: confidence,
         createdAt: DateTime.now(),
@@ -268,6 +287,11 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
       final index = state.layers.indexWhere((layer) => layer.id == layerId);
       if (index < 0) return 'Layer not found.';
       final current = state.layers[index];
+      final allocatedTotal = current.itemAllocations
+          .fold<int>(0, (sum, allocation) => sum + allocation.quantity);
+      if (current.itemAllocations.isNotEmpty && allocatedTotal != cartonCount) {
+        return 'This layer item breakdown totals $allocatedTotal cartons. Keep the carton count at $allocatedTotal or recapture the layer.';
+      }
       final truck =
           await _ref.read(truckRepositoryProvider).getTruckById(_truckId);
       if (truck?.wagonId != null && current.itemName != null) {

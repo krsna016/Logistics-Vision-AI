@@ -2,6 +2,25 @@ import 'package:flutter/foundation.dart';
 import '../../../truck/domain/entities/truck.dart';
 
 @immutable
+class LayerItemAllocation {
+  final String itemName;
+  final int quantity;
+
+  const LayerItemAllocation({required this.itemName, required this.quantity});
+
+  Map<String, dynamic> toJson() => {
+        'itemName': itemName,
+        'quantity': quantity,
+      };
+
+  factory LayerItemAllocation.fromJson(Map<String, dynamic> json) =>
+      LayerItemAllocation(
+        itemName: (json['itemName'] as String? ?? '').trim(),
+        quantity: (json['quantity'] as num? ?? 0).toInt(),
+      );
+}
+
+@immutable
 class LayerRecord {
   final String id;
   final String truckId;
@@ -15,6 +34,7 @@ class LayerRecord {
   final String? photoPath;
   final String? notes;
   final String? itemName;
+  final List<LayerItemAllocation> itemAllocations;
   final String modelVersion;
   final double averageConfidence;
   final SyncStatus syncStatus;
@@ -33,6 +53,7 @@ class LayerRecord {
     this.photoPath,
     this.notes,
     this.itemName,
+    this.itemAllocations = const [],
     required this.modelVersion,
     required this.averageConfidence,
     this.syncStatus = SyncStatus.pending,
@@ -52,6 +73,7 @@ class LayerRecord {
     String? photoPath,
     String? notes,
     String? itemName,
+    List<LayerItemAllocation>? itemAllocations,
     String? modelVersion,
     double? averageConfidence,
     SyncStatus? syncStatus,
@@ -70,6 +92,7 @@ class LayerRecord {
       photoPath: photoPath ?? this.photoPath,
       notes: notes ?? this.notes,
       itemName: itemName ?? this.itemName,
+      itemAllocations: itemAllocations ?? this.itemAllocations,
       modelVersion: modelVersion ?? this.modelVersion,
       averageConfidence: averageConfidence ?? this.averageConfidence,
       syncStatus: syncStatus ?? this.syncStatus,

@@ -14,6 +14,10 @@ class LayerModel {
       photoPath: json['photoPath'] as String?,
       notes: json['notes'] as String?,
       itemName: json['itemName'] as String?,
+      itemAllocations: (json['itemAllocations'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(LayerItemAllocation.fromJson)
+          .toList(),
       modelVersion:
           json['modelVersion'] as String? ?? 'yolo11n_carton_seg_v1_3',
       averageConfidence: (json['averageConfidence'] as num? ?? 0.0).toDouble(),
@@ -39,6 +43,9 @@ class LayerModel {
       'photoPath': record.photoPath,
       'notes': record.notes,
       'itemName': record.itemName,
+      'itemAllocations': record.itemAllocations
+          .map((allocation) => allocation.toJson())
+          .toList(),
       'modelVersion': record.modelVersion,
       'averageConfidence': record.averageConfidence,
       'syncStatus': record.syncStatus.name,
