@@ -407,7 +407,6 @@ class ExcelReportServiceImpl implements ExcelReportService {
     }
 
     writeRow(truckSheet, 0, [
-      TextCellValue('Truck'),
       TextCellValue('Vehicle'),
       TextCellValue('Driver'),
       TextCellValue('Phone'),
@@ -420,7 +419,6 @@ class ExcelReportServiceImpl implements ExcelReportService {
     for (var row = 0; row < trucks.length; row++) {
       final truck = trucks[row];
       writeRow(truckSheet, row + 1, [
-        TextCellValue(truck.truckNumber),
         TextCellValue(truck.vehicleNumber),
         TextCellValue(truck.driverName),
         TextCellValue(truck.driverMobile ?? 'Not provided'),

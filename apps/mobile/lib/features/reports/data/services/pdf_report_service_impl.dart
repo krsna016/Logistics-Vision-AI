@@ -1194,7 +1194,6 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
         headerStyle: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
         cellStyle: const pw.TextStyle(fontSize: 7),
         headers: const [
-          'Truck',
           'Vehicle',
           'Driver',
           'Status',
@@ -1204,7 +1203,6 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
         ],
         data: trucks
             .map((truck) => [
-                  truck['truckNumber'],
                   truck['vehicleNumber'],
                   truck['driverName'],
                   truck['status'],
