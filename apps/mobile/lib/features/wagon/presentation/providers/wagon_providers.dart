@@ -127,7 +127,6 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
     required String origin,
     required String destination,
     required DateTime loadingDate,
-    required int expectedTruckCount,
     String? remarks,
     List<WagonItem> items = const [],
   }) async {
@@ -140,7 +139,7 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
       origin: origin.trim(),
       destination: destination.trim(),
       loadingDate: loadingDate,
-      expectedTruckCount: expectedTruckCount,
+      expectedTruckCount: 0,
       completedTruckCount: 0,
       status: WagonStatus.planning,
       remarks: remarks?.trim(),

@@ -8,8 +8,7 @@ class WagonCard extends StatelessWidget {
   final Wagon wagon;
   final int totalCartons;
   final int totalDefects;
-  final int completedTrucks;
-  final int totalTrucks;
+  final int truckCount;
   final VoidCallback onTap;
 
   const WagonCard({
@@ -17,8 +16,7 @@ class WagonCard extends StatelessWidget {
     required this.wagon,
     required this.totalCartons,
     required this.totalDefects,
-    required this.completedTrucks,
-    required this.totalTrucks,
+    required this.truckCount,
     required this.onTap,
   });
 
@@ -38,9 +36,6 @@ class WagonCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusColor = _getStatusColor(wagon.status);
-    final double progress =
-        totalTrucks > 0 ? completedTrucks / totalTrucks : 0.0;
-    final int progressPct = (progress * 100).toInt();
 
     return AppCard(
       elevation: 1,
@@ -125,45 +120,12 @@ class WagonCard extends StatelessWidget {
             child: Divider(height: 1, color: Color(0xFF3A3A3A)),
           ),
 
-          // Progress Bar: completedTrucks / totalTrucks
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text(
-                  'Truck Progress: $completedTrucks / $totalTrucks expected ($progressPct%)',
-                  style: TextStyle(
-                    fontSize: AppResponsive.text(context, 12),
-                    color: const Color(0xFFBDBDBD),
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: const Color(0xFF3A3A3A),
-              valueColor: AlwaysStoppedAnimation<Color>(
-                wagon.status == WagonStatus.completed
-                    ? AppTheme.successColor
-                    : AppTheme.primaryColor,
-              ),
-              minHeight: 6,
-            ),
-          ),
-          const SizedBox(height: 12),
-
           // Bottom Stats Row: Cartons, Defects, Arrow
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildMetric('Cartons', '$totalCartons'),
+              _buildMetric('Trucks', '$truckCount'),
               _buildMetric('Defects', '$totalDefects',
                   isAlert: totalDefects > 0),
               const Icon(Icons.arrow_forward,

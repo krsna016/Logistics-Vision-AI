@@ -42,7 +42,7 @@ Throughout the app, you will see various colored tags or "chips" indicating the 
 ### Wagon Status Tags
 - **PLANNING (Grey)**: The wagon has arrived and been registered. Trucks are being assigned, but physical loading has not started yet.
 - **LOADING (Blue)**: Active loading is happening right now. At least one truck assigned to this wagon is currently being loaded.
-- **COMPLETED (Green)**: All cartons have been transferred from the arrived wagon, and all expected trucks have been loaded and finalized. The Wagon is now locked and ready for digital register generation.
+- **COMPLETED (Green)**: Loading has been finalized by the supervisor. The wagon is locked and ready for digital register generation.
 
 ### Truck Status Tags
 - **LOADING (Blue)**: The truck is actively receiving goods. The AI camera can be used to scan new layers.
@@ -76,7 +76,7 @@ Tap the **Vinayak Logistics Logo** in the top-left corner of the dashboard, or s
 This is your main operational hub.
 - **View Loading Summary**: The dashboard shows the current wagon list and loading status. Open a wagon to see its trucks, layers, carton totals, defects, and history.
 - **Filter**: Use the chips (`All`, `Planning`, `Loading`, `Completed`) to filter the list of Wagons.
-- **Create a New Wagon**: Tap the large floating `+ Create Wagon` button at the bottom. Enter the Wagon Number (e.g., `W-1002-IND`), Origin, Destination, and Expected Trucks.
+- **Create a New Wagon**: Tap the large floating `+ Create Wagon` button at the bottom. Enter the Wagon Number (e.g., `W-1002-IND`), Origin, Destination, and item manifest.
 
 ### D. Managing a Wagon & Adding Trucks
 Tap on any Wagon in the dashboard to open its details.
@@ -107,7 +107,7 @@ session. If two automatic recovery attempts fail, use **Retry Camera**.
 ### G. Completing the Process
 1. **Complete the Truck**: Once the truck is fully packed, go back to the Truck Workspace and tap **Complete Loading Session**. It will show you a strict summary of your layers and cartons before locking the truck. The truck is then ready to be sent to the warehouse.
 2. **Send the Truck to the Warehouse**: Move the completed truck to the destination warehouse according to your transport process. SmartLoad keeps the loading record and carton count for that truck.
-3. **Complete the Wagon**: Once all expected trucks for a Wagon are Complete, go back to the Wagon Details and tap **Complete Wagon**. If you try to complete a wagon before the expected trucks are loaded, the app will issue a strict warning!
+3. **Complete the Wagon**: Once every truck currently added to the wagon is complete, go back to Wagon Details and tap **Complete Wagon**.
 4. **Digital Registers**: Once the Wagon is completed, it automatically generates a professional exportable report of the Wagon, listing every single Truck, Driver, Time, and exact Carton counts—ready to be printed or emailed. No paper required!
 
 ---

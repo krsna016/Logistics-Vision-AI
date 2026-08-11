@@ -26,19 +26,6 @@ class WagonDetailsScreen extends ConsumerWidget {
 
   const WagonDetailsScreen({super.key, required this.wagonId});
 
-  Color _getStatusColor(WagonStatus status) {
-    switch (status) {
-      case WagonStatus.planning:
-        return AppTheme.primaryColor;
-      case WagonStatus.loading:
-        return AppTheme.warningColor;
-      case WagonStatus.completed:
-        return AppTheme.successColor;
-      case WagonStatus.archived:
-        return AppTheme.textSecondary;
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final wagonState = ref.watch(wagonListProvider);
@@ -71,11 +58,6 @@ class WagonDetailsScreen extends ConsumerWidget {
     final completedCount =
         wagonTrucks.where((t) => t.status == TruckStatus.completed).length;
 
-    final double progress = wagon.expectedTruckCount > 0
-        ? completedCount / wagon.expectedTruckCount
-        : 0.0;
-    final int progressPct = (progress * 100).toInt();
-    final statusColor = _getStatusColor(wagon.status);
     final inventory = ref.watch(wagonInventoryProvider(wagonId));
 
     return Scaffold(
@@ -240,35 +222,6 @@ class WagonDetailsScreen extends ConsumerWidget {
               ),
             ),
 
-            // Progress Bar section
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Expected Truck Loading Progress: $completedCount / ${wagon.expectedTruckCount} ($progressPct%)',
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: Color(0xFFBDBDBD)),
-                    ),
-                    const SizedBox(height: 8),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 8,
-                        backgroundColor: const Color(0xFF3A3A3A),
-                        valueColor: AlwaysStoppedAnimation<Color>(statusColor),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
             // List Title
             const Padding(
               padding: EdgeInsets.only(
@@ -313,8 +266,9 @@ class WagonDetailsScreen extends ConsumerWidget {
       ),
       bottomNavigationBar: _WagonBottomBar(
         isArchived: wagon.status == WagonStatus.archived,
-        canComplete:
-            wagon.status == WagonStatus.loading && wagonTrucks.isNotEmpty,
+        canComplete: wagon.status == WagonStatus.loading &&
+            wagonTrucks.isNotEmpty &&
+            completedCount == wagonTrucks.length,
         onRegisterTruck: () => _openAddTruckDialog(context, ref, wagon.id),
         onComplete: () => _confirmCompleteWagon(
           context,
@@ -575,7 +529,6 @@ class WagonDetailsScreen extends ConsumerWidget {
     int totalCartons,
     int completedCount,
   ) {
-    final missingCount = wagon.expectedTruckCount - completedCount;
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -588,31 +541,9 @@ class WagonDetailsScreen extends ConsumerWidget {
                 'This will finalize the wagon and make it ready for the digital register.',
                 style: TextStyle(color: Colors.white70)),
             const SizedBox(height: 16),
-            _buildMetricSub('Total Trucks Loaded',
-                '$completedCount / ${wagon.expectedTruckCount}'),
+            _buildMetricSub('Completed Trucks', '$completedCount'),
             const SizedBox(height: 8),
             _buildMetricSub('Total Cartons', '$totalCartons'),
-            if (missingCount > 0) ...[
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                    color: AppTheme.warningColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8)),
-                child: Row(
-                  children: [
-                    const Icon(Icons.warning_amber_outlined,
-                        color: AppTheme.warningColor, size: 20),
-                    const SizedBox(width: 8),
-                    Expanded(
-                        child: Text(
-                            'Warning: $missingCount trucks are missing from the expected count.',
-                            style: const TextStyle(
-                                color: AppTheme.warningColor, fontSize: 12))),
-                  ],
-                ),
-              )
-            ]
           ],
         ),
         actions: [

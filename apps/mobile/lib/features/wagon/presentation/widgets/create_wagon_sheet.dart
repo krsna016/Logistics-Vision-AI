@@ -23,7 +23,6 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
   late TextEditingController _numberCtrl;
   late TextEditingController _originCtrl;
   late TextEditingController _destinationCtrl;
-  late TextEditingController _expectedTrucksCtrl;
   late TextEditingController _remarksCtrl;
   DateTime _selectedDate = DateTime.now();
   bool _isSaving = false;
@@ -37,8 +36,6 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
     _numberCtrl = TextEditingController(text: wagon?.wagonNumber);
     _originCtrl = TextEditingController(text: wagon?.origin ?? '');
     _destinationCtrl = TextEditingController(text: wagon?.destination);
-    _expectedTrucksCtrl = TextEditingController(
-        text: wagon == null ? '' : '${wagon.expectedTruckCount}');
     _remarksCtrl = TextEditingController(text: wagon?.remarks);
     _selectedDate = wagon?.loadingDate ?? DateTime.now();
     _items.addAll((wagon?.items ?? const <WagonItem>[]).map(
@@ -59,7 +56,6 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
     _numberCtrl.dispose();
     _originCtrl.dispose();
     _destinationCtrl.dispose();
-    _expectedTrucksCtrl.dispose();
     _remarksCtrl.dispose();
     for (final item in _items) {
       item.dispose();
@@ -98,7 +94,6 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       _errorMessage = null;
     });
 
-    final expectedCount = int.tryParse(_expectedTrucksCtrl.text) ?? 5;
     final notifier = ref.read(wagonListProvider.notifier);
 
     final error = widget.existingWagon == null
@@ -109,11 +104,10 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                 ? 'NIL'
                 : _destinationCtrl.text,
             loadingDate: _selectedDate,
-            expectedTruckCount: expectedCount,
             remarks: _remarksCtrl.text.isEmpty ? 'NIL' : _remarksCtrl.text,
             items: manifest,
           )
-        : await _updateExistingWagon(notifier, expectedCount, manifest);
+        : await _updateExistingWagon(notifier, manifest);
 
     if (mounted) {
       setState(() {
@@ -139,8 +133,8 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
     }
   }
 
-  Future<String?> _updateExistingWagon(WagonListNotifier notifier,
-      int expectedCount, List<WagonItem> items) async {
+  Future<String?> _updateExistingWagon(
+      WagonListNotifier notifier, List<WagonItem> items) async {
     final current = widget.existingWagon!;
     return notifier.updateWagon(current.copyWith(
       wagonNumber: _numberCtrl.text.trim(),
@@ -149,7 +143,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
           ? 'NIL'
           : _destinationCtrl.text.trim(),
       loadingDate: _selectedDate,
-      expectedTruckCount: expectedCount,
+      expectedTruckCount: 0,
       remarks:
           _remarksCtrl.text.trim().isEmpty ? 'NIL' : _remarksCtrl.text.trim(),
       items: items,
@@ -300,63 +294,24 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                   ),
                   const SizedBox(height: 12),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _selectDate(context),
-                          style: OutlinedButton.styleFrom(
-                            side:
-                                const BorderSide(color: AppTheme.dividerColor),
-                            minimumSize: const Size(0, 52),
-                            padding: const EdgeInsets.symmetric(horizontal: 8),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
-                          icon: const Icon(Icons.calendar_today, size: 15),
-                          label: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              'Date: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                              style: const TextStyle(fontSize: 12),
-                            ),
-                          ),
-                        ),
+                  OutlinedButton.icon(
+                    onPressed: () => _selectDate(context),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppTheme.dividerColor),
+                      minimumSize: const Size(0, 52),
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
                       ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: TextFormField(
-                          controller: _expectedTrucksCtrl,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Expected Trucks (Optional)',
-                            labelStyle: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 10,
-                            ),
-                            floatingLabelStyle: TextStyle(
-                              color: AppTheme.textSecondary,
-                              fontSize: 10,
-                            ),
-                            hintText: 'e.g. 5',
-                            isDense: true,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 14,
-                            ),
-                          ),
-                          validator: (val) {
-                            if (val != null &&
-                                val.isNotEmpty &&
-                                int.tryParse(val) == null) {
-                              return 'Invalid number.';
-                            }
-                            return null;
-                          },
-                        ),
+                    ),
+                    icon: const Icon(Icons.calendar_today, size: 15),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        'Date: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                        style: const TextStyle(fontSize: 12),
                       ),
-                    ],
+                    ),
                   ),
                   const SizedBox(height: 12),
 
