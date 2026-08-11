@@ -63,7 +63,14 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   Future<void> _pickImage() async {
     try {
       if (!_aiStarted) setState(() => _aiStarted = true);
-      final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+      final cameraNotifier = ref.read(cameraNotifierProvider.notifier);
+      cameraNotifier.beginTemporaryOverlay();
+      XFile? image;
+      try {
+        image = await _picker.pickImage(source: ImageSource.gallery);
+      } finally {
+        await cameraNotifier.endTemporaryOverlay();
+      }
       if (!mounted) return;
       if (image != null) {
         AppLogger.info('Gallery photo selected for review: ${image.path}');
@@ -1630,6 +1637,8 @@ class _CameraStreamAdapterState extends ConsumerState<_CameraStreamAdapter> {
 
   void _checkHealth() {
     if (!mounted || !widget.isActive || _recoveryRequested) return;
+    final cameraNotifier = ref.read(cameraNotifierProvider.notifier);
+    if (cameraNotifier.isTemporaryOverlayActive) return;
     final value = widget.controller.value;
     if (value.hasError) {
       _requestRecovery(

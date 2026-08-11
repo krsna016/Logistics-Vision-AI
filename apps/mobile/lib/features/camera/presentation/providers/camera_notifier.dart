@@ -42,6 +42,7 @@ class CameraNotifier extends StateNotifier<CameraState>
   bool _isRecovering = false;
   int _consecutiveRecoveries = 0;
   int _initializationFailures = 0;
+  int _temporaryOverlayDepth = 0;
   AppLifecycleState _lifecycleState =
       WidgetsBinding.instance.lifecycleState ?? AppLifecycleState.resumed;
 
@@ -49,6 +50,31 @@ class CameraNotifier extends StateNotifier<CameraState>
       : super(const CameraState(status: CameraStatus.initializing)) {
     WidgetsBinding.instance.addObserver(this);
     initialize();
+  }
+
+  /// True while a system surface such as Android's photo picker is covering
+  /// the camera route. These surfaces can emit inactive/hidden/paused events
+  /// even though the operator has not left the carton capture workflow.
+  bool get isTemporaryOverlayActive => _temporaryOverlayDepth > 0;
+
+  void beginTemporaryOverlay() {
+    _temporaryOverlayDepth++;
+    AppLogger.info('Keeping camera session alive for a temporary overlay.');
+  }
+
+  Future<void> endTemporaryOverlay() async {
+    if (_temporaryOverlayDepth > 0) _temporaryOverlayDepth--;
+    if (isTemporaryOverlayActive || !mounted) return;
+
+    final controller = state.controller;
+    final healthy = state.status == CameraStatus.ready &&
+        controller?.value.isInitialized == true &&
+        controller?.value.hasError != true;
+    if (_lifecycleState == AppLifecycleState.resumed && !healthy) {
+      AppLogger.info('Temporary overlay closed. Restoring camera preview.');
+      _consecutiveRecoveries = 0;
+      await recoverCamera();
+    }
   }
 
   Future<void> initialize() async {
@@ -189,7 +215,7 @@ class CameraNotifier extends StateNotifier<CameraState>
   /// Rebuilds the complete CameraX session after a surface/frame timeout.
   /// Disposal and initialization are serialized by [_pendingCameraRelease].
   Future<void> recoverCamera() async {
-    if (_isRecovering || !mounted) return;
+    if (_isRecovering || !mounted || isTemporaryOverlayActive) return;
     if (_consecutiveRecoveries >= 2) {
       state = state.copyWith(
         status: CameraStatus.error,
@@ -251,20 +277,43 @@ class CameraNotifier extends StateNotifier<CameraState>
   // ignore: avoid_renaming_method_parameters
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
     _lifecycleState = lifecycleState;
-    if (lifecycleState == AppLifecycleState.inactive ||
-        lifecycleState == AppLifecycleState.hidden ||
+    // `inactive` is emitted for notification/quick-settings panels and other
+    // short system overlays. Disposing here produces a visible black flash.
+    // Keep the existing CameraX session alive for those interruptions.
+    if (lifecycleState == AppLifecycleState.inactive) {
+      AppLogger.info('Temporary system overlay opened; camera stays active.');
+      return;
+    }
+
+    if (lifecycleState == AppLifecycleState.hidden ||
         lifecycleState == AppLifecycleState.paused ||
         lifecycleState == AppLifecycleState.detached) {
+      if (isTemporaryOverlayActive &&
+          lifecycleState != AppLifecycleState.detached) {
+        AppLogger.info(
+          'Photo picker is covering the app; preserving camera session.',
+        );
+        return;
+      }
       AppLogger.info(
         'App left the active foreground ($lifecycleState). '
         'Suspending camera hardware.',
       );
       unawaited(disposeCamera());
     } else if (lifecycleState == AppLifecycleState.resumed) {
-      AppLogger.info('App resumed. Re-initializing camera hardware.');
-      // A paused camera has already cleared its controller. Do not require an
-      // existing controller here or the UI remains permanently "disconnected".
-      unawaited(initialize());
+      final controller = state.controller;
+      final healthy = state.status == CameraStatus.ready &&
+          controller?.value.isInitialized == true &&
+          controller?.value.hasError != true;
+      if (healthy) {
+        AppLogger.info('App resumed with the existing camera session intact.');
+        markPreviewHealthy();
+      } else if (!isTemporaryOverlayActive) {
+        AppLogger.info('App resumed. Re-initializing camera hardware.');
+        // A paused camera has already cleared its controller. Do not require
+        // one here or the UI remains permanently disconnected.
+        unawaited(recoverCamera());
+      }
     }
   }
 }

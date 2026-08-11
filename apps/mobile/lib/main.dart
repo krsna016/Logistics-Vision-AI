@@ -1,5 +1,4 @@
 import 'dart:ui';
-import 'dart:math' as math;
 import 'core/presentation/widgets/root_back_guard.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -12,6 +11,7 @@ import 'navigation/app_router.dart';
 import 'theme/app_theme.dart';
 import 'utils/logger.dart';
 import 'features/auth/presentation/providers/auth_providers.dart';
+import 'core/presentation/layout/reference_viewport.dart';
 
 void main() async {
   // Ensure widget bindings are loaded before background async initializes.
@@ -106,21 +106,11 @@ class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
       darkTheme: AppTheme.darkTheme,
       themeMode: ThemeMode.system,
 
-      // Keep layouts usable when a device has an unusually large display or
-      // font setting. Individual screens still use responsive constraints.
-      builder: (context, child) {
-        final systemTextScale =
-            MediaQuery.textScalerOf(context).scale(1).clamp(0.92, 1.03);
-        final widthTextScale =
-            (MediaQuery.sizeOf(context).width / 390).clamp(0.92, 1.03);
-        final textScale = math.min(systemTextScale, widthTextScale);
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(textScale),
-          ),
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
+      // Preserve the approved reference-phone composition across Android
+      // display-density settings while retaining native insets and gestures.
+      builder: (context, child) => SmartLoadReferenceViewport(
+        child: child ?? const SizedBox.shrink(),
+      ),
 
       // GoRouter navigation bindings. These are supplied individually so the
       // app can install its root Android back dispatcher.

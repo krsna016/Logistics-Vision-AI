@@ -989,6 +989,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4.landscape,
       margin: const pw.EdgeInsets.fromLTRB(24, 22, 24, 22),
+      footer: (context) => ReportTemplateServiceImpl.buildFooter(context),
       build: (context) => [
         pw.Row(crossAxisAlignment: pw.CrossAxisAlignment.center, children: [
           if (logo != null) ...[
@@ -1113,17 +1114,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
       reference: report['wagonNumber'].toString(),
       date: report['loadingDate'].toString(),
     ),
-    footer: (context) => pw.Container(
-      padding: const pw.EdgeInsets.only(top: 6),
-      decoration: const pw.BoxDecoration(
-        border: pw.Border(top: pw.BorderSide(color: PdfColors.grey500)),
-      ),
-      child: pw.Align(
-        alignment: pw.Alignment.centerRight,
-        child: pw.Text('PAGE ${context.pageNumber} OF ${context.pagesCount}',
-            style: const pw.TextStyle(fontSize: 7)),
-      ),
-    ),
+    footer: (context) => ReportTemplateServiceImpl.buildFooter(context),
     build: (context) => [
       pw.Container(
         padding: const pw.EdgeInsets.all(6),
