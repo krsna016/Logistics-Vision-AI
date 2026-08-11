@@ -190,4 +190,43 @@ void main() {
       'Item B': 25,
     });
   });
+
+  test('enterprise demo data is balanced and covers operational edge cases',
+      () async {
+    final wagonRepository = LocalWagonRepository(database);
+    final truckRepository = LocalTruckRepository(database);
+    final layerRepository = LocalLayerRepository(database);
+
+    await wagonRepository.loadDemoData();
+    await truckRepository.loadDemoData();
+    await layerRepository.loadDemoData();
+
+    final visibleWagons = await wagonRepository.getActiveWagons();
+    final visibleTrucks = await truckRepository.getActiveTrucks();
+    final activeInventory =
+        await wagonRepository.getLoadedItemQuantities('demo_wagon_active');
+    final completedInventory =
+        await wagonRepository.getLoadedItemQuantities('demo_wagon_completed');
+
+    expect(visibleWagons, hasLength(5));
+    expect(visibleTrucks, hasLength(5));
+    expect(activeInventory, {
+      'Premium Rice': 80,
+      'Assam Tea': 50,
+      'Whole Spices': 30,
+    });
+    expect(completedInventory, {
+      'Consumer Electronics': 140,
+      'Home Appliances': 100,
+    });
+    expect(await database.select(database.auditLogs).get(), hasLength(2));
+    expect(await database.select(database.loadingSessions).get(), hasLength(1));
+    expect(
+        await database.select(database.digitalRegisters).get(), hasLength(1));
+    expect(
+      (await database.select(database.layers).get())
+          .where((layer) => layer.isDeleted),
+      hasLength(1),
+    );
+  });
 }

@@ -7,6 +7,7 @@ import '../../../features/truck/presentation/providers/truck_providers.dart';
 import '../../../features/layer/presentation/providers/layer_providers.dart';
 import '../../../features/auth/presentation/providers/auth_providers.dart';
 import '../../../features/auth/domain/entities/user.dart';
+import '../../providers/database_provider.dart';
 import 'action_warning_dialog.dart';
 
 class AppDrawer extends ConsumerWidget {
@@ -252,6 +253,7 @@ class AppDrawer extends ConsumerWidget {
     final wagonRepo = ref.read(wagonRepositoryProvider);
     final truckRepo = ref.read(truckRepositoryProvider);
     final layerRepo = ref.read(layerRepositoryProvider);
+    final database = ref.read(databaseProvider);
     final wagonNotifier = ref.read(wagonListProvider.notifier);
     final truckNotifier = ref.read(truckListProvider.notifier);
 
@@ -260,14 +262,25 @@ class AppDrawer extends ConsumerWidget {
       builder: (ctx) => ActionWarningDialog(
         title: 'Load Demo Data?',
         content:
-            'WARNING: This will permanently DELETE all current local data (wagons, trucks, layers) and replace them with mock data for testing. This action cannot be undone.',
-        actionLabel: 'Inject Demo Data',
+            'This replaces all operational records with a fresh enterprise demo dataset: wagons, trucks, layers, sessions, registers, reports, sync entries and audit history. User accounts, login and app settings remain safe.',
+        actionLabel: 'Replace with Demo Data',
         actionColor: Colors.redAccent,
         icon: Icons.bug_report_rounded,
         onConfirm: () async {
           Navigator.of(context).pop(); // close drawer
 
-          // Clear data (must delete children before parents to avoid FK errors)
+          // Clear operational data only. Accounts, device sessions, warehouses,
+          // and settings are intentionally preserved.
+          await database.transaction(() async {
+            await database.delete(database.detections).go();
+            await database.delete(database.loadingSessions).go();
+            await database.delete(database.digitalRegisters).go();
+            await database.delete(database.auditLogs).go();
+            await database.delete(database.syncQueues).go();
+            await database.delete(database.reportExports).go();
+          });
+
+          // Delete children before parents to satisfy foreign keys.
           await layerRepo.clearAllData();
           await truckRepo.clearAllData();
           await wagonRepo.clearAllData();
@@ -286,7 +299,9 @@ class AppDrawer extends ConsumerWidget {
                   Icon(Icons.check_circle_outline,
                       color: Colors.white, size: 20),
                   SizedBox(width: 10),
-                  Expanded(child: Text('Demo data loaded successfully.')),
+                  Expanded(
+                      child: Text(
+                          'Enterprise demo data loaded. Accounts and settings preserved.')),
                 ],
               ),
             ));

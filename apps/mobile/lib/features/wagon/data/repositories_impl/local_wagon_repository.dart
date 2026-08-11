@@ -264,20 +264,108 @@ class LocalWagonRepository implements WagonRepository {
   @override
   Future<void> loadDemoData() async {
     await _db.transaction(() async {
-      final now = DateTime(2026, 7, 21, 18, 0);
-      await _db.into(_db.wagons).insert(db.WagonsCompanion.insert(
-            id: 'sheet_wagon_10866',
-            wagonNumber: '10866',
-            status: WagonStatus.loading.name,
-            expectedTruckCount: 5,
-            origin: const drift.Value('CGS'),
-            destination: const drift.Value('PAMOHI'),
-            loadingDate: drift.Value(now),
-            remarks: const drift.Value('Sheet-style loading register demo'),
-            completedTruckCount: const drift.Value(0),
-            createdAt: drift.Value(now.subtract(const Duration(hours: 8))),
-            updatedAt: drift.Value(now.subtract(const Duration(minutes: 20))),
-          ));
+      final now = DateTime.now();
+      Future<void> add({
+        required String id,
+        required String number,
+        required WagonStatus status,
+        required String origin,
+        required String destination,
+        required List<Map<String, Object>> items,
+        required int daysAgo,
+        String? remarks,
+        int completedTrucks = 0,
+        bool deleted = false,
+      }) =>
+          _db.into(_db.wagons).insert(db.WagonsCompanion.insert(
+                id: id,
+                wagonNumber: number,
+                status: status.name,
+                expectedTruckCount: 0,
+                origin: drift.Value(origin),
+                destination: drift.Value(destination),
+                loadingDate: drift.Value(now.subtract(Duration(days: daysAgo))),
+                remarks: drift.Value(remarks),
+                itemManifestJson: drift.Value(jsonEncode(items)),
+                completedTruckCount: drift.Value(completedTrucks),
+                isDeleted: drift.Value(deleted),
+                createdAt:
+                    drift.Value(now.subtract(Duration(days: daysAgo + 1))),
+                updatedAt: drift.Value(now.subtract(Duration(days: daysAgo))),
+              ));
+
+      await add(
+          id: 'demo_wagon_planning',
+          number: 'BCNHL-700184',
+          status: WagonStatus.planning,
+          origin: 'Guwahati ICD',
+          destination: 'Kolkata Hub',
+          items: const [],
+          daysAgo: 0,
+          remarks: 'Planning edge case: manifest not entered yet.');
+      await add(
+          id: 'demo_wagon_active',
+          number: 'BCNHL-700219',
+          status: WagonStatus.loading,
+          origin: 'Guwahati ICD',
+          destination: 'Pamohi Distribution Centre',
+          daysAgo: 1,
+          remarks: 'Priority FMCG shipment — partial and mixed-item loading.',
+          items: const [
+            {'name': 'Premium Rice', 'quantity': 200},
+            {'name': 'Assam Tea', 'quantity': 120},
+            {'name': 'Whole Spices', 'quantity': 80},
+          ]);
+      await add(
+          id: 'demo_wagon_completed',
+          number: 'BCNHL-699842',
+          status: WagonStatus.completed,
+          origin: 'Delhi NCR Hub',
+          destination: 'Guwahati ICD',
+          daysAgo: 5,
+          completedTrucks: 2,
+          remarks: 'Completed and fully reconciled shipment.',
+          items: const [
+            {'name': 'Consumer Electronics', 'quantity': 140},
+            {'name': 'Home Appliances', 'quantity': 100},
+          ]);
+      await add(
+          id: 'demo_wagon_archived',
+          number: 'BCNHL-698511',
+          status: WagonStatus.archived,
+          origin: 'Mumbai Port',
+          destination: 'Delhi NCR Hub',
+          daysAgo: 30,
+          completedTrucks: 1,
+          remarks: 'Archived historical record with remaining inventory.',
+          items: const [
+            {'name': 'Auto Parts', 'quantity': 100},
+            {'name': 'Lubricants', 'quantity': 50},
+          ]);
+      await add(
+          id: 'demo_wagon_overload',
+          number: 'BCNHL-700301',
+          status: WagonStatus.loading,
+          origin: 'Siliguri Yard',
+          destination: 'Guwahati ICD',
+          daysAgo: 0,
+          remarks:
+              'Intentional reconciliation edge case: loaded exceeds manifest.',
+          items: const [
+            {'name': 'Sample Cartons', 'quantity': 50}
+          ]);
+      await add(
+          id: 'demo_wagon_deleted',
+          number: 'DELETED-TEST-01',
+          status: WagonStatus.loading,
+          origin: 'Hidden',
+          destination: 'Hidden',
+          items: const [
+            {'name': 'Hidden Item', 'quantity': 10}
+          ],
+          daysAgo: 10,
+          deleted: true,
+          remarks: 'Soft-deleted record; must not appear in lists.');
     });
   }
 }

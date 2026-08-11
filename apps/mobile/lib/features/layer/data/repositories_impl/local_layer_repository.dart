@@ -300,6 +300,219 @@ class LocalLayerRepository implements LayerRepository {
   @override
   Future<void> loadDemoData() async {
     await _db.transaction(() async {
+      final now = DateTime.now();
+      Future<void> add(
+          {required String id,
+          required String truckId,
+          required int number,
+          required List<Map<String, Object>> items,
+          required int defects,
+          required int minutesAgo,
+          required String operator,
+          String? notes,
+          bool deleted = false,
+          double confidence = 0.94}) async {
+        final cartons =
+            items.fold<int>(0, (sum, item) => sum + (item['quantity']! as int));
+        final timestamp = now.subtract(Duration(minutes: minutesAgo));
+        await _db.into(_db.layers).insert(LayersCompanion.insert(
+              id: id,
+              truckId: truckId,
+              layerNumber: number,
+              cartonCount: cartons,
+              defectCount: drift.Value(defects),
+              itemName: drift.Value(items.length == 1
+                  ? items.first['itemName']! as String
+                  : null),
+              itemAllocationsJson: drift.Value(jsonEncode(items)),
+              timestamp: drift.Value(timestamp),
+              operatorId: drift.Value(operator),
+              modelVersion: const drift.Value('enterprise-demo-yolo26-seg'),
+              averageConfidence: drift.Value(confidence),
+              notes: drift.Value(notes),
+              isDeleted: drift.Value(deleted),
+              createdAt: drift.Value(timestamp),
+              updatedAt: drift.Value(timestamp),
+            ));
+      }
+
+      await add(
+          id: 'demo_layer_active_1',
+          truckId: 'demo_truck_active_1',
+          number: 1,
+          defects: 0,
+          minutesAgo: 180,
+          operator: 'Anurag Pareek',
+          notes: 'Seal verified | Count method: AI assisted',
+          items: const [
+            {'itemName': 'Premium Rice', 'quantity': 60},
+          ]);
+      await add(
+          id: 'demo_layer_active_2',
+          truckId: 'demo_truck_active_1',
+          number: 2,
+          defects: 2,
+          minutesAgo: 120,
+          operator: 'Anurag Pareek',
+          notes: 'Two dented cartons isolated for supervisor review',
+          confidence: 0.87,
+          items: const [
+            {'itemName': 'Premium Rice', 'quantity': 20},
+            {'itemName': 'Assam Tea', 'quantity': 40},
+          ]);
+      await add(
+          id: 'demo_layer_active_3',
+          truckId: 'demo_truck_active_1',
+          number: 3,
+          defects: 0,
+          minutesAgo: 45,
+          operator: 'Priya Sharma',
+          notes: 'Mixed SKU layer — manually verified',
+          items: const [
+            {'itemName': 'Assam Tea', 'quantity': 10},
+            {'itemName': 'Whole Spices', 'quantity': 30},
+          ]);
+      await add(
+          id: 'demo_layer_complete_1',
+          truckId: 'demo_truck_completed_1',
+          number: 1,
+          defects: 0,
+          minutesAgo: 7600,
+          operator: 'Rahul Singh',
+          items: const [
+            {'itemName': 'Consumer Electronics', 'quantity': 70}
+          ]);
+      await add(
+          id: 'demo_layer_complete_2',
+          truckId: 'demo_truck_completed_1',
+          number: 2,
+          defects: 0,
+          minutesAgo: 7540,
+          operator: 'Rahul Singh',
+          items: const [
+            {'itemName': 'Consumer Electronics', 'quantity': 30},
+            {'itemName': 'Home Appliances', 'quantity': 20},
+          ]);
+      await add(
+          id: 'demo_layer_complete_3',
+          truckId: 'demo_truck_completed_2',
+          number: 1,
+          defects: 1,
+          minutesAgo: 7480,
+          operator: 'Meera Bora',
+          notes: 'One packaging tear recorded',
+          items: const [
+            {'itemName': 'Consumer Electronics', 'quantity': 40},
+            {'itemName': 'Home Appliances', 'quantity': 20},
+          ]);
+      await add(
+          id: 'demo_layer_complete_4',
+          truckId: 'demo_truck_completed_2',
+          number: 2,
+          defects: 0,
+          minutesAgo: 7420,
+          operator: 'Meera Bora',
+          items: const [
+            {'itemName': 'Home Appliances', 'quantity': 60}
+          ]);
+      await add(
+          id: 'demo_layer_archived_1',
+          truckId: 'demo_truck_archived',
+          number: 1,
+          defects: 0,
+          minutesAgo: 43300,
+          operator: 'Archive Operator',
+          items: const [
+            {'itemName': 'Auto Parts', 'quantity': 60}
+          ]);
+      await add(
+          id: 'demo_layer_archived_2',
+          truckId: 'demo_truck_archived',
+          number: 2,
+          defects: 0,
+          minutesAgo: 43240,
+          operator: 'Archive Operator',
+          items: const [
+            {'itemName': 'Auto Parts', 'quantity': 20},
+            {'itemName': 'Lubricants', 'quantity': 10},
+          ]);
+      await add(
+          id: 'demo_layer_overload_1',
+          truckId: 'demo_truck_overload',
+          number: 1,
+          defects: 0,
+          minutesAgo: 20,
+          operator: 'Edge Case Operator',
+          notes: 'Intentional over-manifest edge case',
+          items: const [
+            {'itemName': 'Sample Cartons', 'quantity': 60}
+          ]);
+      await add(
+          id: 'demo_layer_deleted',
+          truckId: 'demo_truck_active_1',
+          number: 99,
+          defects: 0,
+          minutesAgo: 10,
+          operator: 'Deleted Operator',
+          deleted: true,
+          items: const [
+            {'itemName': 'Premium Rice', 'quantity': 10}
+          ]);
+
+      await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
+            id: 'demo_audit_correction',
+            entityId: 'demo_layer_active_2',
+            entityType: 'Layer',
+            action: 'correct',
+            userId: 'Anurag Pareek',
+            timestamp: drift.Value(now.subtract(const Duration(minutes: 110))),
+            details: const drift.Value(
+                'Layer 2: cartons 55 -> 60, defects 1 -> 2. Reason: Physical recount after damaged cartons were isolated. Items: [{"itemName":"Premium Rice","quantity":20},{"itemName":"Assam Tea","quantity":35}] -> [{"itemName":"Premium Rice","quantity":20},{"itemName":"Assam Tea","quantity":40}]'),
+          ));
+      await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
+            id: 'demo_audit_deleted_layer',
+            entityId: 'demo_layer_deleted',
+            entityType: 'Layer',
+            action: 'delete',
+            userId: 'Supervisor Demo',
+            timestamp: drift.Value(now.subtract(const Duration(minutes: 9))),
+            details: const drift.Value(
+                'Soft-deleted test layer; excluded from totals and reports.'),
+          ));
+      await _db
+          .into(_db.loadingSessions)
+          .insert(LoadingSessionsCompanion.insert(
+            id: 'demo_session_completed',
+            truckId: 'demo_truck_completed_1',
+            startTime: now.subtract(const Duration(days: 5, hours: 3)),
+            endTime:
+                drift.Value(now.subtract(const Duration(days: 5, hours: 1))),
+            operatorId: 'Rahul Singh',
+            status: 'completed',
+            totalLayers: const drift.Value(2),
+            totalCartons: const drift.Value(120),
+            totalDefects: const drift.Value(0),
+            averageConfidence: const drift.Value(0.95),
+            modelVersion: const drift.Value('enterprise-demo-yolo26-seg'),
+          ));
+      await _db
+          .into(_db.digitalRegisters)
+          .insert(DigitalRegistersCompanion.insert(
+            id: 'demo_register_completed',
+            wagonId: 'demo_wagon_completed',
+            wagonNumber: 'BCNHL-699842',
+            generatedBy: 'Enterprise Demo Supervisor',
+            shift: 'Day Shift',
+            verificationHash: 'DEMO-699842-VERIFIED',
+            totalTrucks: 2,
+            totalLayers: 4,
+            totalCartons: 240,
+          ));
+    });
+  }
+
+  Future<void> loadLegacyDemoData() async {
+    await _db.transaction(() async {
       final now = DateTime(2026, 7, 21, 18, 0);
       Future<void> insertLayer({
         required String id,
