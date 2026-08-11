@@ -14,6 +14,7 @@ import '../widgets/truck_table.dart';
 import '../widgets/summary_section.dart';
 import '../widgets/remark_card.dart';
 import '../widgets/history_tile.dart';
+import '../widgets/register_reconciliation_card.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
 import '../../../reports/presentation/widgets/generate_report_dialog.dart';
 
@@ -47,7 +48,7 @@ class RegisterDetailsScreen extends ConsumerWidget {
             }
           },
         ),
-        title: Text('${register.wagonNumber} — Digital Register'),
+        title: Text('${register.wagonNumber} - Digital Register'),
         actions: [
           IconButton(
             icon: const Icon(Icons.edit_outlined),
@@ -81,9 +82,13 @@ class RegisterDetailsScreen extends ConsumerWidget {
             SummarySection(register: register),
             const SizedBox(height: 16),
 
+            RegisterReconciliationCard(register: register),
+            const SizedBox(height: 16),
+
             // Truck Table
             TruckTable(
               trucks: register.trucks,
+              layersByTruck: register.layersByTruck,
               onTruckTap: (truck) => context.push(
                 '/trucks/${truck.id}',
                 extra: <String, dynamic>{

@@ -6,6 +6,7 @@ import 'package:mobile/features/layer/data/repositories_impl/local_layer_reposit
 import 'package:mobile/features/layer/domain/entities/layer.dart';
 import 'package:mobile/features/truck/data/repositories_impl/local_truck_repository.dart';
 import 'package:mobile/features/wagon/data/repositories_impl/local_wagon_repository.dart';
+import 'package:mobile/features/register/data/repositories_impl/local_register_repository.dart';
 
 void main() {
   late AppDatabase database;
@@ -261,5 +262,20 @@ void main() {
           .where((layer) => layer.isDeleted),
       hasLength(1),
     );
+
+    final register = await LocalRegisterRepository(
+      wagonRepo: wagonRepository,
+      truckRepo: truckRepository,
+      layerRepo: layerRepository,
+      supervisorName: operator,
+    ).getRegisterByWagonId('demo_wagon_enterprise');
+    expect(register != null, isTrue);
+    expect(register!.trucks, hasLength(6));
+    expect(register.layersByTruck.values.expand((layers) => layers),
+        hasLength(105));
+    expect(register.manifestCartons, 4800);
+    expect(register.totalCartons, 4200);
+    expect(register.remainingCartons, 600);
+    expect(register.isReconciled, isTrue);
   });
 }

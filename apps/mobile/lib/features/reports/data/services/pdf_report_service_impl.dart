@@ -9,6 +9,19 @@ import '../../domain/services/report_services.dart';
 import '../../../../core/database/app_database.dart';
 import 'report_template_service_impl.dart';
 import 'package:drift/drift.dart' as drift;
+import '../../../wagon/domain/entities/wagon.dart';
+
+List<WagonItem> _decodeWagonItems(String raw) {
+  try {
+    return (jsonDecode(raw) as List<dynamic>)
+        .whereType<Map<String, dynamic>>()
+        .map(WagonItem.fromJson)
+        .where((item) => item.name.isNotEmpty && item.quantity > 0)
+        .toList(growable: false);
+  } catch (_) {
+    return const [];
+  }
+}
 
 Map<String, String> parseLayerCorrectionDetails(String? details) {
   if (details == null || details.trim().isEmpty) {
@@ -268,7 +281,6 @@ class PdfReportServiceImpl implements PdfReportService {
     final layerNumberById = {
       for (final layer in layers) layer.id: layer.layerNumber,
     };
-
     final reportData = <String, Object?>{
       'truckNumber': truck.truckNumber,
       'generatedDate': DateTime.now().toString().split(' ')[0],
@@ -420,19 +432,29 @@ class PdfReportServiceImpl implements PdfReportService {
         layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
     final totalDefects =
         layers.fold<int>(0, (sum, layer) => sum + layer.defectCount);
-
-    final reportTrucks = trucks;
-    final layerByTruck = <String, Map<int, Layer>>{
-      for (final truck in reportTrucks)
-        truck.id: {
-          for (final layer in layers.where((l) => l.truckId == truck.id))
-            layer.layerNumber: layer,
-        },
-    };
-    var rowCount = 20;
+    final manifest = _decodeWagonItems(wagon.itemManifestJson);
+    final loadedByItem = <String, int>{};
     for (final layer in layers) {
-      if (layer.layerNumber > rowCount) rowCount = layer.layerNumber;
+      for (final entry in _layerAllocations(layer).entries) {
+        loadedByItem[entry.key] = (loadedByItem[entry.key] ?? 0) + entry.value;
+      }
     }
+    final layerIds = layers.map((layer) => layer.id).toList();
+    final audits = layerIds.isEmpty
+        ? <AuditLog>[]
+        : await (_db.select(_db.auditLogs)
+              ..where((log) =>
+                  log.entityId.isIn(layerIds) & log.action.equals('correct'))
+              ..orderBy([(log) => drift.OrderingTerm.asc(log.timestamp)]))
+            .get();
+    final layerNumberById = {
+      for (final layer in layers) layer.id: layer.layerNumber,
+    };
+    final rowCount = layers.isEmpty
+        ? 0
+        : layers
+            .map((layer) => layer.layerNumber)
+            .reduce((first, second) => first > second ? first : second);
 
     final reportData = <String, Object?>{
       'origin': wagon.origin,
@@ -444,21 +466,54 @@ class PdfReportServiceImpl implements PdfReportService {
       'totalCartons': totalCartons,
       'totalDefects': totalDefects,
       'rowCount': rowCount,
-      'trucks': reportTrucks
+      'items': manifest
+          .map((item) => {
+                'name': item.name,
+                'manifest': item.quantity,
+                'loaded': loadedByItem[item.name] ?? 0,
+                'remaining': item.quantity - (loadedByItem[item.name] ?? 0),
+              })
+          .toList(growable: false),
+      'trucks': trucks
           .map<Map<String, Object?>>(
             (truck) => {
               'id': truck.id,
               'truckNumber': truck.truckNumber,
-              'layers': [
-                for (var row = 1; row <= rowCount; row++)
-                  {
-                    'cartonCount': layerByTruck[truck.id]?[row]?.cartonCount,
-                    'item': _layerItem(layerByTruck[truck.id]?[row]),
-                  },
-              ],
+              'vehicleNumber': truck.vehicleNumber,
+              'driverName': truck.driverName,
+              'status': truck.status,
+              'totalLayers': truck.totalLayers,
+              'totalCartons': truck.totalCartons,
+              'totalDefects': truck.totalDefects,
+              'layers': layers
+                  .where((layer) => layer.truckId == truck.id)
+                  .map((layer) => {
+                        'number': layer.layerNumber,
+                        'cartons': layer.cartonCount,
+                        'items': _layerItem(layer),
+                        'cartonCount': layer.cartonCount,
+                        'item': _layerItem(layer),
+                        'defects': layer.defectCount,
+                        'operator': layer.operatorId,
+                        'notes': _operatorNotesForReport(layer.notes),
+                        'added':
+                            layer.timestamp?.toString().split('.')[0] ?? '',
+                      })
+                  .toList(growable: false),
             },
           )
           .toList(growable: false),
+      'corrections': audits.map((audit) {
+        final parsed = parseLayerCorrectionDetails(audit.details);
+        return {
+          'layer': layerNumberById[audit.entityId] ?? 0,
+          'when': audit.timestamp.toString().split('.')[0],
+          'operator': audit.userId,
+          'changes': formatCorrectionChanges(
+              parsed['before'] ?? '', parsed['after'] ?? ''),
+          'reason': parsed['reason'] ?? 'Not provided',
+        };
+      }).toList(growable: false),
     };
     final logoBytes = await _loadReportLogoBytes();
     final supervisor = _supervisor;

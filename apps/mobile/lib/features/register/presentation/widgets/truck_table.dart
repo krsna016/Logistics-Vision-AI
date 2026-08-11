@@ -1,171 +1,157 @@
 import 'package:flutter/material.dart';
+
 import '../../../../theme/app_theme.dart';
+import '../../../layer/domain/entities/layer.dart';
 import '../../../truck/domain/entities/truck.dart';
 
 class TruckTable extends StatelessWidget {
   final List<Truck> trucks;
+  final Map<String, List<LayerRecord>> layersByTruck;
   final ValueChanged<Truck>? onTruckTap;
 
-  const TruckTable({super.key, required this.trucks, this.onTruckTap});
+  const TruckTable({
+    super.key,
+    required this.trucks,
+    required this.layersByTruck,
+    this.onTruckTap,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    final totalLayers = trucks.fold(0, (sum, t) => sum + t.totalLayers);
-    final totalCartons = trucks.fold(0, (sum, t) => sum + t.totalCartons);
-    final totalDefects = trucks.fold(0, (sum, t) => sum + t.totalDefects);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Padding(
-            padding: EdgeInsets.all(16.0),
-            child: Text(
-              'Wagon Cargo Manifest',
-              style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white),
+  Widget build(BuildContext context) => Container(
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 16, 16, 8),
+              child: Text('Truck and Layer Register',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             ),
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: WidgetStateProperty.all(AppTheme.cardColor),
-              columns: const [
-                DataColumn(
-                    label: Text('TRUCK NUMBER',
-                        style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('DRIVER',
-                        style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('CARRIER',
-                        style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(
-                    numeric: true,
-                    label: Text('LAYERS',
-                        style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(
-                    numeric: true,
-                    label: Text('CARTONS',
-                        style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(
-                    numeric: true,
-                    label: Text('DEFECTS',
-                        style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('STATUS',
-                        style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.bold))),
-                DataColumn(
-                    label: Text('COMPLETED',
-                        style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.bold))),
-              ],
-              rows: [
-                ...trucks.map((truck) {
-                  return DataRow(
-                    cells: [
-                      DataCell(
-                        Text(truck.truckNumber,
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                        onTap: onTruckTap == null
-                            ? null
-                            : () => onTruckTap!(truck),
-                      ),
-                      DataCell(Text(truck.driverName)),
-                      DataCell(Text(truck.company)),
-                      DataCell(Text('${truck.totalLayers}')),
-                      DataCell(Text('${truck.totalCartons}',
-                          style: const TextStyle(fontWeight: FontWeight.bold))),
-                      DataCell(
-                        Text(
-                          '${truck.totalDefects}',
-                          style: TextStyle(
-                            color: truck.totalDefects > 0
-                                ? AppTheme.errorColor
-                                : AppTheme.textSecondary,
-                            fontWeight: truck.totalDefects > 0
-                                ? FontWeight.bold
-                                : FontWeight.normal,
-                          ),
-                        ),
-                      ),
-                      DataCell(_buildStatusChip(truck.status.displayName)),
-                      DataCell(Text(_formatTime(truck.updatedDate))),
-                    ],
-                  );
-                }),
-                // Total Summary Row
-                DataRow(
-                  color: WidgetStateProperty.all(AppTheme.cardColor),
-                  cells: [
-                    const DataCell(Text('TOTALS',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.warningColor))),
-                    const DataCell(Text('')),
-                    const DataCell(Text('')),
-                    DataCell(Text('$totalLayers',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.warningColor))),
-                    DataCell(Text('$totalCartons',
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.warningColor))),
-                    DataCell(Text('$totalDefects',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: totalDefects > 0
-                                ? AppTheme.errorColor
-                                : AppTheme.warningColor))),
-                    const DataCell(Text('')),
-                    const DataCell(Text('')),
-                  ],
+            ...trucks.indexed.map((entry) {
+              final truck = entry.$2;
+              final layers = layersByTruck[truck.id] ?? const <LayerRecord>[];
+              return ExpansionTile(
+                leading: CircleAvatar(
+                  backgroundColor:
+                      AppTheme.primaryColor.withValues(alpha: 0.15),
+                  child: Text('${entry.$1 + 1}',
+                      style: const TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.bold)),
                 ),
+                title: Text(truck.vehicleNumber,
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                subtitle: Text(
+                  '${truck.truckNumber} | ${truck.driverName}\n'
+                  '${truck.totalLayers} layers | ${truck.totalCartons} cartons | '
+                  '${truck.totalDefects} defects',
+                ),
+                trailing: _status(truck.status.displayName),
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                    child: Row(
+                      children: [
+                        Expanded(child: Text('Carrier: ${truck.company}')),
+                        TextButton.icon(
+                          onPressed: onTruckTap == null
+                              ? null
+                              : () => onTruckTap!(truck),
+                          icon: const Icon(Icons.open_in_new, size: 16),
+                          label: const Text('Truck details'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  if (layers.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('No active layers recorded.'),
+                    )
+                  else
+                    ...layers.map(_layerTile),
+                ],
+              );
+            }),
+          ],
+        ),
+      );
+
+  Widget _layerTile(LayerRecord layer) => Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppTheme.cardColor,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('Layer ${layer.layerNumber}',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                ),
+                Text('${layer.cartonCount} cartons',
+                    style: const TextStyle(
+                        color: AppTheme.warningColor,
+                        fontWeight: FontWeight.bold)),
+                const SizedBox(width: 12),
+                Text('${layer.defectCount} defects',
+                    style: TextStyle(
+                        color: layer.defectCount > 0
+                            ? AppTheme.errorColor
+                            : AppTheme.textSecondary)),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
+            if (layer.itemAllocations.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 6,
+                children: layer.itemAllocations
+                    .map((item) => Chip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text('${item.itemName}: ${item.quantity}'),
+                        ))
+                    .toList(),
+              ),
+            ],
+            if (layer.notes?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: 6),
+              Text(layer.notes!,
+                  style: const TextStyle(
+                      color: AppTheme.textSecondary, fontSize: 12)),
+            ],
+            const SizedBox(height: 5),
+            Text('${layer.operatorId} | ${_time(layer.timestamp)}',
+                style: const TextStyle(
+                    color: AppTheme.textSecondary, fontSize: 10)),
+          ],
+        ),
+      );
 
-  Widget _buildStatusChip(String status) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppTheme.successColor.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        status,
-        style: const TextStyle(
-            color: AppTheme.successColor,
-            fontSize: 10,
-            fontWeight: FontWeight.bold),
-      ),
-    );
-  }
+  Widget _status(String value) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppTheme.primaryColor.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Text(value,
+            style: const TextStyle(
+                color: AppTheme.primaryColor,
+                fontSize: 9,
+                fontWeight: FontWeight.bold)),
+      );
 
-  String _formatTime(DateTime dt) {
-    final h = dt.hour.toString().padLeft(2, '0');
-    final m = dt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
+  static String _time(DateTime value) =>
+      '${value.day.toString().padLeft(2, '0')}/'
+      '${value.month.toString().padLeft(2, '0')} '
+      '${value.hour.toString().padLeft(2, '0')}:'
+      '${value.minute.toString().padLeft(2, '0')}';
 }

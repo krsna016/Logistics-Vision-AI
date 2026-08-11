@@ -2,10 +2,13 @@ import '../../domain/entities/digital_register.dart';
 import '../../domain/repositories/register_repository.dart';
 import '../../../wagon/domain/repositories/wagon_repository.dart';
 import '../../../truck/domain/repositories/truck_repository.dart';
+import '../../../layer/domain/repositories/layer_repository.dart';
+import '../../../layer/domain/entities/layer.dart';
 
 class LocalRegisterRepository implements RegisterRepository {
   final WagonRepository wagonRepo;
   final TruckRepository truckRepo;
+  final LayerRepository layerRepo;
   final String? supervisorName;
   final Map<String, int> _exportCounts = {};
   final Map<String, DateTime> _lastOpened = {};
@@ -14,6 +17,7 @@ class LocalRegisterRepository implements RegisterRepository {
   LocalRegisterRepository({
     required this.wagonRepo,
     required this.truckRepo,
+    required this.layerRepo,
     this.supervisorName,
   });
 
@@ -34,6 +38,18 @@ class LocalRegisterRepository implements RegisterRepository {
           wagonTrucks.fold(0, (sum, t) => sum + t.totalCartons);
       final totalDefects =
           wagonTrucks.fold(0, (sum, t) => sum + t.totalDefects);
+      final layersByTruck = <String, List<LayerRecord>>{};
+      for (final truck in wagonTrucks) {
+        layersByTruck[truck.id] = await layerRepo.getLayersByTruck(truck.id);
+      }
+      final loadedByItem = await wagonRepo.getLoadedItemQuantities(wagon.id);
+      final itemBalances = wagon.items
+          .map((item) => RegisterItemBalance(
+                itemName: item.name,
+                manifest: item.quantity,
+                loaded: loadedByItem[item.name] ?? 0,
+              ))
+          .toList(growable: false);
 
       // Duration calculation estimate
       Duration duration = const Duration(hours: 3, minutes: 45);
@@ -61,9 +77,7 @@ class LocalRegisterRepository implements RegisterRepository {
           supervisor: supervisorName?.trim().isNotEmpty == true
               ? supervisorName!.trim()
               : 'Not provided',
-          remarks: _customRemarks[wagon.id] ??
-              wagon.remarks ??
-              'Manual correction applied for Layer 3.',
+          remarks: _customRemarks[wagon.id] ?? wagon.remarks,
           status: wagon.status,
           totalTrucks: wagonTrucks.length,
           totalLayers: totalLayers,
@@ -74,6 +88,8 @@ class LocalRegisterRepository implements RegisterRepository {
           lastOpenedAt: _lastOpened[wagon.id] ?? wagon.updatedAt,
           exportCount: _exportCounts[wagon.id] ?? 0,
           trucks: wagonTrucks,
+          itemBalances: itemBalances,
+          layersByTruck: layersByTruck,
         ),
       );
     }

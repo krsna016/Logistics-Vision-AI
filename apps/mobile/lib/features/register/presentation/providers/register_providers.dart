@@ -6,6 +6,7 @@ import '../../data/repositories_impl/local_register_repository.dart';
 import '../../../wagon/domain/entities/wagon.dart';
 import '../../../wagon/presentation/providers/wagon_providers.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
+import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 enum RegisterDateFilter {
@@ -31,10 +32,12 @@ enum RegisterDateFilter {
 final registerRepositoryProvider = Provider<RegisterRepository>((ref) {
   final wagonRepo = ref.watch(wagonRepositoryProvider);
   final truckRepo = ref.watch(truckRepositoryProvider);
+  final layerRepo = ref.watch(layerRepositoryProvider);
   final user = ref.watch(authProvider);
   return LocalRegisterRepository(
     wagonRepo: wagonRepo,
     truckRepo: truckRepo,
+    layerRepo: layerRepo,
     supervisorName: user?.name,
   );
 });

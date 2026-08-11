@@ -81,7 +81,7 @@ class RegisterHeader extends StatelessWidget {
                         isAccent: true),
                     const SizedBox(height: 10),
                     _buildMetaItem('Route',
-                        '${register.origin} ➔ ${register.destination}'),
+                        '${register.origin} -> ${register.destination}'),
                   ],
                 ),
               ),
