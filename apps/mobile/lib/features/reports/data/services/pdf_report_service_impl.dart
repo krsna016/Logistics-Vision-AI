@@ -207,6 +207,20 @@ pw.Widget _singleLineRegisterText(
       ),
     );
 
+pw.Widget _digitalRegisterVehicleHeader(Object? vehicleNumber) => pw.Column(
+      mainAxisSize: pw.MainAxisSize.min,
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        _singleLineRegisterText('VEHICLE', fontSize: 6, bold: true),
+        pw.SizedBox(height: 1),
+        _singleLineRegisterText(
+          vehicleNumber?.toString() ?? '',
+          fontSize: 7,
+          bold: true,
+        ),
+      ],
+    );
+
 pw.Widget? Function(int, dynamic, int) _digitalRegisterSingleLineCellBuilder(
   double fontSize,
 ) =>
@@ -1159,8 +1173,6 @@ Future<Uint8List> _buildTruckPdfBytes(
                 .toList(growable: false),
           ),
         pw.SizedBox(height: 20),
-        pw.Text('Total Layers: ${report['totalLayers']}',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
         ReportTemplateServiceImpl.buildSignatures(supervisorName: supervisor),
       ],
     ),
@@ -1182,11 +1194,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
     [
       _singleLineRegisterText('S.NO.', fontSize: 7, bold: true),
       for (final truck in trucks) ...[
-        _singleLineRegisterText(
-          'VEHICLE: ${truck['vehicleNumber']}',
-          fontSize: 7,
-          bold: true,
-        ),
+        _digitalRegisterVehicleHeader(truck['vehicleNumber']),
         pw.SizedBox(),
       ],
     ],
@@ -1317,11 +1325,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
     [
       _singleLineRegisterText('S.NO.', fontSize: 6, bold: true),
       for (final truck in trucks) ...[
-        _singleLineRegisterText(
-          'VEHICLE: ${truck['vehicleNumber']}',
-          fontSize: 6,
-          bold: true,
-        ),
+        _digitalRegisterVehicleHeader(truck['vehicleNumber']),
         pw.SizedBox(),
       ],
     ],

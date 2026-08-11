@@ -45,8 +45,26 @@ class _UserManualScreenState extends State<UserManualScreen> {
     }
   }
 
+  List<String> _manualSections(String markdown) {
+    final sections = <String>[];
+    final lines = markdown.split('\n');
+    final buffer = StringBuffer();
+    for (final line in lines) {
+      if (line.startsWith('## ') && buffer.isNotEmpty) {
+        sections.add(buffer.toString().trim());
+        buffer.clear();
+      }
+      buffer.writeln(line);
+    }
+    if (buffer.isNotEmpty) sections.add(buffer.toString().trim());
+    return sections;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final sections = _manualSections(
+      _isHindi ? userManualHindiMarkdown : userManualMarkdown,
+    );
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
@@ -103,12 +121,19 @@ class _UserManualScreenState extends State<UserManualScreen> {
         child: Scrollbar(
           controller: _scrollController,
           thumbVisibility: true,
-          child: Markdown(
+          interactive: true,
+          radius: const Radius.circular(8),
+          thickness: 5,
+          child: ListView.builder(
             controller: _scrollController,
-            selectable: true,
             padding: const EdgeInsets.fromLTRB(18, 20, 22, 96),
-            data: _isHindi ? userManualHindiMarkdown : userManualMarkdown,
-            styleSheet: _manualStyleSheet(),
+            physics: const ClampingScrollPhysics(),
+            itemCount: sections.length,
+            itemBuilder: (context, index) => MarkdownBody(
+              data: sections[index],
+              selectable: false,
+              styleSheet: _manualStyleSheet(),
+            ),
           ),
         ),
       ),
