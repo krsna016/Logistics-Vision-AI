@@ -13,6 +13,37 @@ class UserManualScreen extends StatefulWidget {
 
 class _UserManualScreenState extends State<UserManualScreen> {
   bool _isHindi = false;
+  final ScrollController _scrollController = ScrollController();
+  bool _showBackToTop = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_handleScroll);
+  }
+
+  void _handleScroll() {
+    final shouldShow = _scrollController.offset > 700;
+    if (shouldShow != _showBackToTop) {
+      setState(() => _showBackToTop = shouldShow);
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _changeLanguage(bool hindi) {
+    if (_isHindi == hindi) return;
+    setState(() => _isHindi = hindi);
+    if (_scrollController.hasClients) {
+      _scrollController.jumpTo(0);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +59,7 @@ class _UserManualScreenState extends State<UserManualScreen> {
             }
           },
         ),
-        title: Text(_isHindi ? 'उपयोगकर्ता मैनुअल' : 'User Manual'),
+        title: Text(_isHindi ? 'सहायता और दस्तावेज' : 'Help & Documentation'),
         backgroundColor: AppTheme.surfaceColor,
         foregroundColor: Colors.white,
         actions: [
@@ -37,9 +68,7 @@ class _UserManualScreenState extends State<UserManualScreen> {
             child: ToggleButtons(
               isSelected: [!_isHindi, _isHindi],
               onPressed: (index) {
-                setState(() {
-                  _isHindi = index == 1;
-                });
+                _changeLanguage(index == 1);
               },
               color: Colors.white54,
               selectedColor: Colors.white,
@@ -49,7 +78,7 @@ class _UserManualScreenState extends State<UserManualScreen> {
                   const BoxConstraints(minHeight: 36.0, minWidth: 48.0),
               children: const [
                 Text('EN', style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('हि',
+                Text('HI',
                     style:
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
@@ -58,47 +87,69 @@ class _UserManualScreenState extends State<UserManualScreen> {
           const SizedBox(width: 8),
         ],
       ),
+      floatingActionButton: _showBackToTop
+          ? FloatingActionButton.small(
+              tooltip: _isHindi ? 'ऊपर जाएं' : 'Back to top',
+              onPressed: () => _scrollController.animateTo(
+                0,
+                duration: const Duration(milliseconds: 450),
+                curve: Curves.easeOutCubic,
+              ),
+              child: const Icon(Icons.keyboard_arrow_up_rounded),
+            )
+          : null,
       body: Container(
         color: AppTheme.backgroundColor,
-        child: Markdown(
-          data: _isHindi ? userManualHindiMarkdown : userManualMarkdown,
-          styleSheet: MarkdownStyleSheet(
-            h1: const TextStyle(
-                color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-            h2: const TextStyle(
-                color: AppTheme.primaryColor,
-                fontSize: 20,
-                fontWeight: FontWeight.bold),
-            h3: const TextStyle(
-                color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
-            p: const TextStyle(
-                color: Colors.white70, fontSize: 15, height: 1.5),
-            listBullet:
-                const TextStyle(color: AppTheme.primaryColor, fontSize: 16),
-            strong: const TextStyle(
-                color: Colors.white, fontWeight: FontWeight.bold),
-            em: const TextStyle(
-                color: Colors.white70, fontStyle: FontStyle.italic),
-            code: const TextStyle(
-              backgroundColor: Color(0xFF1E293B),
-              color: AppTheme.warningColor,
-              fontFamily: 'monospace',
-              fontSize: 14,
-            ),
-            codeblockPadding: const EdgeInsets.all(8),
-            codeblockDecoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            blockquote: const TextStyle(
-                color: Colors.white54, fontStyle: FontStyle.italic),
-            blockquoteDecoration: const BoxDecoration(
-              border: Border(
-                  left: BorderSide(color: AppTheme.primaryColor, width: 4)),
-            ),
-            horizontalRuleDecoration: const BoxDecoration(
-              border: Border(
-                  top: BorderSide(color: AppTheme.dividerColor, width: 2)),
+        child: Scrollbar(
+          controller: _scrollController,
+          thumbVisibility: true,
+          child: Markdown(
+            controller: _scrollController,
+            selectable: true,
+            padding: const EdgeInsets.fromLTRB(18, 20, 22, 96),
+            data: _isHindi ? userManualHindiMarkdown : userManualMarkdown,
+            styleSheet: MarkdownStyleSheet(
+              h1: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold),
+              h2: const TextStyle(
+                  color: AppTheme.primaryColor,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold),
+              h3: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600),
+              p: const TextStyle(
+                  color: Colors.white70, fontSize: 15, height: 1.5),
+              listBullet:
+                  const TextStyle(color: AppTheme.primaryColor, fontSize: 16),
+              strong: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold),
+              em: const TextStyle(
+                  color: Colors.white70, fontStyle: FontStyle.italic),
+              code: const TextStyle(
+                backgroundColor: Color(0xFF1E293B),
+                color: AppTheme.warningColor,
+                fontFamily: 'monospace',
+                fontSize: 14,
+              ),
+              codeblockPadding: const EdgeInsets.all(8),
+              codeblockDecoration: BoxDecoration(
+                color: const Color(0xFF1E293B),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              blockquote: const TextStyle(
+                  color: Colors.white54, fontStyle: FontStyle.italic),
+              blockquoteDecoration: const BoxDecoration(
+                border: Border(
+                    left: BorderSide(color: AppTheme.primaryColor, width: 4)),
+              ),
+              horizontalRuleDecoration: const BoxDecoration(
+                border: Border(
+                    top: BorderSide(color: AppTheme.dividerColor, width: 2)),
+              ),
             ),
           ),
         ),
