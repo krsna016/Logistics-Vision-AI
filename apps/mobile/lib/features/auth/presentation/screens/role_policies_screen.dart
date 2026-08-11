@@ -56,6 +56,8 @@ class RolePoliciesScreen extends StatelessWidget {
                 _buildPermissionRow('View Analytics', role.canViewAnalytics),
                 _buildPermissionRow('Export Reports', role.canExportReports),
                 _buildPermissionRow('Manage Users', role.canManageUsers),
+                _buildPermissionRow(
+                    'Modify Digital Registers', role.canModifyDigitalRegisters),
               ],
             ),
           ),

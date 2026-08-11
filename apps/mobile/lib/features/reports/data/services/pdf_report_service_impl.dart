@@ -86,7 +86,7 @@ pw.Widget? _truckLayerCellBuilder(int column, dynamic data, int row) {
   if (column != 2) return null;
   final rawItems = data.toString().trim();
   if (rawItems.isEmpty || rawItems == 'N/A') {
-    return pw.Text('—', style: const pw.TextStyle(color: PdfColors.grey600));
+    return pw.Text('-', style: const pw.TextStyle(color: PdfColors.grey600));
   }
 
   final items = rawItems
@@ -263,7 +263,8 @@ class PdfReportServiceImpl implements PdfReportService {
           ..where((t) => t.id.equals(truckId) & t.isDeleted.equals(false)))
         .getSingleOrNull();
     final layers = await (_db.select(_db.layers)
-          ..where((l) => l.truckId.equals(truckId) & l.isDeleted.equals(false)))
+          ..where((l) => l.truckId.equals(truckId) & l.isDeleted.equals(false))
+          ..orderBy([(l) => drift.OrderingTerm.asc(l.layerNumber)]))
         .get();
 
     if (truck == null) throw Exception('Truck not found');
@@ -339,14 +340,19 @@ class PdfReportServiceImpl implements PdfReportService {
     if (wagon == null) throw Exception('Wagon not found');
 
     final trucks = await (_db.select(_db.trucks)
-          ..where((t) => t.wagonId.equals(wagonId) & t.isDeleted.equals(false)))
+          ..where((t) => t.wagonId.equals(wagonId) & t.isDeleted.equals(false))
+          ..orderBy([(t) => drift.OrderingTerm.asc(t.createdAt)]))
         .get();
     final truckIds = trucks.map((truck) => truck.id).toList(growable: false);
     final layers = truckIds.isEmpty
         ? <Layer>[]
         : await (_db.select(_db.layers)
               ..where(
-                  (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false)))
+                  (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false))
+              ..orderBy([
+                (l) => drift.OrderingTerm.asc(l.truckId),
+                (l) => drift.OrderingTerm.asc(l.layerNumber),
+              ]))
             .get();
     final layersByTruck = <String, List<Layer>>{
       for (final truck in trucks)
@@ -419,14 +425,19 @@ class PdfReportServiceImpl implements PdfReportService {
         .getSingleOrNull();
 
     final trucks = await (_db.select(_db.trucks)
-          ..where((t) => t.wagonId.equals(wagonId) & t.isDeleted.equals(false)))
+          ..where((t) => t.wagonId.equals(wagonId) & t.isDeleted.equals(false))
+          ..orderBy([(t) => drift.OrderingTerm.asc(t.createdAt)]))
         .get();
     final truckIds = trucks.map((truck) => truck.id).toList();
     final layers = truckIds.isEmpty
         ? <Layer>[]
         : await (_db.select(_db.layers)
               ..where(
-                  (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false)))
+                  (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false))
+              ..orderBy([
+                (l) => drift.OrderingTerm.asc(l.truckId),
+                (l) => drift.OrderingTerm.asc(l.layerNumber),
+              ]))
             .get();
     final totalCartons =
         layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
@@ -474,35 +485,38 @@ class PdfReportServiceImpl implements PdfReportService {
                 'remaining': item.quantity - (loadedByItem[item.name] ?? 0),
               })
           .toList(growable: false),
-      'trucks': trucks
-          .map<Map<String, Object?>>(
-            (truck) => {
-              'id': truck.id,
-              'truckNumber': truck.truckNumber,
-              'vehicleNumber': truck.vehicleNumber,
-              'driverName': truck.driverName,
-              'status': truck.status,
-              'totalLayers': truck.totalLayers,
-              'totalCartons': truck.totalCartons,
-              'totalDefects': truck.totalDefects,
-              'layers': layers
-                  .where((layer) => layer.truckId == truck.id)
-                  .map((layer) => {
-                        'number': layer.layerNumber,
-                        'cartons': layer.cartonCount,
-                        'items': _layerItem(layer),
-                        'cartonCount': layer.cartonCount,
-                        'item': _layerItem(layer),
-                        'defects': layer.defectCount,
-                        'operator': layer.operatorId,
-                        'notes': _operatorNotesForReport(layer.notes),
-                        'added':
-                            layer.timestamp?.toString().split('.')[0] ?? '',
-                      })
-                  .toList(growable: false),
-            },
-          )
-          .toList(growable: false),
+      'trucks': trucks.map<Map<String, Object?>>(
+        (truck) {
+          final truckLayers = layers
+              .where((layer) => layer.truckId == truck.id)
+              .toList(growable: false);
+          return {
+            'id': truck.id,
+            'truckNumber': truck.truckNumber,
+            'vehicleNumber': truck.vehicleNumber,
+            'driverName': truck.driverName,
+            'status': truck.status,
+            'totalLayers': truckLayers.length,
+            'totalCartons': truckLayers.fold<int>(
+                0, (sum, layer) => sum + layer.cartonCount),
+            'totalDefects': truckLayers.fold<int>(
+                0, (sum, layer) => sum + layer.defectCount),
+            'layers': truckLayers
+                .map((layer) => {
+                      'number': layer.layerNumber,
+                      'cartons': layer.cartonCount,
+                      'items': _layerItem(layer),
+                      'cartonCount': layer.cartonCount,
+                      'item': _layerItem(layer),
+                      'defects': layer.defectCount,
+                      'operator': layer.operatorId,
+                      'notes': _operatorNotesForReport(layer.notes),
+                      'added': layer.timestamp?.toString().split('.')[0] ?? '',
+                    })
+                .toList(growable: false),
+          };
+        },
+      ).toList(growable: false),
       'corrections': audits.map((audit) {
         final parsed = parseLayerCorrectionDetails(audit.details);
         return {
@@ -799,7 +813,7 @@ Future<Uint8List> _buildTruckPdfBytes(
       header: (context) => ReportTemplateServiceImpl.buildHeader(
         title: 'Truck Loading Report',
         logo: logoBytes == null ? null : pw.MemoryImage(logoBytes),
-        reference: report['truckNumber'].toString(),
+        reference: _reportValue(report['vehicleNumber']),
         date: report['generatedDate'].toString(),
         useTruckIcon: true,
       ),

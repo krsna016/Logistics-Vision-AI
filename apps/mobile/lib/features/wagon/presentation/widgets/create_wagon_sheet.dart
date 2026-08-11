@@ -8,6 +8,7 @@ import '../../domain/entities/wagon.dart';
 import '../screens/wagon_number_scan_screen.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../truck/data/services/scanner_camera_warmup.dart';
+import '../../../../core/presentation/widgets/unsaved_changes_guard.dart';
 
 class CreateWagonSheet extends ConsumerStatefulWidget {
   final Wagon? existingWagon;
@@ -26,6 +27,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
   late TextEditingController _remarksCtrl;
   DateTime _selectedDate = DateTime.now();
   bool _isSaving = false;
+  bool _isDirty = false;
   String? _errorMessage;
   final List<_ItemControllers> _items = [];
 
@@ -42,6 +44,17 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       (item) => _ItemControllers(item.name, item.quantity.toString()),
     ));
     if (_items.isEmpty) _items.add(_ItemControllers('', ''));
+    for (final controller in [
+      _numberCtrl,
+      _originCtrl,
+      _destinationCtrl,
+      _remarksCtrl,
+    ]) {
+      controller.addListener(_markDirty);
+    }
+    for (final item in _items) {
+      _listenToItem(item);
+    }
     // Let the sheet transition finish before opening the native camera. Starting
     // Camera2 during the route animation produces a visible hitch on Android.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -49,6 +62,15 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
         if (mounted) unawaited(ScannerCameraWarmup.prepare());
       });
     });
+  }
+
+  void _markDirty() {
+    if (!_isDirty && mounted) setState(() => _isDirty = true);
+  }
+
+  void _listenToItem(_ItemControllers item) {
+    item.name.addListener(_markDirty);
+    item.quantity.addListener(_markDirty);
   }
 
   @override
@@ -74,6 +96,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
+        _isDirty = true;
       });
     }
   }
@@ -113,10 +136,13 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       setState(() {
         _isSaving = false;
         _errorMessage = error;
+        if (error == null) _isDirty = false;
       });
 
       if (error == null) {
-        Navigator.of(context).pop();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.of(context).pop();
+        });
       }
     }
   }
@@ -158,13 +184,23 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
           ))
       .toList();
 
-  void _addItem() => setState(() => _items.add(_ItemControllers('', '')));
+  void _addItem() => setState(() {
+        final item = _ItemControllers('', '');
+        _listenToItem(item);
+        _items.add(item);
+        _isDirty = true;
+      });
 
   void _removeItem(int index) {
     setState(() {
       final removed = _items.removeAt(index);
       removed.dispose();
-      if (_items.isEmpty) _items.add(_ItemControllers('', ''));
+      if (_items.isEmpty) {
+        final item = _ItemControllers('', '');
+        _listenToItem(item);
+        _items.add(item);
+      }
+      _isDirty = true;
     });
   }
 
@@ -173,255 +209,263 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
     final mediaQuery = MediaQuery.of(context);
     final bottomInset = mediaQuery.viewInsets.bottom;
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-        decoration: const BoxDecoration(
-          color: Color(0xFF1E1E1E),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            inputDecorationTheme: Theme.of(context)
-                .inputDecorationTheme
-                .copyWith(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppTheme.dividerColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppTheme.dividerColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: AppTheme.primaryColor,
-                      width: 1.5,
-                    ),
-                  ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppTheme.errorColor),
-                  ),
-                  focusedErrorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: AppTheme.errorColor,
-                      width: 1.5,
-                    ),
-                  ),
-                ),
+    return UnsavedChangesGuard(
+      hasUnsavedChanges: _isDirty,
+      isSaving: _isSaving,
+      message: 'The wagon details and item manifest have not been saved.',
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Pull Bar
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              inputDecorationTheme: Theme.of(context)
+                  .inputDecorationTheme
+                  .copyWith(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
                     ),
-                  ),
-                  Text(
-                    widget.existingWagon == null
-                        ? 'Register New Wagon'
-                        : 'Edit Wagon',
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (_errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(
-                            color: Colors.redAccent,
-                            fontWeight: FontWeight.bold),
-                      ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: AppTheme.dividerColor),
                     ),
-
-                  TextFormField(
-                    controller: _numberCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Wagon Number*',
-                      hintText: 'e.g. BCNAHSM131142324907',
-                      suffixIcon: IconButton(
-                        onPressed: _isSaving ? null : _scanWagonNumber,
-                        icon: const Icon(Icons.document_scanner_outlined),
-                        tooltip: 'Scan wagon number',
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: AppTheme.dividerColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
                         color: AppTheme.primaryColor,
+                        width: 1.5,
                       ),
                     ),
-                    validator: (val) =>
-                        val == null || val.trim().isEmpty ? 'Required.' : null,
-                  ),
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: _originCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Origin Facility (Optional)',
-                        hintText: 'e.g. Austin Fulfillment South'),
-                  ),
-                  const SizedBox(height: 12),
-
-                  TextFormField(
-                    controller: _destinationCtrl,
-                    decoration: const InputDecoration(
-                      labelText: 'Destination Depot (Optional)',
-                      hintText: 'e.g. Chicago Logistics Terminal',
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppTheme.errorColor),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-
-                  OutlinedButton.icon(
-                    onPressed: () => _selectDate(context),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppTheme.dividerColor),
-                      minimumSize: const Size(0, 52),
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    icon: const Icon(Icons.calendar_today, size: 15),
-                    label: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        'Date: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
-                        style: const TextStyle(fontSize: 12),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: AppTheme.errorColor,
+                        width: 1.5,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 12),
+            ),
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Pull Bar
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      widget.existingWagon == null
+                          ? 'Register New Wagon'
+                          : 'Edit Wagon',
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
 
-                  TextFormField(
-                    controller: _remarksCtrl,
-                    maxLines: 2,
-                    decoration:
-                        const InputDecoration(labelText: 'Remarks (Optional)'),
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      const Expanded(
-                        child: Text('Wagon Item Manifest',
-                            style: TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
+                    if (_errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.bold),
+                        ),
                       ),
-                      TextButton.icon(
-                        onPressed: _isSaving ? null : _addItem,
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('Add Item'),
+
+                    TextFormField(
+                      controller: _numberCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Wagon Number*',
+                        hintText: 'e.g. BCNAHSM131142324907',
+                        suffixIcon: IconButton(
+                          onPressed: _isSaving ? null : _scanWagonNumber,
+                          icon: const Icon(Icons.document_scanner_outlined),
+                          tooltip: 'Scan wagon number',
+                          color: AppTheme.primaryColor,
+                        ),
                       ),
-                    ],
-                  ),
-                  const Text(
-                    'Enter the carton quantity received in this wagon for every item.',
-                    style:
-                        TextStyle(color: AppTheme.textSecondary, fontSize: 11),
-                  ),
-                  const SizedBox(height: 10),
-                  ...List.generate(_items.length, (index) {
-                    final row = _items[index];
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 10),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            flex: 3,
-                            child: TextFormField(
-                              controller: row.name,
-                              decoration: InputDecoration(
-                                labelText: 'Item ${index + 1}',
-                                hintText: 'e.g. Item A',
-                              ),
-                              validator: (value) {
-                                final quantityEntered =
-                                    row.quantity.text.trim().isNotEmpty;
-                                if (quantityEntered &&
-                                    (value == null || value.trim().isEmpty)) {
-                                  return 'Enter item name.';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 2,
-                            child: TextFormField(
-                              controller: row.quantity,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Cartons',
-                                hintText: '0',
-                              ),
-                              validator: (value) {
-                                final nameEntered =
-                                    row.name.text.trim().isNotEmpty;
-                                if (!nameEntered &&
-                                    (value == null || value.trim().isEmpty)) {
+                      validator: (val) => val == null || val.trim().isEmpty
+                          ? 'Required.'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _originCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'Origin Facility (Optional)',
+                          hintText: 'e.g. Austin Fulfillment South'),
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _destinationCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Destination Depot (Optional)',
+                        hintText: 'e.g. Chicago Logistics Terminal',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    OutlinedButton.icon(
+                      onPressed: () => _selectDate(context),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppTheme.dividerColor),
+                        minimumSize: const Size(0, 52),
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      icon: const Icon(Icons.calendar_today, size: 15),
+                      label: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          'Date: ${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year}',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _remarksCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                          labelText: 'Remarks (Optional)'),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Expanded(
+                          child: Text('Wagon Item Manifest',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                        TextButton.icon(
+                          onPressed: _isSaving ? null : _addItem,
+                          icon: const Icon(Icons.add, size: 18),
+                          label: const Text('Add Item'),
+                        ),
+                      ],
+                    ),
+                    const Text(
+                      'Enter the carton quantity received in this wagon for every item.',
+                      style: TextStyle(
+                          color: AppTheme.textSecondary, fontSize: 11),
+                    ),
+                    const SizedBox(height: 10),
+                    ...List.generate(_items.length, (index) {
+                      final row = _items[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: TextFormField(
+                                controller: row.name,
+                                decoration: InputDecoration(
+                                  labelText: 'Item ${index + 1}',
+                                  hintText: 'e.g. Item A',
+                                ),
+                                validator: (value) {
+                                  final quantityEntered =
+                                      row.quantity.text.trim().isNotEmpty;
+                                  if (quantityEntered &&
+                                      (value == null || value.trim().isEmpty)) {
+                                    return 'Enter item name.';
+                                  }
                                   return null;
-                                }
-                                final quantity =
-                                    int.tryParse(value?.trim() ?? '');
-                                if (quantity == null || quantity <= 0) {
-                                  return 'Enter > 0.';
-                                }
-                                return null;
-                              },
+                                },
+                              ),
                             ),
-                          ),
-                          IconButton(
-                            onPressed:
-                                _isSaving ? null : () => _removeItem(index),
-                            icon: const Icon(Icons.remove_circle_outline,
-                                color: AppTheme.errorColor),
-                            tooltip: 'Remove item',
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                  const SizedBox(height: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: TextFormField(
+                                controller: row.quantity,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  labelText: 'Cartons',
+                                  hintText: '0',
+                                ),
+                                validator: (value) {
+                                  final nameEntered =
+                                      row.name.text.trim().isNotEmpty;
+                                  if (!nameEntered &&
+                                      (value == null || value.trim().isEmpty)) {
+                                    return null;
+                                  }
+                                  final quantity =
+                                      int.tryParse(value?.trim() ?? '');
+                                  if (quantity == null || quantity <= 0) {
+                                    return 'Enter > 0.';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ),
+                            IconButton(
+                              onPressed:
+                                  _isSaving ? null : () => _removeItem(index),
+                              icon: const Icon(Icons.remove_circle_outline,
+                                  color: AppTheme.errorColor),
+                              tooltip: 'Remove item',
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    const SizedBox(height: 20),
 
-                  ElevatedButton(
-                    onPressed: _isSaving ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
+                    ElevatedButton(
+                      onPressed: _isSaving ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(56),
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : Text(widget.existingWagon == null
+                              ? 'Create Wagon'
+                              : 'Save Changes'),
                     ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text(widget.existingWagon == null
-                            ? 'Create Wagon'
-                            : 'Save Changes'),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

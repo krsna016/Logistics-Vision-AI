@@ -122,105 +122,107 @@ class _TimelineItem extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Header row
+                        // Keep the full layer summary and its actions on one
+                        // compact line. The card itself remains tappable for
+                        // corrections, so a separate edit button is not needed.
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text(
-                              'Layer ${layer.layerNumber}',
-                              style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: Colors.white,
+                            Expanded(
+                              child: FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      'Layer ${layer.layerNumber}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    _CompactHeaderChip(
+                                      icon: Icons.inventory_2_outlined,
+                                      label: '${layer.cartonCount} Cartons',
+                                      color: AppTheme.primaryColor,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    _CompactHeaderChip(
+                                      icon: Icons.access_time_outlined,
+                                      label: _formatTime(layer.timestamp),
+                                      color: AppTheme.textSecondary,
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
-                            Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                if (!isReadOnly) ...[
-                                  IconButton(
-                                    onPressed: onEditNotes,
-                                    tooltip: 'Edit layer notes',
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                        minWidth: 27, minHeight: 27),
-                                    icon: const Icon(Icons.edit_note_outlined,
-                                        size: 17,
-                                        color: AppTheme.textSecondary),
-                                  ),
-                                  IconButton(
-                                    onPressed: onDelete,
-                                    tooltip: 'Delete layer',
-                                    visualDensity: VisualDensity.compact,
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                        minWidth: 27, minHeight: 27),
-                                    icon: const Icon(Icons.delete_outline,
-                                        size: 17, color: AppTheme.errorColor),
-                                  ),
-                                ],
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 2),
-                                  decoration: BoxDecoration(
-                                    color: _statusColor.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(_statusIcon,
-                                          size: 12, color: _statusColor),
-                                      const SizedBox(width: 3),
-                                      Text(_hasDefects ? 'Defect' : 'OK',
-                                          style: TextStyle(
-                                              color: _statusColor,
-                                              fontSize: 9,
-                                              fontWeight: FontWeight.bold)),
-                                    ],
-                                  ),
+                            const SizedBox(width: 5),
+                            if (!isReadOnly)
+                              IconButton(
+                                onPressed: onDelete,
+                                tooltip: 'Delete layer',
+                                visualDensity: VisualDensity.compact,
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints.tightFor(
+                                  width: 23,
+                                  height: 25,
                                 ),
-                              ],
+                                icon: const Icon(Icons.delete_outline,
+                                    size: 16, color: AppTheme.errorColor),
+                              ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: _statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(_statusIcon,
+                                      size: 11, color: _statusColor),
+                                  const SizedBox(width: 2),
+                                  Text(_hasDefects ? 'Defect' : 'OK',
+                                      style: TextStyle(
+                                          color: _statusColor,
+                                          fontSize: 8.5,
+                                          fontWeight: FontWeight.bold)),
+                                ],
+                              ),
                             ),
                           ],
                         ),
                         const SizedBox(height: 5),
 
-                        // Stats row
-                        Row(
-                          children: [
-                            if (layer.itemAllocations.isNotEmpty) ...[
-                              _ChipLabel(
-                                icon: Icons.category_outlined,
-                                label: layer.itemAllocations
-                                    .map((allocation) =>
-                                        '${allocation.itemName}: ${allocation.quantity}')
-                                    .join(' • '),
-                                color: AppTheme.successColor,
-                              ),
-                              const SizedBox(width: 6),
+                        // Keep every item readable on mixed-item layers. Each
+                        // allocation wraps independently instead of forcing the
+                        // entire breakdown into one horizontal label.
+                        if (layer.itemAllocations.isNotEmpty ||
+                            layer.defectCount > 0) ...[
+                          Wrap(
+                            spacing: 5,
+                            runSpacing: 5,
+                            children: [
+                              for (final allocation in layer.itemAllocations)
+                                _ChipLabel(
+                                  icon: Icons.category_outlined,
+                                  label:
+                                      '${allocation.itemName}: ${allocation.quantity}',
+                                  color: AppTheme.successColor,
+                                  flexibleLabel: true,
+                                ),
+                              if (layer.defectCount > 0)
+                                _ChipLabel(
+                                  icon: Icons.warning_amber_outlined,
+                                  label: '${layer.defectCount} Defective',
+                                  color: AppTheme.warningColor,
+                                ),
                             ],
-                            _ChipLabel(
-                              icon: Icons.inventory_2_outlined,
-                              label: '${layer.cartonCount} Cartons',
-                              color: AppTheme.primaryColor,
-                            ),
-                            if (layer.defectCount > 0) ...[
-                              const SizedBox(width: 6),
-                              _ChipLabel(
-                                icon: Icons.warning_amber_outlined,
-                                label: '${layer.defectCount} Defective',
-                                color: AppTheme.warningColor,
-                              ),
-                            ],
-                            const SizedBox(width: 6),
-                            _ChipLabel(
-                              icon: Icons.access_time_outlined,
-                              label: _formatTime(layer.timestamp),
-                              color: AppTheme.textSecondary,
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
 
                         if (layer.photoPath != null) ...[
                           const SizedBox(height: 7),
@@ -358,9 +360,14 @@ class _ChipLabel extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
+  final bool flexibleLabel;
 
-  const _ChipLabel(
-      {required this.icon, required this.label, required this.color});
+  const _ChipLabel({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.flexibleLabel = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -375,9 +382,60 @@ class _ChipLabel extends StatelessWidget {
         children: [
           Icon(icon, size: 10, color: color),
           const SizedBox(width: 3),
-          Text(label,
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: flexibleLabel ? 190 : double.infinity,
+            ),
+            child: Text(
+              label,
+              maxLines: flexibleLabel ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                  color: color, fontSize: 10, fontWeight: FontWeight.w600)),
+                color: color,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CompactHeaderChip extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _CompactHeaderChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 10, color: color),
+          const SizedBox(width: 3),
+          Text(
+            label,
+            maxLines: 1,
+            style: TextStyle(
+              color: color,
+              fontSize: 9,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
         ],
       ),
     );

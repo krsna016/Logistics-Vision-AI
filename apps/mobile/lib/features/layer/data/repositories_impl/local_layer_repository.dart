@@ -171,7 +171,8 @@ class LocalLayerRepository implements LayerRepository {
       final countChanged = existing.cartonCount != effectiveCartons ||
           existing.defectCount != layer.defectCount ||
           existing.itemAllocationsJson != nextAllocationsJson;
-      if (countChanged) {
+      final photoChanged = existing.photoPath != layer.photoPath;
+      if (countChanged || photoChanged) {
         await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
               id: 'audit_layer_correct_${DateTime.now().microsecondsSinceEpoch}',
               entityId: layer.id,
@@ -182,7 +183,8 @@ class LocalLayerRepository implements LayerRepository {
                 'Layer ${layer.layerNumber}: cartons '
                 '${existing.cartonCount} -> $effectiveCartons, defects '
                 '${existing.defectCount} -> ${layer.defectCount}. Reason: '
-                '${correctionReason?.trim().isNotEmpty == true ? correctionReason!.trim() : 'Not provided'}. '
+                '${correctionReason?.trim().isNotEmpty == true ? correctionReason!.trim() : 'Not provided'}'
+                '${photoChanged ? ' (Photo ${existing.photoPath == null ? 'added' : 'replaced'})' : ''}. '
                 'Items: ${existing.itemAllocationsJson} -> $nextAllocationsJson',
               ),
             ));

@@ -10,7 +10,12 @@ import 'package:image_picker/image_picker.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/storage/image_storage_service.dart';
 import '../../../../utils/logger.dart';
+import '../../../../core/presentation/widgets/unsaved_changes_guard.dart';
+import '../../../layer/domain/entities/layer.dart';
 import '../../../layer/presentation/providers/layer_providers.dart';
+import '../../../truck/presentation/providers/truck_providers.dart';
+import '../../../wagon/domain/entities/wagon.dart';
+import '../../../wagon/presentation/providers/wagon_providers.dart';
 
 class CountMethodSelectionScreen extends StatelessWidget {
   final String truckId;
@@ -108,6 +113,7 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
   bool _isSavingPhoto = false;
   bool _isSavingLayer = false;
   String? _error;
+  Map<String, int> _itemAllocations = {};
 
   Future<void> _switchToAi() async {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -172,15 +178,154 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
     controller.selection = TextSelection.collapsed(
       offset: controller.text.length,
     );
-    if (_error != null) setState(() => _error = null);
+    setState(() => _error = null);
+  }
+
+  Future<void> _editItemBreakdown(
+    Wagon wagon,
+    Map<String, int> loadedByItem,
+  ) async {
+    final cartonTotal = int.tryParse(_countController.text.trim()) ?? 0;
+    if (cartonTotal <= 0) {
+      setState(() => _error =
+          'Enter the verified carton total before setting item breakdown.');
+      return;
+    }
+    FocusManager.instance.primaryFocus?.unfocus();
+    final controllers = {
+      for (final item in wagon.items)
+        item.name: TextEditingController(
+          text: (_itemAllocations[item.name] ?? 0) == 0
+              ? ''
+              : '${_itemAllocations[item.name]}',
+        ),
+    };
+    final result = await showModalBottomSheet<Map<String, int>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.surfaceColor,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setSheetState) {
+          final values = {
+            for (final entry in controllers.entries)
+              entry.key: int.tryParse(entry.value.text.trim()) ?? 0,
+          };
+          final allocated =
+              values.values.fold<int>(0, (sum, quantity) => sum + quantity);
+          final validStock = wagon.items.every((item) {
+            final remaining = item.quantity - (loadedByItem[item.name] ?? 0);
+            return (values[item.name] ?? 0) <= remaining;
+          });
+          final canApply = allocated == cartonTotal && validStock;
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              MediaQuery.viewInsetsOf(sheetContext).bottom + 20,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Manual Item Breakdown',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Assign all $cartonTotal manually counted cartons to one or more wagon items.',
+                    style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ...wagon.items.map((item) {
+                    final remaining =
+                        item.quantity - (loadedByItem[item.name] ?? 0);
+                    final entered = values[item.name] ?? 0;
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: TextField(
+                        controller: controllers[item.name],
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        onChanged: (_) => setSheetState(() {}),
+                        decoration: InputDecoration(
+                          labelText: item.name,
+                          suffixText: '$remaining left',
+                          errorText: entered > remaining
+                              ? 'Only $remaining cartons available'
+                              : null,
+                        ),
+                      ),
+                    );
+                  }),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: (allocated == cartonTotal
+                              ? AppTheme.successColor
+                              : AppTheme.warningColor)
+                          .withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      allocated == cartonTotal
+                          ? 'Assigned: $allocated / $cartonTotal cartons'
+                          : 'Assigned: $allocated / $cartonTotal cartons - '
+                              '${(cartonTotal - allocated).abs()} '
+                              '${allocated < cartonTotal ? 'still unassigned' : 'too many'}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: allocated == cartonTotal
+                            ? AppTheme.successColor
+                            : AppTheme.warningColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: canApply
+                        ? () => Navigator.pop(sheetContext, {
+                              for (final entry in values.entries)
+                                if (entry.value > 0) entry.key: entry.value,
+                            })
+                        : null,
+                    child: const Text('Apply Item Breakdown'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+    for (final controller in controllers.values) {
+      controller.dispose();
+    }
+    if (result != null && mounted) {
+      setState(() {
+        _itemAllocations = result;
+        _error = null;
+      });
+    }
   }
 
   Future<void> _saveLayer() async {
     if (_isSavingLayer) return;
     FocusManager.instance.primaryFocus?.unfocus();
     final count = int.tryParse(_countController.text.trim());
-    if (count == null || count < 0 || count > 9999) {
-      setState(() => _error = 'Enter a whole number from 0 to 9,999.');
+    if (count == null || count <= 0 || count > 9999) {
+      setState(() => _error = 'Enter a whole number from 1 to 9,999.');
       return;
     }
 
@@ -203,6 +348,12 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
                 defectCount: defectCount,
                 confidence: 0,
                 notes: operatorNotes.isEmpty ? null : operatorNotes,
+                itemAllocations: _itemAllocations.entries
+                    .map((entry) => LayerItemAllocation(
+                          itemName: entry.key,
+                          quantity: entry.value,
+                        ))
+                    .toList(growable: false),
                 photoPath: _referencePhotoPath,
               );
       if (!mounted) return;
@@ -214,7 +365,9 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
         return;
       }
       AppLogger.info('Manual layer saved: $count cartons.');
-      context.go('/trucks/${widget.truckId}');
+      // Remove the capture workspace while preserving an in-app back target.
+      context.go('/wagons');
+      context.push('/trucks/${widget.truckId}');
     } catch (error, stack) {
       AppLogger.error('Failed to save manual layer', error, stack);
       if (mounted) {
@@ -227,158 +380,306 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
   }
 
   void _clearError(String _) {
-    if (_error != null) setState(() => _error = null);
+    setState(() => _error = null);
+  }
+
+  void _onCartonTotalChanged(String _) {
+    setState(() => _error = null);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () =>
-              context.canPop() ? context.pop() : context.go('/wagons'),
+    final matchingTrucks = ref
+        .watch(truckListProvider)
+        .trucks
+        .where((truck) => truck.id == widget.truckId);
+    final truck = matchingTrucks.isEmpty ? null : matchingTrucks.first;
+    final matchingWagons = truck?.wagonId == null
+        ? const <Wagon>[]
+        : ref
+            .watch(wagonListProvider)
+            .wagons
+            .where((wagon) => wagon.id == truck!.wagonId)
+            .toList(growable: false);
+    final wagon = matchingWagons.isEmpty ? null : matchingWagons.first;
+    final inventory = wagon == null
+        ? null
+        : ref.watch(wagonInventoryProvider(wagon.id)).valueOrNull;
+    final cartonTotal = int.tryParse(_countController.text.trim()) ?? 0;
+    final allocatedTotal =
+        _itemAllocations.values.fold<int>(0, (sum, quantity) => sum + quantity);
+    final hasDraft = _countController.text.trim().isNotEmpty ||
+        _defectController.text.trim() != '0' ||
+        _notesController.text.trim().isNotEmpty ||
+        _referencePhotoPath != null ||
+        _itemAllocations.isNotEmpty;
+
+    return UnsavedChangesGuard(
+      hasUnsavedChanges: hasDraft,
+      isSaving: _isSavingLayer || _isSavingPhoto,
+      message: 'This unsaved manual layer will be discarded.',
+      child: Scaffold(
+        backgroundColor: AppTheme.backgroundColor,
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            tooltip: 'Back',
+            onPressed: () => context.canPop()
+                ? Navigator.maybePop(context)
+                : context.go('/wagons'),
+          ),
+          title: CountModeSwitcher(
+            selectedMode: CountMode.manual,
+            onAiSelected: _switchToAi,
+            onManualSelected: () {},
+          ),
+          centerTitle: true,
+          backgroundColor: AppTheme.surfaceColor,
         ),
-        title: CountModeSwitcher(
-          selectedMode: CountMode.manual,
-          onAiSelected: _switchToAi,
-          onManualSelected: () {},
-        ),
-        centerTitle: true,
-        backgroundColor: AppTheme.surfaceColor,
-      ),
-      body: ListView(
-        keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-        children: [
-          _ManualPhotoCard(
-            photoPath: _referencePhotoPath,
-            isBusy: _isSavingPhoto,
-            onCapture: _captureReferencePhoto,
-            onRemove: _removeReferencePhoto,
-          ),
-          const SizedBox(height: 22),
-          _ManualNumberField(
-            controller: _countController,
-            label: 'Verified carton total',
-            hint: '0',
-            icon: Icons.inventory_2_outlined,
-            onDecrease: () => _adjustValue(_countController, -1),
-            onIncrease: () => _adjustValue(_countController, 1),
-            onChanged: _clearError,
-          ),
-          const SizedBox(height: 14),
-          _ManualNumberField(
-            controller: _defectController,
-            label: 'Defective items',
-            hint: '0',
-            icon: Icons.warning_amber_rounded,
-            accentColor: AppTheme.warningColor,
-            onDecrease: () => _adjustValue(_defectController, -1),
-            onIncrease: () => _adjustValue(_defectController, 1),
-            onChanged: _clearError,
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _notesController,
-            minLines: 1,
-            maxLines: 2,
-            textInputAction: TextInputAction.done,
-            decoration: InputDecoration(
-              labelText: 'Notes (optional)',
-              hintText: 'Add a short observation',
-              prefixIcon: const Icon(Icons.notes_rounded),
-              filled: true,
-              fillColor: AppTheme.surfaceColor,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide.none,
+        body: ListView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+          children: [
+            _ManualPhotoCard(
+              photoPath: _referencePhotoPath,
+              isBusy: _isSavingPhoto,
+              onCapture: _captureReferencePhoto,
+              onRemove: _removeReferencePhoto,
+            ),
+            const SizedBox(height: 22),
+            _ManualNumberField(
+              controller: _countController,
+              label: 'Verified carton total',
+              hint: '0',
+              icon: Icons.inventory_2_outlined,
+              onDecrease: () => _adjustValue(_countController, -1),
+              onIncrease: () => _adjustValue(_countController, 1),
+              onChanged: _onCartonTotalChanged,
+            ),
+            const SizedBox(height: 14),
+            _ManualNumberField(
+              controller: _defectController,
+              label: 'Defective items',
+              hint: '0',
+              icon: Icons.warning_amber_rounded,
+              accentColor: AppTheme.warningColor,
+              onDecrease: () => _adjustValue(_defectController, -1),
+              onIncrease: () => _adjustValue(_defectController, 1),
+              onChanged: _clearError,
+            ),
+            if (wagon != null && wagon.items.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _ManualItemBreakdownCard(
+                allocations: _itemAllocations,
+                allocatedTotal: allocatedTotal,
+                cartonTotal: cartonTotal,
+                onTap: _isSavingLayer
+                    ? null
+                    : () => _editItemBreakdown(wagon, inventory ?? const {}),
               ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: BorderSide(
-                  color: AppTheme.dividerColor.withValues(alpha: 0.7),
+            ],
+            const SizedBox(height: 14),
+            TextField(
+              controller: _notesController,
+              onChanged: (_) => setState(() => _error = null),
+              minLines: 1,
+              maxLines: 2,
+              textInputAction: TextInputAction.done,
+              decoration: InputDecoration(
+                labelText: 'Notes (optional)',
+                hintText: 'Add a short observation',
+                prefixIcon: const Icon(Icons.notes_rounded),
+                filled: true,
+                fillColor: AppTheme.surfaceColor,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
                 ),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(16),
-                borderSide: const BorderSide(
-                  color: AppTheme.primaryColor,
-                  width: 1.5,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide(
+                    color: AppTheme.dividerColor.withValues(alpha: 0.7),
+                  ),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(
+                    color: AppTheme.primaryColor,
+                    width: 1.5,
+                  ),
                 ),
               ),
             ),
-          ),
-          if (_error != null) ...[
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-              decoration: BoxDecoration(
-                color: AppTheme.errorColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline_rounded,
-                      color: AppTheme.errorColor, size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      _error!,
-                      style: const TextStyle(
-                        color: AppTheme.errorColor,
-                        fontWeight: FontWeight.w600,
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                decoration: BoxDecoration(
+                  color: AppTheme.errorColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline_rounded,
+                        color: AppTheme.errorColor, size: 20),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _error!,
+                        style: const TextStyle(
+                          color: AppTheme.errorColor,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+              ),
+            ],
+            const SizedBox(height: 100),
+          ],
+        ),
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
+            decoration: BoxDecoration(
+              color: AppTheme.backgroundColor,
+              border: Border(
+                top: BorderSide(
+                  color: AppTheme.dividerColor.withValues(alpha: 0.45),
+                ),
               ),
             ),
-          ],
-          const SizedBox(height: 100),
-        ],
-      ),
-      bottomNavigationBar: SafeArea(
-        top: false,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 14),
-          decoration: BoxDecoration(
-            color: AppTheme.backgroundColor,
-            border: Border(
-              top: BorderSide(
-                color: AppTheme.dividerColor.withValues(alpha: 0.45),
+            child: SizedBox(
+              height: 54,
+              child: FilledButton.icon(
+                onPressed: _isSavingLayer ? null : _saveLayer,
+                icon: _isSavingLayer
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.check_rounded),
+                label: Text(_isSavingLayer ? 'Saving layer...' : 'Save Layer'),
+                style: FilledButton.styleFrom(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
             ),
           ),
-          child: SizedBox(
-            height: 54,
-            child: FilledButton.icon(
-              onPressed: _isSavingLayer ? null : _saveLayer,
-              icon: _isSavingLayer
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Icon(Icons.check_rounded),
-              label: Text(_isSavingLayer ? 'Saving layer...' : 'Save Layer'),
-              style: FilledButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+        ),
+      ),
+    );
+  }
+}
+
+class _ManualItemBreakdownCard extends StatelessWidget {
+  final Map<String, int> allocations;
+  final int allocatedTotal;
+  final int cartonTotal;
+  final VoidCallback? onTap;
+
+  const _ManualItemBreakdownCard({
+    required this.allocations,
+    required this.allocatedTotal,
+    required this.cartonTotal,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isComplete = cartonTotal > 0 && allocatedTotal == cartonTotal;
+    return Material(
+      color: AppTheme.surfaceColor,
+      borderRadius: BorderRadius.circular(19),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(19),
+        child: Container(
+          padding: const EdgeInsets.all(15),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(19),
+            border: Border.all(
+              color:
+                  (isComplete ? AppTheme.successColor : AppTheme.warningColor)
+                      .withValues(alpha: 0.7),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: (isComplete
+                          ? AppTheme.successColor
+                          : AppTheme.warningColor)
+                      .withValues(alpha: 0.13),
+                  borderRadius: BorderRadius.circular(15),
                 ),
-                textStyle: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
+                child: Icon(
+                  Icons.category_outlined,
+                  color: isComplete
+                      ? AppTheme.successColor
+                      : AppTheme.warningColor,
                 ),
               ),
-            ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Item breakdown *',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      allocations.isEmpty
+                          ? 'Tap to assign cartons to wagon items'
+                          : allocations.entries
+                              .map((entry) =>
+                                  '${entry.key}: ${entry.value} cartons')
+                              .join('  -  '),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      'Assigned $allocatedTotal of $cartonTotal cartons',
+                      style: TextStyle(
+                        color: isComplete
+                            ? AppTheme.successColor
+                            : AppTheme.warningColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(Icons.chevron_right_rounded,
+                  color: AppTheme.textSecondary),
+            ],
           ),
         ),
       ),

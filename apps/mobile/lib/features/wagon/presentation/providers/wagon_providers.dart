@@ -15,6 +15,10 @@ final wagonRepositoryProvider = Provider<WagonRepository>((ref) {
   return LocalWagonRepository(db);
 });
 
+final wagonByIdProvider = FutureProvider.autoDispose.family<Wagon?, String>(
+  (ref, wagonId) => ref.watch(wagonRepositoryProvider).getWagonById(wagonId),
+);
+
 class WagonListState {
   final List<Wagon> wagons;
   final String searchQuery;

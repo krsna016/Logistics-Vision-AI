@@ -133,6 +133,25 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     List<LayerItemAllocation> itemAllocations = const [],
     String? photoPath,
   }) async {
+    if (cartonCount <= 0 || cartonCount > 9999) {
+      return 'Enter a carton count from 1 to 9,999.';
+    }
+    if (defectCount < 0 || defectCount > cartonCount) {
+      return 'Defective cartons must be between 0 and $cartonCount.';
+    }
+    final positiveAllocations = itemAllocations
+        .where((allocation) => allocation.quantity > 0)
+        .toList(growable: false);
+    if (positiveAllocations.map((item) => item.itemName).toSet().length !=
+        positiveAllocations.length) {
+      return 'Each item can appear only once in the layer breakdown.';
+    }
+    if (positiveAllocations.isNotEmpty &&
+        positiveAllocations.fold<int>(
+                0, (sum, allocation) => sum + allocation.quantity) !=
+            cartonCount) {
+      return 'Item quantities must total exactly $cartonCount cartons.';
+    }
     state = state.copyWith(isLoading: true);
     try {
       final nextLayerNum =
@@ -153,17 +172,10 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         final wagon =
             await _ref.read(wagonRepositoryProvider).getWagonById(wagonId);
         if (wagon != null && wagon.items.isNotEmpty) {
-          final allocations = itemAllocations
-              .where((allocation) => allocation.quantity > 0)
-              .toList();
+          final allocations = positiveAllocations;
           if (allocations.isEmpty) {
             state = state.copyWith(isLoading: false);
             return 'Enter the item breakdown for this layer.';
-          }
-          if (allocations.map((item) => item.itemName).toSet().length !=
-              allocations.length) {
-            state = state.copyWith(isLoading: false);
-            return 'Each item can appear only once in the layer breakdown.';
           }
           final allocatedTotal = allocations.fold<int>(
               0, (sum, allocation) => sum + allocation.quantity);
@@ -228,7 +240,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
       // Update Session Progress
       await _ref
           .read(activeSessionProvider.notifier)
-          .recordLayerCaptured(cartonCount, defectCount);
+          .recordLayerCaptured(_truckId, cartonCount, defectCount);
 
       // Audit Log
       AuditLogger.log(AuditEvent.layerCaptured,
@@ -279,6 +291,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     String? notes,
     required List<LayerItemAllocation> itemAllocations,
     required String reason,
+    String? photoPath,
   }) async {
     if (cartonCount < 0 || defectCount < 0 || defectCount > cartonCount) {
       return 'Enter valid carton and defect counts.';
@@ -310,6 +323,10 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
             for (final allocation in current.itemAllocations)
               allocation.itemName: allocation.quantity,
           };
+          if (currentByItem.isEmpty &&
+              current.itemName?.trim().isNotEmpty == true) {
+            currentByItem[current.itemName!.trim()] = current.cartonCount;
+          }
           for (final allocation in allocations) {
             final matches = wagon.items
                 .where((item) => item.name == allocation.itemName)
@@ -334,6 +351,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
             ? allocations.first.itemName
             : current.itemName,
         itemAllocations: allocations,
+        photoPath: photoPath ?? current.photoPath,
         updatedAt: DateTime.now(),
       );
       await _layerRepository.updateLayer(

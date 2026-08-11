@@ -20,6 +20,15 @@ import '../core/presentation/screens/user_manual_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
 import '../features/auth/domain/entities/user.dart';
+import '../features/analytics/presentation/screens/analytics_dashboard_screen.dart';
+import '../features/auth/presentation/screens/profile_screen.dart';
+import '../features/auth/presentation/screens/admin_security_screen.dart';
+import '../features/auth/presentation/screens/user_management_screen.dart';
+import '../features/auth/presentation/screens/role_policies_screen.dart';
+import '../features/auth/presentation/screens/device_management_screen.dart';
+import '../features/auth/presentation/screens/global_audit_screen.dart';
+import '../features/sync/presentation/screens/backup_management_screen.dart';
+import '../core/presentation/widgets/root_back_guard.dart';
 
 // Router provider representing Riverpod-based dependency injection for GoRouter
 final routerProvider = Provider<GoRouter>((ref) {
@@ -57,7 +66,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/manual',
         name: 'manual',
-        builder: (context, state) => const UserManualScreen(),
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/wagons',
+          child: UserManualScreen(),
+        ),
       ),
       GoRoute(
         path: '/',
@@ -72,13 +84,19 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/registers',
         name: 'register_list',
-        builder: (context, state) => const RegisterListScreen(),
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/wagons',
+          child: RegisterListScreen(),
+        ),
         routes: [
           GoRoute(
             path: ':id',
             name: 'register_details',
-            builder: (context, state) => RegisterDetailsScreen(
-              registerId: state.pathParameters['id'] ?? '',
+            builder: (context, state) => RootBackGuard(
+              fallbackLocation: '/registers',
+              child: RegisterDetailsScreen(
+                registerId: state.pathParameters['id'] ?? '',
+              ),
             ),
           ),
         ],
@@ -91,8 +109,11 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: ':id',
             name: 'wagon_details',
-            builder: (context, state) => WagonDetailsScreen(
-              wagonId: state.pathParameters['id'] ?? '',
+            builder: (context, state) => RootBackGuard(
+              fallbackLocation: '/wagons',
+              child: WagonDetailsScreen(
+                wagonId: state.pathParameters['id'] ?? '',
+              ),
             ),
           ),
         ],
@@ -100,14 +121,20 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/trucks/:id',
         name: 'truck_details',
-        builder: (context, state) => TruckDetailsScreen(
-          truckId: state.pathParameters['id'] ?? '',
-          fallbackTruck:
-              (state.extra as Map<String, dynamic>?)?['truck'] as Truck?,
-          allowArchivedEditing:
-              ((state.extra as Map<String, dynamic>?)?['allowArchivedEditing']
-                      as bool?) ??
-                  false,
+        builder: (context, state) => RootBackGuard(
+          fallbackLocation: '/wagons',
+          child: TruckDetailsScreen(
+            truckId: state.pathParameters['id'] ?? '',
+            fallbackTruck:
+                (state.extra as Map<String, dynamic>?)?['truck'] as Truck?,
+            allowArchivedEditing:
+                ((state.extra as Map<String, dynamic>?)?['allowArchivedEditing']
+                        as bool?) ??
+                    false,
+            isRegisterView: ((state.extra
+                    as Map<String, dynamic>?)?['isRegisterView'] as bool?) ??
+                false,
+          ),
         ),
         routes: [
           GoRoute(
@@ -173,14 +200,84 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/settings',
         name: 'settings',
-        builder: (context, state) => const Scaffold(
-          body: Center(child: Text('Settings Screen (Placeholder)')),
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/wagons',
+          child: _RecoveryPage(
+            title: 'Settings',
+            message: 'Settings are not available in this release.',
+          ),
+        ),
+      ),
+      GoRoute(
+        path: '/analytics',
+        name: 'analytics',
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/wagons',
+          child: AnalyticsDashboardScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/profile',
+        name: 'profile',
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/wagons',
+          child: ProfileScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/admin/security',
+        name: 'admin_security',
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/wagons',
+          child: AdminSecurityScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/admin/security/users',
+        name: 'admin_users',
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/admin/security',
+          child: UserManagementScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/admin/security/roles',
+        name: 'admin_roles',
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/admin/security',
+          child: RolePoliciesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/admin/security/devices',
+        name: 'admin_devices',
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/admin/security',
+          child: DeviceManagementScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/admin/security/audit',
+        name: 'admin_audit',
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/admin/security',
+          child: GlobalAuditScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/admin/backup',
+        name: 'admin_backup',
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/admin/security',
+          child: BackupManagementScreen(),
         ),
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(
-        child: Text('Route Not Found: ${state.uri}'),
+    errorBuilder: (context, state) => RootBackGuard(
+      fallbackLocation: '/wagons',
+      child: _RecoveryPage(
+        title: 'Page Not Found',
+        message: 'The requested page (${state.uri}) is not available.',
       ),
     ),
   );
@@ -189,5 +286,46 @@ final routerProvider = Provider<GoRouter>((ref) {
 class _AuthRouterRefresh extends ChangeNotifier {
   _AuthRouterRefresh(Ref ref) {
     ref.listen<User?>(authProvider, (_, __) => notifyListeners());
+  }
+}
+
+class _RecoveryPage extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const _RecoveryPage({required this.title, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go('/wagons'),
+        ),
+        title: Text(title),
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.info_outline_rounded, size: 48),
+              const SizedBox(height: 16),
+              Text(message, textAlign: TextAlign.center),
+              const SizedBox(height: 20),
+              ElevatedButton.icon(
+                onPressed: () => context.go('/wagons'),
+                icon: const Icon(Icons.home_outlined),
+                label: const Text('Wagon Control Center'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

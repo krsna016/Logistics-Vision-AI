@@ -3,7 +3,7 @@ import '../../../../theme/app_theme.dart';
 
 class RemarkCard extends StatelessWidget {
   final String? remarks;
-  final VoidCallback onEdit;
+  final VoidCallback? onEdit;
 
   const RemarkCard({
     super.key,
@@ -39,12 +39,13 @@ class RemarkCard extends StatelessWidget {
                   ),
                 ],
               ),
-              IconButton(
-                icon: const Icon(Icons.edit,
-                    size: 18, color: AppTheme.primaryColor),
-                onPressed: onEdit,
-                tooltip: 'Edit Remarks',
-              ),
+              if (onEdit != null)
+                IconButton(
+                  icon: const Icon(Icons.edit,
+                      size: 18, color: AppTheme.primaryColor),
+                  onPressed: onEdit,
+                  tooltip: 'Edit Remarks',
+                ),
             ],
           ),
           const SizedBox(height: 6),

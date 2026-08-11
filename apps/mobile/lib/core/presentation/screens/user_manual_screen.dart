@@ -108,51 +108,46 @@ class _UserManualScreenState extends State<UserManualScreen> {
             selectable: true,
             padding: const EdgeInsets.fromLTRB(18, 20, 22, 96),
             data: _isHindi ? userManualHindiMarkdown : userManualMarkdown,
-            styleSheet: MarkdownStyleSheet(
-              h1: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold),
-              h2: const TextStyle(
-                  color: AppTheme.primaryColor,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold),
-              h3: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600),
-              p: const TextStyle(
-                  color: Colors.white70, fontSize: 15, height: 1.5),
-              listBullet:
-                  const TextStyle(color: AppTheme.primaryColor, fontSize: 16),
-              strong: const TextStyle(
-                  color: Colors.white, fontWeight: FontWeight.bold),
-              em: const TextStyle(
-                  color: Colors.white70, fontStyle: FontStyle.italic),
-              code: const TextStyle(
-                backgroundColor: Color(0xFF1E293B),
-                color: AppTheme.warningColor,
-                fontFamily: 'monospace',
-                fontSize: 14,
-              ),
-              codeblockPadding: const EdgeInsets.all(8),
-              codeblockDecoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              blockquote: const TextStyle(
-                  color: Colors.white54, fontStyle: FontStyle.italic),
-              blockquoteDecoration: const BoxDecoration(
-                border: Border(
-                    left: BorderSide(color: AppTheme.primaryColor, width: 4)),
-              ),
-              horizontalRuleDecoration: const BoxDecoration(
-                border: Border(
-                    top: BorderSide(color: AppTheme.dividerColor, width: 2)),
-              ),
-            ),
+            styleSheet: _manualStyleSheet(),
           ),
         ),
+      ),
+    );
+  }
+
+  MarkdownStyleSheet _manualStyleSheet() {
+    return MarkdownStyleSheet(
+      h1: const TextStyle(
+          color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+      h2: const TextStyle(
+          color: AppTheme.primaryColor,
+          fontSize: 20,
+          fontWeight: FontWeight.bold),
+      h3: const TextStyle(
+          color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+      p: const TextStyle(color: Colors.white70, fontSize: 15, height: 1.5),
+      listBullet: const TextStyle(color: AppTheme.primaryColor, fontSize: 16),
+      strong: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      em: const TextStyle(color: Colors.white70, fontStyle: FontStyle.italic),
+      code: const TextStyle(
+        backgroundColor: Color(0xFF1E293B),
+        color: AppTheme.warningColor,
+        fontFamily: 'monospace',
+        fontSize: 14,
+      ),
+      codeblockPadding: const EdgeInsets.all(8),
+      codeblockDecoration: BoxDecoration(
+        color: const Color(0xFF1E293B),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      blockquote:
+          const TextStyle(color: Colors.white54, fontStyle: FontStyle.italic),
+      blockquoteDecoration: const BoxDecoration(
+        border:
+            Border(left: BorderSide(color: AppTheme.primaryColor, width: 4)),
+      ),
+      horizontalRuleDecoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppTheme.dividerColor, width: 2)),
       ),
     );
   }

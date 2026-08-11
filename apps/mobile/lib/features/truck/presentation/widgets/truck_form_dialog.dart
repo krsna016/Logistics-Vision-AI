@@ -7,6 +7,7 @@ import '../screens/vehicle_number_scan_screen.dart';
 import '../providers/truck_providers.dart';
 import '../../../../theme/app_theme.dart';
 import '../../data/services/scanner_camera_warmup.dart';
+import '../../../../core/presentation/widgets/unsaved_changes_guard.dart';
 
 class TruckFormDialog extends ConsumerStatefulWidget {
   final Truck? existingTruck;
@@ -34,6 +35,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
   late TextEditingController _warehouseCtrl;
   late TextEditingController _notesCtrl;
   bool _isSaving = false;
+  bool _isDirty = false;
   String? _errorMessage;
 
   @override
@@ -47,6 +49,16 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
     _companyCtrl = TextEditingController(text: t?.company ?? '');
     _warehouseCtrl = TextEditingController(text: t?.warehouse ?? '');
     _notesCtrl = TextEditingController(text: t?.notes ?? '');
+    for (final controller in [
+      _vehicleNumberCtrl,
+      _driverNameCtrl,
+      _driverMobileCtrl,
+      _companyCtrl,
+      _warehouseCtrl,
+      _notesCtrl,
+    ]) {
+      controller.addListener(_markDirty);
+    }
     // Let the sheet transition finish before opening the native camera. Starting
     // Camera2 during the route animation produces a visible hitch on Android.
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -54,6 +66,10 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
         if (mounted) unawaited(ScannerCameraWarmup.prepare());
       });
     });
+  }
+
+  void _markDirty() {
+    if (!_isDirty && mounted) setState(() => _isDirty = true);
   }
 
   @override
@@ -121,10 +137,13 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
       setState(() {
         _isSaving = false;
         _errorMessage = error;
+        if (error == null) _isDirty = false;
       });
 
       if (error == null) {
-        Navigator.of(context).pop();
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) Navigator.of(context).pop();
+        });
       }
     }
   }
@@ -147,157 +166,165 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
     final mediaQuery = MediaQuery.of(context);
     final bottomInset = mediaQuery.viewInsets.bottom;
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOutCubic,
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
-        decoration: const BoxDecoration(
-          color: Color(0xFF1E1E1E),
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        child: Theme(
-          data: Theme.of(context).copyWith(
-            inputDecorationTheme: Theme.of(context)
-                .inputDecorationTheme
-                .copyWith(
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 14,
-                  ),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppTheme.dividerColor),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppTheme.dividerColor),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: AppTheme.primaryColor,
-                      width: 1.5,
-                    ),
-                  ),
-                  errorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: AppTheme.errorColor),
-                  ),
-                  focusedErrorBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(
-                      color: AppTheme.errorColor,
-                      width: 1.5,
-                    ),
-                  ),
-                ),
+    return UnsavedChangesGuard(
+      hasUnsavedChanges: _isDirty,
+      isSaving: _isSaving,
+      message: 'The truck details have not been saved.',
+      child: AnimatedPadding(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOutCubic,
+        padding: EdgeInsets.only(bottom: bottomInset),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
+          decoration: const BoxDecoration(
+            color: Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
           ),
-          child: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Pull Bar
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white24,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              inputDecorationTheme: Theme.of(context)
+                  .inputDecorationTheme
+                  .copyWith(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 14,
                     ),
-                  ),
-                  Text(
-                    isEdit ? 'Modify Truck Session' : 'Register New Truck',
-                    style: const TextStyle(
-                        fontSize: 20, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-
-                  if (_errorMessage != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: Text(
-                        _errorMessage!,
-                        style: const TextStyle(
-                            color: Colors.redAccent,
-                            fontWeight: FontWeight.bold),
-                      ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: AppTheme.dividerColor),
                     ),
-
-                  TextFormField(
-                    controller: _vehicleNumberCtrl,
-                    decoration: InputDecoration(
-                      labelText: 'Vehicle Number*',
-                      hintText: 'e.g. MH12AB1234',
-                      suffixIcon: IconButton(
-                        onPressed: _isSaving ? null : _scanVehicleNumber,
-                        icon: const Icon(Icons.document_scanner_outlined),
-                        tooltip: 'Scan vehicle number',
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide:
+                          const BorderSide(color: AppTheme.dividerColor),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
                         color: AppTheme.primaryColor,
+                        width: 1.5,
                       ),
                     ),
-                    validator: (val) =>
-                        val == null || val.trim().isEmpty ? 'Required.' : null,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _driverNameCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Driver Name (Optional)',
-                        hintText: 'Full name'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _driverMobileCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Driver Mobile Number',
-                        hintText: 'e.g. +91 9876543210'),
-                    keyboardType: TextInputType.phone,
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _companyCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Carrier Company (Optional)',
-                        hintText: 'e.g. Swift Carriers'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _warehouseCtrl,
-                    decoration: const InputDecoration(
-                        labelText: 'Warehouse Facility (Optional)',
-                        hintText: 'e.g. Austin Fulfillment South'),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _notesCtrl,
-                    maxLines: 2,
-                    decoration:
-                        const InputDecoration(labelText: 'Notes (Optional)'),
-                  ),
-                  const SizedBox(height: 20),
-
-                  ElevatedButton(
-                    onPressed: _isSaving ? null : _submit,
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size.fromHeight(56),
+                    errorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppTheme.errorColor),
                     ),
-                    child: _isSaving
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2))
-                        : Text(isEdit ? 'Update Truck' : 'Register Truck'),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(
+                        color: AppTheme.errorColor,
+                        width: 1.5,
+                      ),
+                    ),
                   ),
-                ],
+            ),
+            child: SingleChildScrollView(
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    // Pull Bar
+                    Center(
+                      child: Container(
+                        width: 40,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.white24,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                    ),
+                    Text(
+                      isEdit ? 'Modify Truck Session' : 'Register New Truck',
+                      style: const TextStyle(
+                          fontSize: 20, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+
+                    if (_errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(
+                              color: Colors.redAccent,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+
+                    TextFormField(
+                      controller: _vehicleNumberCtrl,
+                      decoration: InputDecoration(
+                        labelText: 'Vehicle Number*',
+                        hintText: 'e.g. MH12AB1234',
+                        suffixIcon: IconButton(
+                          onPressed: _isSaving ? null : _scanVehicleNumber,
+                          icon: const Icon(Icons.document_scanner_outlined),
+                          tooltip: 'Scan vehicle number',
+                          color: AppTheme.primaryColor,
+                        ),
+                      ),
+                      validator: (val) => val == null || val.trim().isEmpty
+                          ? 'Required.'
+                          : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _driverNameCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'Driver Name (Optional)',
+                          hintText: 'Full name'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _driverMobileCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'Driver Mobile Number',
+                          hintText: 'e.g. +91 9876543210'),
+                      keyboardType: TextInputType.phone,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _companyCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'Carrier Company (Optional)',
+                          hintText: 'e.g. Swift Carriers'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _warehouseCtrl,
+                      decoration: const InputDecoration(
+                          labelText: 'Warehouse Facility (Optional)',
+                          hintText: 'e.g. Austin Fulfillment South'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: _notesCtrl,
+                      maxLines: 2,
+                      decoration:
+                          const InputDecoration(labelText: 'Notes (Optional)'),
+                    ),
+                    const SizedBox(height: 20),
+
+                    ElevatedButton(
+                      onPressed: _isSaving ? null : _submit,
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: const Size.fromHeight(56),
+                      ),
+                      child: _isSaving
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : Text(isEdit ? 'Update Truck' : 'Register Truck'),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -17,6 +17,7 @@ import '../widgets/history_tile.dart';
 import '../widgets/register_reconciliation_card.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
 import '../../../reports/presentation/widgets/generate_report_dialog.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 
 class RegisterDetailsScreen extends ConsumerWidget {
   final String registerId;
@@ -27,6 +28,8 @@ class RegisterDetailsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(registerListProvider);
     final notifier = ref.read(registerListProvider.notifier);
+    final canModify =
+        ref.watch(authProvider)?.role.canModifyDigitalRegisters ?? false;
 
     final DigitalRegister register = state.registers.firstWhere(
       (r) => r.id == registerId || r.wagonId == registerId,
@@ -44,28 +47,31 @@ class RegisterDetailsScreen extends ConsumerWidget {
             if (context.canPop()) {
               context.pop();
             } else {
-              context.go('/registers');
+              context.go('/wagons');
+              context.push('/registers');
             }
           },
         ),
         title: Text('${register.wagonNumber} - Digital Register'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Edit Wagon Details',
-            onPressed: () => _editWagon(context, ref, register.wagonId),
-          ),
+          if (canModify)
+            IconButton(
+              icon: const Icon(Icons.edit_outlined),
+              tooltip: 'Edit Wagon Details',
+              onPressed: () => _editWagon(context, ref, register.wagonId),
+            ),
           IconButton(
             icon: const Icon(Icons.assessment_outlined),
             onPressed: () =>
                 _showUnifiedReportDialog(context, ref, register.wagonId),
             tooltip: 'Generate Report',
           ),
-          IconButton(
-            icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-            onPressed: () => _confirmDelete(context, ref, register),
-            tooltip: 'Delete Wagon',
-          ),
+          if (canModify)
+            IconButton(
+              icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+              onPressed: () => _confirmDelete(context, ref, register),
+              tooltip: 'Delete Wagon',
+            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -76,6 +82,9 @@ class RegisterDetailsScreen extends ConsumerWidget {
           children: [
             // Header Section
             RegisterHeader(register: register),
+            const SizedBox(height: 16),
+
+            _RegisterAccessBanner(canModify: canModify),
             const SizedBox(height: 16),
 
             // Summary Section
@@ -89,21 +98,29 @@ class RegisterDetailsScreen extends ConsumerWidget {
             TruckTable(
               trucks: register.trucks,
               layersByTruck: register.layersByTruck,
-              onTruckTap: (truck) => context.push(
-                '/trucks/${truck.id}',
-                extra: <String, dynamic>{
-                  'truck': truck,
-                  'allowArchivedEditing': true,
-                },
-              ),
+              onTruckTap: (truck) async {
+                await context.push(
+                  '/trucks/${truck.id}',
+                  extra: <String, dynamic>{
+                    'truck': truck,
+                    'isRegisterView': true,
+                    'allowArchivedEditing': canModify,
+                  },
+                );
+                if (context.mounted) {
+                  await ref.read(registerListProvider.notifier).refresh();
+                }
+              },
             ),
             const SizedBox(height: 16),
 
             // Remarks Section
             RemarkCard(
               remarks: register.remarks,
-              onEdit: () => _showEditRemarksDialog(
-                  context, register.id, register.remarks, notifier),
+              onEdit: canModify
+                  ? () => _showEditRemarksDialog(
+                      context, register.id, register.remarks, notifier)
+                  : null,
             ),
             const SizedBox(height: 16),
 
@@ -124,6 +141,8 @@ class RegisterDetailsScreen extends ConsumerWidget {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -152,7 +171,8 @@ class RegisterDetailsScreen extends ConsumerWidget {
               .deleteWagon(register.wagonId);
           await ref.read(registerListProvider.notifier).refresh();
           if (context.mounted) {
-            context.go('/registers');
+            context.go('/wagons');
+            context.push('/registers');
           }
         },
       ),
@@ -236,6 +256,48 @@ class RegisterDetailsScreen extends ConsumerWidget {
               Navigator.pop(ctx);
             },
             child: const Text('Save Remarks'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RegisterAccessBanner extends StatelessWidget {
+  final bool canModify;
+
+  const _RegisterAccessBanner({required this.canModify});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = canModify ? AppTheme.warningColor : AppTheme.primaryColor;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        children: [
+          Icon(
+              canModify
+                  ? Icons.admin_panel_settings_outlined
+                  : Icons.lock_outline,
+              color: color,
+              size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              canModify
+                  ? 'Administrator correction mode. Archived wagon, truck and layer records can be corrected with an audit reason.'
+                  : 'Read-only register. Only administrators can modify wagon, truck or layer records.',
+              style: TextStyle(
+                color: color,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),

@@ -398,7 +398,7 @@ Open Wagon Details and tap Add Truck or Register Truck.
 
 ### Editing
 
-Open Truck Details and tap the pencil icon. The same details may be corrected. Archived vehicles can be corrected through Digital Register -> Truck Details. Historical edits should be made only by an authorized supervisor.
+Open Truck Details and tap the pencil icon. The same details may be corrected during the active workflow. After a record enters Digital Register, only an Administrator can modify its wagon, vehicle, layers, item breakdown, defects or remarks. Operator, Supervisor and Warehouse Manager access is read-only. Administrators can correct archived vehicles through Digital Register -> Truck Details; normal loading controls remain locked.
 
 ### Removing a vehicle
 
@@ -626,7 +626,7 @@ For each item it shows Manifest, Loaded and Remaining. It detects:
 
 ### Truck and Layer Register
 
-Expand a vehicle to see all its layers. Tap Truck Details to inspect or correct the historical vehicle. Archived loading controls stay locked, but authorized corrections remain possible.
+Expand a vehicle to see all its layers. Operator, Supervisor and Warehouse Manager roles can inspect the historical vehicle but cannot change it. Administrators enter correction mode and can update wagon details, vehicle details, layers, item breakdowns, defects and remarks even after wagon or vehicle archival. Archived loading controls always stay locked.
 
 ### Correction history
 
@@ -634,7 +634,7 @@ Historical corrections show the layer, time, operator, before value, after value
 
 ### Remarks
 
-Use Edit Remarks for delay, shortage, weather, seal, damage or handover information.
+Administrators can use Edit Remarks for delay, shortage, weather, seal, damage or handover information. Other roles see the saved remarks without an edit control.
 
 ---
 
@@ -1230,7 +1230,7 @@ Wagon Details खोलें और Add Truck या Register Truck दबा�
 
 ### सुधार
 
-Truck Details में पेंसिल दबाकर जानकारी बदलें। आर्काइव वाहन को Digital Register -> Truck Details से नियंत्रित तरीके से सुधारा जा सकता है।
+सक्रिय प्रक्रिया में Truck Details के पेंसिल से जानकारी बदली जा सकती है। रिकॉर्ड Digital Register में आने के बाद केवल Administrator वैगन, वाहन, लेयर, आइटम विभाजन, डिफेक्ट या Remarks बदल सकता है। Operator, Supervisor और Warehouse Manager के लिए Digital Register केवल देखने योग्य है। Administrator आर्काइव वाहन को Digital Register -> Truck Details से सुधार सकता है, लेकिन सामान्य लोडिंग कंट्रोल बंद रहते हैं।
 
 ### वाहन हटाना
 
@@ -1430,9 +1430,9 @@ Complete Wagon दबाकर अंतिम सारांश जांच�
 - वाहन कुल और उसकी लेयर में अंतर
 - मिश्रित आइटम और लेयर कार्टन में अंतर
 
-वाहन खोलकर Truck Details से ऐतिहासिक रिकॉर्ड देखा या सुधारा जा सकता है। आर्काइव में सामान्य लोडिंग बंद रहती है, लेकिन अधिकृत सुधार कारण के साथ किया जा सकता है।
+वाहन खोलकर Truck Details में ऐतिहासिक रिकॉर्ड देखा जा सकता है। Operator, Supervisor और Warehouse Manager कोई बदलाव नहीं कर सकते। केवल Administrator वैगन या वाहन आर्काइव होने के बाद भी वाहन विवरण, लेयर, कार्टन, आइटम विभाजन, डिफेक्ट और Remarks सुधार सकता है। सामान्य लोडिंग कंट्रोल हमेशा बंद रहते हैं।
 
-Correction History में लेयर, समय, ऑपरेटर, पहले की मात्रा, बाद की मात्रा और कारण दिखता है। Edit Remarks से देरी, कमी, मौसम, सील, नुकसान या हैंडओवर जानकारी लिखें।
+Correction History में लेयर, समय, ऑपरेटर, पहले की मात्रा, बाद की मात्रा और कारण दिखता है। केवल Administrator को Edit Remarks मिलता है; अन्य भूमिकाएं सेव टिप्पणी केवल देख सकती हैं।
 
 ---
 

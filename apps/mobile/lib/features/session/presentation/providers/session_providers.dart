@@ -129,9 +129,10 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
     AppLogger.info('Resumed loading session: ${session.id}');
   }
 
-  Future<void> recordLayerCaptured(int cartonCount, int defectCount) async {
+  Future<void> recordLayerCaptured(
+      String truckId, int cartonCount, int defectCount) async {
     final session = state.activeSession;
-    if (session == null) return;
+    if (session == null || session.truckId != truckId) return;
 
     final updated = session.copyWith(
       totalLayers: session.totalLayers + 1,

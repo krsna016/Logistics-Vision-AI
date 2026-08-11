@@ -31,4 +31,5 @@ enum Role {
   bool get canManageUsers => level >= 4;
   bool get canManageSecurity => level >= 4;
   bool get canManageDevices => level >= 4;
+  bool get canModifyDigitalRegisters => this == Role.administrator;
 }

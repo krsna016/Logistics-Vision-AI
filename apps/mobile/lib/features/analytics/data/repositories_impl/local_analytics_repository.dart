@@ -21,22 +21,31 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
   // ──────────────────────────────────────────
   // Helper: date-range cutoff for the chosen filter
   // ──────────────────────────────────────────
-  DateTime _cutoff(TimeFilter filter) {
+  ({DateTime start, DateTime end}) _range(TimeFilter filter) {
     final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
     switch (filter) {
       case TimeFilter.today:
-        return DateTime(now.year, now.month, now.day);
+        return (start: today, end: now);
       case TimeFilter.yesterday:
-        return DateTime(now.year, now.month, now.day - 1);
+        return (
+          start: today.subtract(const Duration(days: 1)),
+          end: today,
+        );
       case TimeFilter.last7Days:
-        return now.subtract(const Duration(days: 7));
+        return (start: now.subtract(const Duration(days: 7)), end: now);
       case TimeFilter.last30Days:
-        return now.subtract(const Duration(days: 30));
+        return (start: now.subtract(const Duration(days: 30)), end: now);
       case TimeFilter.thisMonth:
-        return DateTime(now.year, now.month, 1);
+        return (start: DateTime(now.year, now.month, 1), end: now);
       case TimeFilter.custom:
-        return now.subtract(const Duration(days: 90));
+        return (start: now.subtract(const Duration(days: 90)), end: now);
     }
+  }
+
+  bool _isInRange(DateTime value, TimeFilter filter) {
+    final range = _range(filter);
+    return !value.isBefore(range.start) && value.isBefore(range.end);
   }
 
   // ──────────────────────────────────────────
@@ -44,15 +53,29 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
   // ──────────────────────────────────────────
   Future<List<Truck>> _trucksInRange(TimeFilter filter) async {
     final trucks = await _truckRepo.getActiveTrucks();
-    final cutoff = _cutoff(filter);
-    return trucks.where((t) => t.createdDate.isAfter(cutoff)).toList();
+    final result = <Truck>[];
+    for (final truck in trucks) {
+      final layers = await _layerRepo.getLayersByTruck(truck.id);
+      final hasActivity =
+          layers.any((layer) => _isInRange(layer.timestamp, filter));
+      final completedInRange = truck.completedDate != null &&
+          _isInRange(truck.completedDate!, filter);
+      if (_isInRange(truck.createdDate, filter) ||
+          hasActivity ||
+          completedInRange) {
+        result.add(truck);
+      }
+    }
+    return result;
   }
 
-  Future<List<LayerRecord>> _allLayersForTrucks(List<Truck> trucks) async {
+  Future<List<LayerRecord>> _allLayersForTrucks(
+      List<Truck> trucks, TimeFilter filter) async {
     final List<LayerRecord> all = [];
     for (final t in trucks) {
       final layers = await _layerRepo.getLayersByTruck(t.id);
-      all.addAll(layers.where((l) => !l.isDeleted));
+      all.addAll(layers.where(
+          (layer) => !layer.isDeleted && _isInRange(layer.timestamp, filter)));
     }
     return all;
   }
@@ -63,12 +86,11 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
   @override
   Future<AnalyticsSummary> getSummary(TimeFilter filter) async {
     final wagons = await _wagonRepo.getActiveWagons();
-    final cutoff = _cutoff(filter);
     final filteredWagons =
-        wagons.where((w) => w.createdAt.isAfter(cutoff)).toList();
+        wagons.where((w) => _isInRange(w.createdAt, filter)).toList();
 
     final trucks = await _trucksInRange(filter);
-    final layers = await _allLayersForTrucks(trucks);
+    final layers = await _allLayersForTrucks(trucks, filter);
 
     final totalCartons = layers.fold<int>(0, (sum, l) => sum + l.cartonCount);
 
@@ -109,7 +131,7 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
   @override
   Future<AIPerformanceMetrics> getAIPerformance(TimeFilter filter) async {
     final trucks = await _trucksInRange(filter);
-    final layers = await _allLayersForTrucks(trucks);
+    final layers = await _allLayersForTrucks(trucks, filter);
 
     double avgConfidence = 0.0;
     if (layers.isNotEmpty) {
@@ -137,7 +159,7 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
   Future<LoadingPerformanceMetrics> getLoadingPerformance(
       TimeFilter filter) async {
     final trucks = await _trucksInRange(filter);
-    final layers = await _allLayersForTrucks(trucks);
+    final layers = await _allLayersForTrucks(trucks, filter);
     final totalCartons = layers.fold<int>(0, (sum, l) => sum + l.cartonCount);
 
     // Avg layers per truck
@@ -165,19 +187,18 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
       avgTruckTime = Duration(milliseconds: totalMs ~/ completedTrucks.length);
     }
 
-    // Build hourly carton trend (24 hours)
-    final now = DateTime.now();
-    final todayStart = DateTime(now.year, now.month, now.day);
+    // Build an hour-of-day trend for the selected period.
     final hourlyTrend = List<double>.filled(24, 0.0);
     for (final l in layers) {
-      if (l.timestamp.isAfter(todayStart)) {
-        final hour = l.timestamp.hour;
-        hourlyTrend[hour] += l.cartonCount.toDouble();
-      }
+      final hour = l.timestamp.hour;
+      hourlyTrend[hour] += l.cartonCount.toDouble();
     }
 
-    // Cartons per hour (total cartons / hours elapsed today, min 1)
-    final hoursElapsed = now.hour + 1;
+    // Use the actual selected period. Yesterday is exactly 24 hours; ongoing
+    // ranges end at the current time.
+    final range = _range(filter);
+    final hoursElapsed =
+        (range.end.difference(range.start).inMinutes / 60).clamp(1.0, 100000.0);
     final cartonsPerHour =
         layers.isNotEmpty ? totalCartons / hoursElapsed : 0.0;
 
@@ -198,7 +219,7 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
   @override
   Future<DatasetHealthMetrics> getDatasetHealth(TimeFilter filter) async {
     final trucks = await _trucksInRange(filter);
-    final layers = await _allLayersForTrucks(trucks);
+    final layers = await _allLayersForTrucks(trucks, filter);
 
     // Build daily capture trend (last 7 days)
     final now = DateTime.now();
@@ -234,13 +255,13 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
   @override
   Future<ProductivityMetrics> getProductivityMetrics(TimeFilter filter) async {
     final trucks = await _trucksInRange(filter);
-    final layers = await _allLayersForTrucks(trucks);
+    final layers = await _allLayersForTrucks(trucks, filter);
     final totalCartons = layers.fold<int>(0, (sum, l) => sum + l.cartonCount);
 
     // Days in range
-    final now = DateTime.now();
-    final cutoff = _cutoff(filter);
-    final daysInRange = now.difference(cutoff).inDays.clamp(1, 365);
+    final range = _range(filter);
+    final daysInRange =
+        (range.end.difference(range.start).inHours / 24).ceil().clamp(1, 365);
 
     final truckThroughput = trucks.length / daysInRange;
 

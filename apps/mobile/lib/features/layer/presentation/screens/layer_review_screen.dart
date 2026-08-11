@@ -16,6 +16,7 @@ import '../../../camera/domain/entities/detection.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../wagon/domain/entities/wagon.dart';
 import '../../../wagon/presentation/providers/wagon_providers.dart';
+import '../../../../core/presentation/widgets/unsaved_changes_guard.dart';
 
 // Retained only for the legacy, non-rendered toolbar implementation below.
 // The active review experience is now fully tap-driven.
@@ -64,6 +65,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
   void initState() {
     super.initState();
     _notesCtrl.text = widget.initialNotes ?? '';
+    _notesCtrl.addListener(_handleNotesChanged);
     _aiResult = widget.aiResult;
     _correctedCount = _aiResult.count;
     _correctedDefectCount = _aiResult.defectCount;
@@ -73,6 +75,10 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
       _isFinalizing = true;
       _resolveFinalResult(pendingResult);
     }
+  }
+
+  void _handleNotesChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _resolveFinalResult(Future<AIResult> pendingResult) async {
@@ -435,15 +441,20 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
 
         if (error == null) {
           AppLogger.info('Layer saved: $_correctedCount cartons.');
-          context.go('/trucks/${widget.truckId}');
+          // Rebuild a safe history after removing Camera and Review:
+          // Wagon Control Center -> Truck Details.
+          context.go('/wagons');
+          context.push('/trucks/${widget.truckId}');
         }
       }
     } catch (e, stack) {
       AppLogger.error('Inference Save Pipeline Exception', e, stack);
-      setState(() {
-        _isSaving = false;
-        _errorMessage = 'Save failed. Database rolled back.';
-      });
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+          _errorMessage = 'Save failed. Database rolled back.';
+        });
+      }
     }
   }
 
@@ -476,109 +487,117 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     final inventory =
         wagon == null ? null : ref.watch(wagonInventoryProvider(wagon.id));
     final currentLayerNum = layerState.layers.length + 1;
-    return Scaffold(
-      backgroundColor: AppTheme.backgroundColor,
-      appBar: AppBar(
-        backgroundColor: AppTheme.surfaceColor,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+    // A review always represents a captured but not-yet-saved layer, even if
+    // the operator has accepted every AI value without editing it.
+    const hasUnsavedChanges = true;
+    return UnsavedChangesGuard(
+      hasUnsavedChanges: hasUnsavedChanges,
+      isSaving: _isSaving || _isFinalizing,
+      message: 'The reviewed carton count and layer details are not saved.',
+      child: Scaffold(
+        backgroundColor: AppTheme.backgroundColor,
+        appBar: AppBar(
+          backgroundColor: AppTheme.surfaceColor,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.maybePop(context),
+          ),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Review Layer Scan',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text(
+                  'Layer #$currentLayerNum  •  Truck ${widget.truckId.substring(0, 6)}…',
+                  style: const TextStyle(
+                      fontSize: 10, color: AppTheme.textSecondary)),
+            ],
+          ),
         ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+        body: Stack(
+          fit: StackFit.expand,
           children: [
-            const Text('Review Layer Scan',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            Text(
-                'Layer #$currentLayerNum  •  Truck ${widget.truckId.substring(0, 6)}…',
-                style: const TextStyle(
-                    fontSize: 10, color: AppTheme.textSecondary)),
-          ],
-        ),
-      ),
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          _ImagePreviewSection(
-            photoPath: widget.photoPath,
-            detections: _visibleDetections,
-            allDetections: _editableDetections,
-            showNumbers: _showNumbers,
-            outlineColorMode: _outlineColorMode,
-            onDetectionTapped: _toggleDetection,
-            onEmptyAreaTapped: _addDetectionAt,
-          ),
-          Positioned(
-            top: 14,
-            left: 14,
-            child: SafeArea(
-              bottom: false,
-              child: _OutlineColorButton(
-                mode: _outlineColorMode,
-                onPressed: _cycleOutlineColorMode,
-              ),
+            _ImagePreviewSection(
+              photoPath: widget.photoPath,
+              detections: _visibleDetections,
+              allDetections: _editableDetections,
+              showNumbers: _showNumbers,
+              outlineColorMode: _outlineColorMode,
+              onDetectionTapped: _toggleDetection,
+              onEmptyAreaTapped: _addDetectionAt,
             ),
-          ),
-          Positioned(
-            top: 14,
-            right: 14,
-            child: SafeArea(
-              bottom: false,
-              child: _ReviewOverlayButton(
-                tooltip: _showNumbers
-                    ? 'Hide carton numbers'
-                    : 'Show carton numbers',
-                icon: _showNumbers
-                    ? Icons.pin_outlined
-                    : Icons.format_list_numbered_rtl_rounded,
-                onPressed: () => setState(() => _showNumbers = !_showNumbers),
-              ),
-            ),
-          ),
-          if (_errorMessage != null)
             Positioned(
-              left: 16,
-              right: 16,
-              bottom: 176,
-              child: Material(
-                color: AppTheme.errorColor,
-                borderRadius: BorderRadius.circular(10),
-                child: Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: Text(_errorMessage!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold)),
+              top: 14,
+              left: 14,
+              child: SafeArea(
+                bottom: false,
+                child: _OutlineColorButton(
+                  mode: _outlineColorMode,
+                  onPressed: _cycleOutlineColorMode,
                 ),
               ),
             ),
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: _ReviewBottomBar(
-              isSaving: _isSaving,
-              isFinalizing: _isFinalizing,
-              finalizationFailed: _finalizationFailed,
-              correctedCount: _correctedCount,
-              defectCount: _correctedDefectCount,
-              onIncrease: () => _adjustCount(1),
-              onDecrease: () => _adjustCount(-1),
-              onDefectIncrease: () => _adjustDefectCount(1),
-              onDefectDecrease: () => _adjustDefectCount(-1),
-              onCartonValueChanged: _setCartonCount,
-              onDefectValueChanged: _setDefectCount,
-              items: wagon?.items ?? const [],
-              allocations: _itemAllocations,
-              onEditItems: wagon == null
-                  ? null
-                  : () => _editItemBreakdown(
-                      wagon, inventory?.valueOrNull ?? const {}),
-              onConfirm: _onSave,
+            Positioned(
+              top: 14,
+              right: 14,
+              child: SafeArea(
+                bottom: false,
+                child: _ReviewOverlayButton(
+                  tooltip: _showNumbers
+                      ? 'Hide carton numbers'
+                      : 'Show carton numbers',
+                  icon: _showNumbers
+                      ? Icons.pin_outlined
+                      : Icons.format_list_numbered_rtl_rounded,
+                  onPressed: () => setState(() => _showNumbers = !_showNumbers),
+                ),
+              ),
             ),
-          ),
-        ],
+            if (_errorMessage != null)
+              Positioned(
+                left: 16,
+                right: 16,
+                bottom: 176,
+                child: Material(
+                  color: AppTheme.errorColor,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Text(_errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ),
+            Positioned(
+              bottom: 0,
+              left: 0,
+              right: 0,
+              child: _ReviewBottomBar(
+                isSaving: _isSaving,
+                isFinalizing: _isFinalizing,
+                finalizationFailed: _finalizationFailed,
+                correctedCount: _correctedCount,
+                defectCount: _correctedDefectCount,
+                onIncrease: () => _adjustCount(1),
+                onDecrease: () => _adjustCount(-1),
+                onDefectIncrease: () => _adjustDefectCount(1),
+                onDefectDecrease: () => _adjustDefectCount(-1),
+                onCartonValueChanged: _setCartonCount,
+                onDefectValueChanged: _setDefectCount,
+                items: wagon?.items ?? const [],
+                allocations: _itemAllocations,
+                onEditItems: wagon == null
+                    ? null
+                    : () => _editItemBreakdown(
+                        wagon, inventory?.valueOrNull ?? const {}),
+                onConfirm: _onSave,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

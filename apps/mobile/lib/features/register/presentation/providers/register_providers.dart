@@ -133,8 +133,10 @@ class RegisterListState {
 
 class RegisterListNotifier extends StateNotifier<RegisterListState> {
   final RegisterRepository _repository;
+  final bool canModify;
 
-  RegisterListNotifier(this._repository) : super(const RegisterListState()) {
+  RegisterListNotifier(this._repository, {required this.canModify})
+      : super(const RegisterListState()) {
     refresh();
   }
 
@@ -170,6 +172,7 @@ class RegisterListNotifier extends StateNotifier<RegisterListState> {
   }
 
   Future<void> updateRemarks(String registerId, String remarks) async {
+    if (!canModify) return;
     await _repository.updateRemarks(registerId, remarks);
     await refresh();
   }
@@ -189,5 +192,7 @@ final registerListProvider =
     StateNotifierProvider.autoDispose<RegisterListNotifier, RegisterListState>(
         (ref) {
   final repo = ref.watch(registerRepositoryProvider);
-  return RegisterListNotifier(repo);
+  final canModify =
+      ref.watch(authProvider)?.role.canModifyDigitalRegisters ?? false;
+  return RegisterListNotifier(repo, canModify: canModify);
 });

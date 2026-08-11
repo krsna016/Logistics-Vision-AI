@@ -191,196 +191,209 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         (cameraState.status == CameraStatus.initializing ||
             cameraState.status == CameraStatus.switching ||
             (cameraState.status == CameraStatus.ready && !previewReady));
-    return Scaffold(
-      backgroundColor: Colors.black,
-      extendBody: true,
-      resizeToAvoidBottomInset: false,
-      body: Stack(
-        children: [
-          // ── Layer 0: Edge-to-edge camera/gallery preview ───────────────
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onScaleStart: !isGallery ? (_) => _baseZoom = _currentZoom : null,
-              onScaleUpdate: !isGallery
-                  ? (details) {
-                      if (details.pointerCount != 2 || details.scale == 1.0) {
-                        return;
-                      }
-                      unawaited(_setPinchZoom(details.scale));
-                    }
-                  : null,
-              child: isGallery
-                  ? _GalleryPreview(
-                      key: ValueKey(_pickedImagePath),
-                      path: _pickedImagePath!,
-                      decisionState: decisionState,
-                      detections: inferenceState.detections,
-                    )
-                  : _buildMainContent(
-                      context,
-                      cameraState,
-                      cameraNotifier,
-                      widget.isActive,
-                      () {
-                        final controller = cameraState.controller;
-                        if (!mounted || controller == null) return;
-                        if (identical(_previewReadyController, controller)) {
+    return PopScope(
+      canPop: !_isFinalizingCapture,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isFinalizingCapture) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Please wait while the photo is verified.')),
+          );
+        }
+      },
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        extendBody: true,
+        resizeToAvoidBottomInset: false,
+        body: Stack(
+          children: [
+            // ── Layer 0: Edge-to-edge camera/gallery preview ───────────────
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onScaleStart:
+                    !isGallery ? (_) => _baseZoom = _currentZoom : null,
+                onScaleUpdate: !isGallery
+                    ? (details) {
+                        if (details.pointerCount != 2 || details.scale == 1.0) {
                           return;
                         }
-                        setState(() => _previewReadyController = controller);
-                      },
-                    ),
-            ),
-          ),
-
-          if (!isGallery && cameraState.status == CameraStatus.ready)
-            const Positioned.fill(
-              child: IgnorePointer(
-                child: _AlignmentGuide(isVisible: true),
-              ),
-            ),
-
-          // ── Layer 1: Simple camera header ──────────────────────────────
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: _SimpleCameraHeader(
-              onManualSelected: widget.onManualSelected ??
-                  () => context.pushReplacement(
-                        '/trucks/$truckId/manual-count',
-                      ),
-            ),
-          ),
-
-          if (_isFinalizingCapture)
-            const Positioned.fill(
-              child: ColoredBox(
-                color: Color(0x99000000),
-                child: IgnorePointer(
-                  child: Center(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Color(0xEE101820),
-                        borderRadius: BorderRadius.all(Radius.circular(16)),
-                      ),
-                      child: Padding(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 22, vertical: 18),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 24,
-                              height: 24,
-                              child:
-                                  CircularProgressIndicator(strokeWidth: 2.5),
-                            ),
-                            SizedBox(height: 12),
-                            Text(
-                              'Verifying final carton count…',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            SizedBox(height: 4),
-                            Text(
-                              'Using the captured high-quality photo',
-                              style: TextStyle(color: Colors.white60),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          if (awaitingPreview)
-            const Positioned.fill(
-              child: IgnorePointer(
-                child: ColoredBox(
-                  color: Colors.black,
-                  child: Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2.4,
-                          ),
-                        ),
-                        SizedBox(height: 14),
-                        Text(
-                          'Preparing camera...',
-                          style: TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // ── Layer 2: Minimal controls over the camera preview ──────────
-          if (cameraState.status == CameraStatus.ready || isGallery)
-            Positioned(
-              bottom: MediaQuery.of(context).padding.bottom + 28,
-              left: 28,
-              right: 28,
-              child: _CameraOverlayControls(
-                isReadyForReview: isReadyForReview,
-                isGallery: isGallery,
-                torchOn: _torchOn,
-                onToggleTorch: isGallery
-                    ? null
-                    : () => _toggleTorch(cameraState.controller),
-                onGallery: () => _openGallery(cameraState.controller),
-                onFlipCamera: () {
-                  if (isGallery) {
-                    setState(() => _pickedImagePath = null);
-                  } else if (cameraState.availableCameras.length > 1) {
-                    setState(() {
-                      _torchOn = false;
-                      _previewReadyController = null;
-                    });
-                    cameraNotifier.switchCamera();
-                  }
-                  decisionNotifier?.resetAnalyzer();
-                },
-                onReview: isReadyForReview
-                    ? () => _navigateToReview(
-                          context,
-                          truckId,
-                          inferenceState,
-                          decisionState,
-                        )
-                    : null,
-                onCapture: !isGallery && !_isFinalizingCapture
-                    ? () {
-                        _captureLayerPhoto(
-                          context,
-                          truckId,
-                        );
+                        unawaited(_setPinchZoom(details.scale));
                       }
                     : null,
+                child: isGallery
+                    ? _GalleryPreview(
+                        key: ValueKey(_pickedImagePath),
+                        path: _pickedImagePath!,
+                        decisionState: decisionState,
+                        detections: inferenceState.detections,
+                      )
+                    : _buildMainContent(
+                        context,
+                        cameraState,
+                        cameraNotifier,
+                        widget.isActive,
+                        () {
+                          final controller = cameraState.controller;
+                          if (!mounted || controller == null) return;
+                          if (identical(_previewReadyController, controller)) {
+                            return;
+                          }
+                          setState(() => _previewReadyController = controller);
+                        },
+                      ),
               ),
             ),
 
-          if (_isFinalizingCapture)
-            const Positioned.fill(
-              child: ModalBarrier(
-                dismissible: false,
-                color: Colors.transparent,
+            if (!isGallery && cameraState.status == CameraStatus.ready)
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: _AlignmentGuide(isVisible: true),
+                ),
+              ),
+
+            // ── Layer 1: Simple camera header ──────────────────────────────
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _SimpleCameraHeader(
+                onManualSelected: widget.onManualSelected ??
+                    () => context.pushReplacement(
+                          '/trucks/$truckId/manual-count',
+                        ),
               ),
             ),
-        ],
+
+            if (_isFinalizingCapture)
+              const Positioned.fill(
+                child: ColoredBox(
+                  color: Color(0x99000000),
+                  child: IgnorePointer(
+                    child: Center(
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: Color(0xEE101820),
+                          borderRadius: BorderRadius.all(Radius.circular(16)),
+                        ),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 22, vertical: 18),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 24,
+                                height: 24,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2.5),
+                              ),
+                              SizedBox(height: 12),
+                              Text(
+                                'Verifying final carton count…',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Using the captured high-quality photo',
+                                style: TextStyle(color: Colors.white60),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            if (awaitingPreview)
+              const Positioned.fill(
+                child: IgnorePointer(
+                  child: ColoredBox(
+                    color: Colors.black,
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2.4,
+                            ),
+                          ),
+                          SizedBox(height: 14),
+                          Text(
+                            'Preparing camera...',
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 14),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+            // ── Layer 2: Minimal controls over the camera preview ──────────
+            if (cameraState.status == CameraStatus.ready || isGallery)
+              Positioned(
+                bottom: MediaQuery.of(context).padding.bottom + 28,
+                left: 28,
+                right: 28,
+                child: _CameraOverlayControls(
+                  isReadyForReview: isReadyForReview,
+                  isGallery: isGallery,
+                  torchOn: _torchOn,
+                  onToggleTorch: isGallery
+                      ? null
+                      : () => _toggleTorch(cameraState.controller),
+                  onGallery: () => _openGallery(cameraState.controller),
+                  onFlipCamera: () {
+                    if (isGallery) {
+                      setState(() => _pickedImagePath = null);
+                    } else if (cameraState.availableCameras.length > 1) {
+                      setState(() {
+                        _torchOn = false;
+                        _previewReadyController = null;
+                      });
+                      cameraNotifier.switchCamera();
+                    }
+                    decisionNotifier?.resetAnalyzer();
+                  },
+                  onReview: isReadyForReview
+                      ? () => _navigateToReview(
+                            context,
+                            truckId,
+                            inferenceState,
+                            decisionState,
+                          )
+                      : null,
+                  onCapture: !isGallery && !_isFinalizingCapture
+                      ? () {
+                          _captureLayerPhoto(
+                            context,
+                            truckId,
+                          );
+                        }
+                      : null,
+                ),
+              ),
+
+            if (_isFinalizingCapture)
+              const Positioned.fill(
+                child: ModalBarrier(
+                  dismissible: false,
+                  color: Colors.transparent,
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }

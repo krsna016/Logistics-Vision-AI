@@ -199,6 +199,26 @@ void main() {
     );
   });
 
+  test('adding a missed layer photo is saved as an audited correction',
+      () async {
+    await seedWagonTruck();
+    final repository = LocalLayerRepository(database);
+    final layer = (await repository.getLayersByTruck('truck-1')).first;
+
+    await repository.updateLayer(
+      layer.copyWith(photoPath: '/temporary/new-layer-photo.jpg'),
+      correctionReason: 'Photo was missed during capture',
+    );
+
+    final stored = (await database.select(database.layers).get())
+        .firstWhere((record) => record.id == layer.id);
+    final audit = (await database.select(database.auditLogs).get()).single;
+    expect(stored.photoPath, '/temporary/new-layer-photo.jpg');
+    expect(audit.action, 'correct');
+    expect(audit.details, contains('Photo added'));
+    expect(audit.details, contains('Photo was missed during capture'));
+  });
+
   test('enterprise demo data is balanced and covers operational edge cases',
       () async {
     final wagonRepository = LocalWagonRepository(database);

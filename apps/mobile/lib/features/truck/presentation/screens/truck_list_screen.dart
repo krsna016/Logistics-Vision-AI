@@ -59,11 +59,6 @@ class TruckListScreen extends ConsumerWidget {
             onPressed: () => notifier.refresh(),
             tooltip: 'Refresh list',
           ),
-          IconButton(
-            icon: const Icon(Icons.photo_library),
-            onPressed: () => context.push('/dataset'),
-            tooltip: 'Dataset Developer Mode',
-          ),
           Builder(
             builder: (context) => IconButton(
               icon: const Icon(Icons.menu),
@@ -270,6 +265,8 @@ class TruckListScreen extends ConsumerWidget {
           showModalBottomSheet<void>(
             context: context,
             isScrollControlled: true,
+            isDismissible: false,
+            enableDrag: false,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),

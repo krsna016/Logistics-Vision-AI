@@ -5,6 +5,7 @@ import 'package:excel/excel.dart';
 import '../../domain/services/report_services.dart';
 import '../../../../core/database/app_database.dart';
 import 'package:drift/drift.dart' as drift;
+import 'pdf_report_service_impl.dart' show parseLayerCorrectionDetails;
 
 class ExcelReportServiceImpl implements ExcelReportService {
   final AppDatabase _db;
@@ -41,6 +42,9 @@ class ExcelReportServiceImpl implements ExcelReportService {
       .map((entry) => '${entry.key}: ${entry.value}')
       .join(' + ');
 
+  String _correctionPart(String? details, String key) =>
+      parseLayerCorrectionDetails(details)[key] ?? 'Not provided';
+
   Future<File> _saveExcel(Excel excel, String prefix) async {
     final dir = await getApplicationDocumentsDirectory();
     final timestamp = DateTime.now().millisecondsSinceEpoch;
@@ -63,7 +67,8 @@ class ExcelReportServiceImpl implements ExcelReportService {
           ..where((t) => t.id.equals(truckId) & t.isDeleted.equals(false)))
         .getSingleOrNull();
     final layers = await (_db.select(_db.layers)
-          ..where((l) => l.truckId.equals(truckId) & l.isDeleted.equals(false)))
+          ..where((l) => l.truckId.equals(truckId) & l.isDeleted.equals(false))
+          ..orderBy([(l) => drift.OrderingTerm.asc(l.layerNumber)]))
         .get();
 
     if (truck == null) throw Exception('Truck not found');
@@ -78,18 +83,24 @@ class ExcelReportServiceImpl implements ExcelReportService {
     sheet.merge(CellIndex.indexByString("A1"), CellIndex.indexByString("G1"));
     var titleCell = sheet.cell(CellIndex.indexByString("A1"));
     titleCell.value =
-        TextCellValue('Truck Loading Report - ${truck.truckNumber}');
+        TextCellValue('Truck Loading Report - ${truck.vehicleNumber}');
     titleCell.cellStyle =
         CellStyle(bold: true, horizontalAlign: HorizontalAlign.Center);
 
     // Metadata
     sheet.cell(CellIndex.indexByString("A3")).value =
-        TextCellValue('Driver: ${truck.driverName}');
+        TextCellValue('Vehicle: ${truck.vehicleNumber}');
     sheet.cell(CellIndex.indexByString("A4")).value =
+        TextCellValue('Driver: ${truck.driverName}');
+    sheet.cell(CellIndex.indexByString("C3")).value =
+        TextCellValue('Phone: ${truck.driverMobile ?? 'Not provided'}');
+    sheet.cell(CellIndex.indexByString("C4")).value =
         TextCellValue('Company: ${truck.company}');
-    sheet.cell(CellIndex.indexByString("D3")).value = TextCellValue(
-        'Date: ${truck.completedDate?.toIso8601String() ?? 'N/A'}');
-    sheet.cell(CellIndex.indexByString("D4")).value =
+    sheet.cell(CellIndex.indexByString("E3")).value =
+        TextCellValue('Warehouse: ${truck.warehouse}');
+    sheet.cell(CellIndex.indexByString("E4")).value =
+        TextCellValue('Status: ${truck.status}');
+    sheet.cell(CellIndex.indexByString("G3")).value =
         TextCellValue(_supervisorLabel);
 
     // Data Table Headers
@@ -100,7 +111,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
       'Defects',
       'Layer Added',
       'Operator',
-      'Model Version'
+      'Operator Notes'
     ];
     for (int i = 0; i < headers.length; i++) {
       var cell =
@@ -141,7 +152,10 @@ class ExcelReportServiceImpl implements ExcelReportService {
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow))
-          .value = TextCellValue(layer.modelVersion ?? 'N/A');
+          .value = TextCellValue(layer.notes?.trim().isNotEmpty ==
+              true
+          ? layer.notes!.trim()
+          : 'No notes');
       currentRow++;
     }
 
@@ -163,7 +177,60 @@ class ExcelReportServiceImpl implements ExcelReportService {
         IntCellValue(
             layers.fold<int>(0, (sum, layer) => sum + layer.defectCount));
 
-    return _saveExcel(excel, 'TRUCK_${truck.truckNumber}');
+    final layerIds = layers.map((layer) => layer.id).toList(growable: false);
+    final corrections = layerIds.isEmpty
+        ? <AuditLog>[]
+        : await (_db.select(_db.auditLogs)
+              ..where((log) =>
+                  log.entityId.isIn(layerIds) &
+                  log.entityType.equals('Layer') &
+                  log.action.equals('correct'))
+              ..orderBy([(log) => drift.OrderingTerm.asc(log.timestamp)]))
+            .get();
+    if (corrections.isNotEmpty) {
+      final correctionSheet = excel['Correction History'];
+      const correctionHeaders = [
+        'Layer',
+        'Changed At',
+        'Operator',
+        'Before',
+        'After',
+        'Reason',
+      ];
+      for (var column = 0; column < correctionHeaders.length; column++) {
+        final cell = correctionSheet.cell(CellIndex.indexByColumnRow(
+          columnIndex: column,
+          rowIndex: 0,
+        ));
+        cell.value = TextCellValue(correctionHeaders[column]);
+        cell.cellStyle = headerStyle;
+      }
+      for (var row = 0; row < corrections.length; row++) {
+        final audit = corrections[row];
+        final parsed = parseLayerCorrectionDetails(audit.details);
+        final values = [
+          layers
+              .firstWhere((layer) => layer.id == audit.entityId)
+              .layerNumber
+              .toString(),
+          audit.timestamp.toString().split('.')[0],
+          audit.userId,
+          parsed['before'] ?? 'Not recorded',
+          parsed['after'] ?? 'Not recorded',
+          parsed['reason'] ?? 'Not provided',
+        ];
+        for (var column = 0; column < values.length; column++) {
+          correctionSheet
+              .cell(CellIndex.indexByColumnRow(
+                columnIndex: column,
+                rowIndex: row + 1,
+              ))
+              .value = TextCellValue(values[column]);
+        }
+      }
+    }
+
+    return _saveExcel(excel, 'TRUCK_${truck.vehicleNumber}');
   }
 
   @override
@@ -228,8 +295,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
         TextCellValue('Status: ${wagon.status}');
 
     const headers = [
-      'Truck No.',
-      'Vehicle No.',
+      'Vehicle',
       'Driver',
       'Phone',
       'Layers',
@@ -247,7 +313,6 @@ class ExcelReportServiceImpl implements ExcelReportService {
     var currentRow = 6;
     for (final truck in trucks) {
       final values = [
-        truck.truckNumber,
         truck.vehicleNumber,
         truck.driverName,
         truck.driverMobile ?? 'N/A',
@@ -331,14 +396,19 @@ class ExcelReportServiceImpl implements ExcelReportService {
         .getSingleOrNull();
     if (wagon == null) throw Exception('Wagon not found');
     final trucks = await (_db.select(_db.trucks)
-          ..where((t) => t.wagonId.equals(wagonId) & t.isDeleted.equals(false)))
+          ..where((t) => t.wagonId.equals(wagonId) & t.isDeleted.equals(false))
+          ..orderBy([(t) => drift.OrderingTerm.asc(t.createdAt)]))
         .get();
     final truckIds = trucks.map((truck) => truck.id).toList();
     final layers = truckIds.isEmpty
         ? <Layer>[]
         : await (_db.select(_db.layers)
               ..where(
-                  (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false)))
+                  (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false))
+              ..orderBy([
+                (l) => drift.OrderingTerm.asc(l.truckId),
+                (l) => drift.OrderingTerm.asc(l.layerNumber),
+              ]))
             .get();
     final totalCartons =
         layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
@@ -424,9 +494,13 @@ class ExcelReportServiceImpl implements ExcelReportService {
         TextCellValue(truck.driverMobile ?? 'Not provided'),
         TextCellValue(truck.company),
         TextCellValue(truck.status),
-        IntCellValue(truck.totalLayers),
-        IntCellValue(truck.totalCartons),
-        IntCellValue(truck.totalDefects),
+        IntCellValue(layers.where((layer) => layer.truckId == truck.id).length),
+        IntCellValue(layers
+            .where((layer) => layer.truckId == truck.id)
+            .fold<int>(0, (sum, layer) => sum + layer.cartonCount)),
+        IntCellValue(layers
+            .where((layer) => layer.truckId == truck.id)
+            .fold<int>(0, (sum, layer) => sum + layer.defectCount)),
       ]);
     }
 
@@ -459,21 +533,28 @@ class ExcelReportServiceImpl implements ExcelReportService {
         ? <AuditLog>[]
         : await (_db.select(_db.auditLogs)
               ..where((log) =>
-                  log.entityId.isIn(layerIds) & log.action.equals('correct')))
+                  log.entityId.isIn(layerIds) & log.action.equals('correct'))
+              ..orderBy([(log) => drift.OrderingTerm.asc(log.timestamp)]))
             .get();
     writeRow(correctionSheet, 0, [
-      TextCellValue('Entity'),
+      TextCellValue('Layer'),
       TextCellValue('Changed At'),
       TextCellValue('Operator'),
-      TextCellValue('Details'),
+      TextCellValue('Before'),
+      TextCellValue('After'),
+      TextCellValue('Reason'),
     ]);
     for (var row = 0; row < audits.length; row++) {
       final audit = audits[row];
       writeRow(correctionSheet, row + 1, [
-        TextCellValue(audit.entityId),
+        IntCellValue(layers
+            .firstWhere((layer) => layer.id == audit.entityId)
+            .layerNumber),
         TextCellValue(audit.timestamp.toString()),
         TextCellValue(audit.userId),
-        TextCellValue(audit.details ?? ''),
+        TextCellValue(_correctionPart(audit.details, 'before')),
+        TextCellValue(_correctionPart(audit.details, 'after')),
+        TextCellValue(_correctionPart(audit.details, 'reason')),
       ]);
     }
     final headerStyle = CellStyle(
@@ -487,7 +568,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
       'FROM: ${wagon.origin}',
       'TO: ${wagon.destination}',
       'WAGON NO: ${wagon.wagonNumber}',
-      'WAGON QTY: $totalCartons',
+      'LOADED CARTONS: $totalCartons',
       'UNLOADING DATE: ${wagon.loadingDate.toString().split(' ')[0]}',
     ];
     for (var column = 0; column < topFields.length; column++) {
@@ -500,8 +581,8 @@ class ExcelReportServiceImpl implements ExcelReportService {
     final truckHeader = <String>['S.NO.'];
     final quantityHeader = <String>[''];
     for (final truck in trucks) {
-      truckHeader.addAll(['TRUCK NO: ${truck.truckNumber}', '']);
-      quantityHeader.addAll(['QTY', 'ITEM']);
+      truckHeader.addAll(['VEHICLE: ${truck.vehicleNumber}', '']);
+      quantityHeader.addAll(['CARTONS', 'ITEM']);
     }
     for (var column = 0; column < truckHeader.length; column++) {
       final cell = sheet.cell(CellIndex.indexByColumnRow(
@@ -540,9 +621,8 @@ class ExcelReportServiceImpl implements ExcelReportService {
         qtyCell.cellStyle = valueStyle;
         final itemCell = sheet.cell(CellIndex.indexByColumnRow(
             columnIndex: column++, rowIndex: currentRow));
-        final item = layer?.notes?.split('|').first.trim();
-        itemCell.value =
-            TextCellValue(item == null || item.isEmpty ? '' : item);
+        final item = layer == null ? '' : _layerItemLabel(layer);
+        itemCell.value = TextCellValue(item);
         itemCell.cellStyle = valueStyle;
       }
       currentRow++;

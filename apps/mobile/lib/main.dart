@@ -1,9 +1,11 @@
 import 'dart:ui';
 import 'dart:math' as math;
+import 'core/presentation/widgets/root_back_guard.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'config/environment.dart';
 import 'navigation/app_router.dart';
@@ -54,6 +56,21 @@ class LogisticsVisionApp extends ConsumerStatefulWidget {
 }
 
 class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
+  final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
+  SmartLoadBackButtonDispatcher? _backDispatcher;
+  GoRouter? _dispatcherRouter;
+
+  SmartLoadBackButtonDispatcher _dispatcherFor(GoRouter router) {
+    if (!identical(_dispatcherRouter, router)) {
+      _dispatcherRouter = router;
+      _backDispatcher = SmartLoadBackButtonDispatcher(
+        router: router,
+        scaffoldMessengerKey: _scaffoldMessengerKey,
+      );
+    }
+    return _backDispatcher!;
+  }
+
   @override
   void initState() {
     super.initState();
@@ -78,6 +95,8 @@ class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
     final router = ref.watch(routerProvider);
 
     return MaterialApp.router(
+      scaffoldMessengerKey: _scaffoldMessengerKey,
+      backButtonDispatcher: _dispatcherFor(router),
       title: 'Vinayak SmartLoad',
       debugShowCheckedModeBanner:
           Environment.current == Environment.development,
@@ -103,8 +122,11 @@ class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
         );
       },
 
-      // GoRouter navigation bindings
-      routerConfig: router,
+      // GoRouter navigation bindings. These are supplied individually so the
+      // app can install its root Android back dispatcher.
+      routeInformationProvider: router.routeInformationProvider,
+      routeInformationParser: router.routeInformationParser,
+      routerDelegate: router.routerDelegate,
     );
   }
 }
