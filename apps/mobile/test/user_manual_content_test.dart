@@ -7,6 +7,9 @@ void main() {
     for (final topic in [
       'From Loading Dock to Digital Proof',
       'Business value for an enterprise',
+      'Traditional manual process compared with SmartLoad',
+      'Benefits for every stakeholder',
+      'Why this creates a strong market advantage',
       'Every wagon understood. Every vehicle accounted for.',
       'Creating a wagon and item manifest',
       'Mixed-item layers',
@@ -24,6 +27,9 @@ void main() {
     for (final topic in [
       'लोडिंग डॉक से डिजिटल प्रमाण तक',
       'बड़े संगठन के लिए व्यावसायिक लाभ',
+      'पारंपरिक मैनुअल प्रक्रिया और SmartLoad की तुलना',
+      'हर stakeholder के लिए लाभ',
+      'यह मजबूत market advantage क्यों बनाता है',
       'हर वैगन की पूरी समझ। हर वाहन का पूरा हिसाब।',
       'वैगन और आइटम मैनिफेस्ट बनाना',
       'मिश्रित आइटम वाली लेयर',
