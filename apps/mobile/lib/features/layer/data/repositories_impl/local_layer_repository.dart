@@ -373,7 +373,7 @@ class LocalLayerRepository implements LayerRepository {
           defects: 0,
           minutesAgo: 45,
           operator: demoOperator,
-          notes: 'Mixed SKU layer — manually verified',
+          notes: 'Mixed SKU layer - manually verified',
           items: const [
             {'itemName': 'Assam Tea', 'quantity': 10},
             {'itemName': 'Whole Spices', 'quantity': 30},

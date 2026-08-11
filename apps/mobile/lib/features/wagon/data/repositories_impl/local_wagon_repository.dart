@@ -310,7 +310,7 @@ class LocalWagonRepository implements WagonRepository {
           origin: 'Guwahati ICD',
           destination: 'Pamohi Distribution Centre',
           daysAgo: 1,
-          remarks: 'Priority FMCG shipment — partial and mixed-item loading.',
+          remarks: 'Priority FMCG shipment - partial and mixed-item loading.',
           items: const [
             {'name': 'Premium Rice', 'quantity': 200},
             {'name': 'Assam Tea', 'quantity': 120},
