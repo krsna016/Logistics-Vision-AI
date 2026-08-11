@@ -948,7 +948,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
     [
       'S.NO.',
       for (final truck in trucks) ...[
-        'TRUCK NO: ${truck['truckNumber']}',
+        'VEHICLE: ${truck['vehicleNumber']}',
         '',
       ],
     ],
@@ -1067,7 +1067,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
     [
       'S.NO.',
       for (final truck in trucks) ...[
-        'TRUCK NO: ${truck['truckNumber']}',
+        'VEHICLE: ${truck['vehicleNumber']}',
         '',
       ],
     ],
