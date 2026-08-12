@@ -63,6 +63,10 @@ class Layers extends Table with SyncMetadata {
   IntColumn get cartonCount => integer()();
   IntColumn get defectCount => integer().withDefault(const Constant(0))();
   TextColumn get photoPath => text().nullable()(); // local path
+  TextColumn get croppedPhotoPath => text().nullable()();
+
+  /// JSON normalized rectangle used to produce [croppedPhotoPath].
+  TextColumn get countingRegionJson => text().nullable()();
   TextColumn get notes => text().nullable()();
   TextColumn get itemName => text().nullable()();
   TextColumn get itemAllocationsJson =>

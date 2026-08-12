@@ -8,6 +8,7 @@ import '../features/truck/presentation/screens/truck_details_screen.dart';
 import '../features/truck/domain/entities/truck.dart';
 import '../features/layer/presentation/screens/layer_review_screen.dart';
 import '../features/layer/domain/entities/ai_result.dart';
+import '../features/layer/domain/entities/layer.dart';
 import '../core/ai_engine/models/ai_model.dart';
 
 import '../features/splash/presentation/screens/splash_screen.dart';
@@ -190,6 +191,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                     frameSize: const Size(720, 1280),
                   );
               final photoPath = extra['photoPath'] as String?;
+              final auditPhotoPath = extra['auditPhotoPath'] as String?;
+              final countingRegion = extra['countingRegion'] as CountingRegion?;
               final manualNotes = extra['manualNotes'] as String?;
               final finalResultLoader =
                   extra['finalResultLoader'] as Future<AIResult> Function()?;
@@ -197,6 +200,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                 truckId: truckId,
                 aiResult: aiResult,
                 photoPath: photoPath,
+                auditPhotoPath: auditPhotoPath,
+                countingRegion: countingRegion,
                 initialNotes: manualNotes,
                 finalResultLoader: finalResultLoader,
               );

@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 9;
 
   @override
   MigrationStrategy get migration {
@@ -96,6 +96,10 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 8) {
           await _createPerformanceIndexes(m);
+        }
+        if (from < 9) {
+          await m.addColumn(layers, layers.croppedPhotoPath);
+          await m.addColumn(layers, layers.countingRegionJson);
         }
       },
     );

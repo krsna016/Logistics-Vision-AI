@@ -40,6 +40,8 @@ class LocalLayerRepository implements LayerRepository {
       timestamp: data.timestamp ?? DateTime.now(),
       operatorId: data.operatorId ?? '',
       photoPath: data.photoPath,
+      croppedPhotoPath: data.croppedPhotoPath,
+      countingRegion: _decodeCountingRegion(data.countingRegionJson),
       notes: data.notes,
       itemName: data.itemName,
       itemAllocations: allocations,
@@ -77,6 +79,10 @@ class LocalLayerRepository implements LayerRepository {
             cartonCount: layer.cartonCount,
             defectCount: drift.Value(layer.defectCount),
             photoPath: drift.Value(layer.photoPath),
+            croppedPhotoPath: drift.Value(layer.croppedPhotoPath),
+            countingRegionJson: drift.Value(layer.countingRegion == null
+                ? null
+                : jsonEncode(layer.countingRegion!.toJson())),
             notes: drift.Value(layer.notes),
             itemName: drift.Value(layer.itemName),
             itemAllocationsJson: drift.Value(jsonEncode(layer.itemAllocations
@@ -124,6 +130,10 @@ class LocalLayerRepository implements LayerRepository {
         cartonCount: drift.Value(effectiveCartons),
         defectCount: drift.Value(layer.defectCount),
         photoPath: drift.Value(layer.photoPath),
+        croppedPhotoPath: drift.Value(layer.croppedPhotoPath),
+        countingRegionJson: drift.Value(layer.countingRegion == null
+            ? null
+            : jsonEncode(layer.countingRegion!.toJson())),
         notes: drift.Value(layer.notes),
         itemName: drift.Value(layer.itemName),
         itemAllocationsJson: drift.Value(nextAllocationsJson),
@@ -796,5 +806,14 @@ class LocalLayerRepository implements LayerRepository {
         }
       }
     });
+  }
+}
+
+CountingRegion? _decodeCountingRegion(String? value) {
+  if (value == null || value.isEmpty) return null;
+  try {
+    return CountingRegion.fromJson(jsonDecode(value) as Map<String, dynamic>);
+  } catch (_) {
+    return null;
   }
 }

@@ -221,6 +221,20 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
     }
   }
 
+  /// Starts a non-persistent local session for device demonstrations. It never
+  /// sends credentials, creates a token, or starts session polling/tracking.
+  void enterDemo() {
+    _pollingTimer?.cancel();
+    _pollingTimer = null;
+    state = const User(
+      id: 'local_demo_operator',
+      employeeId: 'DEMO',
+      name: 'Demo Operator',
+      role: Role.supervisor,
+      warehouse: 'Local Test Warehouse',
+    );
+  }
+
   /// Opt-in hook retained for a future administrator-controlled live-tracking
   /// control. It deliberately does not run on login or app launch.
   Future<bool> startLiveTracking() async {

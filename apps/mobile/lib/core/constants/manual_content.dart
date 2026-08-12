@@ -263,6 +263,8 @@ Only use the access level assigned to you. If an action is unavailable, ask the 
 4. Tap Login.
 5. Wait for the Wagon Control Center.
 
+For local testing, **Demo Entry** opens a temporary Demo Operator session without credentials. It does not create a server token or begin tracking. Log out when testing is finished; do not use demo mode for real operational records.
+
 The signed-in user's name is used as the operator and supervisor identity in new records. One logged-in session should therefore show one operator name for work performed in that session.
 
 ### Startup
@@ -459,13 +461,15 @@ AI mode counts visible cartons from a captured layer image.
 ### Capture procedure
 
 1. Select AI mode.
-2. Align the layer in the guide.
+2. Drag the left/right dotted edges horizontally or the top/bottom dotted edges vertically until the rectangle covers only the cartons to count. The four corner dots are visual markers only. A fixed bottom hint disappears after your first adjustment. Drag inside it to reposition the whole area.
 3. Use flash only when necessary.
 4. Hold the phone steady.
 5. Tap Capture Layer.
 6. Wait for analysis and the Review Layer Scan screen.
 
 The active engine uses the packaged segmentation model to find carton shapes. AI is an assistant, not the final authority. The operator must inspect every result.
+
+The full captured photo remains in the local audit record. AI straightens and analyzes only the selected area, and the four crop coordinates are saved with the layer. Switch AI and Manual only using the visible mode selector; swiping does not change modes.
 
 ### If the camera is interrupted
 
@@ -477,7 +481,7 @@ The app may show Preparing Camera after screen lock, app switching or a system o
 
 Use Manual mode when AI capture is unsuitable, the camera view is difficult, or a verified physical count is already available.
 
-1. Switch from AI to Manual using the mode selector or horizontal swipe.
+1. Switch from AI to Manual using the visible mode selector only.
 2. Capture a reference photo. Retake it if the layer is unclear.
 3. Enter total cartons.
 4. Enter defects.
@@ -1305,13 +1309,15 @@ AI मोड फोटो में दिख रहे कार्टन ग�
 ### प्रक्रिया
 
 1. AI मोड चुनें।
-2. लेयर को गाइड में रखें।
+2. केवल गिनने वाले कार्टन को आयत में रखने के लिए left/right dotted edge को horizontal और top/bottom edge को vertical खींचें। चारों corner dots केवल visual markers हैं। नीचे का fixed hint पहले adjustment के बाद हट जाता है। पूरे चुने हुए भाग को सरकाने के लिए उसके अंदर खींचें।
 3. जरूरत पर ही Flash उपयोग करें।
 4. फोन स्थिर रखें।
 5. Capture Layer दबाएं।
 6. विश्लेषण के बाद Review Layer Scan देखें।
 
 AI केवल सहायक है। अंतिम जिम्मेदारी ऑपरेटर की है। हर बॉक्स और गिनती जांचें।
+
+पूरा फोटो लोकल ऑडिट रिकॉर्ड में रहता है। AI चुने हुए हिस्से को सीधा करके केवल उसका विश्लेषण करता है और चारों crop निर्देशांक लेयर के साथ सेव होते हैं। AI और Manual बदलने के लिए केवल दिखने वाले mode selector का उपयोग करें; swipe से mode नहीं बदलेगा।
 
 स्क्रीन लॉक या ऐप बदलने के बाद Preparing Camera दिख सकता है। लाइव Preview आने दें। जरूरत पर Retry Camera उपयोग करें। गलत या गायब फोटो सेव न करें।
 

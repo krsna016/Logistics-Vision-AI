@@ -28,6 +28,8 @@ class LayerReviewScreen extends ConsumerStatefulWidget {
   final String truckId;
   final AIResult aiResult;
   final String? photoPath;
+  final String? auditPhotoPath;
+  final CountingRegion? countingRegion;
   final String? initialNotes;
   final Future<AIResult> Function()? finalResultLoader;
 
@@ -36,6 +38,8 @@ class LayerReviewScreen extends ConsumerStatefulWidget {
     required this.truckId,
     required this.aiResult,
     this.photoPath,
+    this.auditPhotoPath,
+    this.countingRegion,
     this.initialNotes,
     this.finalResultLoader,
   });
@@ -435,7 +439,10 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                     .map((entry) => LayerItemAllocation(
                         itemName: entry.key, quantity: entry.value))
                     .toList(),
-                photoPath: widget.photoPath,
+                photoPath: widget.auditPhotoPath ?? widget.photoPath,
+                countingRegion: widget.countingRegion,
+                croppedPhotoPath:
+                    widget.countingRegion == null ? null : widget.photoPath,
               );
 
       if (mounted) {

@@ -20,6 +20,83 @@ class LayerItemAllocation {
       );
 }
 
+/// A four-corner counting area expressed as fractions of the upright original
+/// image. The corners can describe a perspective view of a carton layer while
+/// keeping the full photo available for audit.
+@immutable
+class CountingRegion {
+  final CountingPoint topLeft;
+  final CountingPoint topRight;
+  final CountingPoint bottomRight;
+  final CountingPoint bottomLeft;
+
+  const CountingRegion({
+    required this.topLeft,
+    required this.topRight,
+    required this.bottomRight,
+    required this.bottomLeft,
+  });
+
+  /// Retains compatibility with the rectangular selection saved by earlier
+  /// versions while allowing new records to store independent corners.
+  factory CountingRegion.fromJson(Map<String, dynamic> json) {
+    if (json.containsKey('topLeft')) {
+      return CountingRegion(
+        topLeft:
+            CountingPoint.fromJson(json['topLeft'] as Map<String, dynamic>),
+        topRight:
+            CountingPoint.fromJson(json['topRight'] as Map<String, dynamic>),
+        bottomRight:
+            CountingPoint.fromJson(json['bottomRight'] as Map<String, dynamic>),
+        bottomLeft:
+            CountingPoint.fromJson(json['bottomLeft'] as Map<String, dynamic>),
+      );
+    }
+    final left = (json['left'] as num).toDouble();
+    final top = (json['top'] as num).toDouble();
+    final right = (json['right'] as num).toDouble();
+    final bottom = (json['bottom'] as num).toDouble();
+    return CountingRegion.rectangle(
+      left: left,
+      top: top,
+      right: right,
+      bottom: bottom,
+    );
+  }
+
+  CountingRegion.rectangle({
+    required double left,
+    required double top,
+    required double right,
+    required double bottom,
+  })  : topLeft = CountingPoint(left, top),
+        topRight = CountingPoint(right, top),
+        bottomRight = CountingPoint(right, bottom),
+        bottomLeft = CountingPoint(left, bottom);
+
+  Map<String, dynamic> toJson() => {
+        'topLeft': topLeft.toJson(),
+        'topRight': topRight.toJson(),
+        'bottomRight': bottomRight.toJson(),
+        'bottomLeft': bottomLeft.toJson(),
+      };
+}
+
+@immutable
+class CountingPoint {
+  final double x;
+  final double y;
+
+  const CountingPoint(this.x, this.y);
+
+  Map<String, double> toJson() => {'x': x, 'y': y};
+
+  factory CountingPoint.fromJson(Map<String, dynamic> json) => CountingPoint(
+        (json['x'] as num).toDouble(),
+        (json['y'] as num).toDouble(),
+      );
+}
+
 @immutable
 class LayerRecord {
   final String id;
@@ -32,6 +109,8 @@ class LayerRecord {
   final DateTime timestamp;
   final String operatorId;
   final String? photoPath;
+  final String? croppedPhotoPath;
+  final CountingRegion? countingRegion;
   final String? notes;
   final String? itemName;
   final List<LayerItemAllocation> itemAllocations;
@@ -51,6 +130,8 @@ class LayerRecord {
     required this.timestamp,
     required this.operatorId,
     this.photoPath,
+    this.croppedPhotoPath,
+    this.countingRegion,
     this.notes,
     this.itemName,
     this.itemAllocations = const [],
@@ -71,6 +152,8 @@ class LayerRecord {
     DateTime? timestamp,
     String? operatorId,
     String? photoPath,
+    String? croppedPhotoPath,
+    CountingRegion? countingRegion,
     String? notes,
     String? itemName,
     List<LayerItemAllocation>? itemAllocations,
@@ -90,6 +173,8 @@ class LayerRecord {
       timestamp: timestamp ?? this.timestamp,
       operatorId: operatorId ?? this.operatorId,
       photoPath: photoPath ?? this.photoPath,
+      croppedPhotoPath: croppedPhotoPath ?? this.croppedPhotoPath,
+      countingRegion: countingRegion ?? this.countingRegion,
       notes: notes ?? this.notes,
       itemName: itemName ?? this.itemName,
       itemAllocations: itemAllocations ?? this.itemAllocations,

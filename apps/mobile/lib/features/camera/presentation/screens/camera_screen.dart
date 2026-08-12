@@ -16,7 +16,9 @@ import '../providers/decision_providers.dart';
 import '../../domain/entities/decision_state.dart';
 import '../../domain/entities/detection.dart';
 import '../widgets/detection_overlay_widget.dart';
+import '../widgets/resizable_counting_region.dart';
 import '../../../layer/domain/entities/ai_result.dart';
+import '../../../layer/domain/entities/layer.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/storage/image_storage_service.dart';
 import '../../../../core/ai_engine/models/ai_model.dart';
@@ -52,6 +54,12 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   bool _torchOn = false;
   bool _aiStarted = false;
   CameraController? _previewReadyController;
+  CountingRegion _countingRegion = CountingRegion.rectangle(
+    left: 0.09,
+    top: 0.24,
+    right: 0.91,
+    bottom: 0.76,
+  );
 
   @override
   void didUpdateWidget(covariant CameraScreen oldWidget) {
@@ -249,10 +257,14 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
               ),
             ),
 
-            if (!isGallery && cameraState.status == CameraStatus.ready)
-              const Positioned.fill(
-                child: IgnorePointer(
-                  child: _AlignmentGuide(isVisible: true),
+            if (!isGallery &&
+                cameraState.status == CameraStatus.ready &&
+                previewReady)
+              Positioned.fill(
+                child: ResizableCountingRegion(
+                  region: _countingRegion,
+                  onChanged: (region) =>
+                      setState(() => _countingRegion = region),
                 ),
               ),
 
@@ -407,6 +419,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   Future<void> _navigateToReview(BuildContext context, String truckId,
       InferenceState inferenceState, DecisionState decisionState,
       {String? photoPath,
+      String? auditPhotoPath,
+      CountingRegion? countingRegion,
       int? capturedCount,
       Future<AIResult> Function()? finalResultLoader}) async {
     final aiResult = AIResult(
@@ -438,6 +452,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       await context.push('/trucks/$truckId/review', extra: {
         'aiResult': aiResult,
         'photoPath': photoPath ?? _pickedImagePath,
+        'auditPhotoPath': auditPhotoPath ?? photoPath ?? _pickedImagePath,
+        'countingRegion': countingRegion,
         'finalResultLoader': finalResultLoader,
       });
     } finally {
@@ -463,17 +479,33 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       );
       if (!context.mounted) return;
 
+      // The preview uses BoxFit.cover. Translate the on-screen selector back
+      // into source-image coordinates so the saved crop matches the cartons
+      // the operator actually framed, not the screen's letterbox/crop area.
+      final sourceRegion = _sourceRegionForPreview(
+        context,
+        cameraState: ref.read(cameraNotifierProvider),
+      );
+
+      final cropPath = await _imageStorage.createCountingCrop(
+        savedPath,
+        sourceRegion,
+        prefix: 'ai_count_crop_$truckId',
+      );
+      if (!context.mounted) return;
+
       // Start the full-resolution pass, but do not make navigation wait for
       // mask decoding. Review appears with the latest live result and updates
       // atomically when this future completes.
-      Future<AIResult> finalResultLoader() =>
-          _finalizeCapturedResult(savedPath);
+      Future<AIResult> finalResultLoader() => _finalizeCapturedResult(cropPath);
       await _navigateToReview(
         context,
         truckId,
         const InferenceState(),
         const DecisionState(status: CountingDecisionState.collecting),
-        photoPath: savedPath,
+        photoPath: cropPath,
+        auditPhotoPath: savedPath,
+        countingRegion: sourceRegion,
         finalResultLoader: finalResultLoader,
       );
     } catch (e, stack) {
@@ -486,6 +518,38 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     } finally {
       if (mounted) setState(() => _isFinalizingCapture = false);
     }
+  }
+
+  CountingRegion _sourceRegionForPreview(
+    BuildContext context, {
+    required CameraState cameraState,
+  }) {
+    final preview = cameraState.controller?.value.previewSize;
+    if (preview == null) return _countingRegion;
+    final sourceSize = preview.width > preview.height
+        ? Size(preview.height, preview.width)
+        : Size(preview.width, preview.height);
+    final viewport = MediaQuery.sizeOf(context);
+    final scale = math.max(
+      viewport.width / sourceSize.width,
+      viewport.height / sourceSize.height,
+    );
+    final displayedWidth = sourceSize.width * scale;
+    final displayedHeight = sourceSize.height * scale;
+    final offsetX = (viewport.width - displayedWidth) / 2;
+    final offsetY = (viewport.height - displayedHeight) / 2;
+    CountingPoint sourcePoint(CountingPoint point) => CountingPoint(
+          ((point.x * viewport.width - offsetX) / displayedWidth)
+              .clamp(0.0, 1.0),
+          ((point.y * viewport.height - offsetY) / displayedHeight)
+              .clamp(0.0, 1.0),
+        );
+    return CountingRegion(
+      topLeft: sourcePoint(_countingRegion.topLeft),
+      topRight: sourcePoint(_countingRegion.topRight),
+      bottomRight: sourcePoint(_countingRegion.bottomRight),
+      bottomLeft: sourcePoint(_countingRegion.bottomLeft),
+    );
   }
 
   Future<AIResult> _finalizeCapturedResult(String imagePath) async {

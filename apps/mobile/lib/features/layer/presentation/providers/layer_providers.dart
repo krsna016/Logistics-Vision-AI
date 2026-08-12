@@ -132,6 +132,8 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     String? notes,
     List<LayerItemAllocation> itemAllocations = const [],
     String? photoPath,
+    String? croppedPhotoPath,
+    CountingRegion? countingRegion,
   }) async {
     if (cartonCount <= 0 || cartonCount > 9999) {
       return 'Enter a carton count from 1 to 9,999.';
@@ -212,6 +214,8 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         timestamp: DateTime.now(),
         operatorId: await _operatorName(),
         photoPath: photoPath,
+        croppedPhotoPath: croppedPhotoPath,
+        countingRegion: countingRegion,
         notes: notes,
         itemName:
             itemAllocations.length == 1 ? itemAllocations.first.itemName : null,

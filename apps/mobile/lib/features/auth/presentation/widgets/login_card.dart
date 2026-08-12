@@ -34,14 +34,7 @@ class _LoginCardState extends ConsumerState<LoginCard> {
           _passwordController.text,
         );
     if (success) {
-      try {
-        await ref.read(inferenceNotifierProvider.notifier).ensureModelReady();
-      } catch (error, stack) {
-        AppLogger.error('Post-login AI preparation failed', error, stack);
-      }
-      if (!mounted) return;
-      setState(() => _isLoading = false);
-      widget.onLoginSuccess();
+      await _completeEntry();
     } else {
       if (!mounted) return;
       setState(() => _isLoading = false);
@@ -63,6 +56,23 @@ class _LoginCardState extends ConsumerState<LoginCard> {
         );
       }
     }
+  }
+
+  Future<void> _handleDemoEntry() async {
+    setState(() => _isLoading = true);
+    ref.read(authProvider.notifier).enterDemo();
+    await _completeEntry();
+  }
+
+  Future<void> _completeEntry() async {
+    try {
+      await ref.read(inferenceNotifierProvider.notifier).ensureModelReady();
+    } catch (error, stack) {
+      AppLogger.error('Post-login AI preparation failed', error, stack);
+    }
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+    widget.onLoginSuccess();
   }
 
   @override
@@ -170,6 +180,32 @@ class _LoginCardState extends ConsumerState<LoginCard> {
                           fontSize: 16,
                           color: Colors.white)),
             ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            height: 50,
+            child: OutlinedButton.icon(
+              onPressed: _isLoading ? null : _handleDemoEntry,
+              icon: const Icon(Icons.science_outlined),
+              label: const Text(
+                'Demo Entry',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppTheme.primaryColor,
+                side: const BorderSide(color: AppTheme.primaryColor),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'For local testing only — no credentials required',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
         ],
       ),

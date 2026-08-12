@@ -12,6 +12,11 @@ class LayerModel {
       timestamp: DateTime.parse(json['timestamp'] as String),
       operatorId: json['operatorId'] as String,
       photoPath: json['photoPath'] as String?,
+      croppedPhotoPath: json['croppedPhotoPath'] as String?,
+      countingRegion: json['countingRegion'] is Map<String, dynamic>
+          ? CountingRegion.fromJson(
+              json['countingRegion'] as Map<String, dynamic>)
+          : null,
       notes: json['notes'] as String?,
       itemName: json['itemName'] as String?,
       itemAllocations: (json['itemAllocations'] as List<dynamic>? ?? const [])
@@ -41,6 +46,8 @@ class LayerModel {
       'timestamp': record.timestamp.toIso8601String(),
       'operatorId': record.operatorId,
       'photoPath': record.photoPath,
+      'croppedPhotoPath': record.croppedPhotoPath,
+      'countingRegion': record.countingRegion?.toJson(),
       'notes': record.notes,
       'itemName': record.itemName,
       'itemAllocations': record.itemAllocations
