@@ -10,15 +10,18 @@ class RegisterReconciliationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasManifest = register.hasManifest;
     final reconciled = register.isReconciled;
+    final stateColor = hasManifest
+        ? (reconciled ? AppTheme.successColor : AppTheme.errorColor)
+        : AppTheme.textSecondary;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: (reconciled ? AppTheme.successColor : AppTheme.errorColor)
-              .withValues(alpha: 0.45),
+          color: stateColor.withValues(alpha: 0.45),
         ),
       ),
       child: Column(
@@ -27,20 +30,24 @@ class RegisterReconciliationCard extends StatelessWidget {
           Row(
             children: [
               Icon(
-                reconciled ? Icons.verified_outlined : Icons.error_outline,
-                color: reconciled ? AppTheme.successColor : AppTheme.errorColor,
+                !hasManifest
+                    ? Icons.info_outline
+                    : (reconciled
+                        ? Icons.verified_outlined
+                        : Icons.error_outline),
+                color: stateColor,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  reconciled
-                      ? 'REGISTER RECONCILED'
-                      : 'RECONCILIATION REQUIRED',
+                  !hasManifest
+                      ? 'ITEM MANIFEST NOT PROVIDED'
+                      : (reconciled
+                          ? 'REGISTER RECONCILED'
+                          : 'RECONCILIATION REQUIRED'),
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
-                    color: reconciled
-                        ? AppTheme.successColor
-                        : AppTheme.errorColor,
+                    color: stateColor,
                   ),
                 ),
               ),
@@ -49,9 +56,11 @@ class RegisterReconciliationCard extends StatelessWidget {
           const SizedBox(height: 14),
           Row(
             children: [
-              _metric('Manifest', register.manifestCartons),
-              _metric('Loaded', register.totalCartons),
-              _metric('Remaining', register.remainingCartons),
+              _metric('Manifest',
+                  hasManifest ? '${register.manifestCartons}' : '--'),
+              _metric('Loaded', '${register.totalCartons}'),
+              _metric('Remaining',
+                  hasManifest ? '${register.remainingCartons}' : '--'),
             ],
           ),
           if (register.itemBalances.isNotEmpty) ...[
@@ -91,10 +100,10 @@ class RegisterReconciliationCard extends StatelessWidget {
     );
   }
 
-  Widget _metric(String label, int value) => Expanded(
+  Widget _metric(String label, String value) => Expanded(
         child: Column(
           children: [
-            Text('$value',
+            Text(value,
                 style:
                     const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
             Text(label.toUpperCase(),

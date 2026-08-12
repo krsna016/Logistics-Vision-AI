@@ -6,9 +6,9 @@ import '../../domain/entities/wagon.dart';
 
 class WagonCard extends StatelessWidget {
   final Wagon wagon;
-  final int totalCartons;
+  final int? totalCartons;
   final int loadedCartons;
-  final int remainingCartons;
+  final int? remainingCartons;
   final int truckCount;
   final VoidCallback onTap;
 
@@ -126,13 +126,18 @@ class WagonCard extends StatelessWidget {
           Row(
             children: [
               Expanded(child: _buildMetric('Trucks', '$truckCount')),
-              Expanded(child: _buildMetric('Total', '$totalCartons')),
+              Expanded(
+                child: _buildMetric(
+                  'Total',
+                  totalCartons?.toString() ?? '--',
+                ),
+              ),
               Expanded(child: _buildMetric('Loaded', '$loadedCartons')),
               Expanded(
                 child: _buildMetric(
                   'Remaining',
-                  '$remainingCartons',
-                  isAlert: remainingCartons < 0,
+                  remainingCartons?.toString() ?? '--',
+                  isAlert: (remainingCartons ?? 0) < 0,
                 ),
               ),
             ],

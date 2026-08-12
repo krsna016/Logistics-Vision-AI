@@ -68,6 +68,7 @@ class DigitalRegister {
 
   int get manifestCartons =>
       itemBalances.fold(0, (sum, item) => sum + item.manifest);
+  bool get hasManifest => itemBalances.isNotEmpty;
   int get remainingCartons =>
       itemBalances.fold(0, (sum, item) => sum + item.remaining);
   bool get isReconciled => reconciliationIssues.isEmpty;

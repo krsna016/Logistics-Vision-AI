@@ -13,7 +13,12 @@ class AppResponsive {
 
   static bool isCompact(BuildContext context) => width(context) < 360;
   static bool isNarrow(BuildContext context) => width(context) < 380;
-  static bool isTablet(BuildContext context) => width(context) >= 600;
+  static bool isTablet(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final nativeWidth =
+        width(context) * (2.4 / media.devicePixelRatio).clamp(0.60, 1.0);
+    return nativeWidth >= 600;
+  }
 
   static double pagePadding(BuildContext context) =>
       math.min(20, math.max(15, width(context) * 0.048));

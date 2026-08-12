@@ -269,10 +269,14 @@ class WagonListScreen extends ConsumerWidget {
                                   (t) => t.wagonId == wagon.id && !t.isDeleted);
                               final loadedCartons = wagonTrucks.fold(
                                   0, (sum, t) => sum + t.totalCartons);
-                              final totalCartons = wagon.items.fold<int>(
-                                  0, (sum, item) => sum + item.quantity);
-                              final remainingCartons =
-                                  totalCartons - loadedCartons;
+                              final hasManifest = wagon.items.isNotEmpty;
+                              final totalCartons = hasManifest
+                                  ? wagon.items.fold<int>(
+                                      0, (sum, item) => sum + item.quantity)
+                                  : null;
+                              final remainingCartons = totalCartons == null
+                                  ? null
+                                  : totalCartons - loadedCartons;
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: WagonCard(

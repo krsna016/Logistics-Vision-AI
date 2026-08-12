@@ -118,22 +118,15 @@ class _UserManualScreenState extends State<UserManualScreen> {
           : null,
       body: Container(
         color: AppTheme.backgroundColor,
-        child: Scrollbar(
+        child: ListView.builder(
           controller: _scrollController,
-          thumbVisibility: true,
-          interactive: true,
-          radius: const Radius.circular(8),
-          thickness: 5,
-          child: ListView.builder(
-            controller: _scrollController,
-            padding: const EdgeInsets.fromLTRB(18, 20, 22, 96),
-            physics: const ClampingScrollPhysics(),
-            itemCount: sections.length,
-            itemBuilder: (context, index) => MarkdownBody(
-              data: sections[index],
-              selectable: false,
-              styleSheet: _manualStyleSheet(),
-            ),
+          padding: const EdgeInsets.fromLTRB(18, 20, 22, 96),
+          physics: const ClampingScrollPhysics(),
+          itemCount: sections.length,
+          itemBuilder: (context, index) => MarkdownBody(
+            data: sections[index],
+            selectable: false,
+            styleSheet: _manualStyleSheet(),
           ),
         ),
       ),

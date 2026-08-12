@@ -20,6 +20,14 @@ void main() {
     expect(SmartLoadReferenceViewport.scaleForDevicePixelRatio(2), 1);
   });
 
+  test('very high-density phones retain the reference physical footprint', () {
+    for (final density in <double>[2.4, 3, 3.5, 4]) {
+      final scale =
+          SmartLoadReferenceViewport.scaleForDevicePixelRatio(density);
+      expect(density * scale, closeTo(2.4, 0.000001));
+    }
+  });
+
   testWidgets(
       'viewport normalizes size, safe area, keyboard, and text together',
       (tester) async {
@@ -57,5 +65,78 @@ void main() {
     expect(normalized.systemGestureInsets.left, closeTo(15, 0.000001));
     expect(normalized.textScaler.scale(1), closeTo(1.03, 0.000001));
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('large screens use a centered phone-width workspace',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1280));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    late MediaQueryData normalized;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: MediaQuery(
+          data: const MediaQueryData(
+            size: Size(800, 1280),
+            devicePixelRatio: 2,
+            padding: EdgeInsets.only(top: 24, left: 18, right: 18),
+          ),
+          child: SmartLoadReferenceViewport(
+            child: Builder(
+              builder: (context) {
+                normalized = MediaQuery.of(context);
+                return const ColoredBox(color: Colors.black);
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(normalized.size, const Size(520, 1280));
+    expect(normalized.padding.left, 0);
+    expect(normalized.padding.right, 0);
+    expect(normalized.padding.top, 24);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('representative phone density matrix remains exception-free',
+      (tester) async {
+    const devices = <(Size, double)>[
+      (Size(320, 700), 2.0),
+      (Size(360, 800), 2.4),
+      (Size(390, 844), 3.0),
+      (Size(430, 932), 3.5),
+      (Size(412, 915), 4.0),
+    ];
+
+    for (final device in devices) {
+      late MediaQueryData normalized;
+      await tester.pumpWidget(
+        MediaQuery(
+          data: MediaQueryData(
+            size: device.$1,
+            devicePixelRatio: device.$2,
+            padding: const EdgeInsets.only(top: 28, bottom: 20),
+            textScaler: const TextScaler.linear(1.3),
+          ),
+          child: SmartLoadReferenceViewport(
+            child: Builder(
+              builder: (context) {
+                normalized = MediaQuery.of(context);
+                return const Directionality(
+                  textDirection: TextDirection.ltr,
+                  child: ColoredBox(color: Colors.black),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+      expect(normalized.size.width, greaterThanOrEqualTo(320));
+      expect(normalized.textScaler.scale(1), inInclusiveRange(0.92, 1.03));
+      expect(tester.takeException(), isNull);
+    }
   });
 }

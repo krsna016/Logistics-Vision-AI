@@ -47,4 +47,36 @@ void main() {
     expect(find.text('LAYERS'), findsNothing);
     expect(find.text('DEFECTS'), findsNothing);
   });
+
+  testWidgets('register card does not calculate remaining without a manifest',
+      (tester) async {
+    final now = DateTime(2026, 8, 12);
+    final register = DigitalRegister(
+      id: 'register-2',
+      wagonId: 'wagon-2',
+      wagonNumber: 'BCNHL-002',
+      origin: 'Delhi',
+      destination: 'Jaipur',
+      loadingDate: now,
+      status: WagonStatus.loading,
+      totalTrucks: 1,
+      totalLayers: 1,
+      totalCartons: 33,
+      totalDefects: 0,
+      loadingDuration: const Duration(minutes: 30),
+      generatedAt: now,
+      lastOpenedAt: now,
+      trucks: const [],
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: RegisterCard(register: register, onTap: () {}),
+      ),
+    ));
+
+    expect(find.text('33'), findsOneWidget);
+    expect(find.text('--'), findsNWidgets(2));
+    expect(find.text('-33'), findsNothing);
+  });
 }

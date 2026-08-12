@@ -16,7 +16,8 @@ class RegisterCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalCartons = register.manifestCartons;
     final loadedCartons = register.totalCartons;
-    final remainingCartons = totalCartons - loadedCartons;
+    final remainingCartons =
+        register.hasManifest ? register.remainingCartons : null;
     return Card(
       elevation: 2,
       margin: const EdgeInsets.only(bottom: 12),
@@ -132,12 +133,15 @@ class RegisterCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _buildStatCol('TRUCKS', '${register.totalTrucks}'),
-                    _buildStatCol('TOTAL', '$totalCartons'),
+                    _buildStatCol(
+                      'TOTAL',
+                      register.hasManifest ? '$totalCartons' : '--',
+                    ),
                     _buildStatCol('LOADED', '$loadedCartons'),
                     _buildStatCol(
                       'REMAINING',
-                      '$remainingCartons',
-                      isAlert: remainingCartons < 0,
+                      remainingCartons?.toString() ?? '--',
+                      isAlert: (remainingCartons ?? 0) < 0,
                     ),
                   ],
                 ),
