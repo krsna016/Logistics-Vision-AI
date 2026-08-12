@@ -13,6 +13,7 @@ class SyncWorkerImpl implements SyncWorker {
   final RetryManager _retryManager;
   final Dio _dio;
   final AppDatabase _db;
+  bool _lastConflict = false;
 
   SyncWorkerImpl(this._queueRepo, this._retryManager, NetworkService network, this._db)
       : _dio = network.client;
@@ -33,7 +34,10 @@ class SyncWorkerImpl implements SyncWorker {
 
       final success = await attemptOperation(op);
 
-      if (success) {
+      if (_lastConflict) {
+        _lastConflict = false;
+        continue;
+      } else if (success) {
         await _queueRepo.updateOperationStatus(op.id, SyncStatus.completed);
       } else {
         final newRetryCount = op.retryCount + 1;
@@ -76,6 +80,15 @@ class SyncWorkerImpl implements SyncWorker {
       final results = response.data?['results'];
       if (results is! List || results.isEmpty) return false;
       final status = (results.first as Map<String, dynamic>)['status'];
+      if (status == 'conflict') {
+        _lastConflict = true;
+        await _queueRepo.updateOperationStatus(
+          operation.id,
+          SyncStatus.conflict,
+          errorMessage: 'Server has a newer version; administrator review required.',
+        );
+        return false;
+      }
       return status == 'synced' || status == 'already_synced';
     } on DioException catch (error) {
       debugPrint('Sync upload failed for ${operation.entityId}: ${error.message}');
@@ -117,6 +130,16 @@ class SyncWorkerImpl implements SyncWorker {
           'operatorId': row.operatorId, 'modelVersion': row.modelVersion,
           'createdAt': row.createdAt.toUtc().toIso8601String(), 'updatedAt': row.updatedAt.toUtc().toIso8601String(),
           'isDeleted': row.isDeleted};
+      case 'LoadingSession':
+        final row = await (_db.select(_db.loadingSessions)..where((t) => t.id.equals(operation.entityId))).getSingleOrNull();
+        if (row == null) return {};
+        return {'id': row.id, 'truckId': row.truckId, 'warehouseId': row.warehouseId,
+          'operatorId': row.operatorId, 'startTime': row.startTime.toUtc().toIso8601String(),
+          'endTime': row.endTime?.toUtc().toIso8601String(), 'status': row.status,
+          'totalLayers': row.totalLayers, 'totalCartons': row.totalCartons,
+          'totalDefects': row.totalDefects, 'averageConfidence': row.averageConfidence,
+          'modelVersion': row.modelVersion, 'notes': row.notes, 'metadata': row.metadata,
+          'createdAt': row.createdAt.toUtc().toIso8601String(), 'updatedAt': row.updatedAt.toUtc().toIso8601String()};
       default:
         return {};
     }
