@@ -917,7 +917,9 @@ class TruckDetailsScreen extends ConsumerWidget {
                                         'Enter valid carton and defect counts.')));
                             return;
                           }
-                          if (wagon != null && allocated != cartons) {
+                          if (wagon != null &&
+                              wagon.items.isNotEmpty &&
+                              allocated != cartons) {
                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                                 content: Text(
                                     'Item quantities must total exactly $cartons cartons.')));

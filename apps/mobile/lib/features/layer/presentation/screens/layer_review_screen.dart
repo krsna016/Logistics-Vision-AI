@@ -29,7 +29,7 @@ class LayerReviewScreen extends ConsumerStatefulWidget {
   final AIResult aiResult;
   final String? photoPath;
   final String? initialNotes;
-  final Future<AIResult>? finalResult;
+  final Future<AIResult> Function()? finalResultLoader;
 
   const LayerReviewScreen({
     super.key,
@@ -37,7 +37,7 @@ class LayerReviewScreen extends ConsumerStatefulWidget {
     required this.aiResult,
     this.photoPath,
     this.initialNotes,
-    this.finalResult,
+    this.finalResultLoader,
   });
 
   @override
@@ -70,10 +70,15 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
     _correctedCount = _aiResult.count;
     _correctedDefectCount = _aiResult.defectCount;
     _editableDetections = List<Detection>.of(_aiResult.detections);
-    final pendingResult = widget.finalResult;
-    if (pendingResult != null) {
+    final resultLoader = widget.finalResultLoader;
+    if (resultLoader != null) {
       _isFinalizing = true;
-      _resolveFinalResult(pendingResult);
+      // Paint a responsive Review page before starting expensive image/model
+      // work. The operator sees the photo and progress UI immediately.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _resolveFinalResult(resultLoader());
+      });
     }
   }
 

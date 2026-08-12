@@ -295,7 +295,16 @@ class _LayerPhotoThumbnail extends StatelessWidget {
             InteractiveViewer(
               minScale: 0.8,
               maxScale: 4,
-              child: Image.file(file, fit: BoxFit.contain),
+              child: Image(
+                image: ResizeImage(
+                  FileImage(file),
+                  width: 1920,
+                  height: 1920,
+                  policy: ResizeImagePolicy.fit,
+                ),
+                fit: BoxFit.contain,
+                filterQuality: FilterQuality.medium,
+              ),
             ),
             Positioned(
               top: 8,
@@ -329,7 +338,16 @@ class _LayerPhotoThumbnail extends StatelessWidget {
                 SizedBox(
                   height: 68,
                   width: double.infinity,
-                  child: Image.file(File(path), fit: BoxFit.cover),
+                  child: Image(
+                    image: ResizeImage(
+                      FileImage(File(path)),
+                      width: 1080,
+                      height: 240,
+                      policy: ResizeImagePolicy.fit,
+                    ),
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.medium,
+                  ),
                 ),
                 Container(
                   width: double.infinity,

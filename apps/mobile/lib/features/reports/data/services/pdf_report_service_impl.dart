@@ -182,7 +182,7 @@ String _reportValue(Object? value) {
 }
 
 String compactDigitalRegisterItems(String value) => value
-    .split(' + ')
+    .split(RegExp(r'\s*\+\s*|\r?\n'))
     .map((item) => item.trim())
     .where((item) => item.isNotEmpty)
     .join('\n');
@@ -396,6 +396,13 @@ class PdfReportServiceImpl implements PdfReportService {
 
     if (truck == null) throw Exception('Truck not found');
 
+    final wagon = truck.wagonId == null
+        ? null
+        : await (_db.select(_db.wagons)
+              ..where((w) =>
+                  w.id.equals(truck.wagonId!) & w.isDeleted.equals(false)))
+            .getSingleOrNull();
+
     final layerIds = layers.map((layer) => layer.id).toList(growable: false);
     final correctionLogs = layerIds.isEmpty
         ? <AuditLog>[]
@@ -416,6 +423,7 @@ class PdfReportServiceImpl implements PdfReportService {
       totalCartons,
     );
     final reportData = <String, Object?>{
+      'wagonNumber': wagon?.wagonNumber ?? 'N/A',
       'truckNumber': truck.truckNumber,
       'generatedDate': DateTime.now().toString().split(' ')[0],
       'vehicleNumber': truck.vehicleNumber,
@@ -997,21 +1005,21 @@ Future<Uint8List> _buildTruckPdfBytes(
         pw.Text('Details',
             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 10),
-        pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-          pw.Text('Vehicle Number: ${report['vehicleNumber']}'),
-          pw.Text('Driver: ${_reportValue(report['driverName'])}'),
-        ]),
-        pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-          pw.Text('Driver Phone: ${_reportValue(report['driverMobile'])}'),
-          pw.Text('Company: ${_reportValue(report['company'])}'),
-        ]),
-        pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceBetween, children: [
-          pw.Text('Warehouse: ${_reportValue(report['warehouse'])}'),
-          pw.Text('Status: ${report['status']}'),
-        ]),
-        pw.Align(
-          alignment: pw.Alignment.centerRight,
-          child: pw.Text('Supervisor: $supervisor'),
+        _truckDetailRow(
+          'Wagon No.: ${_reportValue(report['wagonNumber'])}',
+          'Driver: ${_reportValue(report['driverName'])}',
+        ),
+        _truckDetailRow(
+          'Vehicle No.: ${_reportValue(report['vehicleNumber'])}',
+          'Company: ${_reportValue(report['company'])}',
+        ),
+        _truckDetailRow(
+          'Driver Phone: ${_reportValue(report['driverMobile'])}',
+          'Status: ${_reportValue(report['status'])}',
+        ),
+        _truckDetailRow(
+          'Warehouse: ${_reportValue(report['warehouse'])}',
+          'Supervisor: $supervisor',
         ),
         pw.SizedBox(height: 28),
         pw.Text('Layers Summary',
@@ -1524,7 +1532,9 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
                 .map((layer) => [
                       layer['number'],
                       layer['cartons'],
-                      layer['items'],
+                      compactDigitalRegisterItems(
+                        layer['items']?.toString() ?? '',
+                      ),
                       layer['defects'],
                       layer['operator'],
                       layer['added'],
@@ -1663,6 +1673,15 @@ Future<Uint8List> _buildAnalyticsPdfBytes(
   return pdf.save();
 }
 
+pw.Widget _truckDetailRow(String left, String right) => pw.Row(
+      children: [
+        pw.Expanded(child: pw.Text(left)),
+        pw.Expanded(
+          child: pw.Text(right, textAlign: pw.TextAlign.right),
+        ),
+      ],
+    );
+
 List<Map<String, Object?>> _reportMaps(Object? value) {
   return (value! as List)
       .cast<Map<Object?, Object?>>()
@@ -1691,7 +1710,7 @@ List<String> _digitalRegisterCells(Map<String, Object?> truck, int row) {
   if (layer == null) return const ['', ''];
   return [
     layer['cartonCount']?.toString() ?? '',
-    layer['item']?.toString() ?? '',
+    compactDigitalRegisterItems(layer['item']?.toString() ?? ''),
   ];
 }
 

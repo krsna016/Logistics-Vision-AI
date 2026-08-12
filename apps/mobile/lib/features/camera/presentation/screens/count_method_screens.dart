@@ -715,7 +715,17 @@ class _ManualPhotoCard extends StatelessWidget {
               fit: StackFit.expand,
               children: [
                 if (hasPhoto)
-                  Image.file(File(photoPath!), fit: BoxFit.cover)
+                  Image(
+                    image: ResizeImage(
+                      FileImage(File(photoPath!)),
+                      width: 1440,
+                      height: 720,
+                      policy: ResizeImagePolicy.fit,
+                    ),
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.medium,
+                    gaplessPlayback: true,
+                  )
                 else
                   const DecoratedBox(
                     decoration: BoxDecoration(

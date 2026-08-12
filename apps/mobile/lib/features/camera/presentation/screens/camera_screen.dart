@@ -80,14 +80,15 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         // Match camera capture: open Review immediately with the chosen image
         // and let its existing bottom bar show "Analyzing…" while the 960px
         // final pass completes in the background.
-        final finalResult = _finalizeCapturedResult(image.path);
+        Future<AIResult> finalResultLoader() =>
+            _finalizeCapturedResult(image!.path);
         await _navigateToReview(
           context,
           truckId,
           const InferenceState(),
           const DecisionState(status: CountingDecisionState.collecting),
           photoPath: image.path,
-          finalResult: finalResult,
+          finalResultLoader: finalResultLoader,
         );
       }
     } catch (e, stack) {
@@ -406,7 +407,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       InferenceState inferenceState, DecisionState decisionState,
       {String? photoPath,
       int? capturedCount,
-      Future<AIResult>? finalResult}) async {
+      Future<AIResult> Function()? finalResultLoader}) async {
     final aiResult = AIResult(
       detections: inferenceState.detections,
       count: capturedCount ??
@@ -427,13 +428,16 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     );
 
     final cameraAdapter = _streamKey.currentState;
-    if (_pickedImagePath == null) await cameraAdapter?.pausePreview();
+    // CameraX can occasionally take close to the full timeout to acknowledge
+    // a preview pause. Review navigation must never wait for that platform
+    // operation, otherwise the UI appears frozen after capture/gallery pick.
+    if (_pickedImagePath == null) unawaited(cameraAdapter?.pausePreview());
     if (!context.mounted) return;
     try {
       await context.push('/trucks/$truckId/review', extra: {
         'aiResult': aiResult,
         'photoPath': photoPath ?? _pickedImagePath,
-        'finalResult': finalResult,
+        'finalResultLoader': finalResultLoader,
       });
     } finally {
       if (mounted && widget.isActive && _pickedImagePath == null) {
@@ -461,14 +465,15 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       // Start the full-resolution pass, but do not make navigation wait for
       // mask decoding. Review appears with the latest live result and updates
       // atomically when this future completes.
-      final finalResult = _finalizeCapturedResult(savedPath);
+      Future<AIResult> finalResultLoader() =>
+          _finalizeCapturedResult(savedPath);
       await _navigateToReview(
         context,
         truckId,
         const InferenceState(),
         const DecisionState(status: CountingDecisionState.collecting),
         photoPath: savedPath,
-        finalResult: finalResult,
+        finalResultLoader: finalResultLoader,
       );
     } catch (e, stack) {
       AppLogger.error('Failed to capture layer photo', e, stack);

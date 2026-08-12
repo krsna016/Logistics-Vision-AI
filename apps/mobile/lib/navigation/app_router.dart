@@ -185,13 +185,14 @@ final routerProvider = Provider<GoRouter>((ref) {
                   );
               final photoPath = extra['photoPath'] as String?;
               final manualNotes = extra['manualNotes'] as String?;
-              final finalResult = extra['finalResult'] as Future<AIResult>?;
+              final finalResultLoader =
+                  extra['finalResultLoader'] as Future<AIResult> Function()?;
               return LayerReviewScreen(
                 truckId: truckId,
                 aiResult: aiResult,
                 photoPath: photoPath,
                 initialNotes: manualNotes,
-                finalResult: finalResult,
+                finalResultLoader: finalResultLoader,
               );
             },
           ),

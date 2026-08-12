@@ -73,6 +73,13 @@ class ExcelReportServiceImpl implements ExcelReportService {
 
     if (truck == null) throw Exception('Truck not found');
 
+    final wagon = truck.wagonId == null
+        ? null
+        : await (_db.select(_db.wagons)
+              ..where((w) =>
+                  w.id.equals(truck.wagonId!) & w.isDeleted.equals(false)))
+            .getSingleOrNull();
+
     // Header styling
     CellStyle headerStyle = CellStyle(
       bold: true,
@@ -89,18 +96,20 @@ class ExcelReportServiceImpl implements ExcelReportService {
 
     // Metadata
     sheet.cell(CellIndex.indexByString("A3")).value =
-        TextCellValue('Vehicle: ${truck.vehicleNumber}');
+        TextCellValue('Wagon No.: ${wagon?.wagonNumber ?? 'N/A'}');
     sheet.cell(CellIndex.indexByString("A4")).value =
-        TextCellValue('Driver: ${truck.driverName}');
+        TextCellValue('Vehicle: ${truck.vehicleNumber}');
     sheet.cell(CellIndex.indexByString("C3")).value =
-        TextCellValue('Phone: ${truck.driverMobile ?? 'Not provided'}');
+        TextCellValue('Driver: ${truck.driverName}');
     sheet.cell(CellIndex.indexByString("C4")).value =
-        TextCellValue('Company: ${truck.company}');
+        TextCellValue('Phone: ${truck.driverMobile ?? 'Not provided'}');
     sheet.cell(CellIndex.indexByString("E3")).value =
-        TextCellValue('Warehouse: ${truck.warehouse}');
+        TextCellValue('Company: ${truck.company}');
     sheet.cell(CellIndex.indexByString("E4")).value =
-        TextCellValue('Status: ${truck.status}');
+        TextCellValue('Warehouse: ${truck.warehouse}');
     sheet.cell(CellIndex.indexByString("G3")).value =
+        TextCellValue('Status: ${truck.status}');
+    sheet.cell(CellIndex.indexByString("G4")).value =
         TextCellValue(_supervisorLabel);
 
     // Data Table Headers
