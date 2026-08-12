@@ -5,9 +5,10 @@ import '../../domain/entities/quality_summary.dart';
 import '../../domain/repositories/defect_repository.dart';
 import '../../data/repositories_impl/local_defect_repository.dart';
 import '../../../../utils/logger.dart';
+import '../../../../core/providers/database_provider.dart';
 
 final defectRepositoryProvider = Provider<DefectRepository>((ref) {
-  return LocalDefectRepository();
+  return LocalDefectRepository(database: ref.watch(databaseProvider));
 });
 
 class DefectListState {

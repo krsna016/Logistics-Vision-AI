@@ -104,7 +104,9 @@ export default function Dashboard() {
     let cancelled = false;
     const fetchActivity = async () => {
       try {
-        const response = await api.get('/sync/records');
+        // History is append-only, so admins can see every offline change rather
+        // than only the latest snapshot for each entity.
+        const response = await api.get('/sync/history');
         if (!cancelled) setActivityRecords(Array.isArray(response.data) ? response.data : []);
       } catch (_) {
         // Older backend deployments do not expose sync records yet.
@@ -226,8 +228,8 @@ export default function Dashboard() {
       </section>
 
       <section className="directory-panel">
-        <div className="directory-heading"><div><div className="section-kicker">CENTRAL SYNC</div><h2>Recent workforce activity <span>{activityRecords.length}</span></h2><p>Loading records uploaded from employee devices.</p></div><Users size={22} aria-hidden="true" /></div>
-        {activityRecords.length === 0 ? <div className="empty-state"><div className="empty-icon"><Users size={22} /></div><h3>No synced loading records yet</h3><p>Records appear here after a phone reconnects and uploads its offline queue.</p></div> : <div className="table-wrap"><table className="user-table"><thead><tr><th>Record</th><th>Employee</th><th>Action</th><th>Version</th><th>Updated</th></tr></thead><tbody>{activityRecords.map(record => <tr key={`${record.entity_type}-${record.entity_id}`}><td><strong>{record.entity_type}</strong><span className="id-copy">{record.entity_id}</span></td><td>{record.employee_id}</td><td>{record.operation}</td><td>{record.version}</td><td>{record.updated_at ? new Date(record.updated_at).toLocaleString() : '—'}</td></tr>)}</tbody></table></div>}
+        <div className="directory-heading"><div><div className="section-kicker">CENTRAL SYNC</div><h2>Recent workforce activity <span>{activityRecords.length}</span></h2><p>Every change uploaded from employee devices, including offline corrections.</p></div><Users size={22} aria-hidden="true" /></div>
+        {activityRecords.length === 0 ? <div className="empty-state"><div className="empty-icon"><Users size={22} /></div><h3>No synced loading activity yet</h3><p>Records appear here after a phone reconnects and uploads its offline queue.</p></div> : <div className="table-wrap"><table className="user-table"><thead><tr><th>Record</th><th>Employee</th><th>Action</th><th>Status</th><th>Version</th><th>Recorded</th></tr></thead><tbody>{activityRecords.map(record => <tr key={record.operation_id}><td><strong>{record.entity_type}</strong><span className="id-copy">{record.entity_id}</span></td><td>{record.employee_id}</td><td>{record.operation}</td><td>{record.status}</td><td>{record.version}</td><td>{record.recorded_at ? new Date(record.recorded_at).toLocaleString() : '—'}</td></tr>)}</tbody></table></div>}
       </section>
     </main>
     <ConfirmDialog action={confirmAction} onCancel={() => !actionLoading && setConfirmAction(null)} onConfirm={runAction} loading={actionLoading} />

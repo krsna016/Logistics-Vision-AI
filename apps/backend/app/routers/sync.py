@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.security import get_current_user, require_admin
 from ..db.database import get_db
-from ..models.sync import SyncedRecord
+from ..models.sync import SyncHistoryRecord, SyncedRecord
 from ..models.user import User
 from ..schemas.sync import SyncBatchIn, SyncBatchOut, SyncRecordResult
 
@@ -45,6 +45,19 @@ async def upload_batch(
             )
         )
         if current and item.version < current.version:
+            db.add(SyncHistoryRecord(
+                operation_id=item.operation_id,
+                entity_type=item.entity_type,
+                entity_id=item.entity_id,
+                operation=item.operation,
+                status="conflict",
+                payload_json=json.dumps(item.payload, separators=(",", ":")),
+                version=item.version,
+                employee_id=current_user.employee_id,
+                device_id=item.device_id,
+                client_created_at=item.created_at,
+                client_updated_at=item.updated_at,
+            ))
             results.append(SyncRecordResult(
                 operation_id=item.operation_id,
                 entity_type=item.entity_type,
@@ -90,6 +103,19 @@ async def upload_batch(
             status="synced",
             server_version=server_version,
         ))
+        db.add(SyncHistoryRecord(
+            operation_id=item.operation_id,
+            entity_type=item.entity_type,
+            entity_id=item.entity_id,
+            operation=item.operation,
+            status="synced",
+            payload_json=json.dumps(item.payload, separators=(",", ":")),
+            version=server_version,
+            employee_id=current_user.employee_id,
+            device_id=item.device_id,
+            client_created_at=item.created_at,
+            client_updated_at=item.updated_at,
+        ))
     await db.commit()
     return SyncBatchOut(results=results)
 
@@ -119,6 +145,45 @@ async def read_records(
             "is_deleted": row.is_deleted,
             "created_at": row.created_at,
             "updated_at": row.updated_at,
+        }
+        for row in rows
+    ]
+
+
+@router.get("/history")
+async def read_sync_history(
+    entity_type: str | None = None,
+    entity_id: str | None = None,
+    employee_id: str | None = None,
+    status: str | None = None,
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Return the append-only operational history for admin audit screens."""
+    query = select(SyncHistoryRecord).order_by(SyncHistoryRecord.recorded_at.desc())
+    if entity_type:
+        query = query.where(SyncHistoryRecord.entity_type == entity_type)
+    if entity_id:
+        query = query.where(SyncHistoryRecord.entity_id == entity_id)
+    if employee_id:
+        query = query.where(SyncHistoryRecord.employee_id == employee_id)
+    if status:
+        query = query.where(SyncHistoryRecord.status == status)
+    rows = (await db.execute(query.limit(2000))).scalars().all()
+    return [
+        {
+            "operation_id": row.operation_id,
+            "entity_type": row.entity_type,
+            "entity_id": row.entity_id,
+            "operation": row.operation,
+            "status": row.status,
+            "payload": json.loads(row.payload_json),
+            "version": row.version,
+            "employee_id": row.employee_id,
+            "device_id": row.device_id,
+            "client_created_at": row.client_created_at,
+            "client_updated_at": row.client_updated_at,
+            "recorded_at": row.recorded_at,
         }
         for row in rows
     ]

@@ -1,16 +1,32 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/defect.dart';
 import '../../domain/repositories/defect_repository.dart';
 import '../models/defect_model.dart';
 import '../../../camera/domain/entities/detection.dart';
 import '../../../../utils/logger.dart';
+import '../../../../core/database/app_database.dart';
 
 class LocalDefectRepository implements DefectRepository {
   static const String _storageKey = 'cached_defect_records_v1';
 
-  LocalDefectRepository();
+  final AppDatabase? _db;
+
+  LocalDefectRepository({AppDatabase? database}) : _db = database;
+
+  Future<void> _queue(DefectRecord defect, String operation) async {
+    final db = _db;
+    if (db == null) return;
+    await db.into(db.syncQueues).insert(SyncQueuesCompanion.insert(
+      id: 'sync_defect_${const Uuid().v4()}',
+      entityId: defect.id,
+      entityType: 'Defect',
+      operation: operation,
+      payloadData: jsonEncode(DefectModel.toJson(defect)),
+    ));
+  }
 
   Future<void> _writeToCache(List<DefectRecord> list) async {
     try {
@@ -49,6 +65,7 @@ class LocalDefectRepository implements DefectRepository {
     final list = await _readAllDefects();
     list.add(defect);
     await _writeToCache(list);
+    await _queue(defect, 'INSERT');
     AppLogger.info(
         'Saved defect record ${defect.id} (Type: ${defect.defectType.name})');
   }
@@ -78,6 +95,7 @@ class LocalDefectRepository implements DefectRepository {
         notes: notes,
       );
       await _writeToCache(list);
+      await _queue(list[index], 'UPDATE');
       AppLogger.info('Verified defect $id: confirmed=$confirmedByOperator');
     }
   }

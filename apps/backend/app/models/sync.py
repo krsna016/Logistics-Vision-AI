@@ -29,4 +29,24 @@ class SyncedRecord(Base):
     client_updated_at = Column(DateTime(timezone=True), nullable=True)
     is_deleted = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class SyncHistoryRecord(Base):
+    """Append-only audit trail for every accepted or rejected sync operation."""
+
+    __tablename__ = "sync_history"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    operation_id = Column(String, nullable=False, unique=True, index=True)
+    entity_type = Column(String, nullable=False, index=True)
+    entity_id = Column(String, nullable=False, index=True)
+    operation = Column(String, nullable=False)
+    status = Column(String, nullable=False, index=True)
+    payload_json = Column(Text, nullable=False)
+    version = Column(Integer, nullable=False, default=1)
+    employee_id = Column(String, nullable=False, index=True)
+    device_id = Column(String, nullable=True)
+    client_created_at = Column(DateTime(timezone=True), nullable=True)
+    client_updated_at = Column(DateTime(timezone=True), nullable=True)
+    recorded_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
