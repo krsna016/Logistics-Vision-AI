@@ -51,8 +51,10 @@ class LocalRegisterRepository implements RegisterRepository {
               ))
           .toList(growable: false);
 
-      // Duration calculation estimate
-      Duration duration = const Duration(hours: 3, minutes: 45);
+      // Only report an interval supported by local operational records.  A
+      // fabricated fallback made new or short operations appear to have taken
+      // 3h45m in the digital register and its exports.
+      Duration duration = Duration.zero;
       if (wagonTrucks.isNotEmpty) {
         final earliest = wagonTrucks
             .map((t) => t.createdDate)
@@ -60,10 +62,9 @@ class LocalRegisterRepository implements RegisterRepository {
         final latest = wagonTrucks
             .map((t) => t.updatedDate)
             .reduce((a, b) => a.isAfter(b) ? a : b);
-        final diff = latest.difference(earliest);
-        if (diff.inMinutes > 5) {
-          duration = diff;
-        }
+        duration = latest.isAfter(earliest)
+            ? latest.difference(earliest)
+            : Duration.zero;
       }
 
       registers.add(

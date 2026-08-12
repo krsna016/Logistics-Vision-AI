@@ -36,7 +36,7 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
     ref.watch(databaseProvider),
   );
 
-  final engine = SyncEngineImpl(connService, queueRepo, worker);
+  final engine = SyncEngineImpl(connService, queueRepo, retryManager, worker);
 
   // Auto-start the engine when instantiated
   engine.start();

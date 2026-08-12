@@ -2,11 +2,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import CreateUser from './pages/CreateUser';
-import { hasValidSession } from './auth';
+import { hasAdminSession } from './auth';
 
 // Simple PrivateRoute wrapper
 const PrivateRoute = ({ children }) => {
-  return hasValidSession() ? children : <Navigate to="/login" />;
+  return hasAdminSession() ? children : <Navigate to="/login" replace />;
 };
 
 function App() {

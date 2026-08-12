@@ -15,7 +15,8 @@ class SyncWorkerImpl implements SyncWorker {
   final AppDatabase _db;
   bool _lastConflict = false;
 
-  SyncWorkerImpl(this._queueRepo, this._retryManager, NetworkService network, this._db)
+  SyncWorkerImpl(
+      this._queueRepo, this._retryManager, NetworkService network, this._db)
       : _dio = network.client;
 
   @override
@@ -52,18 +53,28 @@ class SyncWorkerImpl implements SyncWorker {
       }
     }
 
-    // Check if there are more pending in the db
-    final remaining = await _queueRepo.getPendingBatch(1);
-    return remaining.isNotEmpty;
+    // A failed record that is still in its retry window is pending, but it is
+    // not work that can be processed now. Reporting it as available made the
+    // engine immediately fetch the same batch again in a tight loop.
+    final remaining = await _queueRepo.getPendingBatch(50);
+    final now = DateTime.now();
+    return remaining.any((operation) {
+      if (operation.status != SyncStatus.failed) return true;
+      final eligibleAt = operation.updatedAt
+          .add(_retryManager.calculateNextDelay(operation.retryCount));
+      return !now.isBefore(eligibleAt);
+    });
   }
 
   @override
   Future<bool> attemptOperation(SyncOperation operation) async {
     try {
       final decoded = jsonDecode(operation.payload);
-      var payload = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+      var payload =
+          decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
       if (payload.isEmpty) payload = await _readCurrentPayload(operation);
-      final response = await _dio.post<Map<String, dynamic>>('/sync/batch', data: {
+      final response =
+          await _dio.post<Map<String, dynamic>>('/sync/batch', data: {
         'records': [
           {
             'operation_id': operation.id,
@@ -85,13 +96,15 @@ class SyncWorkerImpl implements SyncWorker {
         await _queueRepo.updateOperationStatus(
           operation.id,
           SyncStatus.conflict,
-          errorMessage: 'Server has a newer version; administrator review required.',
+          errorMessage:
+              'Server has a newer version; administrator review required.',
         );
         return false;
       }
       return status == 'synced' || status == 'already_synced';
     } on DioException catch (error) {
-      debugPrint('Sync upload failed for ${operation.entityId}: ${error.message}');
+      debugPrint(
+          'Sync upload failed for ${operation.entityId}: ${error.message}');
       return false;
     } on FormatException {
       debugPrint('Sync payload is not valid JSON for ${operation.entityId}');
@@ -99,47 +112,101 @@ class SyncWorkerImpl implements SyncWorker {
     }
   }
 
-  Future<Map<String, dynamic>> _readCurrentPayload(SyncOperation operation) async {
+  Future<Map<String, dynamic>> _readCurrentPayload(
+      SyncOperation operation) async {
     switch (operation.entityType) {
       case 'Wagon':
-        final row = await (_db.select(_db.wagons)..where((t) => t.id.equals(operation.entityId))).getSingleOrNull();
+        final row = await (_db.select(_db.wagons)
+              ..where((t) => t.id.equals(operation.entityId)))
+            .getSingleOrNull();
         if (row == null) return {};
-        return {'id': row.id, 'wagonNumber': row.wagonNumber, 'status': row.status,
-          'warehouseId': row.warehouseId, 'origin': row.origin, 'destination': row.destination,
-          'loadingDate': row.loadingDate?.toUtc().toIso8601String(), 'remarks': row.remarks,
-          'expectedTruckCount': row.expectedTruckCount, 'completedTruckCount': row.completedTruckCount,
-          'itemManifestJson': row.itemManifestJson, 'createdAt': row.createdAt.toUtc().toIso8601String(),
-          'updatedAt': row.updatedAt.toUtc().toIso8601String(), 'isDeleted': row.isDeleted};
+        return {
+          'id': row.id,
+          'wagonNumber': row.wagonNumber,
+          'status': row.status,
+          'warehouseId': row.warehouseId,
+          'origin': row.origin,
+          'destination': row.destination,
+          'loadingDate': row.loadingDate?.toUtc().toIso8601String(),
+          'remarks': row.remarks,
+          'expectedTruckCount': row.expectedTruckCount,
+          'completedTruckCount': row.completedTruckCount,
+          'itemManifestJson': row.itemManifestJson,
+          'createdAt': row.createdAt.toUtc().toIso8601String(),
+          'updatedAt': row.updatedAt.toUtc().toIso8601String(),
+          'isDeleted': row.isDeleted
+        };
       case 'Truck':
-        final row = await (_db.select(_db.trucks)..where((t) => t.id.equals(operation.entityId))).getSingleOrNull();
+        final row = await (_db.select(_db.trucks)
+              ..where((t) => t.id.equals(operation.entityId)))
+            .getSingleOrNull();
         if (row == null) return {};
-        return {'id': row.id, 'wagonId': row.wagonId, 'truckNumber': row.truckNumber,
-          'vehicleNumber': row.vehicleNumber, 'driverName': row.driverName, 'driverMobile': row.driverMobile,
-          'company': row.company, 'warehouse': row.warehouse, 'status': row.status,
-          'completedDate': row.completedDate?.toUtc().toIso8601String(), 'notes': row.notes,
-          'totalLayers': row.totalLayers, 'totalCartons': row.totalCartons, 'totalDefects': row.totalDefects,
-          'isArchived': row.isArchived, 'createdAt': row.createdAt.toUtc().toIso8601String(),
-          'updatedAt': row.updatedAt.toUtc().toIso8601String(), 'isDeleted': row.isDeleted};
+        return {
+          'id': row.id,
+          'wagonId': row.wagonId,
+          'truckNumber': row.truckNumber,
+          'vehicleNumber': row.vehicleNumber,
+          'driverName': row.driverName,
+          'driverMobile': row.driverMobile,
+          'company': row.company,
+          'warehouse': row.warehouse,
+          'status': row.status,
+          'completedDate': row.completedDate?.toUtc().toIso8601String(),
+          'notes': row.notes,
+          'totalLayers': row.totalLayers,
+          'totalCartons': row.totalCartons,
+          'totalDefects': row.totalDefects,
+          'isArchived': row.isArchived,
+          'createdAt': row.createdAt.toUtc().toIso8601String(),
+          'updatedAt': row.updatedAt.toUtc().toIso8601String(),
+          'isDeleted': row.isDeleted
+        };
       case 'Layer':
-        final row = await (_db.select(_db.layers)..where((t) => t.id.equals(operation.entityId))).getSingleOrNull();
+        final row = await (_db.select(_db.layers)
+              ..where((t) => t.id.equals(operation.entityId)))
+            .getSingleOrNull();
         if (row == null) return {};
-        return {'id': row.id, 'truckId': row.truckId, 'layerNumber': row.layerNumber,
-          'cartonCount': row.cartonCount, 'defectCount': row.defectCount, 'photoPath': row.photoPath,
-          'notes': row.notes, 'itemName': row.itemName, 'itemAllocationsJson': row.itemAllocationsJson,
-          'averageConfidence': row.averageConfidence, 'timestamp': row.timestamp?.toUtc().toIso8601String(),
-          'operatorId': row.operatorId, 'modelVersion': row.modelVersion,
-          'createdAt': row.createdAt.toUtc().toIso8601String(), 'updatedAt': row.updatedAt.toUtc().toIso8601String(),
-          'isDeleted': row.isDeleted};
+        return {
+          'id': row.id,
+          'truckId': row.truckId,
+          'layerNumber': row.layerNumber,
+          'cartonCount': row.cartonCount,
+          'defectCount': row.defectCount,
+          'photoPath': row.photoPath,
+          'notes': row.notes,
+          'itemName': row.itemName,
+          'itemAllocationsJson': row.itemAllocationsJson,
+          'averageConfidence': row.averageConfidence,
+          'timestamp': row.timestamp?.toUtc().toIso8601String(),
+          'operatorId': row.operatorId,
+          'modelVersion': row.modelVersion,
+          'createdAt': row.createdAt.toUtc().toIso8601String(),
+          'updatedAt': row.updatedAt.toUtc().toIso8601String(),
+          'isDeleted': row.isDeleted
+        };
       case 'LoadingSession':
-        final row = await (_db.select(_db.loadingSessions)..where((t) => t.id.equals(operation.entityId))).getSingleOrNull();
+        final row = await (_db.select(_db.loadingSessions)
+              ..where((t) => t.id.equals(operation.entityId)))
+            .getSingleOrNull();
         if (row == null) return {};
-        return {'id': row.id, 'truckId': row.truckId, 'warehouseId': row.warehouseId,
-          'operatorId': row.operatorId, 'startTime': row.startTime.toUtc().toIso8601String(),
-          'endTime': row.endTime?.toUtc().toIso8601String(), 'status': row.status,
-          'totalLayers': row.totalLayers, 'totalCartons': row.totalCartons,
-          'totalDefects': row.totalDefects, 'averageConfidence': row.averageConfidence,
-          'modelVersion': row.modelVersion, 'notes': row.notes, 'metadata': row.metadata,
-          'createdAt': row.createdAt.toUtc().toIso8601String(), 'updatedAt': row.updatedAt.toUtc().toIso8601String()};
+        return {
+          'id': row.id,
+          'truckId': row.truckId,
+          'warehouseId': row.warehouseId,
+          'operatorId': row.operatorId,
+          'startTime': row.startTime.toUtc().toIso8601String(),
+          'endTime': row.endTime?.toUtc().toIso8601String(),
+          'status': row.status,
+          'totalLayers': row.totalLayers,
+          'totalCartons': row.totalCartons,
+          'totalDefects': row.totalDefects,
+          'averageConfidence': row.averageConfidence,
+          'modelVersion': row.modelVersion,
+          'notes': row.notes,
+          'metadata': row.metadata,
+          'createdAt': row.createdAt.toUtc().toIso8601String(),
+          'updatedAt': row.updatedAt.toUtc().toIso8601String()
+        };
       default:
         return {};
     }

@@ -8,7 +8,11 @@ import '../../../features/truck/presentation/providers/truck_providers.dart';
 import '../../../features/layer/presentation/providers/layer_providers.dart';
 import '../../../features/auth/presentation/providers/auth_providers.dart';
 import '../../../features/auth/domain/entities/user.dart';
+import '../../../features/auth/domain/entities/role.dart';
+import '../../../features/reports/presentation/providers/report_providers.dart'
+    hide databaseProvider;
 import '../../providers/database_provider.dart';
+import '../../storage/local_data_archive_service.dart';
 import 'action_warning_dialog.dart';
 
 class AppDrawer extends ConsumerWidget {
@@ -56,6 +60,16 @@ class AppDrawer extends ConsumerWidget {
                       context.push('/manual');
                     },
                   ),
+                  if (user?.role == Role.administrator) ...[
+                    const SizedBox(height: 8),
+                    _buildTile(
+                      icon: Icons.inventory_2_outlined,
+                      title: 'Share Audit Archive',
+                      subtitle: 'Database, photos, backups and exports',
+                      iconColor: AppTheme.primaryColor,
+                      onTap: () => _confirmLocalDataArchive(context, ref),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   _buildTile(
                     icon: Icons.bug_report_rounded,
@@ -261,7 +275,7 @@ class AppDrawer extends ConsumerWidget {
 
     showDialog<void>(
       context: context,
-      builder: (ctx) => ActionWarningDialog(
+      builder: (_) => ActionWarningDialog(
         title: 'Load Demo Data?',
         content:
             'This replaces all operational records with a fresh enterprise demo dataset: wagons, trucks, layers, sessions, registers, reports, sync entries and audit history. User accounts, login and app settings remain safe.',
@@ -371,6 +385,67 @@ class AppDrawer extends ConsumerWidget {
                           'Enterprise demo data loaded. Accounts and settings preserved.')),
                 ],
               ),
+            ));
+          }
+        },
+      ),
+    );
+  }
+
+  void _confirmLocalDataArchive(BuildContext context, WidgetRef ref) {
+    final database = ref.read(databaseProvider);
+    final shareService = ref.read(shareServiceProvider);
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => ActionWarningDialog(
+        title: 'Share Local Audit Archive?',
+        content:
+            'This creates one ZIP containing all local operational data: the database, audit and sync records, saved images, backups, and locally generated exports. Login tokens and password hashes are excluded. Share it only through an approved secure channel.',
+        actionLabel: 'Create & Share ZIP',
+        actionColor: AppTheme.primaryColor,
+        icon: Icons.inventory_2_outlined,
+        onConfirm: () async {
+          showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (_) => const PopScope(
+              canPop: false,
+              child: AlertDialog(
+                content: Row(
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(width: 20),
+                    Expanded(
+                      child: Text(
+                        'Preparing archive in the background…\n'
+                        'Your phone will stay responsive.',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+
+          try {
+            final archive =
+                await LocalDataArchiveService(database).createArchive();
+            if (!context.mounted) return;
+            Navigator.of(context, rootNavigator: true).pop();
+            Navigator.of(context).pop();
+            await shareService.shareFile(
+              archive,
+              subject: 'SmartLoad Local Audit Archive',
+              text:
+                  'Local SmartLoad audit archive. Contains operational data; handle securely.',
+            );
+          } catch (error) {
+            if (!context.mounted) return;
+            Navigator.of(context, rootNavigator: true).pop();
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text('Could not create audit archive: $error'),
+              backgroundColor: AppTheme.errorColor,
             ));
           }
         },

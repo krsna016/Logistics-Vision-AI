@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { hasAdminSession } from '../auth';
 
 export default function Login() {
   const [employeeId, setEmployeeId] = useState('');
@@ -15,7 +16,13 @@ export default function Login() {
     try {
       const params = new URLSearchParams({ username: employeeId.trim(), password });
       const res = await api.post('/auth/login', params, { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } });
-      sessionStorage.setItem('token', res.data.access_token); navigate('/');
+      sessionStorage.setItem('token', res.data.access_token);
+      if (!hasAdminSession()) {
+        sessionStorage.removeItem('token');
+        setError('Administrator access is required for this console.');
+        return;
+      }
+      navigate('/');
     } catch (err) { setError(err.response?.data?.detail || 'Invalid credentials or inactive account.'); }
     finally { setLoading(false); }
   };

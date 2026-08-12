@@ -5,8 +5,14 @@ import '../../domain/entities/backup_archive.dart';
 import '../../domain/repositories/backup_repository.dart';
 
 class LocalBackupRepository implements BackupRepository {
+  LocalBackupRepository({Future<Directory> Function()? documentsDirectory})
+      : _documentsDirectory =
+            documentsDirectory ?? getApplicationDocumentsDirectory;
+
+  final Future<Directory> Function() _documentsDirectory;
+
   Future<Directory> _getBackupDirectory() async {
-    final appDir = await getApplicationDocumentsDirectory();
+    final appDir = await _documentsDirectory();
     final backupDir = Directory(p.join(appDir.path, 'backups'));
     if (!await backupDir.exists()) {
       await backupDir.create(recursive: true);
@@ -25,6 +31,9 @@ class LocalBackupRepository implements BackupRepository {
     return File(p.join(directory.path, '$safeId.sqlite.bak'));
   }
 
+  String _backupId(File file) =>
+      p.basename(file.path).replaceFirst(RegExp(r'\.sqlite\.bak$'), '');
+
   @override
   Future<List<BackupArchive>> getBackups() async {
     final backupDir = await _getBackupDirectory();
@@ -33,7 +42,7 @@ class LocalBackupRepository implements BackupRepository {
     await for (final entity in backupDir.list()) {
       if (entity is File && entity.path.endsWith('.sqlite.bak')) {
         final stat = await entity.stat();
-        final name = p.basenameWithoutExtension(entity.path);
+        final name = _backupId(entity);
 
         archives.add(BackupArchive(
           id: name,
@@ -55,7 +64,7 @@ class LocalBackupRepository implements BackupRepository {
   Future<BackupArchive> createBackup(
       {required bool isAutomatic, bool includeImages = false}) async {
     final backupDir = await _getBackupDirectory();
-    final appDir = await getApplicationDocumentsDirectory();
+    final appDir = await _documentsDirectory();
 
     final dbFile = File(p.join(appDir.path, 'smartload_offline.sqlite'));
     if (!await dbFile.exists()) {
@@ -73,7 +82,7 @@ class LocalBackupRepository implements BackupRepository {
 
     final stat = await backupFile.stat();
     return BackupArchive(
-      id: p.basenameWithoutExtension(backupFile.path),
+      id: _backupId(backupFile),
       createdAt: stat.modified,
       version: '1.0.1',
       sizeMB: stat.size / (1024 * 1024),
@@ -92,7 +101,7 @@ class LocalBackupRepository implements BackupRepository {
       return false;
     }
 
-    final appDir = await getApplicationDocumentsDirectory();
+    final appDir = await _documentsDirectory();
     final dbFile = File(p.join(appDir.path, 'smartload_offline.sqlite'));
 
     // Copy the backup over the current DB
@@ -118,7 +127,7 @@ class LocalBackupRepository implements BackupRepository {
 
   @override
   Future<Map<String, double>> getStorageStatistics() async {
-    final appDir = await getApplicationDocumentsDirectory();
+    final appDir = await _documentsDirectory();
 
     double getDirSizeMB(Directory dir) {
       if (!dir.existsSync()) return 0.0;

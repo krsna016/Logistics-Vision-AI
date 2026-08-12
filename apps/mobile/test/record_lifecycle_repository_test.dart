@@ -298,4 +298,25 @@ void main() {
     expect(register.remainingCartons, 600);
     expect(register.isReconciled, isTrue);
   });
+
+  test('digital register duration is measured rather than estimated', () async {
+    await seedWagonTruck();
+    final startedAt = DateTime(2026, 8, 12, 9);
+    final finishedAt = startedAt.add(const Duration(minutes: 3));
+    await (database.update(database.trucks)
+          ..where((truck) => truck.id.equals('truck-1')))
+        .write(TrucksCompanion(
+      createdAt: Value(startedAt),
+      updatedAt: Value(finishedAt),
+    ));
+
+    final register = await LocalRegisterRepository(
+      wagonRepo: LocalWagonRepository(database),
+      truckRepo: LocalTruckRepository(database),
+      layerRepo: LocalLayerRepository(database),
+    ).getRegisterByWagonId('wagon-1');
+
+    expect(register, isNot(equals(null)));
+    expect(register!.loadingDuration, const Duration(minutes: 3));
+  });
 }
