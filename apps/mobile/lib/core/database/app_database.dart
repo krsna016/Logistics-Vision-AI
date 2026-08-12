@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 6;
+  int get schemaVersion => 7;
 
   @override
   MigrationStrategy get migration {
@@ -85,6 +85,13 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 6) {
           await m.addColumn(layers, layers.itemAllocationsJson);
+        }
+        if (from < 7) {
+          await m.database
+              .customStatement("UPDATE users SET role = CASE LOWER(role) "
+                  "WHEN 'admin' THEN 'administrator' "
+                  "WHEN 'administrator' THEN 'administrator' "
+                  "ELSE 'supervisor' END");
         }
       },
     );

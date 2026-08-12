@@ -53,7 +53,7 @@ async def location_stream(websocket: WebSocket, db: AsyncSession = Depends(get_d
         employee_id = payload.get("sub")
         result = await db.execute(select(User).where(User.employee_id == employee_id))
         user = result.scalars().first()
-        if user is None or not user.is_active or user.role != "Admin":
+        if user is None or not user.is_active or user.role != "Administrator":
             raise ValueError("Admin access required")
     except (jwt.InvalidTokenError, ValueError):
         await websocket.close(code=1008, reason="Invalid Admin session")

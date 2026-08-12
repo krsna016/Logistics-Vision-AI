@@ -55,6 +55,19 @@ async def startup_event():
             await conn.execute(text(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP WITH TIME ZONE"
             ))
+
+        # Canonicalize legacy role names before any authenticated request.
+        # Existing operators/managers become Supervisors; only legacy Admin
+        # accounts retain elevated access as Administrators.
+        await conn.execute(text(
+            "UPDATE users SET role = CASE LOWER(role) "
+            "WHEN 'admin' THEN 'Administrator' "
+            "WHEN 'administrator' THEN 'Administrator' "
+            "WHEN 'supervisor' THEN 'Supervisor' "
+            "WHEN 'manager' THEN 'Supervisor' "
+            "WHEN 'operator' THEN 'Supervisor' "
+            "ELSE 'Supervisor' END"
+        ))
         
     # Bootstrap an administrator only when an explicit one-time password is supplied.
     from .db.database import AsyncSessionLocal
@@ -68,7 +81,7 @@ async def startup_event():
             db_admin = User(
                 employee_id="ADMIN",
                 name="Super Administrator",
-                role="Admin",
+                role="Administrator",
                 hashed_password=get_password_hash(settings.BOOTSTRAP_ADMIN_PASSWORD),
             )
             session.add(db_admin)

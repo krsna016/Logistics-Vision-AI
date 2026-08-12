@@ -14,6 +14,7 @@ import '../providers/truck_providers.dart';
 import '../../../layer/presentation/providers/layer_providers.dart';
 import '../../../layer/domain/entities/layer.dart';
 import '../../../session/presentation/providers/session_providers.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
 import '../../../reports/presentation/widgets/generate_report_dialog.dart';
 
@@ -49,6 +50,8 @@ class TruckDetailsScreen extends ConsumerWidget {
     final sessionState = ref.watch(activeSessionProvider);
     final sessionNotifier = ref.read(activeSessionProvider.notifier);
     final wagonState = ref.watch(wagonListProvider);
+    final isAdministrator =
+        ref.watch(authProvider)?.role.canModifyDigitalRegisters ?? false;
 
     final truck = listState.trucks.firstWhere(
       (e) => e.id == truckId,
@@ -94,13 +97,14 @@ class TruckDetailsScreen extends ConsumerWidget {
     // Archived records stay closed for operational actions, but the Digital
     // Register provides an audit-correction path for layer notes/deletions.
     final isWorkflowReadOnly = truck.isArchived;
+    final archivedEditAllowed = allowArchivedEditing && isAdministrator;
     final isLayerReadOnly = isRegisterView
-        ? !allowArchivedEditing
-        : truck.isArchived && !allowArchivedEditing;
+        ? !archivedEditAllowed
+        : truck.isArchived && !archivedEditAllowed;
     final canEditOrDelete = isRegisterView
-        ? allowArchivedEditing
-        : !truck.isArchived || allowArchivedEditing;
-    final canDelete = isRegisterView ? allowArchivedEditing : !truck.isArchived;
+        ? archivedEditAllowed
+        : !truck.isArchived || archivedEditAllowed;
+    final canDelete = isRegisterView ? archivedEditAllowed : !truck.isArchived;
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,

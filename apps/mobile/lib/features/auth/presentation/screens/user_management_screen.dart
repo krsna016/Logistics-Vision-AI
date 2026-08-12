@@ -149,7 +149,7 @@ class UserManagementScreen extends ConsumerWidget {
     final nameCtrl = TextEditingController();
     final empIdCtrl = TextEditingController();
     final pwdCtrl = TextEditingController();
-    Role selectedRole = Role.operator;
+    Role selectedRole = Role.supervisor;
 
     showDialog<void>(
       context: context,

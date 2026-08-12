@@ -45,7 +45,7 @@ async def read_users(db: AsyncSession = Depends(get_db), _: User = Depends(requi
 
 @router.get("/{employee_id}", response_model=UserResponse)
 async def read_user(employee_id: str, db: AsyncSession = Depends(get_db), current_user: User = Depends(get_current_user)):
-    if current_user.employee_id != employee_id and current_user.role != "Admin":
+    if current_user.employee_id != employee_id and current_user.role != "Administrator":
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     result = await db.execute(select(User).where(User.employee_id == employee_id))
     user = result.scalars().first()

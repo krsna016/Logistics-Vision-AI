@@ -7,14 +7,14 @@ from pydantic import BaseModel, ConfigDict, Field
 class UserBase(BaseModel):
     employee_id: str = Field(min_length=1, max_length=64)
     name: str = Field(min_length=1, max_length=200)
-    role: Literal["Admin", "Manager", "Supervisor", "Operator"]
+    role: Literal["Administrator", "Supervisor"]
 
 class UserCreate(UserBase):
     password: str = Field(min_length=1, max_length=128)
 
 class UserUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
-    role: Literal["Admin", "Manager", "Supervisor", "Operator"] | None = None
+    role: Literal["Administrator", "Supervisor"] | None = None
     is_active: bool | None = None
 
 class UserResponse(UserBase):

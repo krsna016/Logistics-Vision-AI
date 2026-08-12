@@ -102,8 +102,7 @@ It creates a continuous digital chain from incoming wagon inventory to the final
 
 ### Benefits for every stakeholder
 
-- **Operator:** A guided workflow, faster access to the correct vehicle, clear layer review and less repeated paperwork.
-- **Supervisor:** Live inventory position, controlled corrections, completion checks and clear responsibility.
+- **Supervisor:** A guided workflow, faster access to the correct vehicle, clear layer review, live inventory position and completion checks.
 - **Warehouse manager:** One view of wagon progress, vehicle loading, carton totals, defects and remaining stock.
 - **Operations leadership:** Consistent processes across teams and locations, with structured information for review.
 - **Audit and compliance team:** Time-stamped records, photos, correction reasons and exportable evidence.
@@ -247,10 +246,8 @@ The consolidated historical view of one wagon, all its vehicles, all layers, ite
 
 ### Roles and permissions
 
-- **Operator:** capture, manually count, save layers and make permitted corrections.
-- **Supervisor:** all Operator actions, plus approve corrections, complete vehicles/wagons and export operational data.
-- **Warehouse Manager:** all Supervisor actions, plus manage wagons, archive records, view analytics and restore permitted backups.
-- **Administrator:** all Warehouse Manager actions, plus manage users, security, devices and historical Digital Register corrections.
+- **Supervisor:** all normal loading, counting, correction, completion, analytics and report-export actions. Historical Digital Register records are read-only.
+- **Administrator:** all Supervisor actions, plus user, security, device and backup management and every historical Digital Register correction.
 
 Only use the access level assigned to you. If an action is unavailable, ask the supervisor or administrator instead of using another person's login.
 
@@ -415,7 +412,7 @@ Open Wagon Details and tap Add Truck or Register Truck.
 
 ### Editing
 
-Open Truck Details and tap the pencil icon. The same details may be corrected during the active workflow. After a record enters Digital Register, only an Administrator can modify its wagon, vehicle, layers, item breakdown, defects or remarks. Operator, Supervisor and Warehouse Manager access is read-only. Administrators can correct archived vehicles through Digital Register -> Truck Details; normal loading controls remain locked.
+Open Truck Details and tap the pencil icon. The same details may be corrected during the active workflow. After a record enters Digital Register, only an Administrator can modify its wagon, vehicle, layers, item breakdown, defects or remarks. Supervisor access is read-only. Administrators can correct archived vehicles through Digital Register -> Truck Details; normal loading controls remain locked.
 
 ### Removing a vehicle
 
@@ -642,7 +639,7 @@ For each item it shows Manifest, Loaded and Remaining. It detects:
 
 ### Truck and Layer Register
 
-Expand a vehicle to see all its layers. Operator, Supervisor and Warehouse Manager roles can inspect the historical vehicle but cannot change it. Administrators enter correction mode and can update wagon details, vehicle details, layers, item breakdowns, defects and remarks even after wagon or vehicle archival. Archived loading controls always stay locked.
+Expand a vehicle to see all its layers. Supervisors can inspect historical vehicles but cannot change them. Administrators enter correction mode and can update wagon details, vehicle details, layers, item breakdowns, defects and remarks even after wagon or vehicle archival. Archived loading controls always stay locked.
 
 ### Correction history
 
@@ -955,9 +952,8 @@ SmartLoad लॉजिस्टिक्स टीम को एक सरल �
 
 ### हर stakeholder के लिए लाभ
 
-- **ऑपरेटर:** आसान guided workflow, सही वाहन तक जल्दी पहुंच, साफ layer review और कम repeated paperwork।
-- **सुपरवाइजर:** Live inventory, controlled correction, completion checks और स्पष्ट जिम्मेदारी।
-- **वेयरहाउस मैनेजर:** वैगन progress, vehicle loading, cartons, defects और remaining stock एक जगह।
+- **सुपरवाइजर:** आसान guided workflow, live inventory, controlled correction, completion checks और स्पष्ट जिम्मेदारी।
+- **एडमिनिस्ट्रेटर:** user, security, device, backup और historical Digital Register की पूरी निगरानी।
 - **Operations leadership:** अलग टीम और location में समान प्रक्रिया तथा review के लिए structured information।
 - **Audit और compliance team:** Timestamp, photo, correction reason और exportable evidence।
 - **Finance और claims team:** shortage, damage या quantity dispute की जांच के लिए मजबूत supporting record।
@@ -1100,10 +1096,8 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 
 ### रोल और अनुमति
 
-- **Operator:** फोटो/स्कैन, मैनुअल गिनती, लेयर सेव और अनुमति वाले सुधार कर सकता है।
-- **Supervisor:** Operator के सभी काम, सुधार मंजूर करना, वाहन/वैगन पूरा करना और डेटा export कर सकता है।
-- **Warehouse Manager:** Supervisor के सभी काम, वैगन प्रबंधन, archive, analytics देखना और अनुमति वाले backup restore कर सकता है।
-- **Administrator:** Warehouse Manager के सभी काम, user, security, device और Digital Register के पुराने सुधार संभाल सकता है।
+- **Supervisor:** सभी सामान्य लोडिंग, गिनती, सुधार, पूरा करने, analytics और report-export कार्य कर सकता है। पुराने Digital Register रिकॉर्ड केवल देख सकता है।
+- **Administrator:** Supervisor के सभी काम, साथ में user, security, device, backup और पुराने Digital Register सुधार संभाल सकता है।
 
 केवल अपनी दी गई अनुमति का उपयोग करें। कोई काम उपलब्ध न हो तो दूसरे व्यक्ति का login उपयोग करने के बजाय Supervisor या Administrator से कहें।
 
@@ -1264,7 +1258,7 @@ Wagon Details खोलें और Add Truck या Register Truck दबा�
 
 ### सुधार
 
-सक्रिय प्रक्रिया में Truck Details के पेंसिल से जानकारी बदली जा सकती है। रिकॉर्ड Digital Register में आने के बाद केवल Administrator वैगन, वाहन, लेयर, आइटम विभाजन, डिफेक्ट या Remarks बदल सकता है। Operator, Supervisor और Warehouse Manager के लिए Digital Register केवल देखने योग्य है। Administrator आर्काइव वाहन को Digital Register -> Truck Details से सुधार सकता है, लेकिन सामान्य लोडिंग कंट्रोल बंद रहते हैं।
+सक्रिय प्रक्रिया में Truck Details के पेंसिल से जानकारी बदली जा सकती है। रिकॉर्ड Digital Register में आने के बाद केवल Administrator वैगन, वाहन, लेयर, आइटम विभाजन, डिफेक्ट या Remarks बदल सकता है। Supervisor के लिए Digital Register केवल देखने योग्य है। Administrator आर्काइव वाहन को Digital Register -> Truck Details से सुधार सकता है, लेकिन सामान्य लोडिंग कंट्रोल बंद रहते हैं।
 
 ### वाहन हटाना
 
@@ -1463,7 +1457,7 @@ Complete Wagon दबाकर अंतिम सारांश जांच�
 - वाहन कुल और उसकी लेयर में अंतर
 - मिश्रित आइटम और लेयर कार्टन में अंतर
 
-वाहन खोलकर Truck Details में ऐतिहासिक रिकॉर्ड देखा जा सकता है। Operator, Supervisor और Warehouse Manager कोई बदलाव नहीं कर सकते। केवल Administrator वैगन या वाहन आर्काइव होने के बाद भी वाहन विवरण, लेयर, कार्टन, आइटम विभाजन, डिफेक्ट और Remarks सुधार सकता है। सामान्य लोडिंग कंट्रोल हमेशा बंद रहते हैं।
+वाहन खोलकर Truck Details में ऐतिहासिक रिकॉर्ड देखा जा सकता है। Supervisor कोई बदलाव नहीं कर सकता। केवल Administrator वैगन या वाहन आर्काइव होने के बाद भी वाहन विवरण, लेयर, कार्टन, आइटम विभाजन, डिफेक्ट और Remarks सुधार सकता है। सामान्य लोडिंग कंट्रोल हमेशा बंद रहते हैं।
 
 Correction History में लेयर, समय, ऑपरेटर, पहले की मात्रा, बाद की मात्रा और कारण दिखता है। केवल Administrator को Edit Remarks मिलता है; अन्य भूमिकाएं सेव टिप्पणी केवल देख सकती हैं।
 

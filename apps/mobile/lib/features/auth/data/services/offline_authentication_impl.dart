@@ -83,9 +83,7 @@ class OfflineAuthenticationImpl implements OfflineAuthentication {
       id: user.id,
       employeeId: user.employeeId,
       name: user.name,
-      role: Role.values.firstWhere(
-          (r) => r.toString().split('.').last == user.role,
-          orElse: () => Role.operator),
+      role: parseRole(user.role),
       warehouse: user.warehouseId,
       isActive: user.isActive,
       failedLoginAttempts: 0,

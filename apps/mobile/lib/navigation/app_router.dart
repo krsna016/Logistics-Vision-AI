@@ -60,6 +60,12 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/wagons';
       }
 
+      if (user != null &&
+          state.uri.path.startsWith('/admin') &&
+          !user.role.canManageUsers) {
+        return '/wagons';
+      }
+
       return null;
     },
     routes: [

@@ -8,7 +8,7 @@ import {
 import api from '../api';
 import LiveLocationMap from '../components/LiveLocationMap';
 
-const roleOptions = ['All', 'Admin', 'Manager', 'Supervisor', 'Operator'];
+const roleOptions = ['All', 'Administrator', 'Supervisor'];
 
 function AppShell({ children, onLogout, active = 'users' }) {
   const navigate = useNavigate();
@@ -140,7 +140,7 @@ export default function Dashboard() {
 
   const metrics = useMemo(() => {
     const active = users.filter(user => user.is_active);
-    return { total: users.length, active: active.length, disabled: users.length - active.length, privileged: active.filter(user => ['Admin', 'Manager'].includes(user.role)).length };
+    return { total: users.length, active: active.length, disabled: users.length - active.length, privileged: active.filter(user => user.role === 'Administrator').length };
   }, [users]);
 
   const filteredUsers = useMemo(() => users.filter(user => {
@@ -184,7 +184,7 @@ export default function Dashboard() {
       <section className="metrics-grid" aria-label="Directory summary">
         <Metric icon={Users} label="Registered users" value={metrics.total} note="All accounts" tone="blue" />
         <Metric icon={UserCheck} label="Active access" value={metrics.active} note="Can sign in now" tone="green" />
-        <Metric icon={ShieldCheck} label="Privileged" value={metrics.privileged} note="Admin & manager" tone="purple" />
+        <Metric icon={ShieldCheck} label="Administrators" value={metrics.privileged} note="Full control" tone="purple" />
         <Metric icon={UserX} label="Revoked access" value={metrics.disabled} note="Blocked accounts" tone="red" />
       </section>
 

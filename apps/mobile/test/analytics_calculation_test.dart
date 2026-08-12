@@ -32,7 +32,7 @@ void main() {
           layerNumber: id == 'yesterday' ? 1 : 2,
           cartonCount: cartons,
           timestamp: timestamp,
-          operatorId: 'Operator',
+          operatorId: 'Supervisor',
           modelVersion: 'manual',
           averageConfidence: 1,
           createdAt: timestamp,

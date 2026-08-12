@@ -34,7 +34,7 @@ class LocalAuthRepository implements AuthRepository {
           details: 'Invalid credentials or locked account for $employeeId',
           userId: 'unknown',
           userName: 'Unknown',
-          userRole: Role.operator);
+          userRole: Role.supervisor);
     }
     return user;
   }
@@ -68,9 +68,7 @@ class LocalAuthRepository implements AuthRepository {
       id: record.id,
       employeeId: record.employeeId,
       name: record.name,
-      role: Role.values.firstWhere(
-          (r) => r.toString().split('.').last == record.role,
-          orElse: () => Role.operator),
+      role: parseRole(record.role),
       warehouse: record.warehouseId,
       isActive: record.isActive,
       failedLoginAttempts: record.failedLoginAttempts,
@@ -148,7 +146,7 @@ class LocalAuthRepository implements AuthRepository {
               userId: r.userId,
               userName:
                   'Unknown', // Would join with Users table in a real query
-              userRole: Role.operator,
+              userRole: Role.supervisor,
               action: r.action,
               timestamp: r.timestamp,
               deviceName: 'Device',
@@ -166,9 +164,7 @@ class LocalAuthRepository implements AuthRepository {
               id: r.id,
               employeeId: r.employeeId,
               name: r.name,
-              role: Role.values.firstWhere(
-                  (role) => role.toString().split('.').last == r.role,
-                  orElse: () => Role.operator),
+              role: parseRole(r.role),
               warehouse: r.warehouseId,
               isActive: r.isActive,
               failedLoginAttempts: r.failedLoginAttempts,

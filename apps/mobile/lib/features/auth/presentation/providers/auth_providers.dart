@@ -148,15 +148,12 @@ class AuthNotifier extends StateNotifier<User?> {
       final encoded = await _storage.read(key: _cachedUserKey);
       if (encoded == null || encoded.isEmpty) return null;
       final data = jsonDecode(encoded) as Map<String, dynamic>;
-      final roleName = data['role'] as String? ?? Role.operator.name;
+      final roleName = data['role'] as String?;
       return User(
         id: data['id'] as String? ?? '',
         employeeId: data['employeeId'] as String? ?? '',
         name: data['name'] as String? ?? '',
-        role: Role.values.firstWhere(
-          (role) => role.name == roleName,
-          orElse: () => Role.operator,
-        ),
+        role: parseRole(roleName),
         warehouse: data['warehouse'] as String?,
         isActive: data['isActive'] as bool? ?? true,
       );

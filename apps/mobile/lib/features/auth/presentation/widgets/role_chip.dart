@@ -11,14 +11,8 @@ class RoleChip extends StatelessWidget {
   Widget build(BuildContext context) {
     Color color;
     switch (role) {
-      case Role.operator:
-        color = Colors.blueGrey;
-        break;
       case Role.supervisor:
         color = Colors.teal;
-        break;
-      case Role.manager:
-        color = Colors.purpleAccent;
         break;
       case Role.administrator:
         color = AppTheme.errorColor;

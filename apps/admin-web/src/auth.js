@@ -11,7 +11,9 @@ export function hasValidSession() {
     if (!encodedPayload) return false;
     const normalized = encodedPayload.replace(/-/g, '+').replace(/_/g, '/');
     const payload = JSON.parse(atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=')));
-    return typeof payload.exp === 'number' && payload.exp * 1000 > Date.now();
+    // The API issues persistent sessions without exp; the backend still
+    // checks the active account on every request and revokes disabled users.
+    return typeof payload.exp !== 'number' || payload.exp * 1000 > Date.now();
   } catch {
     return false;
   }

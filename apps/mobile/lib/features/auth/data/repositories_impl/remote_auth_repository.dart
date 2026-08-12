@@ -128,25 +128,11 @@ class RemoteAuthRepository implements AuthRepository {
           await _dio.get<Map<String, dynamic>>('/users/$employeeId');
       final data = response.data as Map<String, dynamic>;
 
-      Role parseRole(String roleStr) {
-        switch (roleStr.toLowerCase()) {
-          case 'admin':
-            return Role.administrator;
-          case 'manager':
-            return Role.manager;
-          case 'supervisor':
-            return Role.supervisor;
-          case 'operator':
-          default:
-            return Role.operator;
-        }
-      }
-
       final user = User(
         id: data['id'] as String? ?? employeeId,
         employeeId: data['employee_id'] as String? ?? employeeId,
         name: data['name'] as String? ?? employeeId,
-        role: parseRole(data['role'] as String? ?? 'Operator'),
+        role: parseRole(data['role'] as String?),
         warehouse: 'warehouse_1',
         isActive: data['is_active'] as bool? ?? true,
       );
