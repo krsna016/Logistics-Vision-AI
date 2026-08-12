@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -14,11 +14,22 @@ function escapeHtml(value) {
 
 function FitLocations({ locations }) {
   const map = useMap();
+  const fittedMembers = useRef('');
+  const memberKey = locations.map(location => location.employee_id).sort().join('|');
+
   useEffect(() => {
-    if (!locations.length) return;
+    // Heartbeats update coordinates frequently. Do not refit the viewport for
+    // every heartbeat: that fights the user's trackpad zoom/pan gesture.
+    if (!locations.length || memberKey === fittedMembers.current) return;
+    fittedMembers.current = memberKey;
     const bounds = L.latLngBounds(locations.map(location => [location.latitude, location.longitude]));
-    map.fitBounds(bounds, { padding: [46, 46], maxZoom: locations.length === 1 ? 14 : 12 });
-  }, [locations, map]);
+    map.fitBounds(bounds, {
+      padding: [46, 46],
+      maxZoom: locations.length === 1 ? 14 : 12,
+      animate: true,
+      duration: 0.45,
+    });
+  }, [locations, map, memberKey]);
   return null;
 }
 
@@ -41,7 +52,19 @@ function EmployeeMarker({ location }) {
 
 export default function LiveLocationMap({ locations }) {
   return <div className="live-location-map" aria-label="Live employee location map">
-    <MapContainer center={[20, 78]} zoom={4} scrollWheelZoom className="map-canvas">
+    <MapContainer
+      center={[20, 78]}
+      zoom={4}
+      className="map-canvas"
+      scrollWheelZoom
+      touchZoom
+      zoomAnimation
+      fadeAnimation
+      zoomSnap={0.25}
+      zoomDelta={0.25}
+      wheelDebounceTime={20}
+      wheelPxPerZoomLevel={120}
+    >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

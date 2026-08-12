@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 import 'network_service.dart';
@@ -43,15 +44,46 @@ class LocationTrackingService {
 
     _running = true;
     await _sendOnce();
-    _positionSubscription = Geolocator.getPositionStream(
-      locationSettings: const LocationSettings(
+    final LocationSettings locationSettings;
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      // Geolocator's Android foreground service keeps the stream alive when
+      // the screen is locked or SmartLoad is minimized. Android displays this
+      // ongoing notification as required for transparent background tracking.
+      locationSettings = AndroidSettings(
         accuracy: LocationAccuracy.bestForNavigation,
         distanceFilter: 5,
-      ),
+        intervalDuration: const Duration(seconds: 10),
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'SmartLoad live location is active',
+          notificationText:
+              'Your location is shared with authorized administrators while signed in.',
+          enableWakeLock: true,
+          setOngoing: true,
+        ),
+      );
+    } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+      // The iOS background mode and Always permission are declared in
+      // Info.plist. Disabling automatic pausing keeps the tracking stream
+      // active during normal background use.
+      locationSettings = AppleSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 5,
+        pauseLocationUpdatesAutomatically: false,
+        showBackgroundLocationIndicator: true,
+        activityType: ActivityType.otherNavigation,
+      );
+    } else {
+      locationSettings = const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 5,
+      );
+    }
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: locationSettings,
     ).listen(_sendPosition, onError: (_, __) {});
     // This is a delivery watchdog, not dashboard polling: it keeps the
     // server's last-seen state fresh when GPS does not emit a movement event.
-    _watchdog = Timer.periodic(const Duration(seconds: 30), (_) => _sendOnce());
+    _watchdog = Timer.periodic(const Duration(seconds: 15), (_) => _sendOnce());
     return true;
   }
 
