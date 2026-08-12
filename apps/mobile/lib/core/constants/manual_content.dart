@@ -5,6 +5,12 @@ This manual explains the complete mobile app in easy English. Follow it from top
 
 > Important: The app stores operational records such as wagons, vehicles, layers, item quantities, photos, corrections and reports. Always check information before saving. Use correction tools with a clear reason. Do not load demo data on a phone containing real work.
 
+### Quick Start / visual workflow
+
+`1. Create Wagon` -> `2. Add Manifest (optional)` -> `3. Add Vehicle` -> `4. Capture or Manually Count Layers` -> `5. Review and Save` -> `6. Complete Vehicle` -> `7. Complete Wagon` -> `8. Generate Report`
+
+Use each numbered step as a checkpoint: confirm the wagon and vehicle number before saving, confirm cartons before completing, and check the final PDF or Excel report before sharing.
+
 ## From Loading Dock to Digital Proof
 
 **Vinayak SmartLoad transforms every carton movement into a clear, accountable and report-ready digital record.**
@@ -192,7 +198,7 @@ SmartLoad records cartons moving from one wagon into one or more vehicles. It an
 
 ### Normal workflow
 
-`Login` -> `Create Wagon` -> `Enter Item Manifest` -> `Add Vehicle` -> `Start Loading` -> `Capture or Manually Enter Layer` -> `Review Items` -> `Save Layer` -> `Complete Vehicle` -> `Repeat for Other Vehicles` -> `Complete Wagon` -> `Open Digital Register` -> `Generate PDF or Excel` -> `Archive`
+`Login` -> `Create Wagon` -> `Enter Item Manifest (optional)` -> `Add Vehicle` -> `Start Loading` -> `Capture or Manually Enter Layer` -> `Review Items when a manifest exists` -> `Save Layer` -> `Complete Vehicle` -> `Repeat for Other Vehicles` -> `Complete Wagon` -> `Open Digital Register` -> `Generate PDF or Excel` -> `Archive`
 
 The app works wagon first. A vehicle belongs to a wagon, and a layer belongs to a vehicle. Item totals are calculated from saved layers. Reports are generated from the latest saved records.
 
@@ -238,6 +244,15 @@ A carton marked defective in a layer. Defects are tracked separately from carton
 ### Digital Register
 
 The consolidated historical view of one wagon, all its vehicles, all layers, item reconciliation, corrections, remarks and exports.
+
+### Roles and permissions
+
+- **Operator:** capture, manually count, save layers and make permitted corrections.
+- **Supervisor:** all Operator actions, plus approve corrections, complete vehicles/wagons and export operational data.
+- **Warehouse Manager:** all Supervisor actions, plus manage wagons, archive records, view analytics and restore permitted backups.
+- **Administrator:** all Warehouse Manager actions, plus manage users, security, devices and historical Digital Register corrections.
+
+Only use the access level assigned to you. If an action is unavailable, ask the supervisor or administrator instead of using another person's login.
 
 ---
 
@@ -315,7 +330,9 @@ Tap Create Wagon on the Wagon Control Center.
 
 ### Item manifest
 
-Add one row for every item present in the wagon.
+The manifest is optional. Add one row for every item present when the wagon has a declared item inventory.
+
+If no manifest is available, remove the unused blank item row and save the wagon. You can then enter layer carton counts directly; item allocation and item-wise reconciliation will not be required for that wagon.
 
 For each row:
 
@@ -469,7 +486,7 @@ Use Manual mode when AI capture is unsuitable, the camera view is difficult, or 
 4. Enter defects.
 5. Enter optional notes.
 6. Enter the item breakdown when the wagon has a manifest.
-7. Confirm that item quantities equal total cartons.
+7. When a manifest exists, confirm that item quantities equal total cartons.
 8. Tap Save Layer.
 
 The reference photo supports later audit. Manual count does not mean unverified count. Physically count the cartons before saving.
@@ -498,9 +515,8 @@ If AI missed a carton, add the missing carton marker or increase the verified co
 ### Save rules
 
 - Final cartons must be a valid non-negative count.
-- Item allocations must total exactly the final cartons.
-- Each item can appear only once in the breakdown.
-- Item quantities cannot exceed wagon availability.
+- When the wagon has a manifest, item allocations must total exactly the final cartons.
+- When the wagon has a manifest, each item can appear only once in the breakdown and cannot exceed wagon availability.
 - A failed final verification requires a retake.
 
 Tap Save only after the photo, count and items agree. A successful save creates the next layer number and updates vehicle and wagon totals.
@@ -644,7 +660,7 @@ Use the report icon on Wagon Details, Truck Details or Digital Register.
 
 ### Truck report
 
-Contains vehicle details, layers, cartons, item breakdown, defects, notes, operator, timestamps, corrections, totals and signatures.
+Contains Wagon No., Vehicle No., Driver, Company, Driver Phone, Status, Warehouse, Supervisor, layers, cartons, item breakdown, defects, notes, operator timestamps, corrections, totals and signatures.
 
 ### Wagon report
 
@@ -683,7 +699,7 @@ Load Demo Data creates enterprise training records with multiple wagon statuses,
 
 ### Critical warning
 
-Loading demo data first removes existing local operational data. This is intentional so test results are clean. Do not use it on a production phone or before making an approved backup.
+Loading demo data first removes existing local operational data. This is intentional so test results are clean. Do not use it on a production phone. Confirm that your organization has copied or protected the required records before loading demo data.
 
 Use demo data to test:
 
@@ -708,6 +724,7 @@ The demo operator name uses the currently logged-in user so records remain reali
 - Keep item names consistent.
 - Generate a final report after corrections.
 - Use archive for valid finished history.
+- Check the phone's date, time and timezone before starting work. Record and report timestamps use the phone clock.
 
 ### Destructive actions
 
@@ -840,6 +857,12 @@ const String userManualHindiMarkdown = '''
 यह मैनुअल ऐप की पूरी प्रक्रिया आसान हिंदी में समझाता है। पहली बार ऐप सीखते समय इसे शुरू से अंत तक पढ़ें। काम के दौरान किसी विशेष स्थिति में इसे संदर्भ के रूप में खोलें।
 
 > महत्वपूर्ण: ऐप वैगन, वाहन, लेयर, आइटम मात्रा, फोटो, सुधार और रिपोर्ट जैसे संचालन रिकॉर्ड सुरक्षित करता है। सेव करने से पहले हर जानकारी जांचें। सुधार करते समय स्पष्ट कारण लिखें। वास्तविक डेटा वाले फोन पर डेमो डेटा लोड न करें।
+
+### त्वरित शुरुआत / आसान कार्य-क्रम
+
+`1. वैगन बनाएं` -> `2. मैनिफेस्ट जोड़ें (वैकल्पिक)` -> `3. वाहन जोड़ें` -> `4. लेयर की फोटो या मैनुअल गिनती` -> `5. जांचकर सेव करें` -> `6. वाहन पूरा करें` -> `7. वैगन पूरा करें` -> `8. रिपोर्ट बनाएं`
+
+हर नंबर को जांच बिंदु मानें: सेव करने से पहले वैगन और वाहन नंबर मिलाएं, पूरा करने से पहले कार्टन मिलाएं और भेजने से पहले अंतिम PDF या Excel रिपोर्ट देखें।
 
 ## लोडिंग डॉक से डिजिटल प्रमाण तक
 
@@ -1028,7 +1051,7 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 
 ### सामान्य प्रक्रिया
 
-`लॉगिन` -> `वैगन बनाएं` -> `आइटम मैनिफेस्ट भरें` -> `वाहन जोड़ें` -> `लोडिंग शुरू करें` -> `AI फोटो या मैनुअल लेयर दर्ज करें` -> `आइटम जांचें` -> `लेयर सेव करें` -> `वाहन पूरा करें` -> `अन्य वाहन दोहराएं` -> `वैगन पूरा करें` -> `डिजिटल रजिस्टर खोलें` -> `PDF या Excel बनाएं` -> `आर्काइव करें`
+`लॉगिन` -> `वैगन बनाएं` -> `आइटम मैनिफेस्ट भरें (वैकल्पिक)` -> `वाहन जोड़ें` -> `लोडिंग शुरू करें` -> `AI फोटो या मैनुअल लेयर दर्ज करें` -> `मैनिफेस्ट हो तो आइटम जांचें` -> `लेयर सेव करें` -> `वाहन पूरा करें` -> `अन्य वाहन दोहराएं` -> `वैगन पूरा करें` -> `डिजिटल रजिस्टर खोलें` -> `PDF या Excel बनाएं` -> `आर्काइव करें`
 
 ऐप में सबसे ऊपर वैगन होता है। वाहन वैगन से जुड़ा होता है और लेयर वाहन से जुड़ी होती है। आइटम की लोडेड मात्रा सेव की गई लेयर से निकलती है। रिपोर्ट हमेशा नवीनतम सेव डेटा से बनती है।
 
@@ -1074,6 +1097,15 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 ### डिजिटल रजिस्टर
 
 एक वैगन, उसके सभी वाहन, सभी लेयर, आइटम मिलान, सुधार, टिप्पणी और रिपोर्ट का संयुक्त ऐतिहासिक रिकॉर्ड।
+
+### रोल और अनुमति
+
+- **Operator:** फोटो/स्कैन, मैनुअल गिनती, लेयर सेव और अनुमति वाले सुधार कर सकता है।
+- **Supervisor:** Operator के सभी काम, सुधार मंजूर करना, वाहन/वैगन पूरा करना और डेटा export कर सकता है।
+- **Warehouse Manager:** Supervisor के सभी काम, वैगन प्रबंधन, archive, analytics देखना और अनुमति वाले backup restore कर सकता है।
+- **Administrator:** Warehouse Manager के सभी काम, user, security, device और Digital Register के पुराने सुधार संभाल सकता है।
+
+केवल अपनी दी गई अनुमति का उपयोग करें। कोई काम उपलब्ध न हो तो दूसरे व्यक्ति का login उपयोग करने के बजाय Supervisor या Administrator से कहें।
 
 ---
 
@@ -1151,7 +1183,9 @@ Wagon Control Center पर Create Wagon दबाएं।
 
 ### आइटम मैनिफेस्ट
 
-वैगन में मौजूद हर आइटम की अलग पंक्ति जोड़ें।
+मैनिफेस्ट वैकल्पिक है। वैगन में घोषित आइटम इन्वेंटरी हो तो हर आइटम की अलग पंक्ति जोड़ें।
+
+यदि मैनिफेस्ट उपलब्ध नहीं है, तो खाली आइटम लाइन हटा कर वैगन सेव करें। तब लेयर में कार्टन सीधे दर्ज किए जा सकते हैं; उस वैगन के लिए आइटम बांट और item-wise मिलान जरूरी नहीं होगा।
 
 1. साफ आइटम नाम लिखें, जैसे `Soap 100g Blue`।
 2. पॉजिटिव पूर्ण संख्या में कार्टन मात्रा लिखें।
@@ -1293,7 +1327,7 @@ AI के लिए कठिन दृश्य, कैमरा समस्�
 4. डिफेक्ट दर्ज करें।
 5. वैकल्पिक Notes लिखें।
 6. मैनिफेस्ट हो तो आइटम बांट दर्ज करें।
-7. आइटम मात्रा और कुल कार्टन समान जांचें।
+7. मैनिफेस्ट हो तो आइटम मात्रा और कुल कार्टन समान जांचें।
 8. Save Layer दबाएं।
 
 मैनुअल का मतलब बिना जांच के संख्या नहीं है। सेव से पहले कार्टन भौतिक रूप से गिनें।
@@ -1320,9 +1354,8 @@ AI कार्टन छोड़ दे तो उपलब्ध कंट्
 ### सेव नियम
 
 - अंतिम कार्टन वैध संख्या होनी चाहिए।
-- आइटम मात्रा का योग अंतिम कार्टन के बिल्कुल बराबर होना चाहिए।
-- एक आइटम एक ही बार आना चाहिए।
-- आइटम उपलब्ध मात्रा से अधिक नहीं होना चाहिए।
+- मैनिफेस्ट होने पर आइटम मात्रा का योग अंतिम कार्टन के बिल्कुल बराबर होना चाहिए।
+- मैनिफेस्ट होने पर एक आइटम एक ही बार आए और उपलब्ध मात्रा से अधिक न हो।
 - Final verification fail हो तो फोटो दोबारा लें।
 
 सफल सेव अगला लेयर नंबर बनाता है और वाहन तथा वैगन कुल अपडेट करता है।
@@ -1442,7 +1475,7 @@ Wagon Details, Truck Details या Digital Register में Report आइक�
 
 ### Truck Report
 
-वाहन जानकारी, लेयर, कार्टन, आइटम बांट, डिफेक्ट, नोट, ऑपरेटर, समय, सुधार, कुल और हस्ताक्षर।
+Wagon No., Vehicle No., Driver, Company, Driver Phone, Status, Warehouse, Supervisor, लेयर, कार्टन, आइटम बांट, डिफेक्ट, नोट, ऑपरेटर समय, सुधार, कुल और हस्ताक्षर।
 
 ### Wagon Report
 
@@ -1479,7 +1512,7 @@ Load Demo Data कई स्थिति वाले वैगन, वाहन
 
 ### बहुत महत्वपूर्ण चेतावनी
 
-डेमो डेटा लोड करने से पहले वर्तमान लोकल संचालन डेटा हटता है। साफ परीक्षण के लिए यह जानबूझकर होता है। उत्पादन फोन पर या स्वीकृत बैकअप से पहले इसका उपयोग न करें।
+डेमो डेटा लोड करने से पहले वर्तमान लोकल संचालन डेटा हटता है। साफ परीक्षण के लिए यह जानबूझकर होता है। उत्पादन फोन पर इसका उपयोग न करें। डेमो लोड करने से पहले संगठन के जरूरी रिकॉर्ड की अलग सुरक्षित कॉपी होने की पुष्टि करें।
 
 डेमो से सर्च, फिल्टर, इन्वेंटरी मिलान, छह वाहन, पंद्रह से अधिक लेयर, मिश्रित आइटम, सुधार, हटाए रिकॉर्ड, PDF और Excel जांचें। डेमो ऑपरेटर के लिए वर्तमान लॉगिन उपयोगकर्ता का नाम लिया जाता है।
 
@@ -1494,6 +1527,7 @@ Load Demo Data कई स्थिति वाले वैगन, वाहन
 - आइटम नाम एक जैसा रखें।
 - सुधार के बाद नई अंतिम रिपोर्ट बनाएं।
 - सही पूरा इतिहास Delete नहीं, Archive करें।
+- काम शुरू करने से पहले फोन की तारीख, समय और timezone जांचें। रिकॉर्ड और रिपोर्ट का समय फोन की घड़ी से लिया जाता है।
 
 ### डेटा बदलने वाली कार्रवाई
 
