@@ -207,18 +207,11 @@ pw.Widget _singleLineRegisterText(
       ),
     );
 
-pw.Widget _digitalRegisterVehicleHeader(Object? vehicleNumber) => pw.Column(
-      mainAxisSize: pw.MainAxisSize.min,
-      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-      children: [
-        _singleLineRegisterText('VEHICLE', fontSize: 6, bold: true),
-        pw.SizedBox(height: 1),
-        _singleLineRegisterText(
-          vehicleNumber?.toString() ?? '',
-          fontSize: 7,
-          bold: true,
-        ),
-      ],
+pw.Widget _digitalRegisterVehicleHeader(Object? vehicleNumber) =>
+    _singleLineRegisterText(
+      vehicleNumber?.toString() ?? '',
+      fontSize: 7.5,
+      bold: true,
     );
 
 pw.Widget? Function(int, dynamic, int) _digitalRegisterSingleLineCellBuilder(
@@ -226,14 +219,22 @@ pw.Widget? Function(int, dynamic, int) _digitalRegisterSingleLineCellBuilder(
 ) =>
     (column, data, row) {
       final value = data.toString();
-      final isCompactCell = column == 0 || column.isOdd || value == 'ITEM';
-      if (!isCompactCell) return null;
+      final isQuantityCell = column == 0 || column.isEven;
+      if (!isQuantityCell) return null;
       if (value.trim().isEmpty) return pw.SizedBox();
       return _singleLineRegisterText(
         value,
         fontSize: fontSize,
         bold: row < 2,
       );
+    };
+
+Map<int, pw.TableColumnWidth> _digitalRegisterColumnWidths(int truckCount) => {
+      0: const pw.FlexColumnWidth(0.45),
+      for (var truck = 0; truck < truckCount; truck++) ...{
+        truck * 2 + 1: const pw.FlexColumnWidth(2.15),
+        truck * 2 + 2: const pw.FlexColumnWidth(0.65),
+      },
     };
 
 List<Map<String, Object>> aggregateTruckItems(
@@ -1209,8 +1210,8 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
     [
       pw.SizedBox(),
       for (var index = 0; index < trucks.length; index++) ...[
+        _singleLineRegisterText('ITEMS', fontSize: 7, bold: true),
         _singleLineRegisterText('QTY', fontSize: 7, bold: true),
-        _singleLineRegisterText('ITEM', fontSize: 7, bold: true),
       ],
     ],
   ];
@@ -1271,12 +1272,19 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
         pw.SizedBox(height: 8),
         pw.TableHelper.fromTextArray(
           context: context,
-          border: pw.TableBorder.all(color: PdfColors.black, width: 0.55),
-          headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+          border: pw.TableBorder.all(color: PdfColors.grey500, width: 0.35),
+          headerDecoration: const pw.BoxDecoration(color: PdfColors.blue100),
           headerStyle:
               pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
           cellStyle: const pw.TextStyle(fontSize: 7),
-          cellAlignment: pw.Alignment.center,
+          cellAlignment: pw.Alignment.centerLeft,
+          cellAlignments: {
+            0: pw.Alignment.center,
+            for (var index = 0; index < trucks.length; index++)
+              index * 2 + 2: pw.Alignment.center,
+          },
+          columnWidths: _digitalRegisterColumnWidths(trucks.length),
+          oddRowDecoration: const pw.BoxDecoration(color: PdfColors.blue50),
           headerCount: 2,
           cellBuilder: _digitalRegisterSingleLineCellBuilder(7),
           data: tableRows,
@@ -1340,8 +1348,8 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
     [
       pw.SizedBox(),
       for (var index = 0; index < trucks.length; index++) ...[
-        _singleLineRegisterText('CARTONS', fontSize: 6, bold: true),
-        _singleLineRegisterText('ITEM', fontSize: 6, bold: true),
+        _singleLineRegisterText('ITEMS', fontSize: 6, bold: true),
+        _singleLineRegisterText('QTY', fontSize: 6, bold: true),
       ],
     ],
     for (var row = 0; row < rowCount; row++)
@@ -1385,12 +1393,19 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
       pw.SizedBox(height: 7),
       pw.TableHelper.fromTextArray(
         context: context,
-        border: pw.TableBorder.all(color: PdfColors.black, width: 0.45),
-        headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+        border: pw.TableBorder.all(color: PdfColors.grey500, width: 0.35),
+        headerDecoration: const pw.BoxDecoration(color: PdfColors.blue100),
         headerStyle: pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
         cellStyle: const pw.TextStyle(fontSize: 6),
         cellPadding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 3),
-        cellAlignment: pw.Alignment.center,
+        cellAlignment: pw.Alignment.centerLeft,
+        cellAlignments: {
+          0: pw.Alignment.center,
+          for (var index = 0; index < trucks.length; index++)
+            index * 2 + 2: pw.Alignment.center,
+        },
+        columnWidths: _digitalRegisterColumnWidths(trucks.length),
+        oddRowDecoration: const pw.BoxDecoration(color: PdfColors.blue50),
         headerCount: 2,
         cellBuilder: _digitalRegisterSingleLineCellBuilder(6),
         data: legacyRows,
@@ -1709,8 +1724,8 @@ List<String> _digitalRegisterCells(Map<String, Object?> truck, int row) {
   }
   if (layer == null) return const ['', ''];
   return [
-    layer['cartonCount']?.toString() ?? '',
     compactDigitalRegisterItems(layer['item']?.toString() ?? ''),
+    layer['cartonCount']?.toString() ?? '',
   ];
 }
 

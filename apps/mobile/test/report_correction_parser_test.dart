@@ -103,6 +103,51 @@ void main() {
     );
   });
 
+  test('builds a digital register PDF with the readable item-first layout',
+      () async {
+    final layer = <String, Object?>{
+      'number': 1,
+      'cartonCount': 40,
+      'item': 'Packaged Foods: 25 + Personal Care: 15',
+    };
+    final report = <String, Object?>{
+      'origin': 'Kolkata Mega Hub',
+      'destination': 'Guwahati ICD',
+      'wagonNumber': 'BCNHL-700301',
+      'loadingDate': '2026-08-12',
+      'remarks': '',
+      'totalCartons': 120,
+      'totalDefects': 0,
+      'rowCount': 1,
+      'items': <Map<String, Object?>>[],
+      'corrections': <Map<String, Object?>>[],
+      'trucks': <Map<String, Object?>>[
+        {
+          'vehicleNumber': 'WB 23 F 4101',
+          'driverName': 'Amit',
+          'status': 'complete',
+          'totalLayers': 1,
+          'totalCartons': 120,
+          'totalDefects': 0,
+          'layers': [layer],
+        },
+        {
+          'vehicleNumber': 'WB 23 F 4102',
+          'driverName': 'Ravi',
+          'status': 'complete',
+          'totalLayers': 1,
+          'totalCartons': 0,
+          'totalDefects': 0,
+          'layers': <Map<String, Object?>>[],
+        },
+      ],
+    };
+
+    final bytes = await buildDigitalRegisterPdfBytesForTesting(report);
+
+    expect(bytes.take(4), orderedEquals(<int>[37, 80, 68, 70]));
+  });
+
   test('formats one wagon truck item per line', () {
     expect(
       formatTruckItemBreakdown([

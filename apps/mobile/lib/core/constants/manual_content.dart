@@ -267,6 +267,8 @@ For local testing, **Demo Entry** opens a temporary Demo Operator session withou
 
 The signed-in user's name is used as the operator and supervisor identity in new records. One logged-in session should therefore show one operator name for work performed in that session.
 
+Digital Register truck rows show the meaningful vehicle and driver details. Internal technical record IDs are retained for audit relationships but are not shown to operators.
+
 ### Startup
 
 The app prepares the shared AI counting engine during startup. It reuses the same engine for later layer captures. If the phone was closed during an active loading session, the app may offer Continue Loading. Choose Continue to return to that vehicle. Choose Discard only when the unfinished session should be cancelled.

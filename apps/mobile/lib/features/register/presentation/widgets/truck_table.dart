@@ -46,7 +46,7 @@ class TruckTable extends StatelessWidget {
                 title: Text(truck.vehicleNumber,
                     style: const TextStyle(fontWeight: FontWeight.w800)),
                 subtitle: Text(
-                  '${truck.truckNumber} | ${truck.driverName}\n'
+                  'Driver: ${truck.driverName}\n'
                   '${truck.totalLayers} layers | ${truck.totalCartons} cartons | '
                   '${truck.totalDefects} defects',
                 ),
