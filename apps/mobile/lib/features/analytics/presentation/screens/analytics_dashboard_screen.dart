@@ -56,11 +56,8 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
       endDrawer: const AppDrawer(),
       body: RefreshIndicator(
         onRefresh: () async {
-          ref.invalidate(analyticsSummaryProvider);
-          ref.invalidate(aiPerformanceProvider);
-          ref.invalidate(loadingPerformanceProvider);
-          ref.invalidate(datasetHealthProvider);
-          ref.invalidate(productivityProvider);
+          ref.invalidate(analyticsSnapshotProvider);
+          await ref.read(analyticsSnapshotProvider.future);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),

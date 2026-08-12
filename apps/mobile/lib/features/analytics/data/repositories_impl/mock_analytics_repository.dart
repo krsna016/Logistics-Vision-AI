@@ -2,11 +2,30 @@ import 'dart:math';
 
 import '../../domain/entities/time_filter.dart';
 import '../../domain/entities/analytics_summary.dart';
+import '../../domain/entities/analytics_snapshot.dart';
 import '../../domain/entities/performance_metrics.dart';
 import '../../domain/repositories/analytics_repository.dart';
 
 class MockAnalyticsRepository implements AnalyticsRepository {
   final Random _rnd = Random();
+
+  @override
+  Future<AnalyticsSnapshot> getSnapshot(TimeFilter filter) async {
+    final values = await Future.wait<Object>([
+      getSummary(filter),
+      getAIPerformance(filter),
+      getLoadingPerformance(filter),
+      getDatasetHealth(filter),
+      getProductivityMetrics(filter),
+    ]);
+    return AnalyticsSnapshot(
+      summary: values[0] as AnalyticsSummary,
+      aiPerformance: values[1] as AIPerformanceMetrics,
+      loadingPerformance: values[2] as LoadingPerformanceMetrics,
+      datasetHealth: values[3] as DatasetHealthMetrics,
+      productivity: values[4] as ProductivityMetrics,
+    );
+  }
 
   @override
   Future<AnalyticsSummary> getSummary(TimeFilter filter) async {

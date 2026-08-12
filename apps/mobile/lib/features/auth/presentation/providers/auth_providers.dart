@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/entities/user.dart';
@@ -93,15 +94,18 @@ final authProvider = StateNotifierProvider<AuthNotifier, User?>((ref) {
   );
 });
 
-class AuthNotifier extends StateNotifier<User?> {
+class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   final AuthRepository _repository;
   final FlutterSecureStorage _storage;
   final LocationTrackingService _locationTracking;
   Timer? _pollingTimer;
+  bool _checkingCurrentUser = false;
   static const _cachedUserKey = 'cached_authenticated_user';
+  static const _foregroundSessionCheckInterval = Duration(minutes: 2);
 
   AuthNotifier(this._repository, this._storage, this._locationTracking)
       : super(null) {
+    WidgetsBinding.instance.addObserver(this);
     _init();
   }
 
@@ -120,12 +124,16 @@ class AuthNotifier extends StateNotifier<User?> {
     // Prevent overriding a demo login if it happened while we were fetching
     if (state != null) return;
 
-    if (user != null && !user.isActive) {
+    if (user == null) {
+      // Location tracking is intentionally opt-in. Starting GPS before a
+      // successful login wastes battery and creates an unnecessary request.
+      return;
+    }
+
+    if (!user.isActive) {
       await logout(); // Kill switch triggered, clear token
     } else {
       state = user;
-      unawaited(_requestNotificationPermission());
-      unawaited(_locationTracking.start());
       _startPolling();
     }
   }
@@ -171,11 +179,19 @@ class AuthNotifier extends StateNotifier<User?> {
 
   void _startPolling() {
     _pollingTimer?.cancel();
-    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (_) async {
-      if (state == null) {
-        _pollingTimer?.cancel();
-        return;
-      }
+    if (state == null ||
+        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
+      return;
+    }
+    _pollingTimer = Timer.periodic(_foregroundSessionCheckInterval, (_) {
+      unawaited(_refreshCurrentUser());
+    });
+  }
+
+  Future<void> _refreshCurrentUser() async {
+    if (state == null || _checkingCurrentUser) return;
+    _checkingCurrentUser = true;
+    try {
       final updatedUser = await _repository.getCurrentUser();
       if (_sessionWasRevoked) {
         await logout(); // The server explicitly rejected or revoked access.
@@ -184,7 +200,9 @@ class AuthNotifier extends StateNotifier<User?> {
       } else if (updatedUser != null) {
         await _cacheUser(updatedUser);
       }
-    });
+    } finally {
+      _checkingCurrentUser = false;
+    }
   }
 
   Future<bool> login(String employeeId, String password,
@@ -195,8 +213,6 @@ class AuthNotifier extends StateNotifier<User?> {
       state = user;
       if (user != null) {
         await _cacheUser(user);
-        unawaited(_requestNotificationPermission());
-        unawaited(_locationTracking.start());
         _startPolling();
       }
       return user != null;
@@ -205,8 +221,28 @@ class AuthNotifier extends StateNotifier<User?> {
     }
   }
 
-  Future<void> _requestNotificationPermission() async {
-    await _locationTracking.requestNotificationPermission();
+  /// Opt-in hook retained for a future administrator-controlled live-tracking
+  /// control. It deliberately does not run on login or app launch.
+  Future<bool> startLiveTracking() async {
+    if (state == null) return false;
+    return _locationTracking.start();
+  }
+
+  Future<void> stopLiveTracking() => _locationTracking.stop();
+
+  @override
+  // ignore: avoid_renaming_method_parameters
+  void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
+    if (lifecycleState == AppLifecycleState.resumed) {
+      unawaited(_refreshCurrentUser());
+      _startPolling();
+    } else if (lifecycleState == AppLifecycleState.inactive ||
+        lifecycleState == AppLifecycleState.hidden ||
+        lifecycleState == AppLifecycleState.paused ||
+        lifecycleState == AppLifecycleState.detached) {
+      _pollingTimer?.cancel();
+      _pollingTimer = null;
+    }
   }
 
   Future<void> logout() async {
@@ -221,6 +257,7 @@ class AuthNotifier extends StateNotifier<User?> {
   @override
   void dispose() {
     _pollingTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     unawaited(_locationTracking.stop());
     super.dispose();
   }

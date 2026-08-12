@@ -13,7 +13,6 @@ import 'network_service.dart';
 class LocationTrackingService {
   final Dio _dio;
   StreamSubscription<Position>? _positionSubscription;
-  Timer? _watchdog;
   Future<bool>? _pendingNotificationPermissionRequest;
   bool _running = false;
   bool _sending = false;
@@ -118,18 +117,15 @@ class LocationTrackingService {
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,
     ).listen(_sendPosition, onError: (_, __) {});
-    // This is a delivery watchdog, not dashboard polling: it keeps the
-    // server's last-seen state fresh when GPS does not emit a movement event.
-    _watchdog = Timer.periodic(const Duration(seconds: 15), (_) => _sendOnce());
     return true;
   }
 
   Future<void> stop() async {
+    final wasRunning = _running;
     _running = false;
     await _positionSubscription?.cancel();
     _positionSubscription = null;
-    _watchdog?.cancel();
-    _watchdog = null;
+    if (!wasRunning) return;
     try {
       await _dio.post<void>('/locations/stop');
     } on DioException {

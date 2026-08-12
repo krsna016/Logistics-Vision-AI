@@ -9,6 +9,9 @@ import api from '../api';
 import LiveLocationMap from '../components/LiveLocationMap';
 
 const roleOptions = ['All', 'Administrator', 'Supervisor'];
+const dashboardRefreshMs = 60_000;
+const activityPageSize = 50;
+const pageIsVisible = () => document.visibilityState === 'visible';
 
 function AppShell({ children, onLogout, active = 'users' }) {
   const navigate = useNavigate();
@@ -82,10 +85,14 @@ export default function Dashboard() {
   const [copied, setCopied] = useState('');
   const [liveLocations, setLiveLocations] = useState([]);
   const [activityRecords, setActivityRecords] = useState([]);
+  const [activityCursor, setActivityCursor] = useState(null);
+  const [hasMoreActivity, setHasMoreActivity] = useState(false);
+  const [activityLoading, setActivityLoading] = useState(false);
   const [locationConnection, setLocationConnection] = useState('connecting');
   const navigate = useNavigate();
 
-  const fetchUsers = useCallback(async (silent = false) => {
+  const fetchUsers = useCallback(async (silent = false, { skipWhenHidden = false } = {}) => {
+    if (skipWhenHidden && !pageIsVisible()) return;
     if (!silent) setRefreshing(true);
     try {
       const res = await api.get('/users/');
@@ -98,24 +105,41 @@ export default function Dashboard() {
     } finally { setLoading(false); setRefreshing(false); }
   }, [navigate]);
 
-  useEffect(() => { fetchUsers(); }, [fetchUsers]);
-  useEffect(() => { const timer = window.setInterval(() => fetchUsers(true), 10000); return () => window.clearInterval(timer); }, [fetchUsers]);
-  useEffect(() => {
-    let cancelled = false;
-    const fetchActivity = async () => {
-      try {
-        // History is append-only, so admins can see every offline change rather
-        // than only the latest snapshot for each entity.
-        const response = await api.get('/sync/history');
-        if (!cancelled) setActivityRecords(Array.isArray(response.data) ? response.data : []);
-      } catch (_) {
-        // Older backend deployments do not expose sync records yet.
-      }
-    };
-    fetchActivity();
-    const timer = window.setInterval(fetchActivity, 10000);
-    return () => { cancelled = true; window.clearInterval(timer); };
+  const fetchActivity = useCallback(async ({ append = false, cursor = null, skipWhenHidden = false } = {}) => {
+    if (skipWhenHidden && !pageIsVisible()) return;
+    setActivityLoading(true);
+    try {
+      const response = await api.get('/sync/history', {
+        params: { limit: activityPageSize, ...(cursor ? { cursor } : {}) },
+      });
+      const payload = response.data;
+      const records = Array.isArray(payload) ? payload : payload.records;
+      setActivityRecords(current => append ? [...current, ...(records || [])] : (records || []));
+      setActivityCursor(Array.isArray(payload) ? null : payload.next_cursor);
+      setHasMoreActivity(Array.isArray(payload) ? false : Boolean(payload.has_more));
+    } catch {
+      // Older backend deployments may not expose the audit history endpoint.
+    } finally {
+      setActivityLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    const refreshVisibleData = () => {
+      fetchUsers(true, { skipWhenHidden: true });
+      fetchActivity({ skipWhenHidden: true });
+    };
+    refreshVisibleData();
+    const onVisibilityChange = () => {
+      if (pageIsVisible()) refreshVisibleData();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    const timer = window.setInterval(refreshVisibleData, dashboardRefreshMs);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.clearInterval(timer);
+    };
+  }, [fetchActivity, fetchUsers]);
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 4500); return () => window.clearTimeout(timer); }, [notice]);
   useEffect(() => {
     let cancelled = false;
@@ -176,6 +200,7 @@ export default function Dashboard() {
       setConfirmAction(null);
       setNotice(confirmAction.type === 'delete' ? 'User permanently deleted.' : confirmAction.active ? 'Access revoked. Mobile sessions will be signed out on their next check.' : 'User access restored.');
       await fetchUsers(true);
+      await fetchActivity();
     } catch (err) {
       setError(err.response?.data?.detail || `Action failed (${err.response?.status || 'network error'}).`);
     } finally { setActionLoading(false); }
@@ -215,7 +240,7 @@ export default function Dashboard() {
         </div>
 
         {loading ? <div className="empty-state"><div className="loading-orb"><RefreshCcw size={20} className="spin" /></div><h3>Loading directory</h3><p>Synchronizing account status…</p></div> : filteredUsers.length === 0 ? <div className="empty-state"><div className="empty-icon"><Users size={22} /></div><h3>{users.length ? 'No matching users' : 'No users yet'}</h3><p>{users.length ? 'Try changing your search or filters.' : 'Provision the first workforce account to get started.'}</p>{!users.length && <button className="button button-primary" onClick={() => navigate('/create-user')}><Plus size={16} /> Add first user</button>}</div> : view === 'table' ? <div className="table-wrap"><table className="user-table"><thead><tr><th>User</th><th>Role</th><th>Status</th><th>Created</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{filteredUsers.map(user => <tr key={user.id}><td><div className="user-cell"><div className="avatar">{user.name?.charAt(0).toUpperCase()}</div><div><strong>{user.name}</strong><button className="id-copy" onClick={() => copyId(user.employee_id)} title="Copy employee ID">{user.employee_id} {copied === user.employee_id ? <Check size={13} /> : <Copy size={13} />}</button></div></div></td><td><span className={`role-badge role-${user.role.toLowerCase()}`}>{user.role}</span></td><td><span className={`status-badge ${user.is_active ? 'active' : 'inactive'}`}><span className="status-dot" />{user.is_active ? 'Active' : 'Access revoked'}</span></td><td className="date-cell">{user.created_at ? new Date(user.created_at).toLocaleDateString() : '—'}</td><td><div className="row-actions"><button className={`text-action ${user.is_active ? 'danger' : 'success'}`} onClick={() => openAction(user, 'access')}>{user.is_active ? 'Revoke' : 'Restore'}</button><button className="icon-button danger" onClick={() => openAction(user, 'delete')} title="Permanently delete user" aria-label={`Delete ${user.name}`}><Trash2 size={16} /></button></div></td></tr>)}</tbody></table></div> : <div className="user-card-grid">{filteredUsers.map(user => <article key={user.id} className={`user-card ${!user.is_active ? 'is-disabled' : ''}`}><div className="user-card-header"><div className="user-cell"><div className="avatar">{user.name?.charAt(0).toUpperCase()}</div><div><strong>{user.name}</strong><button className="id-copy" onClick={() => copyId(user.employee_id)}>{user.employee_id} {copied === user.employee_id ? <Check size={13} /> : <Copy size={13} />}</button></div></div><span className={`status-badge ${user.is_active ? 'active' : 'inactive'}`}><span className="status-dot" />{user.is_active ? 'Active' : 'Revoked'}</span></div><div className="card-meta"><span className={`role-badge role-${user.role.toLowerCase()}`}>{user.role}</span><span>{user.created_at ? new Date(user.created_at).toLocaleDateString() : 'No date'}</span></div><div className="card-actions"><button className={`button button-small ${user.is_active ? 'button-danger' : 'button-success'}`} onClick={() => openAction(user, 'access')}>{user.is_active ? 'Revoke access' : 'Restore access'}</button><button className="icon-button danger" onClick={() => openAction(user, 'delete')} aria-label={`Delete ${user.name}`}><Trash2 size={16} /></button></div></article>)}</div>}
-        <div className="directory-footer"><span><span className="online-dot" /> Updates automatically every 10 seconds</span><span>Last checked {formatTime(lastUpdated)}</span></div>
+        <div className="directory-footer"><span><span className="online-dot" /> Refreshes every minute while this tab is open</span><span>Last checked {formatTime(lastUpdated)}</span></div>
       </section>
 
       <section className="directory-panel location-panel">
@@ -230,6 +255,7 @@ export default function Dashboard() {
       <section className="directory-panel">
         <div className="directory-heading"><div><div className="section-kicker">CENTRAL SYNC</div><h2>Recent workforce activity <span>{activityRecords.length}</span></h2><p>Every change uploaded from employee devices, including offline corrections.</p></div><Users size={22} aria-hidden="true" /></div>
         {activityRecords.length === 0 ? <div className="empty-state"><div className="empty-icon"><Users size={22} /></div><h3>No synced loading activity yet</h3><p>Records appear here after a phone reconnects and uploads its offline queue.</p></div> : <div className="table-wrap"><table className="user-table"><thead><tr><th>Record</th><th>Employee</th><th>Action</th><th>Status</th><th>Version</th><th>Recorded</th></tr></thead><tbody>{activityRecords.map(record => <tr key={record.operation_id}><td><strong>{record.entity_type}</strong><span className="id-copy">{record.entity_id}</span></td><td>{record.employee_id}</td><td>{record.operation}</td><td>{record.status}</td><td>{record.version}</td><td>{record.recorded_at ? new Date(record.recorded_at).toLocaleString() : '—'}</td></tr>)}</tbody></table></div>}
+        {hasMoreActivity && <div className="directory-footer"><button className="button button-secondary button-small" onClick={() => fetchActivity({ append: true, cursor: activityCursor })} disabled={activityLoading}>{activityLoading ? 'Loading…' : 'Load older activity'}</button></div>}
       </section>
     </main>
     <ConfirmDialog action={confirmAction} onCancel={() => !actionLoading && setConfirmAction(null)} onConfirm={runAction} loading={actionLoading} />

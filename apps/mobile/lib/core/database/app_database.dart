@@ -35,13 +35,14 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 7;
+  int get schemaVersion => 8;
 
   @override
   MigrationStrategy get migration {
     return MigrationStrategy(
       onCreate: (Migrator m) async {
         await m.createAll();
+        await _createPerformanceIndexes(m);
       },
       onUpgrade: (Migrator m, int from, int to) async {
         // Version 4 added the offline AI metadata/report tables and several
@@ -93,8 +94,28 @@ class AppDatabase extends _$AppDatabase {
                   "WHEN 'administrator' THEN 'administrator' "
                   "ELSE 'supervisor' END");
         }
+        if (from < 8) {
+          await _createPerformanceIndexes(m);
+        }
       },
     );
+  }
+}
+
+/// Foreign-key columns are not indexed automatically by SQLite. These cover
+/// the filters and joins used by operational lists, analytics and the sync
+/// retry queue as local data grows.
+Future<void> _createPerformanceIndexes(Migrator migrator) async {
+  const statements = <String>[
+    'CREATE INDEX IF NOT EXISTS idx_trucks_wagon_active ON trucks (wagon_id, is_deleted, is_archived)',
+    'CREATE INDEX IF NOT EXISTS idx_layers_truck_active_time ON layers (truck_id, is_deleted, timestamp)',
+    'CREATE INDEX IF NOT EXISTS idx_detections_layer_active ON detections (layer_id, is_deleted)',
+    'CREATE INDEX IF NOT EXISTS idx_loading_sessions_truck_active ON loading_sessions (truck_id, is_deleted)',
+    'CREATE INDEX IF NOT EXISTS idx_sync_queues_retry ON sync_queues (status, retry_count, priority, queued_at)',
+    'CREATE INDEX IF NOT EXISTS idx_audit_logs_time_entity ON audit_logs (timestamp, entity_id)',
+  ];
+  for (final statement in statements) {
+    await migrator.database.customStatement(statement);
   }
 }
 

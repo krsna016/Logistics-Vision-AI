@@ -3,7 +3,9 @@
 
 import json
 
-from fastapi import APIRouter, Depends
+from datetime import datetime
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -156,11 +158,13 @@ async def read_sync_history(
     entity_id: str | None = None,
     employee_id: str | None = None,
     status: str | None = None,
+    cursor: datetime | None = None,
+    limit: int = Query(default=50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_admin),
 ):
     """Return the append-only operational history for admin audit screens."""
-    query = select(SyncHistoryRecord).order_by(SyncHistoryRecord.recorded_at.desc())
+    query = select(SyncHistoryRecord)
     if entity_type:
         query = query.where(SyncHistoryRecord.entity_type == entity_type)
     if entity_id:
@@ -169,8 +173,17 @@ async def read_sync_history(
         query = query.where(SyncHistoryRecord.employee_id == employee_id)
     if status:
         query = query.where(SyncHistoryRecord.status == status)
-    rows = (await db.execute(query.limit(2000))).scalars().all()
-    return [
+    if cursor:
+        query = query.where(SyncHistoryRecord.recorded_at < cursor)
+    rows = (
+        await db.execute(
+            query.order_by(SyncHistoryRecord.recorded_at.desc())
+            .limit(limit + 1)
+        )
+    ).scalars().all()
+    has_more = len(rows) > limit
+    page = rows[:limit]
+    records = [
         {
             "operation_id": row.operation_id,
             "entity_type": row.entity_type,
@@ -185,5 +198,12 @@ async def read_sync_history(
             "client_updated_at": row.client_updated_at,
             "recorded_at": row.recorded_at,
         }
-        for row in rows
+        for row in page
     ]
+    return {
+        "records": records,
+        "has_more": has_more,
+        "next_cursor": page[-1].recorded_at.isoformat()
+        if has_more and page
+        else None,
+    }

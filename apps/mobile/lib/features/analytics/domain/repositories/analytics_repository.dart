@@ -1,8 +1,10 @@
 import '../entities/time_filter.dart';
 import '../entities/analytics_summary.dart';
 import '../entities/performance_metrics.dart';
+import '../entities/analytics_snapshot.dart';
 
 abstract class AnalyticsRepository {
+  Future<AnalyticsSnapshot> getSnapshot(TimeFilter filter);
   Future<AnalyticsSummary> getSummary(TimeFilter filter);
   Future<AIPerformanceMetrics> getAIPerformance(TimeFilter filter);
   Future<LoadingPerformanceMetrics> getLoadingPerformance(TimeFilter filter);
