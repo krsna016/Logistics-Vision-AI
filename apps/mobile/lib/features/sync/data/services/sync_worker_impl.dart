@@ -1,14 +1,21 @@
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import '../../domain/entities/sync_operation.dart';
 import '../../domain/repositories/queue_repository.dart';
 import '../../domain/services/retry_manager.dart';
 import '../../domain/services/sync_worker.dart';
+import '../../../../services/network_service.dart';
+import '../../../../core/database/app_database.dart';
 
 class SyncWorkerImpl implements SyncWorker {
   final QueueRepository _queueRepo;
   final RetryManager _retryManager;
+  final Dio _dio;
+  final AppDatabase _db;
 
-  const SyncWorkerImpl(this._queueRepo, this._retryManager);
+  SyncWorkerImpl(this._queueRepo, this._retryManager, NetworkService network, this._db)
+      : _dio = network.client;
 
   @override
   Future<bool> processBatch(List<SyncOperation> operations) async {
@@ -48,11 +55,70 @@ class SyncWorkerImpl implements SyncWorker {
 
   @override
   Future<bool> attemptOperation(SyncOperation operation) async {
-    // There is no authenticated remote sync endpoint wired into this build.
-    // Never report success for a local-only operation: doing so would remove
-    // the queue item and falsely tell the operator that data reached a server.
-    debugPrint(
-        'Sync deferred: remote endpoint is not configured for ${operation.entityType}/${operation.entityId}');
-    return false;
+    try {
+      final decoded = jsonDecode(operation.payload);
+      var payload = decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+      if (payload.isEmpty) payload = await _readCurrentPayload(operation);
+      final response = await _dio.post<Map<String, dynamic>>('/sync/batch', data: {
+        'records': [
+          {
+            'operation_id': operation.id,
+            'entity_type': operation.entityType,
+            'entity_id': operation.entityId,
+            'operation': operation.operation.name.toUpperCase(),
+            'payload': payload,
+            'version': operation.version,
+            'created_at': operation.createdAt.toUtc().toIso8601String(),
+            'updated_at': operation.updatedAt.toUtc().toIso8601String(),
+          }
+        ],
+      });
+      final results = response.data?['results'];
+      if (results is! List || results.isEmpty) return false;
+      final status = (results.first as Map<String, dynamic>)['status'];
+      return status == 'synced' || status == 'already_synced';
+    } on DioException catch (error) {
+      debugPrint('Sync upload failed for ${operation.entityId}: ${error.message}');
+      return false;
+    } on FormatException {
+      debugPrint('Sync payload is not valid JSON for ${operation.entityId}');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> _readCurrentPayload(SyncOperation operation) async {
+    switch (operation.entityType) {
+      case 'Wagon':
+        final row = await (_db.select(_db.wagons)..where((t) => t.id.equals(operation.entityId))).getSingleOrNull();
+        if (row == null) return {};
+        return {'id': row.id, 'wagonNumber': row.wagonNumber, 'status': row.status,
+          'warehouseId': row.warehouseId, 'origin': row.origin, 'destination': row.destination,
+          'loadingDate': row.loadingDate?.toUtc().toIso8601String(), 'remarks': row.remarks,
+          'expectedTruckCount': row.expectedTruckCount, 'completedTruckCount': row.completedTruckCount,
+          'itemManifestJson': row.itemManifestJson, 'createdAt': row.createdAt.toUtc().toIso8601String(),
+          'updatedAt': row.updatedAt.toUtc().toIso8601String(), 'isDeleted': row.isDeleted};
+      case 'Truck':
+        final row = await (_db.select(_db.trucks)..where((t) => t.id.equals(operation.entityId))).getSingleOrNull();
+        if (row == null) return {};
+        return {'id': row.id, 'wagonId': row.wagonId, 'truckNumber': row.truckNumber,
+          'vehicleNumber': row.vehicleNumber, 'driverName': row.driverName, 'driverMobile': row.driverMobile,
+          'company': row.company, 'warehouse': row.warehouse, 'status': row.status,
+          'completedDate': row.completedDate?.toUtc().toIso8601String(), 'notes': row.notes,
+          'totalLayers': row.totalLayers, 'totalCartons': row.totalCartons, 'totalDefects': row.totalDefects,
+          'isArchived': row.isArchived, 'createdAt': row.createdAt.toUtc().toIso8601String(),
+          'updatedAt': row.updatedAt.toUtc().toIso8601String(), 'isDeleted': row.isDeleted};
+      case 'Layer':
+        final row = await (_db.select(_db.layers)..where((t) => t.id.equals(operation.entityId))).getSingleOrNull();
+        if (row == null) return {};
+        return {'id': row.id, 'truckId': row.truckId, 'layerNumber': row.layerNumber,
+          'cartonCount': row.cartonCount, 'defectCount': row.defectCount, 'photoPath': row.photoPath,
+          'notes': row.notes, 'itemName': row.itemName, 'itemAllocationsJson': row.itemAllocationsJson,
+          'averageConfidence': row.averageConfidence, 'timestamp': row.timestamp?.toUtc().toIso8601String(),
+          'operatorId': row.operatorId, 'modelVersion': row.modelVersion,
+          'createdAt': row.createdAt.toUtc().toIso8601String(), 'updatedAt': row.updatedAt.toUtc().toIso8601String(),
+          'isDeleted': row.isDeleted};
+      default:
+        return {};
+    }
   }
 }

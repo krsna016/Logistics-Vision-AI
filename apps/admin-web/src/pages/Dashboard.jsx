@@ -81,6 +81,7 @@ export default function Dashboard() {
   const [actionLoading, setActionLoading] = useState(false);
   const [copied, setCopied] = useState('');
   const [liveLocations, setLiveLocations] = useState([]);
+  const [activityRecords, setActivityRecords] = useState([]);
   const [locationConnection, setLocationConnection] = useState('connecting');
   const navigate = useNavigate();
 
@@ -99,6 +100,20 @@ export default function Dashboard() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
   useEffect(() => { const timer = window.setInterval(() => fetchUsers(true), 10000); return () => window.clearInterval(timer); }, [fetchUsers]);
+  useEffect(() => {
+    let cancelled = false;
+    const fetchActivity = async () => {
+      try {
+        const response = await api.get('/sync/records');
+        if (!cancelled) setActivityRecords(Array.isArray(response.data) ? response.data : []);
+      } catch (_) {
+        // Older backend deployments do not expose sync records yet.
+      }
+    };
+    fetchActivity();
+    const timer = window.setInterval(fetchActivity, 10000);
+    return () => { cancelled = true; window.clearInterval(timer); };
+  }, []);
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 4500); return () => window.clearTimeout(timer); }, [notice]);
   useEffect(() => {
     let cancelled = false;
@@ -208,6 +223,11 @@ export default function Dashboard() {
         </div>
         <LiveLocationMap locations={liveLocations} />
         {liveLocations.length === 0 ? <div className="empty-state"><div className="empty-icon"><MapPin size={22} /></div><h3>No active locations</h3><p>No connected employee device has sent a location yet.</p></div> : <div className="table-wrap"><table className="user-table"><thead><tr><th>Employee</th><th>Last update</th><th>Accuracy</th><th>Coordinates</th></tr></thead><tbody>{liveLocations.map(location => <tr key={location.employee_id}><td><div className="user-cell"><div className="avatar">{location.employee_name?.charAt(0).toUpperCase()}</div><div><strong>{location.employee_name}</strong><span className="id-copy">{location.employee_id} · {location.role}</span></div></div></td><td>{new Date(location.recorded_at).toLocaleString()}</td><td>{location.accuracy_meters == null ? '—' : `${Math.round(location.accuracy_meters)} m`}</td><td><a href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`} target="_blank" rel="noreferrer">{location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</a></td></tr>)}</tbody></table></div>}
+      </section>
+
+      <section className="directory-panel">
+        <div className="directory-heading"><div><div className="section-kicker">CENTRAL SYNC</div><h2>Recent workforce activity <span>{activityRecords.length}</span></h2><p>Loading records uploaded from employee devices.</p></div><Users size={22} aria-hidden="true" /></div>
+        {activityRecords.length === 0 ? <div className="empty-state"><div className="empty-icon"><Users size={22} /></div><h3>No synced loading records yet</h3><p>Records appear here after a phone reconnects and uploads its offline queue.</p></div> : <div className="table-wrap"><table className="user-table"><thead><tr><th>Record</th><th>Employee</th><th>Action</th><th>Version</th><th>Updated</th></tr></thead><tbody>{activityRecords.map(record => <tr key={`${record.entity_type}-${record.entity_id}`}><td><strong>{record.entity_type}</strong><span className="id-copy">{record.entity_id}</span></td><td>{record.employee_id}</td><td>{record.operation}</td><td>{record.version}</td><td>{record.updated_at ? new Date(record.updated_at).toLocaleString() : '—'}</td></tr>)}</tbody></table></div>}
       </section>
     </main>
     <ConfirmDialog action={confirmAction} onCancel={() => !actionLoading && setConfirmAction(null)} onConfirm={runAction} loading={actionLoading} />

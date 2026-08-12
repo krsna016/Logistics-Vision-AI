@@ -8,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .core.config import settings
 from .db.database import Base, engine, get_db
-from .routers import auth, inference, locations, users
+from .routers import auth, inference, locations, sync, users
+from .models import sync as sync_model  # noqa: F401 - register table metadata
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -98,6 +99,7 @@ async def startup_event():
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["Authentication"])
 app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["Users"])
 app.include_router(locations.router, prefix=f"{settings.API_V1_STR}/locations", tags=["Locations"])
+app.include_router(sync.router, prefix=f"{settings.API_V1_STR}/sync", tags=["Synchronization"])
 app.include_router(inference.router, prefix=f"{settings.API_V1_STR}/inference", tags=["Inference"])
 
 @app.get("/")

@@ -10,6 +10,7 @@ import 'navigation/app_router.dart';
 import 'theme/app_theme.dart';
 import 'utils/logger.dart';
 import 'core/presentation/layout/reference_viewport.dart';
+import 'features/sync/presentation/providers/sync_providers.dart';
 
 void main() async {
   // Ensure widget bindings are loaded before background async initializes.
@@ -73,6 +74,16 @@ class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
       );
     }
     return _backDispatcher!;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    // Keep the offline queue engine alive for the whole app session. It must
+    // not depend on the user opening the backup screen first.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(syncEngineProvider);
+    });
   }
 
   @override

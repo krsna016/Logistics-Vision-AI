@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../../../../core/providers/database_provider.dart';
+import '../../../../services/network_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../domain/entities/sync_operation.dart';
 import '../../domain/repositories/queue_repository.dart';
 import '../../domain/services/connectivity_service.dart';
@@ -27,7 +29,12 @@ final syncEngineProvider = Provider<SyncEngine>((ref) {
   final queueRepo = ref.watch(queueRepositoryProvider);
 
   final retryManager = RetryManagerImpl();
-  final worker = SyncWorkerImpl(queueRepo, retryManager);
+  final worker = SyncWorkerImpl(
+    queueRepo,
+    retryManager,
+    NetworkService(secureStorage: const FlutterSecureStorage()),
+    ref.watch(databaseProvider),
+  );
 
   final engine = SyncEngineImpl(connService, queueRepo, worker);
 
