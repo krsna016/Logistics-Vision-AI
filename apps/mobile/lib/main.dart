@@ -1,6 +1,5 @@
-import 'dart:ui';
 import 'core/presentation/widgets/root_back_guard.dart';
-import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,7 +9,6 @@ import 'config/environment.dart';
 import 'navigation/app_router.dart';
 import 'theme/app_theme.dart';
 import 'utils/logger.dart';
-import 'features/auth/presentation/providers/auth_providers.dart';
 import 'core/presentation/layout/reference_viewport.dart';
 
 void main() async {
@@ -75,25 +73,6 @@ class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
       );
     }
     return _backDispatcher!;
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    // Ask only after the first frame, when the Android/iOS activity is ready
-    // to present a native permission dialog. Tracking still starts only after
-    // authentication in AuthNotifier.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      unawaited(_requestLocationPermission());
-    });
-  }
-
-  Future<void> _requestLocationPermission() async {
-    try {
-      await ref.read(locationTrackingServiceProvider).requestPermission();
-    } catch (error, stack) {
-      AppLogger.warning('Location permission request failed', error, stack);
-    }
   }
 
   @override

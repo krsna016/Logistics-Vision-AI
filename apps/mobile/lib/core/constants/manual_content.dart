@@ -602,7 +602,7 @@ Archive after the completed vehicle has left the active workflow and its record 
 
 ## 15. Completing and archiving a wagon
 
-The Complete Wagon action becomes available when the wagon is Loading, at least one vehicle exists and every connected vehicle is completed.
+The Complete Wagon action becomes available when the wagon is Loading, at least one vehicle exists and every connected vehicle is completed. When an item manifest exists, every item must also have zero cartons remaining. Without a manifest, the vehicle-completion rule is unchanged.
 
 Before completing:
 
@@ -614,7 +614,7 @@ Before completing:
 
 Tap Complete Wagon and review the final summary. Completion makes the wagon ready for its Digital Register.
 
-Archive the wagon after reports and operational checks are accepted. Archived records remain available in Digital Registers, while normal loading actions are locked.
+Archive the wagon after reports and operational checks are accepted. A wagon with an item manifest can only be archived when every manifest item has zero cartons remaining. Archived records remain available in Digital Registers, while normal loading actions are locked.
 
 ---
 
@@ -765,6 +765,12 @@ At least one connected vehicle is not completed, or there is no vehicle. Complet
 ### Camera is black or preparing
 
 Wait for preview recovery, return and reopen capture, or use Retry Camera. Use Manual mode with a reference photo if the camera remains unsuitable.
+
+### A permission is needed
+
+SmartLoad opens normally after installation and does not block the dashboard with a device-access setup screen. When you use a feature that needs access, such as a camera scanner, it explains the required permission and lets you open the app's settings to enable it.
+
+After sign-in, SmartLoad separately requests notification access for the live-location service. This request does not depend on location already being enabled.
 
 ### AI count is wrong
 
@@ -1421,7 +1427,7 @@ Completed का मतलब वाहन की सामान्य लो�
 
 ## 15. वैगन पूरा करना और आर्काइव करना
 
-Complete Wagon तभी उपलब्ध होता है जब वैगन Loading में हो, कम से कम एक वाहन हो और सभी जुड़े वाहन Completed हों।
+Complete Wagon तभी उपलब्ध होता है जब वैगन Loading में हो, कम से कम एक वाहन हो और सभी जुड़े वाहन Completed हों। अगर item manifest है, तो हर item का Remaining भी zero होना चाहिए। बिना manifest के वाहन-completion वाला नियम वही रहता है।
 
 पूरा करने से पहले:
 
@@ -1431,7 +1437,7 @@ Complete Wagon तभी उपलब्ध होता है जब वैग
 - अनपेक्षित बाकी मात्रा का कारण समझा गया है।
 - डिफेक्ट और Remarks सही हैं।
 
-Complete Wagon दबाकर अंतिम सारांश जांचें। रिपोर्ट स्वीकार होने के बाद वैगन Archive करें। आर्काइव रिकॉर्ड Digital Register में रहता है और सामान्य लोडिंग लॉक हो जाती है।
+Complete Wagon दबाकर अंतिम सारांश जांचें। Manifest होने पर सभी items का Remaining zero होने के बाद ही वैगन Archive करें। आर्काइव रिकॉर्ड Digital Register में रहता है और सामान्य लोडिंग लॉक हो जाती है।
 
 ---
 
@@ -1557,6 +1563,12 @@ Truck Details में Vehicle Number सुधारें। नई रिप
 ### कैमरा काला या Preparing
 
 Preview आने दें, Capture स्क्रीन दोबारा खोलें या Retry Camera उपयोग करें। जरूरत पर Reference Photo के साथ Manual मोड उपयोग करें।
+
+### किसी permission की जरूरत है
+
+SmartLoad installation के बाद सामान्य रूप से खुलता है और dashboard पर device-access setup screen नहीं रोकता। जब आप Camera Scanner जैसे किसी access-required feature का उपयोग करते हैं, app जरूरी permission बताता है और उसे enable करने के लिए app settings खोलने देता है।
+
+Sign-in के बाद SmartLoad live-location service के लिए notification access अलग से मांगता है। यह request Location पहले से enabled होने पर निर्भर नहीं है।
 
 ### AI गिनती गलत
 

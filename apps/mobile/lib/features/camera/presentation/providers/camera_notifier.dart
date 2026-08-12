@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:camera/camera.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../domain/repositories/camera_repository.dart';
 import '../../data/repositories_impl/camera_repository_impl.dart';
@@ -89,6 +90,11 @@ class CameraNotifier extends StateNotifier<CameraState>
     _reconnectTimer?.cancel();
     state = const CameraState(status: CameraStatus.initializing);
     try {
+      final cameraPermission = await Permission.camera.status;
+      if (!cameraPermission.isGranted) {
+        state = state.copyWith(status: CameraStatus.permissionDenied);
+        return;
+      }
       // The number scanners and carton capture use the same physical camera.
       // Complete their shutdown before CameraX creates this session.
       await ScannerCameraWarmup.disposeNow();

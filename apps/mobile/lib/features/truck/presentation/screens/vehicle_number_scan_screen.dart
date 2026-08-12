@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import '../../../../utils/logger.dart';
+import '../../../../services/permission_settings_service.dart';
 import '../../data/services/live_camera_text_frame.dart';
 import '../../data/services/scanner_camera_warmup.dart';
 import '../../domain/services/vehicle_number_consensus.dart';
@@ -65,6 +67,17 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen>
   }
 
   Future<void> _initialize() async {
+    final cameraPermission = await Permission.camera.status;
+    if (!cameraPermission.isGranted) {
+      if (mounted) {
+        setState(() {
+          _initializing = false;
+          _error =
+              'Camera permission is required. Enable Camera in Settings, then return here.';
+        });
+      }
+      return;
+    }
     try {
       final controller = await ScannerCameraWarmup.takePrepared();
       if (controller == null) throw StateError('No camera is available.');
@@ -106,19 +119,10 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen>
         setState(() {
           _initializing = false;
           _error =
-              'Camera could not be started. You can enter the number manually.';
+              'Camera permission is required. Enable Camera in Settings, then return here.';
         });
       }
     }
-  }
-
-  Future<void> _retryInitialize() async {
-    if (_initializing) return;
-    setState(() {
-      _initializing = true;
-      _error = null;
-    });
-    await _initialize();
   }
 
   Future<void> _toggleTorch() async {
@@ -480,7 +484,6 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen>
                     key: const ValueKey('camera-error'),
                     child: _ErrorState(
                       message: _error!,
-                      onRetry: _retryInitialize,
                     ),
                   )
                 : Stack(
@@ -571,9 +574,7 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen>
 
 class _ErrorState extends StatelessWidget {
   final String message;
-  final VoidCallback onRetry;
-
-  const _ErrorState({required this.message, required this.onRetry});
+  const _ErrorState({required this.message});
 
   @override
   Widget build(BuildContext context) => Center(
@@ -585,9 +586,9 @@ class _ErrorState extends StatelessWidget {
               Text(message, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Retry camera'),
+                onPressed: () => PermissionSettingsService.openAppPermissions(),
+                icon: const Icon(Icons.settings_outlined),
+                label: const Text('Open camera settings'),
               ),
             ],
           ),

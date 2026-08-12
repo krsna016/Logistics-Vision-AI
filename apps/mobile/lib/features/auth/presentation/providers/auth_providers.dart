@@ -124,6 +124,7 @@ class AuthNotifier extends StateNotifier<User?> {
       await logout(); // Kill switch triggered, clear token
     } else {
       state = user;
+      unawaited(_requestNotificationPermission());
       unawaited(_locationTracking.start());
       _startPolling();
     }
@@ -194,6 +195,7 @@ class AuthNotifier extends StateNotifier<User?> {
       state = user;
       if (user != null) {
         await _cacheUser(user);
+        unawaited(_requestNotificationPermission());
         unawaited(_locationTracking.start());
         _startPolling();
       }
@@ -201,6 +203,10 @@ class AuthNotifier extends StateNotifier<User?> {
     } catch (_) {
       return false;
     }
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    await _locationTracking.requestNotificationPermission();
   }
 
   Future<void> logout() async {

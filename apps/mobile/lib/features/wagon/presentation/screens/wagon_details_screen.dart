@@ -59,6 +59,9 @@ class WagonDetailsScreen extends ConsumerWidget {
         wagonTrucks.where((t) => t.status == TruckStatus.completed).length;
 
     final inventory = ref.watch(wagonInventoryProvider(wagonId));
+    final manifestReconciled = wagon.isManifestReconciled(
+      inventory.valueOrNull ?? const <String, int>{},
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -270,7 +273,8 @@ class WagonDetailsScreen extends ConsumerWidget {
         isArchived: wagon.status == WagonStatus.archived,
         canComplete: wagon.status == WagonStatus.loading &&
             wagonTrucks.isNotEmpty &&
-            completedCount == wagonTrucks.length,
+            completedCount == wagonTrucks.length &&
+            manifestReconciled,
         onRegisterTruck: () => _openAddTruckDialog(context, ref, wagon.id),
         onComplete: () => _confirmCompleteWagon(
           context,
@@ -280,7 +284,7 @@ class WagonDetailsScreen extends ConsumerWidget {
           cartons,
           completedCount,
         ),
-        onArchive: wagon.status == WagonStatus.completed
+        onArchive: wagon.status == WagonStatus.completed && manifestReconciled
             ? () => _confirmArchive(context, notifier, wagon)
             : null,
       ),
@@ -515,10 +519,16 @@ class WagonDetailsScreen extends ConsumerWidget {
         actionColor: AppTheme.textSecondary,
         icon: Icons.archive_outlined,
         onConfirm: () {
-          notifier.updateWagonStatus(wagon.id, WagonStatus.archived).then((_) {
-            if (context.mounted) {
-              context.go('/wagons');
+          notifier
+              .updateWagonStatus(wagon.id, WagonStatus.archived)
+              .then((error) {
+            if (!context.mounted) return;
+            if (error != null) {
+              ScaffoldMessenger.of(context)
+                  .showSnackBar(SnackBar(content: Text(error)));
+              return;
             }
+            context.go('/wagons');
           });
         },
       ),
@@ -555,7 +565,13 @@ class WagonDetailsScreen extends ConsumerWidget {
               onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           ElevatedButton(
             onPressed: () async {
-              await notifier.updateWagonStatus(wagon.id, WagonStatus.completed);
+              final error = await notifier.updateWagonStatus(
+                  wagon.id, WagonStatus.completed);
+              if (error != null && ctx.mounted) {
+                ScaffoldMessenger.of(ctx)
+                    .showSnackBar(SnackBar(content: Text(error)));
+                return;
+              }
               if (ctx.mounted) {
                 Navigator.pop(ctx);
               }

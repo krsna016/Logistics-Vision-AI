@@ -94,4 +94,11 @@ class Wagon {
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
+
+  /// A wagon without an item manifest does not require item reconciliation.
+  /// When a manifest exists, every declared item must be loaded exactly.
+  bool isManifestReconciled(Map<String, int> loadedByItem) {
+    return items.isEmpty ||
+        items.every((item) => loadedByItem[item.name] == item.quantity);
+  }
 }

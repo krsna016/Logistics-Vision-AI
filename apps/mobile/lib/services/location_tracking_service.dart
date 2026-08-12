@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 import 'network_service.dart';
 
@@ -13,6 +14,7 @@ class LocationTrackingService {
   final Dio _dio;
   StreamSubscription<Position>? _positionSubscription;
   Timer? _watchdog;
+  Future<bool>? _pendingNotificationPermissionRequest;
   bool _running = false;
   bool _sending = false;
 
@@ -20,15 +22,45 @@ class LocationTrackingService {
 
   bool get isRunning => _running;
 
+  /// Reads the current OS location permission without showing a prompt.
+  Future<LocationPermission> checkPermission() {
+    return Geolocator.checkPermission();
+  }
+
   /// Requests the OS permission as soon as the app opens. The OS still
   /// requires the employee to approve the request; apps cannot grant this
   /// permission silently.
   Future<LocationPermission> requestPermission() async {
-    var permission = await Geolocator.checkPermission();
+    var permission = await checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
     }
     return permission;
+  }
+
+  /// Android requires the foreground-service notification to be visible for
+  /// dependable background location. Ask for this separately from GPS access.
+  Future<bool> requestNotificationPermission() {
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      return Future.value(true);
+    }
+
+    final pendingRequest = _pendingNotificationPermissionRequest;
+    if (pendingRequest != null) return pendingRequest;
+
+    return _requestNotificationPermission();
+  }
+
+  Future<bool> _requestNotificationPermission() async {
+    final request = Permission.notification.request();
+    _pendingNotificationPermissionRequest = request.then(
+      (status) => status.isGranted || status.isLimited,
+    );
+    try {
+      return await _pendingNotificationPermissionRequest!;
+    } finally {
+      _pendingNotificationPermissionRequest = null;
+    }
   }
 
   Future<bool> start() async {
@@ -39,6 +71,11 @@ class LocationTrackingService {
       return false;
     }
     if (!await Geolocator.isLocationServiceEnabled()) {
+      return false;
+    }
+    if (!await requestNotificationPermission()) {
+      // Do not claim background tracking is active if Android has blocked the
+      // foreground-service notification that keeps it alive.
       return false;
     }
 

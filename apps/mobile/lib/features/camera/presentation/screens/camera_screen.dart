@@ -21,6 +21,7 @@ import '../../../../theme/app_theme.dart';
 import '../../../../core/storage/image_storage_service.dart';
 import '../../../../core/ai_engine/models/ai_model.dart';
 import '../../../../utils/logger.dart';
+import '../../../../services/permission_settings_service.dart';
 import 'count_method_screens.dart';
 
 class CameraScreen extends ConsumerStatefulWidget {
@@ -547,9 +548,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
           icon: Icons.videocam_off_outlined,
           title: 'Camera Access Required',
           subtitle:
-              'Warehouse counting requires camera permission. Please grant access in device settings.',
-          buttonLabel: 'Grant Permission',
-          onRetry: () => notifier.initialize(),
+              'Camera access is required to scan and count cartons. Enable it in Settings, then return here.',
+          buttonLabel: 'Open camera settings',
+          onRetry: () => PermissionSettingsService.openAppPermissions(),
         );
 
       case CameraStatus.error:

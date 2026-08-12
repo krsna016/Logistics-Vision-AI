@@ -157,14 +157,23 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
     return null;
   }
 
-  Future<void> updateWagonStatus(String id, WagonStatus newStatus) async {
+  Future<String?> updateWagonStatus(String id, WagonStatus newStatus) async {
     final wagon = await _repository.getWagonById(id);
-    if (wagon != null) {
-      final updated =
-          wagon.copyWith(status: newStatus, updatedAt: DateTime.now());
-      await _repository.updateWagon(updated);
-      await refresh();
+    if (wagon == null) return 'Wagon record not found.';
+
+    if (newStatus == WagonStatus.completed ||
+        newStatus == WagonStatus.archived) {
+      final loadedByItem = await _repository.getLoadedItemQuantities(id);
+      if (!wagon.isManifestReconciled(loadedByItem)) {
+        return 'Load all manifest cartons before completing or archiving this wagon.';
+      }
     }
+
+    final updated =
+        wagon.copyWith(status: newStatus, updatedAt: DateTime.now());
+    await _repository.updateWagon(updated);
+    await refresh();
+    return null;
   }
 
   Future<String?> updateWagon(Wagon wagon) async {
