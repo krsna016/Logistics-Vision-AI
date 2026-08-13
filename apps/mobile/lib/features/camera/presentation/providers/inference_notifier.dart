@@ -77,30 +77,6 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
     }
   }
 
-  Future<bool> processGalleryImage(String imagePath) async {
-    if (!state.isModelLoaded) {
-      try {
-        await ensureModelReady();
-      } catch (_) {
-        return false;
-      }
-    }
-    try {
-      final detections = await _repository.runGalleryInference(imagePath);
-      state = state.copyWith(
-        detections: detections,
-        telemetry: _repository.getTelemetry(),
-      );
-      return true;
-    } catch (e, stack) {
-      AppLogger.error('Failed to analyse gallery image', e, stack);
-      state = state.copyWith(
-        errorMessage: 'Could not analyse the selected image.',
-      );
-      return false;
-    }
-  }
-
   /// Runs inference against the saved full-quality photo.
   /// The capture screen does not run a live image stream, so this starts
   /// directly without waiting for preview-frame work.

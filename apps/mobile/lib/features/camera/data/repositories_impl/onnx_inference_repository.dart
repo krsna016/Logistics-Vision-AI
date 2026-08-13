@@ -1,6 +1,5 @@
 import 'dart:isolate';
 import 'dart:typed_data';
-import 'package:camera/camera.dart';
 
 import '../../../../core/ai_engine/inference_pipeline.dart';
 import '../../../../core/ai_engine/manager/model_manager.dart';
@@ -9,7 +8,6 @@ import '../../../../core/ai_engine/modules/detection_validator.dart';
 import '../../../../core/ai_engine/modules/image_preprocessor.dart';
 import '../../../../core/ai_engine/modules/performance_monitor.dart';
 import '../../../../core/ai_engine/modules/postprocessor.dart';
-import '../../../../core/ai_engine/modules/tracking_engine.dart';
 import '../../domain/entities/detection.dart';
 import '../../domain/entities/inference_telemetry.dart';
 import '../../domain/repositories/inference_repository.dart';
@@ -21,13 +19,6 @@ class ONNXInferenceRepository implements InferenceRepository {
     _pipeline = InferencePipeline(
       modelManager: ModelManager(),
       preprocessor: ImagePreprocessor(targetWidth: 960, targetHeight: 960),
-      postprocessor: Postprocessor(
-        confidenceThreshold: 0.27,
-        iouThreshold: 0.70,
-        inputWidth: 960,
-        inputHeight: 960,
-      ),
-      trackingEngine: TrackingEngine(),
       validator: DetectionValidator(),
       performanceMonitor: PerformanceMonitor(),
     );
@@ -39,25 +30,30 @@ class ONNXInferenceRepository implements InferenceRepository {
   }
 
   @override
-  Future<List<Detection>> runInference(CameraImage image) async {
-    return await _pipeline.run(image);
-  }
-
-  @override
   Future<List<Detection>> runGalleryInference(String imagePath) async {
+    final preprocessing = Stopwatch()..start();
     final image = await _pipeline.preprocessor.processImageFileAsync(imagePath);
-    return _runPreparedImage(image);
+    preprocessing.stop();
+    return _runPreparedImage(image, preprocessing.elapsedMicroseconds / 1000);
   }
 
   @override
   Future<List<Detection>> runGalleryInferenceBytes(Uint8List imageBytes) async {
+    final preprocessing = Stopwatch()..start();
     final image =
         await _pipeline.preprocessor.processImageBytesAsync(imageBytes);
-    return _runPreparedImage(image);
+    preprocessing.stop();
+    return _runPreparedImage(image, preprocessing.elapsedMicroseconds / 1000);
   }
 
-  Future<List<Detection>> _runPreparedImage(PreparedImage image) async {
+  Future<List<Detection>> _runPreparedImage(
+    PreparedImage image,
+    double preprocessingMs,
+  ) async {
+    final inference = Stopwatch()..start();
     final rawOutput = await _pipeline.modelManager.run(image.tensor);
+    inference.stop();
+    final postprocessing = Stopwatch()..start();
     final outputList =
         rawOutput is List ? rawOutput.cast<dynamic>() : const <dynamic>[];
     final decodedResults = await Isolate.run(
@@ -73,7 +69,7 @@ class ONNXInferenceRepository implements InferenceRepository {
         decodeMasks: true,
       ),
     );
-    return _pipeline.validator.validate(decodedResults).map((d) {
+    final detections = _pipeline.validator.validate(decodedResults).map((d) {
       return Detection(
         id: d.id,
         label: d.label,
@@ -87,6 +83,14 @@ class ONNXInferenceRepository implements InferenceRepository {
         polygon: d.polygon,
       );
     }).toList(growable: false);
+    postprocessing.stop();
+    _pipeline.performanceMonitor.recordFrame(
+      preprocessingMs,
+      inference.elapsedMicroseconds / 1000,
+      postprocessing.elapsedMicroseconds / 1000,
+      detections.length,
+    );
+    return detections;
   }
 
   @override

@@ -1,4 +1,3 @@
-import 'package:camera/camera.dart';
 import 'dart:typed_data';
 import '../entities/detection.dart';
 import '../entities/inference_telemetry.dart';
@@ -6,9 +5,6 @@ import '../entities/inference_telemetry.dart';
 abstract class InferenceRepository {
   /// Check model availability, verify integrity, and load weights into memory.
   Future<void> loadModel();
-
-  /// Execute pre-processing, model inference, and post-processing on a camera image.
-  Future<List<Detection>> runInference(CameraImage image);
 
   /// Run the same model once against a still image selected from the gallery.
   Future<List<Detection>> runGalleryInference(String imagePath);

@@ -14,28 +14,41 @@ class RemoteAuthRepository implements AuthRepository {
   final FlutterSecureStorage _storage;
   bool _locked = false;
   bool _sessionWasRevoked = false;
+  bool _lastLoginFailedForConnectivity = false;
+  String? _lastLoginErrorMessage;
   String? _activeEmployeeId;
   User? _cachedUser;
 
   bool get sessionWasRevoked => _sessionWasRevoked;
+  bool get lastLoginFailedForConnectivity => _lastLoginFailedForConnectivity;
+  String? get lastLoginErrorMessage => _lastLoginErrorMessage;
 
-  /// Persistent sessions use a JWT without an `exp` claim. Older tokens may
-  /// still contain one, so retain compatibility with those tokens while
-  /// avoiding `JwtDecoder.isExpired` throwing for the new format.
-  bool _isTokenUsable(String token) {
+  String? _responseDetail(Response<dynamic>? response) {
+    final data = response?.data;
+    if (data is Map<String, dynamic>) {
+      final detail = data['detail'];
+      if (detail is String && detail.trim().isNotEmpty) return detail.trim();
+    }
+    return null;
+  }
+
+  String? _tokenValidationFailure(String token) {
     try {
       final claims = JwtDecoder.decode(token);
       final exp = claims['exp'];
-      if (exp == null) return true;
-      if (exp is num) {
-        return DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000)
-            .isAfter(DateTime.now());
+      if (exp is! num) return 'it has no valid expiry claim';
+      final expiry =
+          DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000).toUtc();
+      if (!expiry.isAfter(DateTime.now().toUtc())) {
+        return 'it was already expired when received';
       }
-      return false;
-    } catch (_) {
-      return false;
+      return null;
+    } catch (error) {
+      return 'it is not a valid JWT (${error.runtimeType})';
     }
   }
+
+  bool _isTokenUsable(String token) => _tokenValidationFailure(token) == null;
 
   Future<bool> hasValidToken() async {
     final token = await _storage.read(key: StorageService.keyJwtToken);
@@ -47,6 +60,8 @@ class RemoteAuthRepository implements AuthRepository {
   @override
   Future<User?> login(String employeeId, String password,
       {bool offline = false}) async {
+    _lastLoginFailedForConnectivity = false;
+    _lastLoginErrorMessage = null;
     try {
       final response = await _dio.post<Map<String, dynamic>>(
         '/auth/login',
@@ -63,15 +78,46 @@ class RemoteAuthRepository implements AuthRepository {
       final responseData = response.data as Map<String, dynamic>;
       final token = responseData['access_token'] as String?;
       if (token != null) {
+        final tokenFailure = _tokenValidationFailure(token);
+        if (tokenFailure != null) {
+          _lastLoginErrorMessage =
+              'The server accepted your credentials but issued an unusable session token: $tokenFailure.';
+          return null;
+        }
         await _storage.write(key: StorageService.keyJwtToken, value: token);
         _activeEmployeeId = employeeId;
         _locked = false;
-        return await getCurrentUser();
+        final user = await getCurrentUser();
+        if (user == null) {
+          _lastLoginErrorMessage ??=
+              'Credentials were accepted, but the server rejected the new session. Contact an administrator.';
+        }
+        return user;
       }
+      _lastLoginErrorMessage =
+          'The server response did not contain a sign-in token.';
       return null;
-    } on DioException {
+    } on DioException catch (error) {
+      final status = error.response?.statusCode;
+      _lastLoginFailedForConnectivity =
+          error.response == null || status == null || status >= 500;
+      _lastLoginErrorMessage = switch (status) {
+        400 => _responseDetail(error.response) ?? 'This account is inactive.',
+        401 => _responseDetail(error.response) ??
+            'The server rejected the employee ID or password.',
+        403 => 'This account is not permitted to use the mobile app.',
+        429 => _responseDetail(error.response) ??
+            'The account is temporarily locked. Try again in 15 minutes.',
+        int value when value >= 500 =>
+          'The sign-in server is temporarily unavailable.',
+        _ when error.response == null =>
+          'Cannot reach the sign-in server. Check this phone’s internet connection.',
+        _ => 'Sign-in failed with server response ${status ?? 'unknown'}.',
+      };
       return null;
-    } catch (_) {
+    } catch (error) {
+      _lastLoginErrorMessage =
+          'The sign-in response could not be processed (${error.runtimeType}).';
       return null;
     }
   }
@@ -89,7 +135,14 @@ class RemoteAuthRepository implements AuthRepository {
   Future<Session?> getCurrentSession() async {
     final token = await _storage.read(key: StorageService.keyJwtToken);
     if (token == null || !_isTokenUsable(token)) {
-      _sessionWasRevoked = token != null;
+      if (token != null) {
+        final failure = _tokenValidationFailure(token);
+        _lastLoginErrorMessage = failure == null
+            ? null
+            : 'The server-issued session token is unusable: $failure.';
+      }
+      _sessionWasRevoked =
+          token != null && !_tokenValidationFailure(token)!.contains('expired');
       await _storage.delete(key: StorageService.keyJwtToken);
       _cachedUser = null;
       return null;
@@ -113,7 +166,8 @@ class RemoteAuthRepository implements AuthRepository {
     _sessionWasRevoked = false;
     final token = await _storage.read(key: StorageService.keyJwtToken);
     if (token == null || !_isTokenUsable(token)) {
-      _sessionWasRevoked = token != null;
+      _sessionWasRevoked =
+          token != null && !_tokenValidationFailure(token)!.contains('expired');
       await _storage.delete(key: StorageService.keyJwtToken);
       _cachedUser = null;
       return null;
@@ -140,6 +194,12 @@ class RemoteAuthRepository implements AuthRepository {
       return user;
     } on DioException catch (error) {
       final status = error.response?.statusCode;
+      _lastLoginErrorMessage = switch (status) {
+        401 => 'The server rejected the newly issued session token.',
+        403 => 'The signed-in account cannot access its employee profile.',
+        404 => 'The signed-in employee profile no longer exists.',
+        _ => _responseDetail(error.response),
+      };
       if (status == 401 || status == 403) {
         _sessionWasRevoked = true;
         await _storage.delete(key: StorageService.keyJwtToken);
@@ -147,7 +207,9 @@ class RemoteAuthRepository implements AuthRepository {
         return null;
       }
       return _cachedUser;
-    } catch (_) {
+    } catch (error) {
+      _lastLoginErrorMessage =
+          'The server accepted your credentials, but its employee profile response could not be processed (${error.runtimeType}).';
       return _cachedUser;
     }
   }

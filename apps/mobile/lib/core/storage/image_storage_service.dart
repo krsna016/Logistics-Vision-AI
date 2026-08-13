@@ -45,8 +45,8 @@ class ImageStorageService {
     String sourcePath,
     CountingRegion region,
   ) async {
-    return Isolate.run(() => _createNormalizedCropBytes(
-          sourcePath,
+    return Isolate.run(() => _createNormalizedCropBytesFromEncoded(
+          File(sourcePath).readAsBytesSync(),
           region.toJson(),
         ));
   }
@@ -66,25 +66,6 @@ class ImageStorageService {
 
   /// Produces an upright, perspective-corrected crop for inference while
   /// preserving the full source image as the audit artifact.
-  Future<String> createCountingCrop(
-    String sourcePath,
-    CountingRegion region, {
-    required String prefix,
-  }) async {
-    final basePath = await _storagePath;
-    final safePrefix = prefix.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
-    final destination = p.join(
-      basePath,
-      '${safePrefix.isEmpty ? 'count_crop' : safePrefix}_${DateTime.now().microsecondsSinceEpoch}.jpg',
-    );
-    await Isolate.run(() => _writeNormalizedCrop(
-          sourcePath,
-          destination,
-          region.toJson(),
-        ));
-    return destination;
-  }
-
   Future<File?> getImage(String path) async {
     final file = await _storedFile(path);
     if (file == null) return null;
@@ -110,26 +91,6 @@ class ImageStorageService {
     if (!isInsideStorage) return null;
     return File(candidate);
   }
-}
-
-void _writeNormalizedCrop(
-  String sourcePath,
-  String destinationPath,
-  Map<String, dynamic> normalized,
-) {
-  File(destinationPath).writeAsBytesSync(
-    _createNormalizedCropBytes(sourcePath, normalized),
-  );
-}
-
-Uint8List _createNormalizedCropBytes(
-  String sourcePath,
-  Map<String, dynamic> normalized,
-) {
-  return _createNormalizedCropBytesFromEncoded(
-    File(sourcePath).readAsBytesSync(),
-    normalized,
-  );
 }
 
 Uint8List _createNormalizedCropBytesFromEncoded(

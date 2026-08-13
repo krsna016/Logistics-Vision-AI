@@ -455,6 +455,9 @@ class _LoadingSelectorBar extends StatelessWidget {
                       : Icons.keyboard_arrow_up,
                   color: colors.primary,
                 ),
+                style: const ButtonStyle(
+                  overlayColor: WidgetStatePropertyAll(Colors.transparent),
+                ),
                 padding: EdgeInsets.zero,
                 visualDensity: VisualDensity.compact,
               ),
@@ -472,7 +475,7 @@ class _LoadingSelectorBar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'TRUCKS — ${selectedWagon.wagonNumber}',
+                      'TRUCKS IN WAGON: ${selectedWagon.wagonNumber}',
                       style: TextStyle(
                         color: colors.primary,
                         fontSize: 12,

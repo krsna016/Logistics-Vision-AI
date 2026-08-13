@@ -60,9 +60,10 @@ final dioProvider = Provider((ref) {
       handler.next(options);
     },
     onError: (error, handler) async {
-      if (error.response?.statusCode == 401) {
-        await storage.delete(key: StorageService.keyJwtToken);
-      }
+      // Keep the token until the auth repository can classify the response.
+      // Deleting it in a generic interceptor made a temporary/expired-token
+      // response indistinguishable from an administrator revocation and
+      // prevented the next startup from validating the cached session.
       handler.next(error);
     },
   ));
@@ -89,6 +90,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final authProvider = StateNotifierProvider<AuthNotifier, User?>((ref) {
   return AuthNotifier(
     ref.watch(authRepositoryProvider),
+    ref.watch(offlineAuthProvider),
     ref.watch(secureStorageProvider),
     ref.watch(locationTrackingServiceProvider),
   );
@@ -96,45 +98,43 @@ final authProvider = StateNotifierProvider<AuthNotifier, User?>((ref) {
 
 class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   final AuthRepository _repository;
+  final OfflineAuthenticationImpl _offlineAuth;
   final FlutterSecureStorage _storage;
   final LocationTrackingService _locationTracking;
-  Timer? _pollingTimer;
-  bool _checkingCurrentUser = false;
   static const _cachedUserKey = 'cached_authenticated_user';
-  static const _foregroundSessionCheckInterval = Duration(minutes: 2);
 
-  AuthNotifier(this._repository, this._storage, this._locationTracking)
+  static const _offlineAccessPrefix = 'offline_access_valid_until_';
+  static const _offlineAccessWindow = Duration(hours: 24);
+
+  AuthNotifier(this._repository, this._offlineAuth, this._storage,
+      this._locationTracking)
       : super(null) {
     WidgetsBinding.instance.addObserver(this);
     _init();
   }
 
   Future<void> _init() async {
+    final cachedUser = await _restoreCachedUser();
+    if (cachedUser != null && state == null) state = cachedUser;
     final remoteUser = await _repository.getCurrentUser();
     if (_sessionWasRevoked) {
       await logout();
       return;
     }
-    final canRestoreCachedSession = _repository is RemoteAuthRepository
-        ? await (_repository).hasValidToken()
-        : true;
-    final user = remoteUser ??
-        (canRestoreCachedSession ? await _restoreCachedUser() : null);
-
     // Prevent overriding a demo login if it happened while we were fetching
     if (state != null) return;
 
-    if (user == null) {
+    if (remoteUser == null && cachedUser == null) {
       // Location tracking is intentionally opt-in. Starting GPS before a
       // successful login wastes battery and creates an unnecessary request.
       return;
     }
 
+    final user = remoteUser ?? cachedUser!;
     if (!user.isActive) {
       await logout(); // Kill switch triggered, clear token
     } else {
       state = user;
-      _startPolling();
     }
   }
 
@@ -177,43 +177,46 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
         (_repository).sessionWasRevoked;
   }
 
-  void _startPolling() {
-    _pollingTimer?.cancel();
-    if (state == null ||
-        WidgetsBinding.instance.lifecycleState != AppLifecycleState.resumed) {
-      return;
+  String get loginErrorMessage {
+    if (_repository is RemoteAuthRepository) {
+      return (_repository).lastLoginErrorMessage ??
+          'Sign-in failed for an unknown reason.';
     }
-    _pollingTimer = Timer.periodic(_foregroundSessionCheckInterval, (_) {
-      unawaited(_refreshCurrentUser());
-    });
-  }
-
-  Future<void> _refreshCurrentUser() async {
-    if (state == null || _checkingCurrentUser) return;
-    _checkingCurrentUser = true;
-    try {
-      final updatedUser = await _repository.getCurrentUser();
-      if (_sessionWasRevoked) {
-        await logout(); // The server explicitly rejected or revoked access.
-      } else if (updatedUser != null && !updatedUser.isActive) {
-        await logout(); // Account was revoked on the dashboard.
-      } else if (updatedUser != null) {
-        await _cacheUser(updatedUser);
-      }
-    } finally {
-      _checkingCurrentUser = false;
-    }
+    return 'Sign-in failed.';
   }
 
   Future<bool> login(String employeeId, String password,
       {bool offline = false}) async {
     try {
-      final user =
-          await _repository.login(employeeId, password, offline: offline);
+      final normalizedEmployeeId = employeeId.trim().toUpperCase();
+      User? user;
+      if (offline) {
+        user = await _authenticateOffline(normalizedEmployeeId, password);
+      } else {
+        user = await _repository.login(
+          normalizedEmployeeId,
+          password,
+          offline: false,
+        );
+        if (user != null) {
+          // Provision a bounded offline credential only after the server has
+          // accepted the same password and returned an active employee.
+          await _offlineAuth.registerUser(user, password);
+          await _storage.write(
+            key: '$_offlineAccessPrefix${user.employeeId.toUpperCase()}',
+            value: DateTime.now()
+                .add(_offlineAccessWindow)
+                .toUtc()
+                .toIso8601String(),
+          );
+        } else if (_repository is RemoteAuthRepository &&
+            (_repository).lastLoginFailedForConnectivity) {
+          user = await _authenticateOffline(normalizedEmployeeId, password);
+        }
+      }
       state = user;
       if (user != null) {
         await _cacheUser(user);
-        _startPolling();
       }
       return user != null;
     } catch (_) {
@@ -221,11 +224,18 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
     }
   }
 
+  Future<User?> _authenticateOffline(String employeeId, String password) async {
+    final expiryValue =
+        await _storage.read(key: '$_offlineAccessPrefix$employeeId');
+    final expiry = DateTime.tryParse(expiryValue ?? '');
+    if (expiry == null || !expiry.isAfter(DateTime.now().toUtc())) return null;
+    return _offlineAuth.authenticate(employeeId, password);
+  }
+
   /// Starts a non-persistent local session for device demonstrations. It never
   /// sends credentials, creates a token, or starts session polling/tracking.
   void enterDemo() {
-    _pollingTimer?.cancel();
-    _pollingTimer = null;
+    if (Environment.current == Environment.production) return;
     state = const User(
       id: 'local_demo_operator',
       employeeId: 'DEMO',
@@ -235,8 +245,8 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
     );
   }
 
-  /// Opt-in hook retained for a future administrator-controlled live-tracking
-  /// control. It deliberately does not run on login or app launch.
+  /// Explicit employee opt-in. It deliberately does not run on login or app
+  /// launch and is stopped when the authenticated session ends.
   Future<bool> startLiveTracking() async {
     if (state == null) return false;
     return _locationTracking.start();
@@ -248,20 +258,14 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   // ignore: avoid_renaming_method_parameters
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
     if (lifecycleState == AppLifecycleState.resumed) {
-      unawaited(_refreshCurrentUser());
-      _startPolling();
+      // Local-first sessions do not perform focus-triggered network checks.
     } else if (lifecycleState == AppLifecycleState.inactive ||
         lifecycleState == AppLifecycleState.hidden ||
         lifecycleState == AppLifecycleState.paused ||
-        lifecycleState == AppLifecycleState.detached) {
-      _pollingTimer?.cancel();
-      _pollingTimer = null;
-    }
+        lifecycleState == AppLifecycleState.detached) {}
   }
 
   Future<void> logout() async {
-    _pollingTimer?.cancel();
-    _pollingTimer = null;
     await _locationTracking.stop();
     await _repository.logout();
     await _storage.delete(key: _cachedUserKey);
@@ -270,7 +274,6 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    _pollingTimer?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_locationTracking.stop());
     super.dispose();
