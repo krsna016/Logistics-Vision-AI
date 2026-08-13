@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -487,17 +488,22 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         cameraState: ref.read(cameraNotifierProvider),
       );
 
-      final cropPath = await _imageStorage.createCountingCrop(
-        savedPath,
-        sourceRegion,
-        prefix: 'ai_count_crop_$truckId',
+      // Create the crop once in memory. The same encoded bytes are used for
+      // AI and saved for review, avoiding a disk write followed by a second
+      // file read/decode before inference.
+      final cropBytes =
+          await _imageStorage.createCountingCropBytes(savedPath, sourceRegion);
+      final cropPath = await _imageStorage.saveImageBytes(
+        cropBytes,
+        'ai_count_crop_$truckId',
       );
       if (!context.mounted) return;
 
       // Start the full-resolution pass, but do not make navigation wait for
       // mask decoding. Review appears with the latest live result and updates
       // atomically when this future completes.
-      Future<AIResult> finalResultLoader() => _finalizeCapturedResult(cropPath);
+      Future<AIResult> finalResultLoader() =>
+          _finalizeCapturedResultBytes(cropBytes);
       await _navigateToReview(
         context,
         truckId,
@@ -568,6 +574,37 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
             detections.length;
     AppLogger.info(
       'Final captured-image analysis completed in '
+      '${watch.elapsedMilliseconds}ms with ${detections.length} cartons.',
+    );
+    return AIResult(
+      detections: detections,
+      count: detections.length,
+      averageConfidence: averageConfidence,
+      processingTimeMs: inferenceState.telemetry.preprocessingTimeMs +
+          inferenceState.telemetry.inferenceTimeMs +
+          inferenceState.telemetry.postprocessingTimeMs,
+      modelVersion: AIModel.activeVersion,
+      inferenceTimestamp: DateTime.now(),
+      frameSize: const Size(720, 1280),
+    );
+  }
+
+  Future<AIResult> _finalizeCapturedResultBytes(Uint8List imageBytes) async {
+    final watch = Stopwatch()..start();
+    final detections = await ref
+        .read(inferenceNotifierProvider.notifier)
+        .finalizeCapturedImageBytes(imageBytes);
+    watch.stop();
+    final inferenceState = ref.read(inferenceNotifierProvider);
+    final averageConfidence = detections.isEmpty
+        ? 0.0
+        : detections.fold<double>(
+              0.0,
+              (total, detection) => total + detection.confidence,
+            ) /
+            detections.length;
+    AppLogger.info(
+      'Final in-memory captured-image analysis completed in '
       '${watch.elapsedMilliseconds}ms with ${detections.length} cartons.',
     );
     return AIResult(

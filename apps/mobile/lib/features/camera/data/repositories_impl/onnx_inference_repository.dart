@@ -1,4 +1,5 @@
 import 'dart:isolate';
+import 'dart:typed_data';
 import 'package:camera/camera.dart';
 
 import '../../../../core/ai_engine/inference_pipeline.dart';
@@ -45,6 +46,17 @@ class ONNXInferenceRepository implements InferenceRepository {
   @override
   Future<List<Detection>> runGalleryInference(String imagePath) async {
     final image = await _pipeline.preprocessor.processImageFileAsync(imagePath);
+    return _runPreparedImage(image);
+  }
+
+  @override
+  Future<List<Detection>> runGalleryInferenceBytes(Uint8List imageBytes) async {
+    final image =
+        await _pipeline.preprocessor.processImageBytesAsync(imageBytes);
+    return _runPreparedImage(image);
+  }
+
+  Future<List<Detection>> _runPreparedImage(PreparedImage image) async {
     final rawOutput = await _pipeline.modelManager.run(image.tensor);
     final outputList =
         rawOutput is List ? rawOutput.cast<dynamic>() : const <dynamic>[];

@@ -42,6 +42,11 @@ class RoboflowInferenceRepository implements InferenceRepository {
   @override
   Future<List<Detection>> runGalleryInference(String imagePath) async {
     final bytes = await File(imagePath).readAsBytes();
+    return runGalleryInferenceBytes(bytes);
+  }
+
+  @override
+  Future<List<Detection>> runGalleryInferenceBytes(Uint8List bytes) async {
     final decoded = img.decodeImage(bytes);
     return _infer(
       bytes,

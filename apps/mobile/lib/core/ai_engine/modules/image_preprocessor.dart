@@ -41,21 +41,37 @@ class ImagePreprocessor {
     final targetHeight = this.targetHeight;
     return Isolate.run(() {
       final bytes = File(path).readAsBytesSync();
-      final decoded = img.decodeImage(bytes);
-      if (decoded == null) {
-        throw const FormatException('Unsupported captured image format');
-      }
-      final oriented = img.bakeOrientation(decoded);
-      final processor = ImagePreprocessor(
-        targetWidth: targetWidth,
-        targetHeight: targetHeight,
-      );
-      return PreparedImage(
-        tensor: processor.processRgbImage(oriented),
-        width: oriented.width,
-        height: oriented.height,
-      );
+      return _processEncodedBytes(bytes, targetWidth, targetHeight);
     });
+  }
+
+  /// Decodes an already encoded still image without writing it to disk first.
+  Future<PreparedImage> processImageBytesAsync(Uint8List bytes) {
+    final targetWidth = this.targetWidth;
+    final targetHeight = this.targetHeight;
+    return Isolate.run(
+        () => _processEncodedBytes(bytes, targetWidth, targetHeight));
+  }
+
+  static PreparedImage _processEncodedBytes(
+    Uint8List bytes,
+    int targetWidth,
+    int targetHeight,
+  ) {
+    final decoded = img.decodeImage(bytes);
+    if (decoded == null) {
+      throw const FormatException('Unsupported captured image format');
+    }
+    final oriented = img.bakeOrientation(decoded);
+    final processor = ImagePreprocessor(
+      targetWidth: targetWidth,
+      targetHeight: targetHeight,
+    );
+    return PreparedImage(
+      tensor: processor.processRgbImage(oriented),
+      width: oriented.width,
+      height: oriented.height,
+    );
   }
 
   /// Prepares the camera frame for ONNX Runtime.

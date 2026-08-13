@@ -31,6 +31,26 @@ class ImageStorageService {
     return destination;
   }
 
+  Future<String> saveImageBytes(Uint8List bytes, String prefix) async {
+    final basePath = await _storagePath;
+    final safePrefix = prefix.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
+    final fileName =
+        '${safePrefix.isEmpty ? 'image' : safePrefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final destination = p.join(basePath, fileName);
+    await File(destination).writeAsBytes(bytes, flush: true);
+    return destination;
+  }
+
+  Future<Uint8List> createCountingCropBytes(
+    String sourcePath,
+    CountingRegion region,
+  ) async {
+    return Isolate.run(() => _createNormalizedCropBytes(
+          sourcePath,
+          region.toJson(),
+        ));
+  }
+
   /// Produces an upright, perspective-corrected crop for inference while
   /// preserving the full source image as the audit artifact.
   Future<String> createCountingCrop(
@@ -84,6 +104,15 @@ void _writeNormalizedCrop(
   String destinationPath,
   Map<String, dynamic> normalized,
 ) {
+  File(destinationPath).writeAsBytesSync(
+    _createNormalizedCropBytes(sourcePath, normalized),
+  );
+}
+
+Uint8List _createNormalizedCropBytes(
+  String sourcePath,
+  Map<String, dynamic> normalized,
+) {
   final decoded = img.decodeImage(File(sourcePath).readAsBytesSync());
   if (decoded == null) {
     throw const FormatException('Unsupported captured image');
@@ -120,8 +149,7 @@ void _writeNormalizedCrop(
       cropped.setPixel(x, y, source.getPixel(sampleX, sampleY));
     }
   }
-  File(destinationPath).writeAsBytesSync(
-      Uint8List.fromList(img.encodeJpg(cropped, quality: 96)));
+  return Uint8List.fromList(img.encodeJpg(cropped, quality: 96));
 }
 
 double _distance(math.Point<double> a, math.Point<double> b) {

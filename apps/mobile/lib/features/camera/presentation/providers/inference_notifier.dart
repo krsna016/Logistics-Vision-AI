@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'package:camera/camera.dart';
+import 'dart:typed_data';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/repositories/inference_repository.dart';
 import '../../domain/entities/detection.dart';
 import '../../data/repositories_impl/onnx_inference_repository.dart';
-import '../../data/services/frame_scheduler.dart';
 import 'inference_state.dart';
 import '../../../../utils/logger.dart';
 
@@ -19,12 +18,9 @@ final inferenceRepositoryProvider = Provider<InferenceRepository>((ref) {
 final inferenceNotifierProvider =
     StateNotifierProvider<InferenceNotifier, InferenceState>((ref) {
   final repository = ref.watch(inferenceRepositoryProvider);
-  final scheduler = FrameScheduler(repository);
-
-  final notifier = InferenceNotifier(repository, scheduler);
+  final notifier = InferenceNotifier(repository);
 
   ref.onDispose(() {
-    scheduler.dispose();
     notifier.releaseEngine();
   });
 
@@ -33,12 +29,9 @@ final inferenceNotifierProvider =
 
 class InferenceNotifier extends StateNotifier<InferenceState> {
   final InferenceRepository _repository;
-  final FrameScheduler _scheduler;
-  StreamSubscription<List<Detection>>? _detectionsSubscription;
   Future<void>? _initialization;
 
-  InferenceNotifier(this._repository, this._scheduler)
-      : super(const InferenceState());
+  InferenceNotifier(this._repository) : super(const InferenceState());
 
   /// Prepares the single app-scoped runtime. Concurrent callers share one
   /// Future and every workflow reuses the resulting ONNX session.
@@ -67,18 +60,6 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
     try {
       await _repository.loadModel();
 
-      // Subscribe to scheduler outputs
-      _detectionsSubscription =
-          _scheduler.detectionsStream.listen((detections) {
-        final telemetry = _repository.getTelemetry().copyWith(
-              droppedFramesCount: _scheduler.droppedFramesCount,
-            );
-        state = state.copyWith(
-          detections: detections,
-          telemetry: telemetry,
-        );
-      });
-
       state = state.copyWith(
         isModelLoaded: true,
         modelStatus: InferenceModelStatus.ready,
@@ -94,12 +75,6 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
       );
       rethrow;
     }
-  }
-
-  /// Process an incoming camera frame.
-  void processImageFrame(CameraImage image) {
-    if (!state.isModelLoaded) return;
-    _scheduler.scheduleFrame(image);
   }
 
   Future<bool> processGalleryImage(String imagePath) async {
@@ -126,20 +101,16 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
     }
   }
 
-  /// Runs an exclusive inference pass against the saved full-quality photo.
-  /// Live frames are paused and any in-flight pass is allowed to finish first,
-  /// preventing the final count from racing stale camera work.
+  /// Runs inference against the saved full-quality photo.
+  /// The capture screen does not run a live image stream, so this starts
+  /// directly without waiting for preview-frame work.
   Future<List<Detection>> finalizeCapturedImage(String imagePath) async {
     if (!state.isModelLoaded) await ensureModelReady();
-    _scheduler.pause();
     try {
-      await _scheduler.whenIdle;
       final detections = await _repository.runGalleryInference(imagePath);
       state = state.copyWith(
         detections: detections,
-        telemetry: _repository.getTelemetry().copyWith(
-              droppedFramesCount: _scheduler.droppedFramesCount,
-            ),
+        telemetry: _repository.getTelemetry(),
       );
       return detections;
     } catch (e, stack) {
@@ -148,8 +119,25 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
         errorMessage: 'Could not verify the captured layer image.',
       );
       rethrow;
-    } finally {
-      _scheduler.resume();
+    }
+  }
+
+  Future<List<Detection>> finalizeCapturedImageBytes(
+      Uint8List imageBytes) async {
+    if (!state.isModelLoaded) await ensureModelReady();
+    try {
+      final detections = await _repository.runGalleryInferenceBytes(imageBytes);
+      state = state.copyWith(
+        detections: detections,
+        telemetry: _repository.getTelemetry(),
+      );
+      return detections;
+    } catch (e, stack) {
+      AppLogger.error('Failed to finalize captured image bytes', e, stack);
+      state = state.copyWith(
+        errorMessage: 'Could not verify the captured layer image.',
+      );
+      rethrow;
     }
   }
 
@@ -161,7 +149,6 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
   }
 
   Future<void> releaseEngine() async {
-    await _detectionsSubscription?.cancel();
     await _repository.release();
     _initialization = null;
   }
