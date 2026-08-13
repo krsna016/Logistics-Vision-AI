@@ -16,15 +16,47 @@ import '../../../../core/presentation/widgets/app_drawer.dart';
 import '../widgets/wagon_card.dart';
 import '../widgets/create_wagon_sheet.dart';
 
-class WagonListScreen extends ConsumerWidget {
+class WagonListScreen extends ConsumerStatefulWidget {
   const WagonListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WagonListScreen> createState() => _WagonListScreenState();
+}
+
+class _WagonListScreenState extends ConsumerState<WagonListScreen> {
+  String? _selectedWagonId;
+  bool _selectorExpanded = false;
+
+  @override
+  Widget build(BuildContext context) {
     final state = ref.watch(wagonListProvider);
     final stats = ref.watch(wagonStatsProvider);
     final notifier = ref.read(wagonListProvider.notifier);
     final truckState = ref.watch(truckListProvider);
+
+    // Keep the selector stable while the operator works. If a wagon is
+    // created/deleted, gracefully move selection to the first available one.
+    // The quick selector must show every active wagon, independent of the
+    // search/status filters used by the report list above.
+    final activeWagons = state.wagons
+        .where((wagon) =>
+            wagon.status != WagonStatus.archived &&
+            wagon.status != WagonStatus.completed &&
+            truckState.trucks.any((truck) =>
+                truck.wagonId == wagon.id &&
+                !truck.isDeleted &&
+                !truck.isArchived &&
+                truck.status != TruckStatus.completed))
+        .toList();
+    final selectedWagon = activeWagons.cast<Wagon?>().firstWhere(
+          (wagon) => wagon?.id == _selectedWagonId,
+          orElse: () => activeWagons.isEmpty ? null : activeWagons.first,
+        );
+    if (selectedWagon != null && _selectedWagonId != selectedWagon.id) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() => _selectedWagonId = selectedWagon.id);
+      });
+    }
 
     ref.listen(activeSessionProvider, (previous, next) {
       if (previous?.isRecovering == true &&
@@ -298,6 +330,25 @@ class WagonListScreen extends ConsumerWidget {
                   ],
                 ),
               ),
+        bottomNavigationBar: activeWagons.isEmpty || selectedWagon == null
+            ? null
+            : _LoadingSelectorBar(
+                wagons: activeWagons,
+                trucks: truckState.trucks,
+                selectedWagon: selectedWagon,
+                expanded: _selectorExpanded,
+                onToggle: () =>
+                    setState(() => _selectorExpanded = !_selectorExpanded),
+                onWagonSelected: (wagon) =>
+                    setState(() => _selectedWagonId = wagon.id),
+                onTruckSelected: (truck) async {
+                  await context.push('/trucks/${truck.id}/camera');
+                  if (mounted) {
+                    await ref.read(truckListProvider.notifier).refresh();
+                    await ref.read(wagonListProvider.notifier).refresh();
+                  }
+                },
+              ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () {
             showModalBottomSheet<void>(
@@ -340,5 +391,250 @@ class WagonListScreen extends ConsumerWidget {
       'Dec'
     ];
     return '${now.day} ${months[now.month - 1]} ${now.year}';
+  }
+}
+
+/// Persistent, fast-switching selector used while loading is in progress.
+/// Wagons stay in the lower bar; selecting one immediately refreshes the truck
+/// bar above it. This avoids returning through multiple detail screens.
+class _LoadingSelectorBar extends StatelessWidget {
+  final List<Wagon> wagons;
+  final List<Truck> trucks;
+  final Wagon selectedWagon;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final ValueChanged<Wagon> onWagonSelected;
+  final ValueChanged<Truck> onTruckSelected;
+
+  const _LoadingSelectorBar({
+    required this.wagons,
+    required this.trucks,
+    required this.selectedWagon,
+    required this.expanded,
+    required this.onToggle,
+    required this.onWagonSelected,
+    required this.onTruckSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final wagonTrucks = trucks
+        .where((truck) =>
+            truck.wagonId == selectedWagon.id &&
+            !truck.isDeleted &&
+            truck.status != TruckStatus.completed)
+        .toList()
+      ..sort((a, b) => a.createdDate.compareTo(b.createdDate));
+    final colors = Theme.of(context).colorScheme;
+
+    return Material(
+      elevation: 14,
+      color: colors.surface,
+      child: Padding(
+        // viewPadding includes the permanent three-button navigation area.
+        // Using it explicitly keeps this persistent selector above the bar on
+        // edge-to-edge Android devices, while remaining zero on gesture-only
+        // devices.
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewPaddingOf(context).bottom + 8,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: 30,
+              width: double.infinity,
+              child: IconButton(
+                onPressed: onToggle,
+                tooltip: expanded
+                    ? 'Hide wagon and truck selectors'
+                    : 'Show wagon and truck selectors',
+                icon: Icon(
+                  expanded
+                      ? Icons.keyboard_arrow_down
+                      : Icons.keyboard_arrow_up,
+                  color: colors.primary,
+                ),
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 180),
+              crossFadeState: expanded
+                  ? CrossFadeState.showSecond
+                  : CrossFadeState.showFirst,
+              firstChild: const SizedBox.shrink(),
+              secondChild: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'TRUCKS — ${selectedWagon.wagonNumber}',
+                      style: TextStyle(
+                        color: colors.primary,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: .3,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 64,
+                      child: wagonTrucks.isEmpty
+                          ? const Center(
+                              child: Text('No trucks created for this wagon'))
+                          : ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: wagonTrucks.length,
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final truck = wagonTrucks[index];
+                                return _TruckSelectorChip(
+                                  truck: truck,
+                                  onTap: () => onTruckSelected(truck),
+                                );
+                              },
+                            ),
+                    ),
+                    if (wagons.length > 1) ...[
+                      const SizedBox(height: 10),
+                      const Text(
+                        'WAGONS',
+                        style: TextStyle(
+                            fontSize: 12, fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 5),
+                      SizedBox(
+                        height: 42,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: wagons.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final wagon = wagons[index];
+                            final selected = wagon.id == selectedWagon.id;
+                            return ChoiceChip(
+                              selected: selected,
+                              label: Text(wagon.wagonNumber),
+                              avatar: Icon(Icons.train_outlined,
+                                  size: 17,
+                                  color: selected
+                                      ? colors.onPrimary
+                                      : colors.primary),
+                              showCheckmark: false,
+                              side: BorderSide.none,
+                              color: WidgetStateProperty.resolveWith((states) {
+                                // ChoiceChip's default pressed overlay uses
+                                // the theme secondary (yellow) color. Keep
+                                // every interaction state on the same soft
+                                // wagon surface or selected blue surface.
+                                return states.contains(WidgetState.selected)
+                                    ? colors.primary
+                                    : colors.surfaceContainerHighest
+                                        .withValues(alpha: .72);
+                              }),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              backgroundColor: colors.surfaceContainerHighest
+                                  .withValues(alpha: .72),
+                              selectedColor: colors.primary,
+                              labelStyle: TextStyle(
+                                color: selected
+                                    ? colors.onPrimary
+                                    : colors.onSurface,
+                                fontWeight: FontWeight.w700,
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 6),
+                              onSelected: (_) => onWagonSelected(wagon),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TruckSelectorChip extends StatelessWidget {
+  final Truck truck;
+  final VoidCallback onTap;
+
+  const _TruckSelectorChip({required this.truck, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final completed = truck.status == TruckStatus.completed;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      splashColor: Colors.transparent,
+      highlightColor: Colors.transparent,
+      overlayColor: const WidgetStatePropertyAll(Colors.transparent),
+      child: Container(
+        constraints: const BoxConstraints(minWidth: 116),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: const Color(0xFF303B4D),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: .16),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.local_shipping_outlined,
+                size: 22, color: colors.primaryFixed),
+            const SizedBox(width: 8),
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  truck.vehicleNumber,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                Text(
+                  completed ? 'Completed' : '${truck.totalLayers} layers',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: completed
+                        ? const Color(0xFF66E18A)
+                        : const Color(0xFFD3DCEB),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(width: 10),
+            Icon(
+              Icons.camera_alt_outlined,
+              size: 18,
+              color: colors.primaryFixed,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

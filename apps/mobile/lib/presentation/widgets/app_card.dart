@@ -26,6 +26,13 @@ class AppCard extends StatelessWidget {
       cardContent = InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(16),
+        // Keep taps from flashing the theme's secondary (yellow) color over
+        // dark operational cards. Selection is communicated by the card's
+        // own state, not by a transient highlight.
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+        hoverColor: Colors.transparent,
+        overlayColor: const WidgetStatePropertyAll(Colors.transparent),
         child: cardContent,
       );
     }
