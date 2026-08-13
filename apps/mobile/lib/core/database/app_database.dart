@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 9;
+  int get schemaVersion => 10;
 
   @override
   MigrationStrategy get migration {
@@ -43,6 +43,7 @@ class AppDatabase extends _$AppDatabase {
       onCreate: (Migrator m) async {
         await m.createAll();
         await _createPerformanceIndexes(m);
+        await _createIntegrityIndexes(m);
       },
       onUpgrade: (Migrator m, int from, int to) async {
         // Version 4 added the offline AI metadata/report tables and several
@@ -101,9 +102,67 @@ class AppDatabase extends _$AppDatabase {
           await m.addColumn(layers, layers.croppedPhotoPath);
           await m.addColumn(layers, layers.countingRegionJson);
         }
+        if (from < 10) {
+          // Repair any legacy duplicate/gapped active layer numbers before
+          // enforcing the per-truck invariant. Ordering is deterministic and
+          // no layer, image, count, or audit record is discarded.
+          await m.database.customStatement('''
+            WITH ranked AS (
+              SELECT id,
+                     ROW_NUMBER() OVER (
+                       PARTITION BY truck_id
+                       ORDER BY layer_number, timestamp, created_at, id
+                     ) AS next_layer_number
+              FROM layers
+              WHERE is_deleted = 0
+            )
+            UPDATE layers
+            SET layer_number = (
+              SELECT next_layer_number FROM ranked WHERE ranked.id = layers.id
+            )
+            WHERE id IN (SELECT id FROM ranked)
+          ''');
+          // A paused session is still the resumable session for its truck.
+          // Legacy builds could create another session while one was paused;
+          // keep the most recently updated session and close older duplicates.
+          await m.database.customStatement('''
+            WITH ranked AS (
+              SELECT id,
+                     ROW_NUMBER() OVER (
+                       PARTITION BY truck_id
+                       ORDER BY updated_at DESC, created_at DESC, id DESC
+                     ) AS active_rank
+              FROM loading_sessions
+              WHERE is_deleted = 0 AND status IN ('started', 'paused')
+            )
+            UPDATE loading_sessions
+            SET status = 'cancelled',
+                end_time = COALESCE(end_time, CURRENT_TIMESTAMP),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id IN (SELECT id FROM ranked WHERE active_rank > 1)
+          ''');
+          await _createIntegrityIndexes(m);
+        }
+      },
+      beforeOpen: (details) async {
+        await customStatement('PRAGMA foreign_keys = ON');
+        await customStatement('PRAGMA busy_timeout = 5000');
+        await customStatement('PRAGMA journal_mode = WAL');
+        await customStatement('PRAGMA synchronous = NORMAL');
       },
     );
   }
+}
+
+Future<void> _createIntegrityIndexes(Migrator migrator) async {
+  await migrator.database.customStatement(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_layers_unique_active_number '
+    'ON layers (truck_id, layer_number) WHERE is_deleted = 0',
+  );
+  await migrator.database.customStatement(
+    'CREATE UNIQUE INDEX IF NOT EXISTS idx_sessions_one_resumable_per_truck '
+    "ON loading_sessions (truck_id) WHERE is_deleted = 0 AND status IN ('started', 'paused')",
+  );
 }
 
 /// Foreign-key columns are not indexed automatically by SQLite. These cover

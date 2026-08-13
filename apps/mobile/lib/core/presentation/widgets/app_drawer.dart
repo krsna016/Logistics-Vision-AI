@@ -72,13 +72,26 @@ class AppDrawer extends ConsumerWidget {
                   ],
                   const SizedBox(height: 8),
                   _buildTile(
-                    icon: Icons.bug_report_rounded,
-                    title: 'Load Demo Data',
-                    subtitle: 'Inject mock data for testing',
-                    iconColor: Colors.redAccent,
-                    textColor: Colors.redAccent,
-                    onTap: () => _confirmDemoDataLoad(context, ref),
+                    icon: Icons.tune_rounded,
+                    title: 'AI Camera Settings',
+                    subtitle: 'Adjust carton-counting behavior locally',
+                    iconColor: AppTheme.primaryColor,
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.push('/settings');
+                    },
                   ),
+                  if (user?.role == Role.administrator) ...[
+                    const SizedBox(height: 8),
+                    _buildTile(
+                      icon: Icons.bug_report_rounded,
+                      title: 'Load Demo Data',
+                      subtitle: 'Replace local records with test data',
+                      iconColor: Colors.redAccent,
+                      textColor: Colors.redAccent,
+                      onTap: () => _confirmDemoDataLoad(context, ref),
+                    ),
+                  ],
                   const SizedBox(height: 8),
                   _buildTile(
                     icon: Icons.logout_rounded,

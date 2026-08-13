@@ -365,9 +365,8 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
         return;
       }
       AppLogger.info('Manual layer saved: $count cartons.');
-      // Remove the capture workspace while preserving an in-app back target.
+      // Return to the loading control center for the next wagon/truck.
       context.go('/wagons');
-      context.push('/trucks/${widget.truckId}');
     } catch (error, stack) {
       AppLogger.error('Failed to save manual layer', error, stack);
       if (mounted) {

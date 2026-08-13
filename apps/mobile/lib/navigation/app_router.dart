@@ -22,6 +22,7 @@ import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
 import '../features/auth/domain/entities/user.dart';
 import '../features/analytics/presentation/screens/analytics_dashboard_screen.dart';
+import '../features/settings/presentation/screens/ai_camera_settings_screen.dart';
 import '../features/auth/presentation/screens/profile_screen.dart';
 import '../features/auth/presentation/screens/admin_security_screen.dart';
 import '../features/auth/presentation/screens/user_management_screen.dart';
@@ -214,10 +215,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: 'settings',
         builder: (context, state) => const RootBackGuard(
           fallbackLocation: '/wagons',
-          child: _RecoveryPage(
-            title: 'Settings',
-            message: 'Settings are not available in this release.',
-          ),
+          child: AiCameraSettingsScreen(),
         ),
       ),
       GoRoute(

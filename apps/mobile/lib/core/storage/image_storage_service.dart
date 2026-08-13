@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
 import '../../features/layer/domain/entities/layer.dart';
+import '../ai_engine/ai_camera_settings.dart';
 
 class ImageStorageService {
   Future<String> get _storagePath async {
@@ -48,6 +49,7 @@ class ImageStorageService {
     return Isolate.run(() => _createNormalizedCropBytesFromEncoded(
           File(sourcePath).readAsBytesSync(),
           region.toJson(),
+          AiCameraSettings.cropQuality.value,
         ));
   }
 
@@ -61,6 +63,7 @@ class ImageStorageService {
     return Isolate.run(() => _createNormalizedCropBytesFromEncoded(
           sourceBytes,
           region.toJson(),
+          AiCameraSettings.cropQuality.value,
         ));
   }
 
@@ -96,6 +99,7 @@ class ImageStorageService {
 Uint8List _createNormalizedCropBytesFromEncoded(
   Uint8List encodedBytes,
   Map<String, dynamic> normalized,
+  int quality,
 ) {
   final decoded = img.decodeImage(encodedBytes);
   if (decoded == null) {
@@ -142,7 +146,7 @@ Uint8List _createNormalizedCropBytesFromEncoded(
       );
     }
   }
-  return Uint8List.fromList(img.encodeJpg(cropped, quality: 96));
+  return Uint8List.fromList(img.encodeJpg(cropped, quality: quality));
 }
 
 double _distance(math.Point<double> a, math.Point<double> b) {

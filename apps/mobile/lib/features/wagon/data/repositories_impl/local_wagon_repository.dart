@@ -82,7 +82,7 @@ class LocalWagonRepository implements WagonRepository {
           ));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_w_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'sync_w_insert_${wagon.id}_1',
             entityId: wagon.id,
             entityType: 'Wagon',
             operation: 'INSERT',
@@ -95,6 +95,11 @@ class LocalWagonRepository implements WagonRepository {
   @override
   Future<void> updateWagon(Wagon wagon) async {
     await _db.transaction(() async {
+      final existing = await (_db.select(_db.wagons)
+            ..where((row) => row.id.equals(wagon.id)))
+          .getSingleOrNull();
+      if (existing == null || existing.isDeleted) return;
+      final nextVersion = existing.version + 1;
       await (_db.update(_db.wagons)..where((t) => t.id.equals(wagon.id)))
           .write(db.WagonsCompanion(
         wagonNumber: drift.Value(wagon.wagonNumber),
@@ -107,15 +112,18 @@ class LocalWagonRepository implements WagonRepository {
         itemManifestJson: drift.Value(
             jsonEncode(wagon.items.map((item) => item.toJson()).toList())),
         completedTruckCount: drift.Value(wagon.completedTruckCount),
+        version: drift.Value(nextVersion),
+        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(DateTime.now()),
       ));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_w_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'sync_w_update_${wagon.id}_$nextVersion',
             entityId: wagon.id,
             entityType: 'Wagon',
             operation: 'UPDATE',
             payloadData: '{}',
+            version: drift.Value(nextVersion),
           ));
     });
     AppLogger.info('Updated wagon record: ${wagon.wagonNumber}');
@@ -137,34 +145,56 @@ class LocalWagonRepository implements WagonRepository {
           : await (_db.select(_db.layers)
                 ..where((layer) => layer.truckId.isIn(truckIds)))
               .get();
+      final sessions = truckIds.isEmpty
+          ? <db.LoadingSession>[]
+          : await (_db.select(_db.loadingSessions)
+                ..where((session) =>
+                    session.truckId.isIn(truckIds) &
+                    session.isDeleted.equals(false)))
+              .get();
       final layerIds = layers.map((layer) => layer.id).toList(growable: false);
+      final wagonVersion = wagon.version + 1;
 
       await (_db.update(_db.wagons)..where((t) => t.id.equals(id))).write(
           db.WagonsCompanion(
               isDeleted: const drift.Value(true),
+              version: drift.Value(wagonVersion),
+              syncStatus: const drift.Value('pending'),
               updatedAt: drift.Value(DateTime.now())) // soft delete
           );
       if (truckIds.isNotEmpty) {
-        await (_db.update(_db.trucks)
-              ..where((truck) => truck.id.isIn(truckIds)))
-            .write(db.TrucksCompanion(
-          isDeleted: const drift.Value(true),
-          updatedAt: drift.Value(DateTime.now()),
-        ));
-        await (_db.update(_db.layers)
-              ..where((layer) => layer.truckId.isIn(truckIds)))
-            .write(db.LayersCompanion(
-          isDeleted: const drift.Value(true),
-          updatedAt: drift.Value(DateTime.now()),
-        ));
-        await (_db.update(_db.loadingSessions)
-              ..where((session) => session.truckId.isIn(truckIds)))
-            .write(db.LoadingSessionsCompanion(
-          isDeleted: const drift.Value(true),
-          status: const drift.Value('cancelled'),
-          endTime: drift.Value(DateTime.now()),
-          updatedAt: drift.Value(DateTime.now()),
-        ));
+        for (final truck in trucks.where((record) => !record.isDeleted)) {
+          await (_db.update(_db.trucks)
+                ..where((row) => row.id.equals(truck.id)))
+              .write(db.TrucksCompanion(
+            isDeleted: const drift.Value(true),
+            version: drift.Value(truck.version + 1),
+            syncStatus: const drift.Value('pending'),
+            updatedAt: drift.Value(DateTime.now()),
+          ));
+        }
+        for (final layer in layers.where((record) => !record.isDeleted)) {
+          await (_db.update(_db.layers)
+                ..where((row) => row.id.equals(layer.id)))
+              .write(db.LayersCompanion(
+            isDeleted: const drift.Value(true),
+            version: drift.Value(layer.version + 1),
+            syncStatus: const drift.Value('pending'),
+            updatedAt: drift.Value(DateTime.now()),
+          ));
+        }
+        for (final session in sessions) {
+          await (_db.update(_db.loadingSessions)
+                ..where((row) => row.id.equals(session.id)))
+              .write(db.LoadingSessionsCompanion(
+            isDeleted: const drift.Value(true),
+            status: const drift.Value('cancelled'),
+            endTime: drift.Value(DateTime.now()),
+            version: drift.Value(session.version + 1),
+            syncStatus: const drift.Value('pending'),
+            updatedAt: drift.Value(DateTime.now()),
+          ));
+        }
       }
       if (layerIds.isNotEmpty) {
         await (_db.update(_db.detections)
@@ -192,12 +222,43 @@ class LocalWagonRepository implements WagonRepository {
           ));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_w_${DateTime.now().microsecondsSinceEpoch}',
+            id: 'sync_w_delete_${wagon.id}_$wagonVersion',
             entityId: id,
             entityType: 'Wagon',
             operation: 'DELETE',
-            payloadData: '{"cascadeChildren":true}',
+            payloadData: '{}',
+            version: drift.Value(wagonVersion),
           ));
+      for (final truck in trucks.where((record) => !record.isDeleted)) {
+        await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
+              id: 'sync_t_delete_${truck.id}_${truck.version + 1}',
+              entityId: truck.id,
+              entityType: 'Truck',
+              operation: 'DELETE',
+              payloadData: '{}',
+              version: drift.Value(truck.version + 1),
+            ));
+      }
+      for (final layer in layers.where((record) => !record.isDeleted)) {
+        await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
+              id: 'sync_l_delete_${layer.id}_${layer.version + 1}',
+              entityId: layer.id,
+              entityType: 'Layer',
+              operation: 'DELETE',
+              payloadData: '{}',
+              version: drift.Value(layer.version + 1),
+            ));
+      }
+      for (final session in sessions) {
+        await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
+              id: 'sync_s_delete_${session.id}_${session.version + 1}',
+              entityId: session.id,
+              entityType: 'LoadingSession',
+              operation: 'DELETE',
+              payloadData: '{}',
+              version: drift.Value(session.version + 1),
+            ));
+      }
     });
     AppLogger.info('Deleted wagon record locally: $id');
   }

@@ -96,12 +96,84 @@ class LocalLayerRepository implements LayerRepository {
             updatedAt: drift.Value(layer.updatedAt),
           ));
 
+      // Layer creation, aggregate repair, and every resulting sync operation
+      // are one crash-safe transaction. Derive totals from source rows rather
+      // than incrementing cached aggregates, which is idempotent after resume.
+      final activeLayers = await (_db.select(_db.layers)
+            ..where((item) =>
+                item.truckId.equals(layer.truckId) &
+                item.isDeleted.equals(false)))
+          .get();
+      final totalCartons =
+          activeLayers.fold<int>(0, (sum, item) => sum + item.cartonCount);
+      final totalDefects =
+          activeLayers.fold<int>(0, (sum, item) => sum + item.defectCount);
+      final averageConfidence = activeLayers.isEmpty
+          ? 0.0
+          : activeLayers.fold<double>(
+                  0, (sum, item) => sum + item.averageConfidence) /
+              activeLayers.length;
+      final now = DateTime.now();
+      final truck = await (_db.select(_db.trucks)
+            ..where((item) => item.id.equals(layer.truckId)))
+          .getSingleOrNull();
+      if (truck != null) {
+        final nextTruckVersion = truck.version + 1;
+        await (_db.update(_db.trucks)
+              ..where((item) => item.id.equals(layer.truckId)))
+            .write(TrucksCompanion(
+          totalLayers: drift.Value(activeLayers.length),
+          totalCartons: drift.Value(totalCartons),
+          totalDefects: drift.Value(totalDefects),
+          version: drift.Value(nextTruckVersion),
+          syncStatus: const drift.Value('pending'),
+          updatedAt: drift.Value(now),
+        ));
+        await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
+              id: 'sync_t_${now.microsecondsSinceEpoch}_${layer.id}',
+              entityId: layer.truckId,
+              entityType: 'Truck',
+              operation: 'UPDATE',
+              payloadData: '{}',
+              version: drift.Value(nextTruckVersion),
+            ));
+      }
+
+      final sessions = await (_db.select(_db.loadingSessions)
+            ..where((session) =>
+                session.truckId.equals(layer.truckId) &
+                session.isDeleted.equals(false)))
+          .get();
+      for (final session in sessions) {
+        final nextSessionVersion = session.version + 1;
+        await (_db.update(_db.loadingSessions)
+              ..where((item) => item.id.equals(session.id)))
+            .write(LoadingSessionsCompanion(
+          totalLayers: drift.Value(activeLayers.length),
+          totalCartons: drift.Value(totalCartons),
+          totalDefects: drift.Value(totalDefects),
+          averageConfidence: drift.Value(averageConfidence),
+          version: drift.Value(nextSessionVersion),
+          syncStatus: const drift.Value('pending'),
+          updatedAt: drift.Value(now),
+        ));
+        await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
+              id: 'sync_s_${now.microsecondsSinceEpoch}_${session.id}',
+              entityId: session.id,
+              entityType: 'LoadingSession',
+              operation: 'UPDATE',
+              payloadData: '{}',
+              version: drift.Value(nextSessionVersion),
+            ));
+      }
+
       await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-            id: 'sync_l_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'sync_l_${now.microsecondsSinceEpoch}_${layer.id}',
             entityId: layer.id,
             entityType: 'Layer',
             operation: 'INSERT',
             payloadData: '{}',
+            version: const drift.Value(1),
           ));
     });
     AppLogger.info(
@@ -122,6 +194,7 @@ class LocalLayerRepository implements LayerRepository {
         .fold<int>(0, (sum, allocation) => sum + allocation.quantity);
     final effectiveCartons =
         allocatedCartons > 0 ? allocatedCartons : layer.cartonCount;
+    final nextLayerVersion = existing.version + 1;
     await _db.transaction(() async {
       await (_db.update(_db.layers)..where((t) => t.id.equals(layer.id)))
           .write(LayersCompanion(
@@ -141,6 +214,8 @@ class LocalLayerRepository implements LayerRepository {
         timestamp: drift.Value(layer.timestamp),
         operatorId: drift.Value(layer.operatorId),
         modelVersion: drift.Value(layer.modelVersion),
+        version: drift.Value(nextLayerVersion),
+        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(DateTime.now()),
       ));
 
@@ -158,25 +233,14 @@ class LocalLayerRepository implements LayerRepository {
           : activeLayers.fold<double>(
                   0, (sum, item) => sum + item.averageConfidence) /
               activeLayers.length;
-      await (_db.update(_db.trucks)
-            ..where((truck) => truck.id.equals(layer.truckId)))
-          .write(TrucksCompanion(
-        totalLayers: drift.Value(activeLayers.length),
-        totalCartons: drift.Value(totalCartons),
-        totalDefects: drift.Value(totalDefects),
-        updatedAt: drift.Value(DateTime.now()),
-      ));
-      await (_db.update(_db.loadingSessions)
-            ..where((session) =>
-                session.truckId.equals(layer.truckId) &
-                session.isDeleted.equals(false)))
-          .write(LoadingSessionsCompanion(
-        totalLayers: drift.Value(activeLayers.length),
-        totalCartons: drift.Value(totalCartons),
-        totalDefects: drift.Value(totalDefects),
-        averageConfidence: drift.Value(averageConfidence),
-        updatedAt: drift.Value(DateTime.now()),
-      ));
+      await _updateParentAggregatesAndQueue(
+        truckId: layer.truckId,
+        totalLayers: activeLayers.length,
+        totalCartons: totalCartons,
+        totalDefects: totalDefects,
+        averageConfidence: averageConfidence,
+        operationKey: '${layer.id}_update',
+      );
 
       final countChanged = existing.cartonCount != effectiveCartons ||
           existing.defectCount != layer.defectCount ||
@@ -201,13 +265,14 @@ class LocalLayerRepository implements LayerRepository {
       }
 
       await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-            id: 'sync_l_${DateTime.now().microsecondsSinceEpoch}',
+            id: 'sync_l_update_${layer.id}_$nextLayerVersion',
             entityId: layer.id,
             entityType: 'Layer',
             operation: 'UPDATE',
             payloadData: correctionReason?.trim().isNotEmpty == true
                 ? '{"correctionReason":"${correctionReason!.trim().replaceAll('"', '\\"')}"}'
                 : '{}',
+            version: drift.Value(nextLayerVersion),
           ));
     });
     if (existing.photoPath != null && existing.photoPath != layer.photoPath) {
@@ -222,10 +287,13 @@ class LocalLayerRepository implements LayerRepository {
           ..where((t) => t.id.equals(id)))
         .getSingleOrNull();
     if (existing == null || existing.isDeleted) return;
+    final nextLayerVersion = existing.version + 1;
     await _db.transaction(() async {
       await (_db.update(_db.layers)..where((t) => t.id.equals(id)))
           .write(LayersCompanion(
         isDeleted: const drift.Value(true),
+        version: drift.Value(nextLayerVersion),
+        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(DateTime.now()),
       ));
       await (_db.update(_db.detections)
@@ -250,26 +318,14 @@ class LocalLayerRepository implements LayerRepository {
                   0, (sum, layer) => sum + layer.averageConfidence) /
               activeLayers.length;
 
-      await (_db.update(_db.trucks)
-            ..where((truck) => truck.id.equals(existing.truckId)))
-          .write(TrucksCompanion(
-        totalLayers: drift.Value(activeLayers.length),
-        totalCartons: drift.Value(totalCartons),
-        totalDefects: drift.Value(totalDefects),
-        updatedAt: drift.Value(DateTime.now()),
-      ));
-
-      await (_db.update(_db.loadingSessions)
-            ..where((session) =>
-                session.truckId.equals(existing.truckId) &
-                session.isDeleted.equals(false)))
-          .write(LoadingSessionsCompanion(
-        totalLayers: drift.Value(activeLayers.length),
-        totalCartons: drift.Value(totalCartons),
-        totalDefects: drift.Value(totalDefects),
-        averageConfidence: drift.Value(averageConfidence),
-        updatedAt: drift.Value(DateTime.now()),
-      ));
+      await _updateParentAggregatesAndQueue(
+        truckId: existing.truckId,
+        totalLayers: activeLayers.length,
+        totalCartons: totalCartons,
+        totalDefects: totalDefects,
+        averageConfidence: averageConfidence,
+        operationKey: '${existing.id}_delete',
+      );
 
       await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
             id: 'audit_layer_delete_${DateTime.now().microsecondsSinceEpoch}',
@@ -283,11 +339,12 @@ class LocalLayerRepository implements LayerRepository {
             ),
           ));
       await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-            id: 'sync_l_${DateTime.now().microsecondsSinceEpoch}',
+            id: 'sync_l_delete_${existing.id}_$nextLayerVersion',
             entityId: id,
             entityType: 'Layer',
             operation: 'DELETE',
             payloadData: '{"cascadeTotals":true}',
+            version: drift.Value(nextLayerVersion),
           ));
     });
     if (existing.photoPath != null) {
@@ -305,6 +362,67 @@ class LocalLayerRepository implements LayerRepository {
           t.isDeleted.equals(false));
     final rows = await query.get();
     return rows.isNotEmpty;
+  }
+
+  Future<void> _updateParentAggregatesAndQueue({
+    required String truckId,
+    required int totalLayers,
+    required int totalCartons,
+    required int totalDefects,
+    required double averageConfidence,
+    required String operationKey,
+  }) async {
+    final now = DateTime.now();
+    final truck = await (_db.select(_db.trucks)
+          ..where((row) => row.id.equals(truckId)))
+        .getSingleOrNull();
+    if (truck != null && !truck.isDeleted) {
+      final nextVersion = truck.version + 1;
+      await (_db.update(_db.trucks)..where((row) => row.id.equals(truckId)))
+          .write(TrucksCompanion(
+        totalLayers: drift.Value(totalLayers),
+        totalCartons: drift.Value(totalCartons),
+        totalDefects: drift.Value(totalDefects),
+        version: drift.Value(nextVersion),
+        syncStatus: const drift.Value('pending'),
+        updatedAt: drift.Value(now),
+      ));
+      await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
+            id: 'sync_t_${now.microsecondsSinceEpoch}_$operationKey',
+            entityId: truckId,
+            entityType: 'Truck',
+            operation: 'UPDATE',
+            payloadData: '{}',
+            version: drift.Value(nextVersion),
+          ));
+    }
+
+    final sessions = await (_db.select(_db.loadingSessions)
+          ..where((row) =>
+              row.truckId.equals(truckId) & row.isDeleted.equals(false)))
+        .get();
+    for (final session in sessions) {
+      final nextVersion = session.version + 1;
+      await (_db.update(_db.loadingSessions)
+            ..where((row) => row.id.equals(session.id)))
+          .write(LoadingSessionsCompanion(
+        totalLayers: drift.Value(totalLayers),
+        totalCartons: drift.Value(totalCartons),
+        totalDefects: drift.Value(totalDefects),
+        averageConfidence: drift.Value(averageConfidence),
+        version: drift.Value(nextVersion),
+        syncStatus: const drift.Value('pending'),
+        updatedAt: drift.Value(now),
+      ));
+      await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
+            id: 'sync_s_${now.microsecondsSinceEpoch}_${session.id}_$operationKey',
+            entityId: session.id,
+            entityType: 'LoadingSession',
+            operation: 'UPDATE',
+            payloadData: '{}',
+            version: drift.Value(nextVersion),
+          ));
+    }
   }
 
   @override

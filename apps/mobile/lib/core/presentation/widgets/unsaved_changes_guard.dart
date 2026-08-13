@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../theme/app_theme.dart';
@@ -8,6 +10,7 @@ class UnsavedChangesGuard extends StatefulWidget {
   final bool isSaving;
   final Widget child;
   final String message;
+  final FutureOr<void> Function()? onDiscardConfirmed;
 
   const UnsavedChangesGuard({
     super.key,
@@ -15,6 +18,7 @@ class UnsavedChangesGuard extends StatefulWidget {
     required this.isSaving,
     required this.child,
     this.message = 'Your unsaved changes will be lost.',
+    this.onDiscardConfirmed,
   });
 
   @override
@@ -80,6 +84,8 @@ class _UnsavedChangesGuardState extends State<UnsavedChangesGuard> {
           message: widget.message,
         );
         if (shouldExit && context.mounted) {
+          await widget.onDiscardConfirmed?.call();
+          if (!context.mounted) return;
           setState(() => _allowPop = true);
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (mounted) Navigator.of(context).pop(result);

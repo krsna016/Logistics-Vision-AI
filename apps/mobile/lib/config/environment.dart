@@ -4,7 +4,13 @@ enum Environment {
   production;
 
   static Environment get current {
-    const env = String.fromEnvironment('ENV', defaultValue: 'development');
+    const configured = String.fromEnvironment('ENV');
+    const isRelease = bool.fromEnvironment('dart.vm.product');
+    final env = configured.isEmpty
+        ? (isRelease
+            ? Environment.production.name
+            : Environment.development.name)
+        : configured;
     return Environment.values.firstWhere(
       (e) => e.name == env,
       orElse: () => Environment.development,
@@ -25,5 +31,5 @@ enum Environment {
   }
 
   bool get enableLogging => this != Environment.production;
-  bool get enableDetailedTelemetry => this != Environment.development;
+  bool get enableDetailedTelemetry => this == Environment.staging;
 }

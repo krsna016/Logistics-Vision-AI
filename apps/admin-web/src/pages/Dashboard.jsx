@@ -161,7 +161,9 @@ export default function Dashboard() {
       const websocketBase = apiBase.replace(/^http/, 'ws').replace(/\/$/, '');
       const token = sessionStorage.getItem('token');
       if (!token) return;
-      socket = new WebSocket(`${websocketBase}/locations/stream?token=${encodeURIComponent(token)}`);
+      // Keep credentials out of URLs, reverse-proxy logs, analytics, and
+      // browser history. The server selects the named auth subprotocol.
+      socket = new WebSocket(`${websocketBase}/locations/stream`, ['smartload-auth', token]);
       socket.onopen = () => { setLocationConnection('connected'); fetchLocations(); };
       socket.onmessage = event => {
         const location = JSON.parse(event.data);

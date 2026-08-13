@@ -10,7 +10,7 @@ Welcome to the **Vinayak SmartLoad** User Manual! This document provides an in-d
 
 Historically, warehouse operators had to manually count cartons, track trucks on clipboards, and write paper "Wagon Registers" at the end of the day. SmartLoad fixes this by using:
 - **Centralized Digital Dashboards**: Tracking Wagons and Trucks in real time.
-- **AI-Powered Vision (YOLOv8)**: Using the device camera to automatically count "layers" of cartons loaded into trucks with extreme accuracy.
+- **AI-Assisted Vision**: Using a captured layer photo to propose carton detections that the operator reviews and corrects before saving.
 - **Automated Digital Registers**: Generating a final, exportable report (PDF/Excel) automatically once loading is completed.
 
 ---
@@ -32,7 +32,7 @@ Before using the app, it's crucial to understand the three main tiers of the wor
 
 ### A. Login, Saved Session, and Logout
 1. Log in with your Employee ID and password.
-2. After a successful login, closing and reopening the app keeps your session saved on this device. You do not need to log in again each time you open the app.
+2. After a successful online login, closing and reopening the app keeps your session saved on this device. The same credentials may be used offline for up to 24 hours after that online login.
 3. To end the session, open the app drawer and select **Logout**.
 4. A warning dialog appears before anything changes. Select **Cancel** to stay signed in, or **Log out** to return to the login screen.
 5. Logging out only ends the login session. It does not delete wagons, trucks, layers, captured reference photos, or reports stored locally. Access may also end if an administrator revokes or disables the account.
@@ -87,14 +87,14 @@ This is the flagship feature of SmartLoad. You use this screen while standing at
 **How to capture a Layer:**
 1. Tap **Open AI Camera** from the Truck Details screen.
 2. Align the back of the truck within the **blue dashed alignment guide**.
-3. Wait for the `Quality Indicator` (top left) to turn green (`EXCELLENT`).
-4. Look at the `AI Status Card` (floating on the right). It will say "Ready" when the AI model is stable.
-5. Look at the `Live Counter Bar` (bottom). It shows the real-time AI detection count.
-6. Tap the large **Capture Layer** button (bottom right).
-7. The app will freeze the frame, draw bounding boxes around every detected carton, and ask you to confirm.
-8. If the count looks correct, tap **Confirm & Save**. If the AI missed a box, tap **Reject & Retake**.
+3. Keep the full layer visible, with steady framing and adequate light.
+4. Tap **Capture Layer**. SmartLoad analyzes that still photo; it does not continuously count the live preview.
+5. Review every proposed carton marker and the final count.
+6. Add a missed carton, remove a false/duplicate detection, or retake the photo when needed.
+7. Record defects manually; the deployed model does not classify damaged cartons.
+8. Tap **Confirm & Save** only after the photo, count, item allocation, and defect count agree.
 
-Every confirmed layer is permanently logged to the truck, and the total carton count goes up automatically!
+Every confirmed layer is logged to its truck, and source-derived truck and wagon totals update atomically.
 
 ---
 
@@ -115,8 +115,7 @@ From the wagon register detail page, tap the report icon to export the loading h
 ## 5. Troubleshooting & Developer Tools
 
 - **Data Not Showing?**: Tap the **Refresh** icon in the top right of the dashboard, or simply pull down on the list. The app is offline-first, but this forces a strict UI recalculation.
-- **Empty Screen?**: If you just installed the app and want to test it without typing everything manually, tap the **Bug Icon 🐞** in the top right of the dashboard. This will forcefully inject dummy demo data (Wagons, Trucks, and Layers) into your app so you can play around with the UI.
-- **Dataset Mode**: Tap the Photo Library icon in the top right to access the "Dataset Developer Mode" (used by engineers to review raw images and AI bounding boxes for model retraining).
+- **Administrators only**: **Load Demo Data** replaces local operational records with test records after a destructive-action confirmation. Credential-free Demo Entry remains disabled in production builds.
 
 ---
 *End of User Manual. Property of Vinayak Logistics.*

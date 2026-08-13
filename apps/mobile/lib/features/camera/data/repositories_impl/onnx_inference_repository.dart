@@ -2,6 +2,7 @@ import 'dart:isolate';
 import 'dart:typed_data';
 
 import '../../../../core/ai_engine/inference_pipeline.dart';
+import '../../../../core/ai_engine/ai_camera_settings.dart';
 import '../../../../core/ai_engine/manager/model_manager.dart';
 import '../../../../core/ai_engine/models/ai_model.dart';
 import '../../../../core/ai_engine/modules/detection_validator.dart';
@@ -26,13 +27,18 @@ class ONNXInferenceRepository implements InferenceRepository {
 
   @override
   Future<void> loadModel() async {
-    await _pipeline.modelManager.loadModel(AIModel.modelB());
+    await _pipeline.modelManager
+        .loadModel(AIModel.modelForInputSize(AiCameraSettings.inputSize.value));
   }
 
   @override
   Future<List<Detection>> runGalleryInference(String imagePath) async {
     final preprocessing = Stopwatch()..start();
-    final image = await _pipeline.preprocessor.processImageFileAsync(imagePath);
+    final size = AiCameraSettings.inputSize.value;
+    final image = await ImagePreprocessor(
+      targetWidth: size,
+      targetHeight: size,
+    ).processImageFileAsync(imagePath);
     preprocessing.stop();
     return _runPreparedImage(image, preprocessing.elapsedMicroseconds / 1000);
   }
@@ -40,8 +46,11 @@ class ONNXInferenceRepository implements InferenceRepository {
   @override
   Future<List<Detection>> runGalleryInferenceBytes(Uint8List imageBytes) async {
     final preprocessing = Stopwatch()..start();
-    final image =
-        await _pipeline.preprocessor.processImageBytesAsync(imageBytes);
+    final size = AiCameraSettings.inputSize.value;
+    final image = await ImagePreprocessor(
+      targetWidth: size,
+      targetHeight: size,
+    ).processImageBytesAsync(imageBytes);
     preprocessing.stop();
     return _runPreparedImage(image, preprocessing.elapsedMicroseconds / 1000);
   }
@@ -56,17 +65,21 @@ class ONNXInferenceRepository implements InferenceRepository {
     final postprocessing = Stopwatch()..start();
     final outputList =
         rawOutput is List ? rawOutput.cast<dynamic>() : const <dynamic>[];
+    final confidenceThreshold = AiCameraSettings.confidence.value;
+    final iouThreshold = AiCameraSettings.iou.value;
+    final decodeMasks = AiCameraSettings.detailedMasks.value;
+    final inputSize = AiCameraSettings.inputSize.value;
     final decodedResults = await Isolate.run(
       () => Postprocessor(
-        confidenceThreshold: 0.27,
-        iouThreshold: 0.70,
-        inputWidth: 960,
-        inputHeight: 960,
+        confidenceThreshold: confidenceThreshold,
+        iouThreshold: iouThreshold,
+        inputWidth: inputSize,
+        inputHeight: inputSize,
       ).process(
         outputList,
         imageWidth: image.width,
         imageHeight: image.height,
-        decodeMasks: true,
+        decodeMasks: decodeMasks,
       ),
     );
     final detections = _pipeline.validator.validate(decodedResults).map((d) {

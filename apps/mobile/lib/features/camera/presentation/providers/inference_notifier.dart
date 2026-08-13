@@ -128,4 +128,29 @@ class InferenceNotifier extends StateNotifier<InferenceState> {
     await _repository.release();
     _initialization = null;
   }
+
+  Future<void> reloadModel() async {
+    state = state.copyWith(
+      isModelLoaded: false,
+      modelStatus: InferenceModelStatus.loading,
+      clearError: true,
+    );
+    try {
+      await _repository.release();
+      await _repository.loadModel();
+      state = state.copyWith(
+        isModelLoaded: true,
+        modelStatus: InferenceModelStatus.ready,
+        clearError: true,
+      );
+    } catch (error, stack) {
+      AppLogger.error(
+          'Failed to reload AI model after settings change', error, stack);
+      state = state.copyWith(
+        modelStatus: InferenceModelStatus.error,
+        errorMessage: 'Could not switch the AI model size.',
+      );
+      rethrow;
+    }
+  }
 }

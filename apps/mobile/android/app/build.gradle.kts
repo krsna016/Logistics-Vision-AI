@@ -4,8 +4,16 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val releaseStoreFile = System.getenv("SMARTLOAD_KEYSTORE_PATH")
+val releaseStorePassword = System.getenv("SMARTLOAD_KEYSTORE_PASSWORD")
+val releaseKeyAlias = System.getenv("SMARTLOAD_KEY_ALIAS")
+val releaseKeyPassword = System.getenv("SMARTLOAD_KEY_PASSWORD")
+val isReleaseTask = gradle.startParameter.taskNames.any {
+    it.contains("release", ignoreCase = true)
+}
+
 android {
-    namespace = "com.example.mobile"
+    namespace = "com.vinayak.smartload"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -15,8 +23,7 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.mobile"
+        applicationId = "com.vinayak.smartload"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
@@ -25,11 +32,31 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseStoreFile != null) storeFile = file(releaseStoreFile)
+            storePassword = releaseStorePassword
+            keyAlias = releaseKeyAlias
+            keyPassword = releaseKeyPassword
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            if (isReleaseTask && listOf(
+                    releaseStoreFile,
+                    releaseStorePassword,
+                    releaseKeyAlias,
+                    releaseKeyPassword,
+                ).any { it.isNullOrBlank() }
+            ) {
+                throw GradleException(
+                    "Release signing requires SMARTLOAD_KEYSTORE_PATH, " +
+                        "SMARTLOAD_KEYSTORE_PASSWORD, SMARTLOAD_KEY_ALIAS, and " +
+                        "SMARTLOAD_KEY_PASSWORD."
+                )
+            }
+            signingConfig = signingConfigs.getByName("release")
             // ML Kit's current dependency graph is not safe to shrink with R8.
             // Keep release builds functional until the ML Kit package is upgraded.
             isMinifyEnabled = false

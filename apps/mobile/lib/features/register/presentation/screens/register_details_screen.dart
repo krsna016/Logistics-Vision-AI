@@ -17,6 +17,7 @@ import '../widgets/history_tile.dart';
 import '../widgets/register_reconciliation_card.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
 import '../../../reports/presentation/widgets/generate_report_dialog.dart';
+import '../../../reports/domain/entities/report_export.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 class RegisterDetailsScreen extends ConsumerWidget {
@@ -204,10 +205,26 @@ class RegisterDetailsScreen extends ConsumerWidget {
           : await ref
               .read(excelReportServiceProvider)
               .generateDigitalRegisterReport(wagonId: wagonId);
+      await logGeneratedReport(
+        ref,
+        reportType: ReportType.audit,
+        format: type == 'PDF' ? ExportFormat.pdf : ExportFormat.excel,
+        status: ExportStatus.success,
+        subjectId: wagonId,
+        file: file,
+      );
       await ref
           .read(shareServiceProvider)
           .shareFile(file, subject: 'Digital Register Report ($type)');
     } catch (e) {
+      await logGeneratedReport(
+        ref,
+        reportType: ReportType.audit,
+        format: type == 'PDF' ? ExportFormat.pdf : ExportFormat.excel,
+        status: ExportStatus.failed,
+        subjectId: wagonId,
+        error: e.toString(),
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

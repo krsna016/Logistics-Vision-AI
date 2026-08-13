@@ -7,6 +7,9 @@ import 'package:mobile/features/layer/domain/entities/layer.dart';
 import 'package:mobile/features/truck/data/repositories_impl/local_truck_repository.dart';
 import 'package:mobile/features/wagon/data/repositories_impl/local_wagon_repository.dart';
 import 'package:mobile/features/register/data/repositories_impl/local_register_repository.dart';
+import 'package:mobile/features/session/data/repositories_impl/local_loading_session_repository.dart';
+import 'package:mobile/features/session/domain/entities/loading_session.dart'
+    as domain;
 
 void main() {
   late AppDatabase database;
@@ -123,6 +126,99 @@ void main() {
         isTrue);
   });
 
+  test('saving a layer atomically repairs truck and session aggregates',
+      () async {
+    await seedWagonTruck();
+    final now = DateTime(2026, 8, 13, 10);
+
+    await LocalLayerRepository(database).saveLayer(LayerRecord(
+      id: 'layer-3',
+      truckId: 'truck-1',
+      layerNumber: 3,
+      cartonCount: 5,
+      defectCount: 1,
+      timestamp: now,
+      operatorId: 'operator-1',
+      modelVersion: 'test-model',
+      averageConfidence: 0.9,
+      createdAt: now,
+      updatedAt: now,
+    ));
+
+    final truck = await database.select(database.trucks).getSingle();
+    final session = await database.select(database.loadingSessions).getSingle();
+    final queued = await database.select(database.syncQueues).get();
+    expect((truck.totalLayers, truck.totalCartons, truck.totalDefects),
+        (3, 35, 4));
+    expect((session.totalLayers, session.totalCartons, session.totalDefects),
+        (3, 35, 4));
+    expect(session.averageConfidence, closeTo((0.8 + 0.6 + 0.9) / 3, 0.0001));
+    expect(queued.map((item) => item.entityType).toSet(),
+        containsAll(<String>{'Layer', 'Truck', 'LoadingSession'}));
+  });
+
+  test('database rejects two active layers with the same truck number',
+      () async {
+    await seedWagonTruck();
+
+    expect(
+      () => database.into(database.layers).insert(LayersCompanion.insert(
+            id: 'duplicate-layer',
+            truckId: 'truck-1',
+            layerNumber: 2,
+            cartonCount: 20,
+          )),
+      throwsA(isA<Exception>()),
+    );
+  });
+
+  test('paused session is recovered and a second resumable session is rejected',
+      () async {
+    await seedWagonTruck();
+    await (database.update(database.loadingSessions)
+          ..where((row) => row.id.equals('session-1')))
+        .write(const LoadingSessionsCompanion(status: Value('paused')));
+
+    final recovered = await LocalLoadingSessionRepository(database)
+        .getActiveSessionForTruck('truck-1');
+    expect(recovered?.id, 'session-1');
+    expect(recovered?.status.name, 'paused');
+    expect(
+      () => database.into(database.loadingSessions).insert(
+            LoadingSessionsCompanion.insert(
+              id: 'session-duplicate',
+              truckId: 'truck-1',
+              startTime: DateTime(2026, 8, 13),
+              operatorId: 'operator-2',
+              status: 'started',
+            ),
+          ),
+      throwsA(isA<Exception>()),
+    );
+  });
+
+  test('session accepts an unconfigured truck warehouse without violating FK',
+      () async {
+    await seedWagonTruck();
+
+    await LocalLoadingSessionRepository(database).saveSession(
+      domain.LoadingSession(
+        id: 'session-with-display-warehouse',
+        truckId: 'truck-1',
+        warehouseId: 'NIL',
+        operatorId: 'operator-1',
+        startTime: DateTime(2026, 8, 13),
+        status: domain.SessionStatus.started,
+        modelVersion: 'test-model',
+      ),
+    );
+
+    final saved = await (database.select(database.loadingSessions)
+          ..where((row) => row.id.equals('session-with-display-warehouse')))
+        .getSingle();
+    expect(saved.warehouseId, null);
+  });
+
   test('removing a truck also removes its layers and session', () async {
     await seedWagonTruck();
 
@@ -135,6 +231,11 @@ void main() {
     expect(layers.every((layer) => layer.isDeleted), isTrue);
     expect(session.isDeleted, isTrue);
     expect(session.status, 'cancelled');
+    final deletes = await (database.select(database.syncQueues)
+          ..where((row) => row.operation.equals('DELETE')))
+        .get();
+    expect(deletes.map((row) => row.entityType).toSet(),
+        containsAll(<String>{'Truck', 'Layer', 'LoadingSession'}));
   });
 
   test('removing a wagon cascades through archived trucks too', () async {
@@ -153,6 +254,11 @@ void main() {
     expect(
         (await database.select(database.loadingSessions).getSingle()).isDeleted,
         isTrue);
+    final deletes = await (database.select(database.syncQueues)
+          ..where((row) => row.operation.equals('DELETE')))
+        .get();
+    expect(deletes.map((row) => row.entityType).toSet(),
+        containsAll(<String>{'Wagon', 'Truck', 'Layer', 'LoadingSession'}));
   });
 
   test('wagon inventory totals are grouped by layer item', () async {

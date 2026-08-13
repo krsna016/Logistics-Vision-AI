@@ -93,18 +93,19 @@ class OfflineAuthenticationImpl implements OfflineAuthentication {
 
   @override
   Future<void> registerUser(User user, String password) async {
+    final normalizedEmployeeId = user.employeeId.trim().toUpperCase();
     // 1. Generate salt & hash
     final salt = _passwordHasher.generateSalt();
     final hash = _passwordHasher.hashPassword(password, salt);
 
     // 2. Store securely
-    await _credentialStorage.storeCredentials(user.employeeId, hash, salt);
+    await _credentialStorage.storeCredentials(normalizedEmployeeId, hash, salt);
 
     // 3. Save to SQLite
     await _db.into(_db.users).insert(
           UsersCompanion.insert(
             id: user.id,
-            employeeId: user.employeeId,
+            employeeId: normalizedEmployeeId,
             name: user.name,
             role: user.role.name,
             warehouseId: Value(user.warehouse),

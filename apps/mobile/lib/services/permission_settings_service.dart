@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 
 abstract final class PermissionSettingsService {
-  static const _channel = MethodChannel('com.example.mobile/permissions');
+  static const _channel = MethodChannel('com.vinayak.smartload/permissions');
 
   static Future<void> openAppPermissions() async {
     try {

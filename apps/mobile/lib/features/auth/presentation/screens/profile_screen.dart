@@ -7,11 +7,39 @@ import '../providers/auth_providers.dart';
 import '../widgets/role_chip.dart';
 import '../widgets/audit_timeline.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  bool? _trackingEnabled;
+  bool _changingTracking = false;
+
+  Future<void> _setTracking(bool enabled) async {
+    if (_changingTracking) return;
+    setState(() => _changingTracking = true);
+    final notifier = ref.read(authProvider.notifier);
+    final active = enabled
+        ? await notifier.startLiveTracking()
+        : await notifier.stopLiveTracking().then((_) => false);
+    if (!mounted) return;
+    setState(() {
+      _trackingEnabled = active;
+      _changingTracking = false;
+    });
+    if (enabled && !active) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+            'Live location was not enabled. Allow the required location and notification permissions in Settings.'),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(authProvider);
     final sessionAsync = ref.watch(sessionProvider);
     final logsAsync = ref.watch(auditLogsProvider);
@@ -19,6 +47,7 @@ class ProfileScreen extends ConsumerWidget {
     if (user == null) {
       return const Scaffold(body: Center(child: Text('Not logged in')));
     }
+    _trackingEnabled ??= ref.read(locationTrackingServiceProvider).isRunning;
 
     return Scaffold(
       appBar: AppBar(
@@ -78,6 +107,30 @@ class ProfileScreen extends ConsumerWidget {
                   const SizedBox(height: 12),
                   RoleChip(role: user.role),
                 ],
+              ),
+            ),
+
+            const SizedBox(height: 24),
+            Container(
+              decoration: BoxDecoration(
+                color: AppTheme.surfaceColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.white10),
+              ),
+              child: SwitchListTile.adaptive(
+                value: _trackingEnabled ?? false,
+                onChanged: _changingTracking ? null : _setTracking,
+                secondary: Icon(
+                  Icons.location_on_outlined,
+                  color: _trackingEnabled == true
+                      ? AppTheme.successColor
+                      : AppTheme.textSecondary,
+                ),
+                title: const Text('Share live work location'),
+                subtitle: const Text(
+                  'Optional. Shares precise location with authorized administrators, including while the app is in the background. Stops at logout.',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+                ),
               ),
             ),
 

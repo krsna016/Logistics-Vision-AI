@@ -428,8 +428,8 @@ class _LoadingSelectorBar extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
 
     return Material(
-      elevation: 14,
-      color: colors.surface,
+      elevation: 0,
+      color: Colors.transparent,
       child: Padding(
         // viewPadding includes the permanent three-button navigation area.
         // Using it explicitly keeps this persistent selector above the bar on
@@ -438,133 +438,165 @@ class _LoadingSelectorBar extends StatelessWidget {
         padding: EdgeInsets.only(
           bottom: MediaQuery.viewPaddingOf(context).bottom + 8,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: 30,
-              width: double.infinity,
-              child: IconButton(
-                onPressed: onToggle,
-                tooltip: expanded
-                    ? 'Hide wagon and truck selectors'
-                    : 'Show wagon and truck selectors',
-                icon: Icon(
-                  expanded
-                      ? Icons.keyboard_arrow_down
-                      : Icons.keyboard_arrow_up,
-                  color: colors.primary,
-                ),
-                style: const ButtonStyle(
-                  overlayColor: WidgetStatePropertyAll(Colors.transparent),
-                ),
-                padding: EdgeInsets.zero,
-                visualDensity: VisualDensity.compact,
+        child: GestureDetector(
+          onTap: onToggle,
+          behavior: HitTestBehavior.deferToChild,
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 8),
+            decoration: const BoxDecoration(
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(24),
+                bottom: Radius.circular(20),
+              ),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF1B2B42), Color(0xFF142238)],
               ),
             ),
-            AnimatedCrossFade(
-              duration: const Duration(milliseconds: 180),
-              crossFadeState: expanded
-                  ? CrossFadeState.showSecond
-                  : CrossFadeState.showFirst,
-              firstChild: const SizedBox.shrink(),
-              secondChild: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'TRUCKS IN WAGON: ${selectedWagon.wagonNumber}',
-                      style: TextStyle(
-                        color: colors.primary,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: .3,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 7),
+                GestureDetector(
+                  onTap: onToggle,
+                  behavior: HitTestBehavior.opaque,
+                  child: Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 24, vertical: 7),
+                    child: Container(
+                      width: 34,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: const Color(0x668DB7EA),
+                        borderRadius: BorderRadius.circular(99),
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    SizedBox(
-                      height: 64,
-                      child: wagonTrucks.isEmpty
-                          ? const Center(
-                              child: Text('No trucks created for this wagon'))
-                          : ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: wagonTrucks.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(width: 8),
-                              itemBuilder: (context, index) {
-                                final truck = wagonTrucks[index];
-                                return _TruckSelectorChip(
-                                  truck: truck,
-                                  onTap: () => onTruckSelected(truck),
-                                );
-                              },
-                            ),
-                    ),
-                    if (wagons.length > 1) ...[
-                      const SizedBox(height: 10),
-                      const Text(
-                        'WAGONS',
-                        style: TextStyle(
-                            fontSize: 12, fontWeight: FontWeight.w800),
-                      ),
-                      const SizedBox(height: 5),
-                      SizedBox(
-                        height: 42,
-                        child: ListView.separated(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: wagons.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (context, index) {
-                            final wagon = wagons[index];
-                            final selected = wagon.id == selectedWagon.id;
-                            return ChoiceChip(
-                              selected: selected,
-                              label: Text(wagon.wagonNumber),
-                              avatar: Icon(Icons.train_outlined,
-                                  size: 17,
-                                  color: selected
-                                      ? colors.onPrimary
-                                      : colors.primary),
-                              showCheckmark: false,
-                              side: BorderSide.none,
-                              color: WidgetStateProperty.resolveWith((states) {
-                                // ChoiceChip's default pressed overlay uses
-                                // the theme secondary (yellow) color. Keep
-                                // every interaction state on the same soft
-                                // wagon surface or selected blue surface.
-                                return states.contains(WidgetState.selected)
-                                    ? colors.primary
-                                    : colors.surfaceContainerHighest
-                                        .withValues(alpha: .72);
-                              }),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              backgroundColor: colors.surfaceContainerHighest
-                                  .withValues(alpha: .72),
-                              selectedColor: colors.primary,
-                              labelStyle: TextStyle(
-                                color: selected
-                                    ? colors.onPrimary
-                                    : colors.onSurface,
-                                fontWeight: FontWeight.w700,
-                              ),
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 6),
-                              onSelected: (_) => onWagonSelected(wagon),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ],
+                  ),
                 ),
-              ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: expanded
+                      ? Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'TRUCKS IN WAGON: ${selectedWagon.wagonNumber}',
+                                style: TextStyle(
+                                  color: colors.onSurface,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: .3,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              GestureDetector(
+                                onTap: () {},
+                                behavior: HitTestBehavior.opaque,
+                                child: SizedBox(
+                                  height: 64,
+                                  child: wagonTrucks.isEmpty
+                                      ? const Center(
+                                          child: Text(
+                                              'No trucks created for this wagon'))
+                                      : ListView.separated(
+                                          scrollDirection: Axis.horizontal,
+                                          clipBehavior: Clip.none,
+                                          itemCount: wagonTrucks.length,
+                                          separatorBuilder: (_, __) =>
+                                              const SizedBox(width: 8),
+                                          itemBuilder: (context, index) {
+                                            final truck = wagonTrucks[index];
+                                            return _TruckSelectorChip(
+                                              truck: truck,
+                                              onTap: () =>
+                                                  onTruckSelected(truck),
+                                            );
+                                          },
+                                        ),
+                                ),
+                              ),
+                              if (wagons.length > 1) ...[
+                                const SizedBox(height: 10),
+                                const Text(
+                                  'WAGONS',
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 5),
+                                GestureDetector(
+                                  onTap: () {},
+                                  behavior: HitTestBehavior.opaque,
+                                  child: SizedBox(
+                                    height: 42,
+                                    child: ListView.separated(
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: wagons.length,
+                                      separatorBuilder: (_, __) =>
+                                          const SizedBox(width: 8),
+                                      itemBuilder: (context, index) {
+                                        final wagon = wagons[index];
+                                        final selected =
+                                            wagon.id == selectedWagon.id;
+                                        return ChoiceChip(
+                                          selected: selected,
+                                          label: Text(wagon.wagonNumber),
+                                          avatar: Icon(Icons.train_outlined,
+                                              size: 17,
+                                              color: selected
+                                                  ? colors.onPrimary
+                                                  : colors.primary),
+                                          showCheckmark: false,
+                                          side: BorderSide.none,
+                                          color:
+                                              WidgetStateProperty.resolveWith(
+                                                  (states) {
+                                            // ChoiceChip's default pressed overlay uses
+                                            // the theme secondary (yellow) color. Keep
+                                            // every interaction state on the same soft
+                                            // wagon surface or selected blue surface.
+                                            return states.contains(
+                                                    WidgetState.selected)
+                                                ? colors.primary
+                                                : const Color(0xFF24344D);
+                                          }),
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(18),
+                                          ),
+                                          backgroundColor:
+                                              const Color(0xFF24344D),
+                                          selectedColor: colors.primary,
+                                          labelStyle: TextStyle(
+                                            color: selected
+                                                ? colors.onPrimary
+                                                : colors.onSurface,
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 8, vertical: 6),
+                                          onSelected: (_) =>
+                                              onWagonSelected(wagon),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -587,56 +619,89 @@ class _TruckSelectorChip extends StatelessWidget {
       splashColor: Colors.transparent,
       highlightColor: Colors.transparent,
       overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-      child: Container(
-        constraints: const BoxConstraints(minWidth: 116),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color: const Color(0xFF303B4D),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: .16),
-              blurRadius: 8,
-              offset: const Offset(0, 3),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.local_shipping_outlined,
-                size: 22, color: colors.primaryFixed),
-            const SizedBox(width: 8),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  truck.vehicleNumber,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                Text(
-                  completed ? 'Completed' : '${truck.totalLayers} layers',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: completed
-                        ? const Color(0xFF66E18A)
-                        : const Color(0xFFD3DCEB),
-                  ),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            constraints: const BoxConstraints(minWidth: 116),
+            padding: const EdgeInsets.fromLTRB(12, 7, 22, 7),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: const Color(0xFF2B3B55),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: .16),
+                  blurRadius: 8,
+                  offset: const Offset(0, 3),
                 ),
               ],
             ),
-            const SizedBox(width: 10),
-            Icon(
-              Icons.camera_alt_outlined,
-              size: 18,
-              color: colors.primaryFixed,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.local_shipping_outlined,
+                    size: 22, color: colors.primaryFixed),
+                const SizedBox(width: 8),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      truck.vehicleNumber,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      completed ? 'Completed' : '${truck.totalLayers} layers',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: completed
+                            ? const Color(0xFF66E18A)
+                            : const Color(0xFFD3DCEB),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          Positioned(
+            right: -7,
+            bottom: -8,
+            child: IgnorePointer(
+              child: Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF4D9BFF), Color(0xFF0965D8)],
+                  ),
+                  border: Border.all(
+                    color: const Color(0xFF162A46),
+                    width: 2,
+                  ),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x55000000),
+                      blurRadius: 6,
+                      offset: Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.photo_camera_rounded,
+                  size: 18,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -17,6 +17,7 @@ import '../../../session/presentation/providers/session_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
 import '../../../reports/presentation/widgets/generate_report_dialog.dart';
+import '../../../reports/domain/entities/report_export.dart';
 
 import '../widgets/truck_form_dialog.dart';
 import '../widgets/truck_header.dart';
@@ -330,10 +331,26 @@ class TruckDetailsScreen extends ConsumerWidget {
           : await ref
               .read(excelReportServiceProvider)
               .generateTruckReport(truckId: truckId);
+      await logGeneratedReport(
+        ref,
+        reportType: ReportType.truck,
+        format: type == 'PDF' ? ExportFormat.pdf : ExportFormat.excel,
+        status: ExportStatus.success,
+        subjectId: truckId,
+        file: file,
+      );
       await ref
           .read(shareServiceProvider)
           .shareFile(file, subject: 'Truck Loading Report ($type)');
     } catch (e) {
+      await logGeneratedReport(
+        ref,
+        reportType: ReportType.truck,
+        format: type == 'PDF' ? ExportFormat.pdf : ExportFormat.excel,
+        status: ExportStatus.failed,
+        subjectId: truckId,
+        error: e.toString(),
+      );
       if (context.mounted) {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Failed: $e')));

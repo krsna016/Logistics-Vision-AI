@@ -5,6 +5,7 @@ import '../../../../core/presentation/layout/responsive.dart';
 import '../providers/auth_providers.dart';
 import '../../../camera/presentation/providers/inference_notifier.dart';
 import '../../../../utils/logger.dart';
+import '../../../../config/environment.dart';
 
 class LoginCard extends ConsumerStatefulWidget {
   final VoidCallback onLoginSuccess;
@@ -37,17 +38,18 @@ class _LoginCardState extends ConsumerState<LoginCard> {
       await _completeEntry();
     } else {
       if (!mounted) return;
+      final errorMessage = ref.read(authProvider.notifier).loginErrorMessage;
       setState(() => _isLoading = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content: Row(
               children: [
-                Icon(Icons.warning_amber_rounded,
+                const Icon(Icons.warning_amber_rounded,
                     color: Colors.white, size: 20),
-                SizedBox(width: 10),
+                const SizedBox(width: 10),
                 Expanded(
-                  child: Text('Invalid credentials or unauthorized device.'),
+                  child: Text(errorMessage),
                 ),
               ],
             ),
@@ -181,32 +183,34 @@ class _LoginCardState extends ConsumerState<LoginCard> {
                           color: Colors.white)),
             ),
           ),
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: OutlinedButton.icon(
-              onPressed: _isLoading ? null : _handleDemoEntry,
-              icon: const Icon(Icons.science_outlined),
-              label: const Text(
-                'Demo Entry',
-                style: TextStyle(fontWeight: FontWeight.w700),
-              ),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppTheme.primaryColor,
-                side: const BorderSide(color: AppTheme.primaryColor),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(24),
+          if (Environment.current != Environment.production) ...[
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: OutlinedButton.icon(
+                onPressed: _isLoading ? null : _handleDemoEntry,
+                icon: const Icon(Icons.science_outlined),
+                label: const Text(
+                  'Demo Entry',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.primaryColor,
+                  side: const BorderSide(color: AppTheme.primaryColor),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'For local testing only — no credentials required',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-          ),
+            const SizedBox(height: 10),
+            const Text(
+              'For local testing only — no credentials required',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
+            ),
+          ],
         ],
       ),
     );

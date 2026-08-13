@@ -19,10 +19,8 @@ export function getSessionClaims() {
 
 export function hasValidSession() {
   const claims = getSessionClaims();
-  // The API issues persistent sessions without exp; the backend still checks
-  // the active account on every request and revokes disabled users.
   return claims !== null &&
-    (typeof claims.exp !== 'number' || claims.exp * 1000 > Date.now());
+    typeof claims.exp === 'number' && claims.exp * 1000 > Date.now();
 }
 
 export function hasAdminSession() {

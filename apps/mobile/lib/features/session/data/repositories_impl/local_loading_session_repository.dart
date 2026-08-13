@@ -43,6 +43,7 @@ class LocalLoadingSessionRepository implements LoadingSessionRepository {
           .getSingleOrNull();
 
       if (exists != null) {
+        final nextVersion = exists.version + 1;
         await (_db.update(_db.loadingSessions)
               ..where((t) => t.id.equals(session.id)))
             .write(db.LoadingSessionsCompanion(
@@ -54,15 +55,30 @@ class LocalLoadingSessionRepository implements LoadingSessionRepository {
           averageConfidence: drift.Value(session.averageConfidence),
           notes: drift.Value(session.notes),
           metadata: drift.Value(jsonEncode(session.metadata)),
+          version: drift.Value(nextVersion),
+          syncStatus: const drift.Value('pending'),
           updatedAt: drift.Value(DateTime.now()),
         ));
       } else {
+        // Truck.warehouse is an operator-entered display value (and may be
+        // "NIL"), while loading_sessions.warehouse_id is a foreign key to a
+        // configured Warehouses row. Only persist the FK when that row really
+        // exists; the field is nullable by design.
+        final warehouseReference = session.warehouseId.trim();
+        final warehouse = warehouseReference.isEmpty
+            ? null
+            : await (_db.select(_db.warehouses)
+                  ..where((row) =>
+                      row.id.equals(warehouseReference) |
+                      row.name.equals(warehouseReference))
+                  ..limit(1))
+                .getSingleOrNull();
         await _db
             .into(_db.loadingSessions)
             .insert(db.LoadingSessionsCompanion.insert(
               id: session.id,
               truckId: session.truckId,
-              warehouseId: drift.Value(session.warehouseId),
+              warehouseId: drift.Value(warehouse?.id),
               startTime: session.startTime,
               endTime: drift.Value(session.endTime),
               operatorId: session.operatorId,
@@ -80,11 +96,14 @@ class LocalLoadingSessionRepository implements LoadingSessionRepository {
       }
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_s_${DateTime.now().millisecondsSinceEpoch}',
+            id: exists == null
+                ? 'sync_s_insert_${session.id}_1'
+                : 'sync_s_update_${session.id}_${exists.version + 1}',
             entityId: session.id,
             entityType: 'LoadingSession',
             operation: exists != null ? 'UPDATE' : 'INSERT',
             payloadData: '{}',
+            version: drift.Value(exists == null ? 1 : exists.version + 1),
           ));
     });
     AppLogger.info(
@@ -109,7 +128,14 @@ class LocalLoadingSessionRepository implements LoadingSessionRepository {
       final query = _db.select(_db.loadingSessions)
         ..where((t) =>
             t.truckId.equals(truckId) &
-            t.status.equals(SessionStatus.started.name));
+            t.isDeleted.equals(false) &
+            (t.status.equals(SessionStatus.started.name) |
+                t.status.equals(SessionStatus.paused.name)))
+        ..orderBy([
+          (t) => drift.OrderingTerm(
+              expression: t.updatedAt, mode: drift.OrderingMode.desc)
+        ])
+        ..limit(1);
       final row = await query.getSingleOrNull();
       return row != null ? _map(row) : null;
     } catch (_) {
@@ -137,8 +163,9 @@ class LocalLoadingSessionRepository implements LoadingSessionRepository {
     try {
       final query = _db.select(_db.loadingSessions)
         ..where((t) =>
-            t.status.equals(SessionStatus.started.name) |
-            t.status.equals(SessionStatus.paused.name))
+            t.isDeleted.equals(false) &
+            (t.status.equals(SessionStatus.started.name) |
+                t.status.equals(SessionStatus.paused.name)))
         ..orderBy([
           (t) => drift.OrderingTerm(
               expression: t.updatedAt, mode: drift.OrderingMode.desc)

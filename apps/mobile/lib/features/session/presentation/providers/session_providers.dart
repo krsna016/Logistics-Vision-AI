@@ -6,6 +6,7 @@ import '../../domain/repositories/loading_session_repository.dart';
 import '../../data/repositories_impl/local_loading_session_repository.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../truck/domain/entities/truck.dart';
+import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../../core/utils/audit_logger.dart';
 import '../../../../utils/logger.dart';
 
@@ -86,11 +87,17 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
         return null;
       }
 
+      final authenticatedUser = _ref.read(authProvider);
+      if (authenticatedUser == null ||
+          authenticatedUser.employeeId.trim().isEmpty) {
+        return 'Your sign-in session is unavailable. Sign in again.';
+      }
+
       final newSession = LoadingSession(
         id: const Uuid().v4(),
         truckId: truckId,
         warehouseId: warehouseId,
-        operatorId: 'usr_loader_01', // Mock user profile
+        operatorId: authenticatedUser.employeeId.trim(),
         startTime: DateTime.now(),
         status: SessionStatus.started,
         modelVersion: AIModel.activeVersion,
@@ -127,21 +134,6 @@ class ActiveSessionNotifier extends StateNotifier<ActiveSessionState> {
     await _repository.saveSession(updated);
     state = state.copyWith(activeSession: updated);
     AppLogger.info('Resumed loading session: ${session.id}');
-  }
-
-  Future<void> recordLayerCaptured(
-      String truckId, int cartonCount, int defectCount) async {
-    final session = state.activeSession;
-    if (session == null || session.truckId != truckId) return;
-
-    final updated = session.copyWith(
-      totalLayers: session.totalLayers + 1,
-      totalCartons: session.totalCartons + cartonCount,
-      totalDefects: session.totalDefects + defectCount,
-    );
-    await _repository.saveSession(updated);
-    state = state.copyWith(activeSession: updated);
-    AppLogger.info('Updated session stats for: ${session.id}');
   }
 
   Future<void> refreshTotalsForTruck(String truckId) async {

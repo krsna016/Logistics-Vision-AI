@@ -17,6 +17,7 @@ import '../../../truck/presentation/providers/truck_providers.dart';
 import '../../../wagon/domain/entities/wagon.dart';
 import '../../../wagon/presentation/providers/wagon_providers.dart';
 import '../../../../core/presentation/widgets/unsaved_changes_guard.dart';
+import '../../../../core/storage/image_storage_service.dart';
 
 // Retained only for the legacy, non-rendered toolbar implementation below.
 // The active review experience is now fully tap-driven.
@@ -453,10 +454,9 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
 
         if (error == null) {
           AppLogger.info('Layer saved: $_correctedCount cartons.');
-          // Rebuild a safe history after removing Camera and Review:
-          // Wagon Control Center -> Truck Details.
+          // Return to the loading control center so the operator can select
+          // the next wagon/truck without repeating the navigation flow.
           context.go('/wagons');
-          context.push('/trucks/${widget.truckId}');
         }
       }
     } catch (e, stack) {
@@ -466,6 +466,21 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
           _isSaving = false;
           _errorMessage = 'Save failed. Database rolled back.';
         });
+      }
+    }
+  }
+
+  Future<void> _discardUnsavedCapture() async {
+    final storage = ImageStorageService();
+    final paths = <String>{
+      if (widget.photoPath != null) widget.photoPath!,
+      if (widget.auditPhotoPath != null) widget.auditPhotoPath!,
+    };
+    for (final path in paths) {
+      try {
+        await storage.deleteImage(path);
+      } catch (error, stack) {
+        AppLogger.error('Could not remove discarded layer image', error, stack);
       }
     }
   }
@@ -506,6 +521,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
       hasUnsavedChanges: hasUnsavedChanges,
       isSaving: _isSaving || _isFinalizing,
       message: 'The reviewed carton count and layer details are not saved.',
+      onDiscardConfirmed: _discardUnsavedCapture,
       child: Scaffold(
         backgroundColor: AppTheme.backgroundColor,
         appBar: AppBar(

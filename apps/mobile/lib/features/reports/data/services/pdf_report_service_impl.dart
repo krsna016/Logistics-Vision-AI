@@ -1678,7 +1678,7 @@ Future<Uint8List> _buildAnalyticsPdfBytes(
             style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 8),
         pw.Text(
-            'Total defects flagged by AI across all operations: ${report['totalDefects']}',
+            'Total defects recorded by operators across all operations: ${report['totalDefects']}',
             style: const pw.TextStyle(color: PdfColors.grey700)),
         pw.SizedBox(height: 40),
         ReportTemplateServiceImpl.buildSignatures(supervisorName: supervisor),

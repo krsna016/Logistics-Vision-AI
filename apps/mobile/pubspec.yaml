@@ -78,3 +78,4 @@ flutter:
   assets:
     - assets/images/
     - assets/models/stage1_carton_yolo26m_seg_960.onnx
+    - assets/models/stage1_carton_yolo26m_seg.onnx

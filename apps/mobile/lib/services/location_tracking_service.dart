@@ -6,6 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'network_service.dart';
+import '../utils/logger.dart';
 
 /// Sends the signed-in device's latest position to the authenticated API.
 /// The server derives employee identity from the JWT; it is never accepted
@@ -64,10 +65,17 @@ class LocationTrackingService {
 
   Future<bool> start() async {
     if (_running) return true;
-    final permission = await requestPermission();
+    var permission = await requestPermission();
     if (permission == LocationPermission.denied ||
         permission == LocationPermission.deniedForever) {
       return false;
+    }
+    if (defaultTargetPlatform == TargetPlatform.iOS &&
+        permission != LocationPermission.always) {
+      // This control explicitly enables background workforce visibility.
+      // Never claim it is active with only a foreground-only permission.
+      permission = await Geolocator.requestPermission();
+      if (permission != LocationPermission.always) return false;
     }
     if (!await Geolocator.isLocationServiceEnabled()) {
       return false;
@@ -86,14 +94,14 @@ class LocationTrackingService {
       // the screen is locked or SmartLoad is minimized. Android displays this
       // ongoing notification as required for transparent background tracking.
       locationSettings = AndroidSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 5,
-        intervalDuration: const Duration(seconds: 10),
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 25,
+        intervalDuration: const Duration(seconds: 30),
         foregroundNotificationConfig: const ForegroundNotificationConfig(
           notificationTitle: 'SmartLoad live location is active',
           notificationText:
               'Your location is shared with authorized administrators while signed in.',
-          enableWakeLock: true,
+          enableWakeLock: false,
           setOngoing: true,
         ),
       );
@@ -102,9 +110,9 @@ class LocationTrackingService {
       // Info.plist. Disabling automatic pausing keeps the tracking stream
       // active during normal background use.
       locationSettings = AppleSettings(
-        accuracy: LocationAccuracy.bestForNavigation,
-        distanceFilter: 5,
-        pauseLocationUpdatesAutomatically: false,
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 25,
+        pauseLocationUpdatesAutomatically: true,
         showBackgroundLocationIndicator: true,
         activityType: ActivityType.otherNavigation,
       );
@@ -116,7 +124,13 @@ class LocationTrackingService {
     }
     _positionSubscription = Geolocator.getPositionStream(
       locationSettings: locationSettings,
-    ).listen(_sendPosition, onError: (_, __) {});
+    ).listen(
+      _sendPosition,
+      onError: (Object error, StackTrace stack) {
+        AppLogger.error('Live location stream failed', error, stack);
+        _running = false;
+      },
+    );
     return true;
   }
 

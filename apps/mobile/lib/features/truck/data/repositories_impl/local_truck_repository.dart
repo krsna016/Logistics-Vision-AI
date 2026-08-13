@@ -83,7 +83,7 @@ class LocalTruckRepository implements TruckRepository {
           ));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_t_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'sync_t_insert_${truck.id}_1',
             entityId: truck.id,
             entityType: 'Truck',
             operation: 'INSERT',
@@ -96,6 +96,11 @@ class LocalTruckRepository implements TruckRepository {
   @override
   Future<void> updateTruck(Truck truck) async {
     await _db.transaction(() async {
+      final existing = await (_db.select(_db.trucks)
+            ..where((row) => row.id.equals(truck.id)))
+          .getSingleOrNull();
+      if (existing == null || existing.isDeleted) return;
+      final nextVersion = existing.version + 1;
       await (_db.update(_db.trucks)..where((t) => t.id.equals(truck.id)))
           .write(db.TrucksCompanion(
         wagonId: drift.Value(truck.wagonId),
@@ -112,15 +117,18 @@ class LocalTruckRepository implements TruckRepository {
         totalCartons: drift.Value(truck.totalCartons),
         totalDefects: drift.Value(truck.totalDefects),
         isArchived: drift.Value(truck.isArchived),
+        version: drift.Value(nextVersion),
+        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(DateTime.now()),
       ));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_t_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'sync_t_update_${truck.id}_$nextVersion',
             entityId: truck.id,
             entityType: 'Truck',
             operation: 'UPDATE',
             payloadData: '{}',
+            version: drift.Value(nextVersion),
           ));
     });
     AppLogger.info('Updated truck record: ${truck.truckNumber}');
@@ -137,18 +145,29 @@ class LocalTruckRepository implements TruckRepository {
             ..where((layer) =>
                 layer.truckId.equals(id) & layer.isDeleted.equals(false)))
           .get();
+      final sessions = await (_db.select(_db.loadingSessions)
+            ..where((session) =>
+                session.truckId.equals(id) & session.isDeleted.equals(false)))
+          .get();
       final layerIds = layers.map((layer) => layer.id).toList(growable: false);
+      final truckVersion = truck.version + 1;
 
       await (_db.update(_db.trucks)..where((t) => t.id.equals(id)))
           .write(db.TrucksCompanion(
         isDeleted: const drift.Value(true),
+        version: drift.Value(truckVersion),
+        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(DateTime.now()),
       ));
-      await (_db.update(_db.layers)..where((layer) => layer.truckId.equals(id)))
-          .write(db.LayersCompanion(
-        isDeleted: const drift.Value(true),
-        updatedAt: drift.Value(DateTime.now()),
-      ));
+      for (final layer in layers) {
+        await (_db.update(_db.layers)..where((row) => row.id.equals(layer.id)))
+            .write(db.LayersCompanion(
+          isDeleted: const drift.Value(true),
+          version: drift.Value(layer.version + 1),
+          syncStatus: const drift.Value('pending'),
+          updatedAt: drift.Value(DateTime.now()),
+        ));
+      }
       if (layerIds.isNotEmpty) {
         await (_db.update(_db.detections)
               ..where((detection) => detection.layerId.isIn(layerIds)))
@@ -157,14 +176,18 @@ class LocalTruckRepository implements TruckRepository {
           updatedAt: drift.Value(DateTime.now()),
         ));
       }
-      await (_db.update(_db.loadingSessions)
-            ..where((session) => session.truckId.equals(id)))
-          .write(db.LoadingSessionsCompanion(
-        isDeleted: const drift.Value(true),
-        status: const drift.Value('cancelled'),
-        endTime: drift.Value(DateTime.now()),
-        updatedAt: drift.Value(DateTime.now()),
-      ));
+      for (final session in sessions) {
+        await (_db.update(_db.loadingSessions)
+              ..where((row) => row.id.equals(session.id)))
+            .write(db.LoadingSessionsCompanion(
+          isDeleted: const drift.Value(true),
+          status: const drift.Value('cancelled'),
+          endTime: drift.Value(DateTime.now()),
+          version: drift.Value(session.version + 1),
+          syncStatus: const drift.Value('pending'),
+          updatedAt: drift.Value(DateTime.now()),
+        ));
+      }
 
       await _db.into(_db.auditLogs).insert(db.AuditLogsCompanion.insert(
             id: 'audit_truck_delete_${DateTime.now().microsecondsSinceEpoch}',
@@ -177,12 +200,33 @@ class LocalTruckRepository implements TruckRepository {
           ));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_t_${DateTime.now().microsecondsSinceEpoch}',
+            id: 'sync_t_delete_${truck.id}_$truckVersion',
             entityId: id,
             entityType: 'Truck',
             operation: 'DELETE',
-            payloadData: '{"cascadeChildren":true}',
+            payloadData: '{}',
+            version: drift.Value(truckVersion),
           ));
+      for (final layer in layers) {
+        await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
+              id: 'sync_l_delete_${layer.id}_${layer.version + 1}',
+              entityId: layer.id,
+              entityType: 'Layer',
+              operation: 'DELETE',
+              payloadData: '{}',
+              version: drift.Value(layer.version + 1),
+            ));
+      }
+      for (final session in sessions) {
+        await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
+              id: 'sync_s_delete_${session.id}_${session.version + 1}',
+              entityId: session.id,
+              entityType: 'LoadingSession',
+              operation: 'DELETE',
+              payloadData: '{}',
+              version: drift.Value(session.version + 1),
+            ));
+      }
     });
     AppLogger.info('Soft deleted truck: $id');
   }
@@ -190,15 +234,26 @@ class LocalTruckRepository implements TruckRepository {
   @override
   Future<void> archiveTruck(String id) async {
     await _db.transaction(() async {
+      final existing = await (_db.select(_db.trucks)
+            ..where((truck) => truck.id.equals(id)))
+          .getSingleOrNull();
+      if (existing == null || existing.isDeleted || existing.isArchived) return;
+      final nextVersion = existing.version + 1;
       await (_db.update(_db.trucks)..where((t) => t.id.equals(id)))
-          .write(const db.TrucksCompanion(isArchived: drift.Value(true)));
+          .write(db.TrucksCompanion(
+        isArchived: const drift.Value(true),
+        version: drift.Value(nextVersion),
+        syncStatus: const drift.Value('pending'),
+        updatedAt: drift.Value(DateTime.now()),
+      ));
 
       await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_t_${DateTime.now().millisecondsSinceEpoch}',
+            id: 'sync_t_archive_${existing.id}_$nextVersion',
             entityId: id,
             entityType: 'Truck',
             operation: 'UPDATE',
             payloadData: '{"isArchived": true}',
+            version: drift.Value(nextVersion),
           ));
     });
     AppLogger.info('Archived truck: $id');

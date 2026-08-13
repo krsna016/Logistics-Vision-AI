@@ -58,6 +58,16 @@ void main() {
     expect(manifest, isNotNull);
     final data = jsonDecode(utf8.decode(manifest!.content as List<int>));
     expect(data['database'], 'database/smartload_offline.sqlite');
-    expect(data['files'], hasLength(3));
+    final archivedPaths = (data['files'] as List<dynamic>)
+        .map((entry) => (entry as Map<String, dynamic>)['path'])
+        .toSet();
+    expect(
+      archivedPaths,
+      containsAll(<String>{
+        'database/smartload_offline.sqlite',
+        'documents/smartload_images/layer.jpg',
+        'documents/backups/backup_manual.sqlite.bak',
+      }),
+    );
   });
 }

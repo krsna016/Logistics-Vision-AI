@@ -186,9 +186,9 @@ class CameraNotifier extends StateNotifier<CameraState>
       return;
     }
 
-    final currentController = state.controller;
     final nextIndex =
         (state.selectedCameraIndex + 1) % state.availableCameras.length;
+    final currentController = state.controller;
     AppLogger.info(
         'Switching camera from index ${state.selectedCameraIndex} to $nextIndex');
 

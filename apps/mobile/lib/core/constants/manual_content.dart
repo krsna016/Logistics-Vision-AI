@@ -263,7 +263,7 @@ Only use the access level assigned to you. If an action is unavailable, ask the 
 4. Tap Login.
 5. Wait for the Wagon Control Center.
 
-For local testing, **Demo Entry** opens a temporary Demo Operator session without credentials. It does not create a server token or begin tracking. Log out when testing is finished; do not use demo mode for real operational records.
+In non-production builds, **Demo Entry** opens a temporary Demo Operator session without credentials. It does not create a server token or begin tracking. This control is unavailable in production builds.
 
 The signed-in user's name is used as the operator and supervisor identity in new records. One logged-in session should therefore show one operator name for work performed in that session.
 
@@ -311,7 +311,7 @@ Each card shows the wagon number, status, vehicle count, carton information and 
 
 - Digital Registers: historical wagon register and exports.
 - Documentation: this English and Hindi handbook.
-- Load Demo Data: deletes current operational test data and creates enterprise training data.
+- Load Demo Data (administrators only): deletes current operational data and creates enterprise training data.
 - Logout: ends the current user session.
 
 ---
@@ -698,7 +698,7 @@ Search changes only what is displayed. It never deletes hidden records.
 
 ## 19. Demo data
 
-Load Demo Data creates enterprise training records with multiple wagon statuses, vehicles, many layers, mixed items, defects and correction history.
+Load Demo Data is available only to administrators. It creates enterprise training records with multiple wagon statuses, vehicles, many layers, mixed items, defects and correction history.
 
 ### Critical warning
 
@@ -1169,7 +1169,7 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 
 - Digital Registers: वैगन इतिहास और रिपोर्ट।
 - Documentation: यह अंग्रेजी और हिंदी पुस्तिका।
-- Load Demo Data: वर्तमान लोकल डेटा हटाकर प्रशिक्षण डेटा बनाता है।
+- Load Demo Data: केवल Administrator के लिए; वर्तमान लोकल डेटा हटाकर प्रशिक्षण डेटा बनाता है।
 - Logout: वर्तमान उपयोगकर्ता सेशन बंद करता है।
 
 ---
@@ -1516,7 +1516,7 @@ Wagon No., Vehicle No., Driver, Company, Driver Phone, Status, Warehouse, Superv
 
 ## 19. डेमो डेटा
 
-Load Demo Data कई स्थिति वाले वैगन, वाहन, बहुत सी लेयर, मिश्रित आइटम, डिफेक्ट और Correction History बनाता है।
+Load Demo Data केवल Administrator के लिए उपलब्ध है। यह कई स्थिति वाले वैगन, वाहन, बहुत सी लेयर, मिश्रित आइटम, डिफेक्ट और Correction History बनाता है।
 
 ### बहुत महत्वपूर्ण चेतावनी
 
@@ -1542,7 +1542,7 @@ Load Demo Data कई स्थिति वाले वैगन, वाहन
 - Delete Wagon वैगन और उसके वाहन तथा लेयर भविष्य की सक्रिय स्क्रीन और रिपोर्ट से हटाता है।
 - Delete Vehicle उसकी लेयर हटाता है।
 - Remove Layer सभी संबंधित कुल दोबारा गणना करता है।
-- Load Demo Data वर्तमान लोकल डेटा बदल देता है।
+- Load Demo Data (केवल Administrator) वर्तमान लोकल डेटा बदल देता है।
 
 Strict confirmation गलती से हटाने से बचाता है। पुष्टि टाइप करने से पहले लक्ष्य नंबर ध्यान से पढ़ें।
 

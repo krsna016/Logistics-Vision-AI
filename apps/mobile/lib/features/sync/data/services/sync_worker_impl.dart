@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:drift/drift.dart';
 import '../../domain/entities/sync_operation.dart';
 import '../../domain/repositories/queue_repository.dart';
 import '../../domain/services/retry_manager.dart';
@@ -70,9 +71,15 @@ class SyncWorkerImpl implements SyncWorker {
   Future<bool> attemptOperation(SyncOperation operation) async {
     try {
       final decoded = jsonDecode(operation.payload);
-      var payload =
+      final operationMetadata =
           decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
-      if (payload.isEmpty) payload = await _readCurrentPayload(operation);
+      // Queue payloads may contain only operation metadata (for example a
+      // correction reason). Always merge that with the current durable row;
+      // otherwise the server envelope is replaced by an incomplete fragment.
+      final payload = <String, dynamic>{
+        ...await _readCurrentPayload(operation),
+        ...operationMetadata,
+      };
       final response =
           await _dio.post<Map<String, dynamic>>('/sync/batch', data: {
         'records': [
@@ -91,6 +98,8 @@ class SyncWorkerImpl implements SyncWorker {
       final results = response.data?['results'];
       if (results is! List || results.isEmpty) return false;
       final status = (results.first as Map<String, dynamic>)['status'];
+      final serverVersion =
+          (results.first as Map<String, dynamic>)['server_version'];
       if (status == 'conflict') {
         _lastConflict = true;
         await _queueRepo.updateOperationStatus(
@@ -101,7 +110,11 @@ class SyncWorkerImpl implements SyncWorker {
         );
         return false;
       }
-      return status == 'synced' || status == 'already_synced';
+      final accepted = status == 'synced' || status == 'already_synced';
+      if (accepted && serverVersion is int) {
+        await _markEntitySynced(operation, serverVersion);
+      }
+      return accepted;
     } on DioException catch (error) {
       debugPrint(
           'Sync upload failed for ${operation.entityId}: ${error.message}');
@@ -109,6 +122,68 @@ class SyncWorkerImpl implements SyncWorker {
     } on FormatException {
       debugPrint('Sync payload is not valid JSON for ${operation.entityId}');
       return false;
+    }
+  }
+
+  Future<void> _markEntitySynced(
+      SyncOperation operation, int serverVersion) async {
+    // An older queued operation can complete after the entity was edited
+    // again. Never lower its version or mark those newer local changes synced.
+    switch (operation.entityType) {
+      case 'Wagon':
+        final row = await (_db.select(_db.wagons)
+              ..where((item) => item.id.equals(operation.entityId)))
+            .getSingleOrNull();
+        if (row != null && row.version <= serverVersion) {
+          await (_db.update(_db.wagons)
+                ..where((item) => item.id.equals(operation.entityId)))
+              .write(WagonsCompanion(
+            version: Value(serverVersion),
+            syncStatus: const Value('synced'),
+          ));
+        }
+        return;
+      case 'Truck':
+        final row = await (_db.select(_db.trucks)
+              ..where((item) => item.id.equals(operation.entityId)))
+            .getSingleOrNull();
+        if (row != null && row.version <= serverVersion) {
+          await (_db.update(_db.trucks)
+                ..where((item) => item.id.equals(operation.entityId)))
+              .write(TrucksCompanion(
+            version: Value(serverVersion),
+            syncStatus: const Value('synced'),
+          ));
+        }
+        return;
+      case 'Layer':
+        final row = await (_db.select(_db.layers)
+              ..where((item) => item.id.equals(operation.entityId)))
+            .getSingleOrNull();
+        if (row != null && row.version <= serverVersion) {
+          await (_db.update(_db.layers)
+                ..where((item) => item.id.equals(operation.entityId)))
+              .write(LayersCompanion(
+            version: Value(serverVersion),
+            syncStatus: const Value('synced'),
+          ));
+        }
+        return;
+      case 'LoadingSession':
+        final row = await (_db.select(_db.loadingSessions)
+              ..where((item) => item.id.equals(operation.entityId)))
+            .getSingleOrNull();
+        if (row != null && row.version <= serverVersion) {
+          await (_db.update(_db.loadingSessions)
+                ..where((item) => item.id.equals(operation.entityId)))
+              .write(LoadingSessionsCompanion(
+            version: Value(serverVersion),
+            syncStatus: const Value('synced'),
+          ));
+        }
+        return;
+      default:
+        return;
     }
   }
 
@@ -205,7 +280,8 @@ class SyncWorkerImpl implements SyncWorker {
           'notes': row.notes,
           'metadata': row.metadata,
           'createdAt': row.createdAt.toUtc().toIso8601String(),
-          'updatedAt': row.updatedAt.toUtc().toIso8601String()
+          'updatedAt': row.updatedAt.toUtc().toIso8601String(),
+          'isDeleted': row.isDeleted,
         };
       default:
         return {};

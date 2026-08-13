@@ -73,10 +73,9 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
       try {
         final claims = JwtDecoder.decode(token);
         final exp = claims['exp'];
-        final tokenUsable = exp == null ||
-            (exp is num &&
-                DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000)
-                    .isAfter(DateTime.now()));
+        final tokenUsable = exp is num &&
+            DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000)
+                .isAfter(DateTime.now());
         final subject = claims['sub'];
         if (tokenUsable && subject is String && subject.trim().isNotEmpty) {
           employeeId = subject.trim();
@@ -228,23 +227,12 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
 
       await _layerRepository.saveLayer(newRecord);
 
-      // Business Rule BR-02: Automatically update parent truck total counts
-      if (currentTruck != null) {
-        final updatedTruck = currentTruck.copyWith(
-          totalLayers: currentTruck.totalLayers + 1,
-          totalCartons: currentTruck.totalCartons + cartonCount,
-          totalDefects: currentTruck.totalDefects + defectCount,
-          updatedDate: DateTime.now(),
-        );
-        await truckRepo.updateTruck(updatedTruck);
-        // Refresh the parent truck list provider to update the dashboard stats!
-        _ref.read(truckListProvider.notifier).refresh();
-      }
-
-      // Update Session Progress
+      // The repository atomically recalculates truck/session aggregates with
+      // the layer insert. Refresh provider state from those committed rows.
+      _ref.read(truckListProvider.notifier).refresh();
       await _ref
           .read(activeSessionProvider.notifier)
-          .recordLayerCaptured(_truckId, cartonCount, defectCount);
+          .refreshTotalsForTruck(_truckId);
 
       // Audit Log
       AuditLogger.log(AuditEvent.layerCaptured,
