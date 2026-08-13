@@ -11,6 +11,15 @@ from ..core.security import get_current_user
 from ..models.user import User
 
 router = APIRouter()
+MAX_IMAGE_BYTES = 15 * 1024 * 1024
+SUPPORTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
+
+
+def _has_supported_image_signature(content: bytes) -> bool:
+    return (
+        content.startswith((b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n"))
+        or (len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP")
+    )
 
 
 @router.post("/box-counting")
@@ -29,11 +38,18 @@ async def detect_cardboxes(
             detail="Roboflow inference is not configured",
         )
 
-    content = await image.read()
+    if image.content_type not in SUPPORTED_IMAGE_TYPES:
+        raise HTTPException(status_code=415, detail="Only JPEG, PNG, or WebP images are supported")
+
+    # Bound the read itself. Checking size only after an unbounded read lets a
+    # malicious upload consume arbitrary worker memory before being rejected.
+    content = await image.read(MAX_IMAGE_BYTES + 1)
     if not content:
         raise HTTPException(status_code=400, detail="Image file is empty")
-    if len(content) > 15 * 1024 * 1024:
+    if len(content) > MAX_IMAGE_BYTES:
         raise HTTPException(status_code=413, detail="Image is too large")
+    if not _has_supported_image_signature(content):
+        raise HTTPException(status_code=415, detail="Uploaded data is not a supported image")
 
     url = (
         f"{settings.ROBOFLOW_API_URL.rstrip('/')}/"
@@ -58,7 +74,10 @@ async def detect_cardboxes(
 
     if response.is_error:
         raise HTTPException(status_code=502, detail="Roboflow inference failed")
-    result = response.json()
+    try:
+        result = response.json()
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail="Roboflow returned an invalid response") from exc
     return {"predictions": _find_predictions(result), "image": {"width": 0, "height": 0}, "workflow": settings.ROBOFLOW_WORKFLOW_ID}
 
 

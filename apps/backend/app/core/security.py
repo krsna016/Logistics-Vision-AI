@@ -3,6 +3,7 @@
 
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from uuid import uuid4
 
 import bcrypt
 import jwt
@@ -17,25 +18,44 @@ from .config import settings
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
+
+def decode_access_token(token: str) -> dict[str, Any]:
+    return jwt.decode(
+        token,
+        settings.SECRET_KEY,
+        algorithms=["HS256"],
+        issuer=settings.JWT_ISSUER,
+        audience=settings.JWT_AUDIENCE,
+        options={"require": ["sub", "exp", "iat", "iss", "aud", "jti"]},
+    )
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    if isinstance(hashed_password, str):
-        hashed_password = hashed_password.encode('utf-8')
-    if isinstance(plain_password, str):
-        plain_password = plain_password.encode('utf-8')
-    return bcrypt.checkpw(plain_password, hashed_password)
+    plain_bytes = plain_password.encode("utf-8")
+    hashed_bytes = hashed_password.encode("utf-8")
+    return bcrypt.checkpw(plain_bytes, hashed_bytes)
+
 
 def get_password_hash(password: str) -> str:
-    if isinstance(password, str):
-        password = password.encode('utf-8')
-    return bcrypt.hashpw(password, bcrypt.gensalt()).decode('utf-8')
+    password_bytes = password.encode("utf-8")
+    return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
 
-def create_access_token(subject: str | Any, role: str, expires_delta: timedelta | None = None) -> str:
-    # A missing expiry is intentional for the mobile app's persistent session.
-    # Access is still revoked server-side when the user is inactive.
-    to_encode = {"sub": str(subject), "role": role}
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-        to_encode["exp"] = expire
+
+def create_access_token(
+    subject: str | Any,
+    role: str,
+    expires_delta: timedelta | None = None,
+) -> str:
+    now = datetime.now(timezone.utc)
+    expire = now + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode = {
+        "sub": str(subject),
+        "role": role,
+        "iat": now,
+        "exp": expire,
+        "iss": settings.JWT_ISSUER,
+        "aud": settings.JWT_AUDIENCE,
+        "jti": str(uuid4()),
+    }
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
     return encoded_jwt
 
@@ -46,7 +66,7 @@ async def get_current_user(
     if credentials is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
     try:
-        payload = jwt.decode(credentials.credentials, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = decode_access_token(credentials.credentials)
         employee_id = payload.get("sub")
         if not employee_id:
             raise ValueError("missing subject")

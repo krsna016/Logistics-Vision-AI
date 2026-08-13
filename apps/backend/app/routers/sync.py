@@ -2,16 +2,15 @@
 # ruff: noqa: B008
 
 import json
-
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.security import get_current_user, require_admin
 from ..db.database import get_db
-from ..models.sync import SyncHistoryRecord, SyncedRecord
+from ..models.sync import SyncedRecord, SyncHistoryRecord
 from ..models.user import User
 from ..schemas.sync import SyncBatchIn, SyncBatchOut, SyncRecordResult
 
@@ -26,9 +25,20 @@ async def upload_batch(
 ):
     results: list[SyncRecordResult] = []
     for item in batch.records:
-        # Retrying the same operation is safe and returns the original result.
+        # Serialize changes to one logical entity on PostgreSQL. Without this,
+        # two devices can both read version N and race to write version N+1.
+        bind = db.get_bind()
+        if bind is not None and bind.dialect.name == "postgresql":
+            await db.execute(
+                text("SELECT pg_advisory_xact_lock(hashtext(:entity_key))"),
+                {"entity_key": f"{item.entity_type}:{item.entity_id}"},
+            )
+        # The current entity envelope only retains the latest operation id.
+        # History is the durable idempotency ledger for every older retry.
         existing_operation = await db.scalar(
-            select(SyncedRecord).where(SyncedRecord.operation_id == item.operation_id)
+            select(SyncHistoryRecord).where(
+                SyncHistoryRecord.operation_id == item.operation_id
+            )
         )
         if existing_operation:
             results.append(SyncRecordResult(
@@ -46,7 +56,7 @@ async def upload_batch(
                 SyncedRecord.entity_id == item.entity_id,
             )
         )
-        if current and item.version < current.version:
+        if current and item.version != current.version + 1:
             db.add(SyncHistoryRecord(
                 operation_id=item.operation_id,
                 entity_type=item.entity_type,

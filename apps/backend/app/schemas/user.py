@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class UserBase(BaseModel):
@@ -9,8 +9,18 @@ class UserBase(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     role: Literal["Administrator", "Supervisor"]
 
+    @field_validator("employee_id")
+    @classmethod
+    def normalize_employee_id(cls, value: str) -> str:
+        return value.strip().upper()
+
+    @field_validator("name")
+    @classmethod
+    def normalize_name(cls, value: str) -> str:
+        return value.strip()
+
 class UserCreate(UserBase):
-    password: str = Field(min_length=1, max_length=128)
+    password: str = Field(min_length=12, max_length=72)
 
 class UserUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)

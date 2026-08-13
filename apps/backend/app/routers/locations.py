@@ -5,11 +5,11 @@ from datetime import datetime, timedelta, timezone
 
 import jwt
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.config import settings
-from ..core.security import get_current_user, require_admin
+from ..core.security import decode_access_token, get_current_user, require_admin
 from ..db.database import get_db
 from ..models.location import LocationPing, LocationSession
 from ..models.user import User
@@ -44,12 +44,16 @@ async def broadcast_event(event: dict) -> None:
 @router.websocket("/stream")
 async def location_stream(websocket: WebSocket, db: AsyncSession = Depends(get_db)):
     """Push location updates to authenticated Admin dashboard sessions."""
-    token = websocket.query_params.get("token")
+    protocols = [
+        value.strip()
+        for value in websocket.headers.get("sec-websocket-protocol", "").split(",")
+    ]
+    token = protocols[1] if len(protocols) == 2 and protocols[0] == "smartload-auth" else None
     if not token:
         await websocket.close(code=1008, reason="Authentication required")
         return
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = decode_access_token(token)
         employee_id = payload.get("sub")
         result = await db.execute(select(User).where(User.employee_id == employee_id))
         user = result.scalars().first()
@@ -59,7 +63,7 @@ async def location_stream(websocket: WebSocket, db: AsyncSession = Depends(get_d
         await websocket.close(code=1008, reason="Invalid Admin session")
         return
 
-    await websocket.accept()
+    await websocket.accept(subprotocol="smartload-auth")
     admin_streams.add(websocket)
     try:
         while True:
@@ -93,15 +97,24 @@ async def receive_heartbeat(
         db.add(session)
         await db.flush()
 
+    now = datetime.now(timezone.utc)
     ping = LocationPing(
         session_id=session.id,
         employee_id=current_user.employee_id,
         latitude=payload.latitude,
         longitude=payload.longitude,
         accuracy_meters=payload.accuracy_meters,
-        recorded_at=payload.recorded_at or datetime.now(timezone.utc),
+        # Server time is authoritative for live ordering and prevents a
+        # modified client from pinning a forged future location indefinitely.
+        recorded_at=now,
     )
     db.add(ping)
+    await db.execute(
+        delete(LocationPing).where(
+            LocationPing.recorded_at
+            < now - timedelta(days=settings.LOCATION_RETENTION_DAYS)
+        )
+    )
     await db.commit()
     await broadcast_location(LiveLocation(
         employee_id=current_user.employee_id,

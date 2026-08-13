@@ -9,6 +9,9 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     SECRET_KEY: str = Field(default="", validation_alias="SECRET_KEY")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
+    JWT_ISSUER: str = "vinayak-smartload"
+    JWT_AUDIENCE: str = "vinayak-smartload-clients"
+    LOCATION_RETENTION_DAYS: int = 30
     BOOTSTRAP_ADMIN_PASSWORD: str = Field(default="", validation_alias="BOOTSTRAP_ADMIN_PASSWORD")
     RESET_ADMIN_PASSWORD: bool = Field(default=False, validation_alias="RESET_ADMIN_PASSWORD")
     ADMIN_CORS_ORIGINS: str = Field(default="http://localhost:5173", validation_alias="ADMIN_CORS_ORIGINS")
@@ -41,6 +44,10 @@ class Settings(BaseSettings):
     def validate_runtime_secrets(self) -> None:
         if not self.SECRET_KEY or len(self.SECRET_KEY) < 32:
             raise RuntimeError("SECRET_KEY must be configured and at least 32 characters long")
+        if self.ACCESS_TOKEN_EXPIRE_MINUTES < 5 or self.ACCESS_TOKEN_EXPIRE_MINUTES > 1440:
+            raise RuntimeError("ACCESS_TOKEN_EXPIRE_MINUTES must be between 5 and 1440")
+        if self.LOCATION_RETENTION_DAYS < 1 or self.LOCATION_RETENTION_DAYS > 365:
+            raise RuntimeError("LOCATION_RETENTION_DAYS must be between 1 and 365")
 
     @property
     def get_database_url(self) -> str:
