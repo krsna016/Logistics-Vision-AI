@@ -469,15 +469,30 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     String truckId,
   ) async {
     if (_isFinalizingCapture) return;
+    final totalWatch = Stopwatch()..start();
+    final captureWatch = Stopwatch()..start();
     setState(() => _isFinalizingCapture = true);
+    String? savedPath;
+    String? cropPath;
+    var handedToReview = false;
     try {
       final photo = await _streamKey.currentState?.capturePhoto();
       if (photo == null || !context.mounted) return;
+      captureWatch.stop();
+      final sourceBytes = await File(photo.path).readAsBytes();
 
-      final savedPath = await _imageStorage.saveImage(
-        File(photo.path),
-        'ai_layer_$truckId',
-      );
+      final saveWatch = Stopwatch()..start();
+      savedPath =
+          await _imageStorage.saveImageBytes(sourceBytes, 'ai_layer_$truckId');
+      saveWatch.stop();
+      // camera.takePicture() leaves a temporary file in the platform cache.
+      // The durable audit copy is complete, so remove the source immediately
+      // to prevent abandoned captures from accumulating across long shifts.
+      try {
+        await File(photo.path).delete();
+      } on FileSystemException catch (error) {
+        AppLogger.warning('Could not remove temporary camera capture: $error');
+      }
       if (!context.mounted) return;
 
       // The preview uses BoxFit.cover. Translate the on-screen selector back
@@ -491,19 +506,34 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       // Create the crop once in memory. The same encoded bytes are used for
       // AI and saved for review, avoiding a disk write followed by a second
       // file read/decode before inference.
-      final cropBytes =
-          await _imageStorage.createCountingCropBytes(savedPath, sourceRegion);
-      final cropPath = await _imageStorage.saveImageBytes(
+      final cropWatch = Stopwatch()..start();
+      final cropBytes = await _imageStorage.createCountingCropBytesFromBytes(
+        sourceBytes,
+        sourceRegion,
+      );
+      cropWatch.stop();
+      final cropSaveWatch = Stopwatch()..start();
+      cropPath = await _imageStorage.saveImageBytes(
         cropBytes,
         'ai_count_crop_$truckId',
       );
+      cropSaveWatch.stop();
       if (!context.mounted) return;
+
+      AppLogger.info(
+        'Capture pipeline timings: capture=${captureWatch.elapsedMilliseconds}ms, '
+        'auditSave=${saveWatch.elapsedMilliseconds}ms, '
+        'crop=${cropWatch.elapsedMilliseconds}ms, '
+        'cropSave=${cropSaveWatch.elapsedMilliseconds}ms, '
+        'handoff=${totalWatch.elapsedMilliseconds}ms',
+      );
 
       // Start the full-resolution pass, but do not make navigation wait for
       // mask decoding. Review appears with the latest live result and updates
       // atomically when this future completes.
       Future<AIResult> finalResultLoader() =>
           _finalizeCapturedResultBytes(cropBytes);
+      handedToReview = true;
       await _navigateToReview(
         context,
         truckId,
@@ -514,6 +544,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         countingRegion: sourceRegion,
         finalResultLoader: finalResultLoader,
       );
+      totalWatch.stop();
+      AppLogger.info(
+        'Capture pipeline completed: total=${totalWatch.elapsedMilliseconds}ms',
+      );
     } catch (e, stack) {
       AppLogger.error('Failed to capture layer photo', e, stack);
       if (context.mounted) {
@@ -522,6 +556,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         );
       }
     } finally {
+      if (!handedToReview) {
+        if (cropPath != null) await _imageStorage.deleteImage(cropPath);
+        if (savedPath != null) await _imageStorage.deleteImage(savedPath);
+      }
       if (mounted) setState(() => _isFinalizingCapture = false);
     }
   }

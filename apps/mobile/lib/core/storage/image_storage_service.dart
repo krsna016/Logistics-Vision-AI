@@ -23,7 +23,7 @@ class ImageStorageService {
     final basePath = await _storagePath;
     final safePrefix = prefix.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
     final fileName =
-        '${safePrefix.isEmpty ? 'image' : safePrefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        '${safePrefix.isEmpty ? 'image' : safePrefix}_${DateTime.now().microsecondsSinceEpoch}.jpg';
     final destination = p.join(basePath, fileName);
 
     await imageFile.copy(destination);
@@ -35,7 +35,7 @@ class ImageStorageService {
     final basePath = await _storagePath;
     final safePrefix = prefix.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
     final fileName =
-        '${safePrefix.isEmpty ? 'image' : safePrefix}_${DateTime.now().millisecondsSinceEpoch}.jpg';
+        '${safePrefix.isEmpty ? 'image' : safePrefix}_${DateTime.now().microsecondsSinceEpoch}.jpg';
     final destination = p.join(basePath, fileName);
     await File(destination).writeAsBytes(bytes, flush: true);
     return destination;
@@ -51,6 +51,19 @@ class ImageStorageService {
         ));
   }
 
+  /// Creates the same perspective crop directly from the captured bytes.
+  /// This avoids saving the audit image and then reading it back just to
+  /// create the AI crop. The audit image is still persisted separately.
+  Future<Uint8List> createCountingCropBytesFromBytes(
+    Uint8List sourceBytes,
+    CountingRegion region,
+  ) async {
+    return Isolate.run(() => _createNormalizedCropBytesFromEncoded(
+          sourceBytes,
+          region.toJson(),
+        ));
+  }
+
   /// Produces an upright, perspective-corrected crop for inference while
   /// preserving the full source image as the audit artifact.
   Future<String> createCountingCrop(
@@ -62,7 +75,7 @@ class ImageStorageService {
     final safePrefix = prefix.replaceAll(RegExp(r'[^A-Za-z0-9_-]'), '_');
     final destination = p.join(
       basePath,
-      '${safePrefix.isEmpty ? 'count_crop' : safePrefix}_${DateTime.now().millisecondsSinceEpoch}.jpg',
+      '${safePrefix.isEmpty ? 'count_crop' : safePrefix}_${DateTime.now().microsecondsSinceEpoch}.jpg',
     );
     await Isolate.run(() => _writeNormalizedCrop(
           sourcePath,
@@ -113,7 +126,17 @@ Uint8List _createNormalizedCropBytes(
   String sourcePath,
   Map<String, dynamic> normalized,
 ) {
-  final decoded = img.decodeImage(File(sourcePath).readAsBytesSync());
+  return _createNormalizedCropBytesFromEncoded(
+    File(sourcePath).readAsBytesSync(),
+    normalized,
+  );
+}
+
+Uint8List _createNormalizedCropBytesFromEncoded(
+  Uint8List encodedBytes,
+  Map<String, dynamic> normalized,
+) {
+  final decoded = img.decodeImage(encodedBytes);
   if (decoded == null) {
     throw const FormatException('Unsupported captured image');
   }
@@ -144,9 +167,18 @@ Uint8List _createNormalizedCropBytes(
           (homography[0] * u + homography[1] * v + homography[2]) / divisor;
       final sourceY =
           (homography[3] * u + homography[4] * v + homography[5]) / divisor;
-      final sampleX = sourceX.round().clamp(0, source.width - 1).toInt();
-      final sampleY = sourceY.round().clamp(0, source.height - 1).toInt();
-      cropped.setPixel(x, y, source.getPixel(sampleX, sampleY));
+      // Perspective transforms almost always land between source pixels.
+      // Linear sampling avoids the jagged carton edges and lost thin seams
+      // produced by nearest-neighbour rounding before model preprocessing.
+      cropped.setPixel(
+        x,
+        y,
+        source.getPixelInterpolate(
+          sourceX.clamp(0, source.width - 1),
+          sourceY.clamp(0, source.height - 1),
+          interpolation: img.Interpolation.linear,
+        ),
+      );
     }
   }
   return Uint8List.fromList(img.encodeJpg(cropped, quality: 96));
