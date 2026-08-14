@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../theme/app_theme.dart';
 import '../../../features/wagon/presentation/providers/wagon_providers.dart';
@@ -63,11 +65,11 @@ class AppDrawer extends ConsumerWidget {
                   if (user?.role == Role.administrator) ...[
                     const SizedBox(height: 8),
                     _buildTile(
-                      icon: Icons.inventory_2_outlined,
-                      title: 'Share Audit Archive',
-                      subtitle: 'Database, photos, backups and exports',
+                      icon: Icons.backup_outlined,
+                      title: 'Backup & Restore',
+                      subtitle: 'Create, import or restore local data',
                       iconColor: AppTheme.primaryColor,
-                      onTap: () => _confirmLocalDataArchive(context, ref),
+                      onTap: () => _showBackupAndRestore(context, ref),
                     ),
                   ],
                   const SizedBox(height: 8),
@@ -119,6 +121,67 @@ class AppDrawer extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _showBackupAndRestore(
+      BuildContext context, WidgetRef ref) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Backup & Restore'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, 'create'),
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.ios_share_rounded),
+              title: Text('Create & share backup'),
+              subtitle: Text('Database, photos, audit records and exports'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, 'zip'),
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.archive_outlined),
+              title: Text('Import ZIP backup'),
+              subtitle: Text('Choose a SmartLoad ZIP from anywhere'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, 'folder'),
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.folder_open_outlined),
+              title: Text('Import extracted folder'),
+              subtitle: Text('Choose an already extracted backup folder'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, 'previous'),
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.history_rounded),
+              title: Text('Restore previous local data'),
+              subtitle: Text('Undo an earlier import or restore'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !context.mounted) return;
+    switch (choice) {
+      case 'create':
+        _confirmLocalDataArchive(context, ref);
+        return;
+      case 'zip':
+      case 'folder':
+        await _selectAuditArchive(context, choice: choice);
+        return;
+      case 'previous':
+        await _restorePreviousLocalData(context);
+        return;
+    }
   }
 
   Widget _buildHeader(BuildContext context, User? user) {
@@ -282,9 +345,9 @@ class AppDrawer extends ConsumerWidget {
     final truckRepo = ref.read(truckRepositoryProvider);
     final layerRepo = ref.read(layerRepositoryProvider);
     final database = ref.read(databaseProvider);
-    final operatorName = ref.read(authProvider)?.name.trim();
     final wagonNotifier = ref.read(wagonListProvider.notifier);
     final truckNotifier = ref.read(truckListProvider.notifier);
+    final operatorName = ref.read(authProvider)?.name.trim();
 
     showDialog<void>(
       context: context,
@@ -464,6 +527,287 @@ class AppDrawer extends ConsumerWidget {
         },
       ),
     );
+  }
+
+  Future<void> _selectAuditArchive(
+    BuildContext context, {
+    required String choice,
+  }) async {
+    final rootContext = Navigator.of(context, rootNavigator: true).context;
+    // The drawer is deliberately closed while import runs. Keep the app-level
+    // provider container instead of using this drawer widget's Ref afterward.
+    final providerContainer = ProviderScope.containerOf(
+      rootContext,
+      listen: false,
+    );
+    File? zipFile;
+    Directory? extractedFolder;
+    showDialog<void>(
+      context: rootContext,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Expanded(child: Text('Preparing selected archive…')),
+            ],
+          ),
+        ),
+      ),
+    );
+    // Give Flutter one frame to register the progress route before Android's
+    // external picker covers the app.
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    try {
+      if (choice == 'zip') {
+        final path = await const MethodChannel('com.vinayak.smartload/import')
+            .invokeMethod<String>('pickZip');
+        if (path == null || path.isEmpty) return;
+        zipFile = File(path);
+      } else {
+        final path = await const MethodChannel('com.vinayak.smartload/import')
+            .invokeMethod<String>('pickFolder');
+        if (path == null || path.isEmpty) return;
+        extractedFolder = Directory(path);
+      }
+    } on PlatformException catch (error) {
+      if (rootContext.mounted) {
+        ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
+          content:
+              Text('Could not select archive: ${error.message ?? error.code}'),
+          backgroundColor: AppTheme.errorColor,
+        ));
+      }
+      return;
+    } finally {
+      if (rootContext.mounted) {
+        Navigator.of(rootContext, rootNavigator: true).pop();
+      }
+    }
+    if (!rootContext.mounted) return;
+
+    var confirmed = false;
+    await showDialog<void>(
+      context: rootContext,
+      useRootNavigator: true,
+      builder: (_) => ActionWarningDialog(
+        title: 'Import Audit Archive?',
+        content:
+            'This will replace operational records (wagons, trucks, layers, reports, audit history and sync data) with the selected archive. Your account, login, secure credentials and app settings will stay on this phone. A backup of the current database will be created first.',
+        actionLabel: 'Import and Replace',
+        actionColor: AppTheme.primaryColor,
+        icon: Icons.file_download_outlined,
+        onConfirm: () => confirmed = true,
+      ),
+    );
+    if (!confirmed || !rootContext.mounted) {
+      await _deletePickerCopy(zipFile, extractedFolder);
+      return;
+    }
+
+    // Close the drawer before displaying progress on the root navigator. This
+    // avoids popping the progress route accidentally and leaving a black UI.
+    if (context.mounted) Navigator.of(context).pop();
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    if (!rootContext.mounted) {
+      await _deletePickerCopy(zipFile, extractedFolder);
+      return;
+    }
+    showDialog<void>(
+      context: rootContext,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Expanded(child: Text('Importing archive safely…')),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final database = providerContainer.read(databaseProvider);
+    try {
+      final service = LocalDataArchiveService(database);
+      final summary = zipFile != null
+          ? await service.importArchive(zipFile)
+          : await service.importFolder(extractedFolder!);
+      providerContainer.invalidate(wagonListProvider);
+      providerContainer.invalidate(truckListProvider);
+      providerContainer.invalidate(layerListProvider);
+      if (!rootContext.mounted) return;
+      Navigator.of(rootContext, rootNavigator: true).pop();
+      ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
+        content: Text(
+            'Imported operational data and ${summary.copiedFiles} local files successfully.'),
+      ));
+    } catch (error, stackTrace) {
+      debugPrint('Audit archive import failed: $error\n$stackTrace');
+      if (!rootContext.mounted) return;
+      Navigator.of(rootContext, rootNavigator: true).pop();
+      ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
+        content: Text('Could not import archive: $error'),
+        backgroundColor: AppTheme.errorColor,
+        duration: const Duration(seconds: 12),
+      ));
+    } finally {
+      await _deletePickerCopy(zipFile, extractedFolder);
+    }
+  }
+
+  Future<void> _restorePreviousLocalData(BuildContext context) async {
+    final rootContext = Navigator.of(context, rootNavigator: true).context;
+    final providerContainer =
+        ProviderScope.containerOf(rootContext, listen: false);
+    final database = providerContainer.read(databaseProvider);
+    final service = LocalDataArchiveService(database);
+
+    late List<LocalDatabaseBackup> backups;
+    try {
+      backups = await service.listLocalBackups();
+    } catch (error) {
+      if (!rootContext.mounted) return;
+      ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
+        content: Text('Could not read local backups: $error'),
+        backgroundColor: AppTheme.errorColor,
+      ));
+      return;
+    }
+    if (!rootContext.mounted) return;
+    if (backups.isEmpty) {
+      ScaffoldMessenger.of(rootContext).showSnackBar(const SnackBar(
+        content: Text(
+            'No previous local backup exists yet. One is created automatically before every import.'),
+      ));
+      return;
+    }
+
+    final selected = await showDialog<LocalDatabaseBackup>(
+      context: rootContext,
+      useRootNavigator: true,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Restore Previous Local Data'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.separated(
+            shrinkWrap: true,
+            itemCount: backups.length,
+            separatorBuilder: (_, __) => const Divider(height: 1),
+            itemBuilder: (_, index) {
+              final backup = backups[index];
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: const Icon(Icons.storage_rounded),
+                title: Text(_formatBackupDate(backup.createdAt)),
+                subtitle: Text(_formatBackupSize(backup.sizeBytes)),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.pop(dialogContext, backup),
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
+    );
+    if (selected == null || !rootContext.mounted) return;
+
+    var confirmed = false;
+    await showDialog<void>(
+      context: rootContext,
+      useRootNavigator: true,
+      builder: (_) => ActionWarningDialog(
+        title: 'Restore This Backup?',
+        content:
+            'This replaces current operational records with the selected local snapshot. Your login and settings stay unchanged. Another safety backup will be created first, so this action can also be reversed.',
+        actionLabel: 'Restore Backup',
+        actionColor: AppTheme.primaryColor,
+        icon: Icons.restore_rounded,
+        onConfirm: () => confirmed = true,
+      ),
+    );
+    if (!confirmed || !rootContext.mounted) return;
+
+    if (context.mounted) Navigator.of(context).pop();
+    await Future<void>.delayed(const Duration(milliseconds: 120));
+    if (!rootContext.mounted) return;
+    showDialog<void>(
+      context: rootContext,
+      useRootNavigator: true,
+      barrierDismissible: false,
+      builder: (_) => const PopScope(
+        canPop: false,
+        child: AlertDialog(
+          content: Row(
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(width: 20),
+              Expanded(child: Text('Restoring local backup safely…')),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    try {
+      await service.restoreLocalBackup(selected);
+      providerContainer.invalidate(wagonListProvider);
+      providerContainer.invalidate(truckListProvider);
+      providerContainer.invalidate(layerListProvider);
+      if (!rootContext.mounted) return;
+      Navigator.of(rootContext, rootNavigator: true).pop();
+      ScaffoldMessenger.of(rootContext).showSnackBar(const SnackBar(
+        content: Text('Previous local data restored successfully.'),
+      ));
+    } catch (error, stackTrace) {
+      debugPrint('Local backup restore failed: $error\n$stackTrace');
+      if (!rootContext.mounted) return;
+      Navigator.of(rootContext, rootNavigator: true).pop();
+      ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
+        content: Text('Could not restore backup: $error'),
+        backgroundColor: AppTheme.errorColor,
+        duration: const Duration(seconds: 12),
+      ));
+    }
+  }
+
+  String _formatBackupDate(DateTime value) {
+    final local = value.toLocal();
+    String two(int number) => number.toString().padLeft(2, '0');
+    return '${two(local.day)}/${two(local.month)}/${local.year}  '
+        '${two(local.hour)}:${two(local.minute)}';
+  }
+
+  String _formatBackupSize(int bytes) {
+    if (bytes >= 1024 * 1024) {
+      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    }
+    return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  }
+
+  Future<void> _deletePickerCopy(File? zip, Directory? folder) async {
+    try {
+      if (zip != null && await zip.exists()) await zip.delete();
+      if (folder != null && await folder.exists()) {
+        await folder.delete(recursive: true);
+      }
+    } catch (_) {
+      // Import already completed (or produced its own useful error). Cleanup
+      // failure must not replace that result with another user-facing error.
+    }
   }
 
   void _confirmLogout(BuildContext context, WidgetRef ref) {

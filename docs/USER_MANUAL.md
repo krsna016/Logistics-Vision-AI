@@ -32,10 +32,11 @@ Before using the app, it's crucial to understand the three main tiers of the wor
 
 ### A. Login, Saved Session, and Logout
 1. Log in with your Employee ID and password.
-2. After a successful online login, closing and reopening the app keeps your session saved on this device. The same credentials may be used offline for up to 24 hours after that online login.
-3. To end the session, open the app drawer and select **Logout**.
-4. A warning dialog appears before anything changes. Select **Cancel** to stay signed in, or **Log out** to return to the login screen.
-5. Logging out only ends the login session. It does not delete wagons, trucks, layers, captured reference photos, or reports stored locally. Access may also end if an administrator revokes or disables the account.
+2. The Wagon Control Center opens as soon as authentication succeeds. The AI counting engine and bounded offline access are prepared in the background; if counting is opened immediately, it waits safely for preparation to finish.
+3. After a successful online login, closing and reopening the app keeps your session saved on this device. The same credentials may be used offline for up to 24 hours after that online login.
+4. To end the session, open the app drawer and select **Logout**.
+5. A warning dialog appears before anything changes. Select **Cancel** to stay signed in, or **Log out** to return to the login screen.
+6. Logging out only ends the login session. It does not delete wagons, trucks, layers, captured reference photos, or reports stored locally. Access may also end if an administrator revokes or disables the account.
 
 ### B. The Wagon Control Center (Dashboard)
 When you open the app, you land on the **Wagon Control Center**. This is your main dashboard.
@@ -95,6 +96,8 @@ This is the flagship feature of SmartLoad. You use this screen while standing at
 8. Tap **Confirm & Save** only after the photo, count, item allocation, and defect count agree.
 
 Every confirmed layer is logged to its truck, and source-derived truck and wagon totals update atomically.
+
+In **Layer History**, tap a reference photo to open the verification viewer. Its fixed top card keeps the layer number and total carton count visible while zooming. Enable **Show masks** to overlay the verified carton polygons and numbers saved during AI review. The toggle is unavailable for older or manually counted layers that have no saved AI masks.
 
 ---
 

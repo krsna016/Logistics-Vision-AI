@@ -7,10 +7,13 @@ import '../../domain/entities/detection.dart';
 import '../../data/repositories_impl/onnx_inference_repository.dart';
 import 'inference_state.dart';
 import '../../../../utils/logger.dart';
+import '../../../../core/providers/ai_camera_settings_provider.dart';
 
 // Provider pointing to the concrete inference engine
 final inferenceRepositoryProvider = Provider<InferenceRepository>((ref) {
-  return ONNXInferenceRepository();
+  return ONNXInferenceRepository(
+    settingsReady: ref.read(aiCameraSettingsLoaderProvider.future),
+  );
 });
 
 // App-scoped inference service. Once loaded, the large ONNX session stays warm

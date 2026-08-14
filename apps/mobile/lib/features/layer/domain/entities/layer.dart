@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../camera/domain/entities/detection.dart';
 import '../../../truck/domain/entities/truck.dart';
 
 @immutable
@@ -111,6 +112,7 @@ class LayerRecord {
   final String? photoPath;
   final String? croppedPhotoPath;
   final CountingRegion? countingRegion;
+  final List<Detection> detections;
   final String? notes;
   final String? itemName;
   final List<LayerItemAllocation> itemAllocations;
@@ -132,6 +134,7 @@ class LayerRecord {
     this.photoPath,
     this.croppedPhotoPath,
     this.countingRegion,
+    this.detections = const [],
     this.notes,
     this.itemName,
     this.itemAllocations = const [],
@@ -154,6 +157,7 @@ class LayerRecord {
     String? photoPath,
     String? croppedPhotoPath,
     CountingRegion? countingRegion,
+    List<Detection>? detections,
     String? notes,
     String? itemName,
     List<LayerItemAllocation>? itemAllocations,
@@ -175,6 +179,7 @@ class LayerRecord {
       photoPath: photoPath ?? this.photoPath,
       croppedPhotoPath: croppedPhotoPath ?? this.croppedPhotoPath,
       countingRegion: countingRegion ?? this.countingRegion,
+      detections: detections ?? this.detections,
       notes: notes ?? this.notes,
       itemName: itemName ?? this.itemName,
       itemAllocations: itemAllocations ?? this.itemAllocations,

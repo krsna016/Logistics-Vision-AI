@@ -1,9 +1,10 @@
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mobile/core/database/app_database.dart';
+import 'package:mobile/core/database/app_database.dart' hide Detection;
 import 'package:mobile/features/layer/data/repositories_impl/local_layer_repository.dart';
 import 'package:mobile/features/layer/domain/entities/layer.dart';
+import 'package:mobile/features/camera/domain/entities/detection.dart';
 import 'package:mobile/features/truck/data/repositories_impl/local_truck_repository.dart';
 import 'package:mobile/features/wagon/data/repositories_impl/local_wagon_repository.dart';
 import 'package:mobile/features/register/data/repositories_impl/local_register_repository.dart';
@@ -143,6 +144,25 @@ void main() {
       averageConfidence: 0.9,
       createdAt: now,
       updatedAt: now,
+      detections: const [
+        Detection(
+          id: 'saved-mask-1',
+          boundingBox: BoundingBox(
+            xMin: 0.1,
+            yMin: 0.2,
+            xMax: 0.4,
+            yMax: 0.6,
+          ),
+          label: 'carton',
+          confidence: 0.95,
+          polygon: [
+            [0.1, 0.2],
+            [0.4, 0.2],
+            [0.4, 0.6],
+            [0.1, 0.6],
+          ],
+        ),
+      ],
     ));
 
     final truck = await database.select(database.trucks).getSingle();
@@ -155,6 +175,12 @@ void main() {
     expect(session.averageConfidence, closeTo((0.8 + 0.6 + 0.9) / 3, 0.0001));
     expect(queued.map((item) => item.entityType).toSet(),
         containsAll(<String>{'Layer', 'Truck', 'LoadingSession'}));
+    final savedLayer =
+        (await LocalLayerRepository(database).getLayersByTruck('truck-1'))
+            .firstWhere((layer) => layer.id == 'layer-3');
+    expect(savedLayer.detections, hasLength(1));
+    expect(savedLayer.detections.single.polygon, hasLength(4));
+    expect(savedLayer.detections.single.polygon.first, [0.1, 0.2]);
   });
 
   test('database rejects two active layers with the same truck number',
@@ -323,6 +349,52 @@ void main() {
     expect(audit.action, 'correct');
     expect(audit.details, contains('Photo added'));
     expect(audit.details, contains('Photo was missed during capture'));
+  });
+
+  test('verified boxes update only the selected layer and are audited',
+      () async {
+    await seedWagonTruck();
+    final repository = LocalLayerRepository(database);
+    final layers = await repository.getLayersByTruck('truck-1');
+    final selected = layers.firstWhere((layer) => layer.id == 'layer-1');
+    const verified = [
+      Detection(
+        id: 'verified-1',
+        boundingBox: BoundingBox(xMin: 0.1, yMin: 0.1, xMax: 0.3, yMax: 0.3),
+        label: 'carton',
+        confidence: 1,
+      ),
+      Detection(
+        id: 'verified-2',
+        boundingBox: BoundingBox(xMin: 0.4, yMin: 0.1, xMax: 0.6, yMax: 0.3),
+        label: 'carton',
+        confidence: 1,
+      ),
+    ];
+
+    await repository.updateLayer(
+      selected.copyWith(
+        cartonCount: verified.length,
+        detections: verified,
+        itemAllocations: const [
+          LayerItemAllocation(itemName: 'Item A', quantity: 1),
+          LayerItemAllocation(itemName: 'Item B', quantity: 1),
+        ],
+      ),
+      correctionReason: 'Verified boxes updated from Layer History',
+    );
+
+    final stored = await repository.getLayersByTruck('truck-1');
+    final updated = stored.firstWhere((layer) => layer.id == 'layer-1');
+    final untouched = stored.firstWhere((layer) => layer.id == 'layer-2');
+    expect(updated.cartonCount, 2);
+    expect(updated.detections.map((item) => item.id),
+        ['verified-1', 'verified-2']);
+    expect(untouched.cartonCount, 20);
+    expect(untouched.detections, isEmpty);
+    final audits = await database.select(database.auditLogs).get();
+    expect(audits.single.entityId, 'layer-1');
+    expect(audits.single.details, contains('Verified carton boxes updated'));
   });
 
   test('enterprise demo data is balanced and covers operational edge cases',

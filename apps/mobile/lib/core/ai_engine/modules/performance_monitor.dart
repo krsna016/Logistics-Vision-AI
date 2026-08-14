@@ -62,6 +62,16 @@ class PerformanceMonitor {
     );
   }
 
+  void reset() {
+    _frameCount = 0;
+    _totalDetections = 0;
+    _lastFpsTime = DateTime.now();
+    _currentFps = 0;
+    _inferenceHistory.clear();
+    _preProcessingHistory.clear();
+    _postProcessingHistory.clear();
+  }
+
   double _average(List<double> values) => values.isEmpty
       ? 0.0
       : values.reduce((first, second) => first + second) / values.length;

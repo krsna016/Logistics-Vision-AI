@@ -261,7 +261,9 @@ Only use the access level assigned to you. If an action is unavailable, ask the 
 2. Enter your employee ID or configured login identifier.
 3. Enter your password.
 4. Tap Login.
-5. Wait for the Wagon Control Center.
+5. The Wagon Control Center opens as soon as authentication succeeds.
+
+The AI counting engine and 24-hour offline access are prepared in the background after an online login. If counting is opened immediately, it waits safely for preparation to finish.
 
 In non-production builds, **Demo Entry** opens a temporary Demo Operator session without credentials. It does not create a server token or begin tracking. This control is unavailable in production builds.
 
@@ -271,7 +273,7 @@ Digital Register truck rows show the meaningful vehicle and driver details. Inte
 
 ### Startup
 
-The app prepares the shared AI counting engine during startup. It reuses the same engine for later layer captures. If the phone was closed during an active loading session, the app may offer Continue Loading. Choose Continue to return to that vehicle. Choose Discard only when the unfinished session should be cancelled.
+The app opens the Wagon Control Center first, then prepares the shared AI counting engine in the background. It reuses the same engine for later layer captures. If the phone was closed during an active loading session, the app may offer Continue Loading. Choose Continue to return to that vehicle. Choose Discard only when the unfinished session should be cancelled.
 
 ### Logout
 
@@ -564,6 +566,8 @@ It contains:
 - Reference photo
 - Operator notes
 - Operator identity and timestamp
+
+Tap a layer reference photo to open the verification viewer. The compact bar at the top keeps the layer number and total cartons visible while you zoom. Use the mask and number buttons independently. For editable layers, tap an empty image area to add a missing carton or tap an existing carton outline to remove it, exactly like the Review screen. Every change saves automatically to that layer and updates its carton total and related totals. Older layers may not have saved AI polygons, but an editable layer can still be corrected manually.
 
 ### Correct an existing layer
 
@@ -1123,13 +1127,15 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 2. कर्मचारी ID या दिया गया लॉगिन पहचान दर्ज करें।
 3. पासवर्ड दर्ज करें।
 4. Login दबाएं।
-5. Wagon Control Center खुलने दें।
+5. Authentication सफल होते ही Wagon Control Center खुल जाता है।
+
+Online login के बाद AI counting engine और 24 घंटे की offline access तैयारी background में होती है। यदि counting तुरंत खोली जाए, तो तैयारी पूरी होने तक वह सुरक्षित रूप से प्रतीक्षा करती है।
 
 लॉगिन किए हुए उपयोगकर्ता का नाम नई लेयर में ऑपरेटर और रिपोर्ट में सुपरवाइजर के रूप में उपयोग होता है। इसलिए एक ही लॉगिन से किए काम में उसी व्यक्ति का नाम होना चाहिए।
 
 ### स्टार्टअप
 
-ऐप शुरू होते समय साझा AI इंजन तैयार करता है और बाद की सभी लेयर में उसी इंजन का उपयोग करता है। यदि फोन सक्रिय लोडिंग के बीच बंद हुआ था, तो Continue Loading संदेश आ सकता है। वही वाहन हो तो Continue चुनें। सेशन वास्तव में रद्द करना हो तभी Discard चुनें।
+ऐप पहले Wagon Control Center खोलता है और फिर background में साझा AI इंजन तैयार करता है। बाद की सभी लेयर में उसी इंजन का उपयोग होता है। यदि फोन सक्रिय लोडिंग के बीच बंद हुआ था, तो Continue Loading संदेश आ सकता है। वही वाहन हो तो Continue चुनें। सेशन वास्तव में रद्द करना हो तभी Discard चुनें।
 
 ### लॉगआउट
 
@@ -1398,6 +1404,8 @@ AI कार्टन छोड़ दे तो उपलब्ध कंट्
 ## 13. लेयर हिस्ट्री, सुधार और हटाना
 
 हर सेव लेयर में नंबर, कार्टन, आइटम मात्रा, डिफेक्ट, फोटो, नोट, ऑपरेटर और समय दिखता है।
+
+लेयर की reference photo दबाकर verification viewer खोलें। ऊपर compact bar में zoom करते समय भी layer number और total cartons दिखते हैं। Mask और carton number को अलग-अलग चालू या बंद कर सकते हैं। Editable layer में खाली जगह दबाने पर missing carton जुड़ता है और existing carton outline दबाने पर वह हटता है—बिल्कुल Review screen की तरह। हर बदलाव उसी layer में अपने आप save होकर carton और related totals update करता है। पुराने layer में AI polygon न हो तो भी editable layer में carton manually जोड़ा जा सकता है।
 
 ### पुरानी लेयर सुधारना
 

@@ -9,6 +9,8 @@ import '../../../../utils/logger.dart';
 import 'package:flutter/services.dart';
 import 'package:onnxruntime/onnxruntime.dart';
 
+import '../ai_camera_settings.dart';
+
 class ModelManager {
   AIModel? _activeModel;
   OrtSession? _session;
@@ -57,6 +59,7 @@ class ModelManager {
     final ownedSession = await _OwnedSessionIsolate.create(
       bytes: bytes,
       expectedSha256: model.expectedSha256,
+      intraOpThreads: AiCameraSettings.processingThreads.value,
     );
     OrtEnv.instance.init();
     _envInitialized = true;
@@ -72,7 +75,8 @@ class ModelManager {
       'Loaded ONNX model: ${model.name} v${model.version} '
       '(${_session!.inputNames} -> ${_session!.outputNames}); '
       'integrity=${ownedSession.integrityMs}ms, '
-      'session=${ownedSession.sessionMs}ms (background worker)',
+      'session=${ownedSession.sessionMs}ms, '
+      'cpuWorkers=${ownedSession.intraOpThreads} (background worker)',
     );
   }
 
@@ -146,6 +150,7 @@ class _OwnedSessionIsolate {
   final int sessionAddress;
   final int integrityMs;
   final int sessionMs;
+  final int intraOpThreads;
 
   const _OwnedSessionIsolate._({
     required Isolate isolate,
@@ -153,12 +158,14 @@ class _OwnedSessionIsolate {
     required this.sessionAddress,
     required this.integrityMs,
     required this.sessionMs,
+    required this.intraOpThreads,
   })  : _isolate = isolate,
         _controlPort = controlPort;
 
   static Future<_OwnedSessionIsolate> create({
     required Uint8List bytes,
     required String expectedSha256,
+    required int intraOpThreads,
   }) async {
     final replies = ReceivePort();
     final errors = ReceivePort();
@@ -168,6 +175,7 @@ class _OwnedSessionIsolate {
         'replyPort': replies.sendPort,
         'bytes': TransferableTypedData.fromList(<Uint8List>[bytes]),
         'expectedSha256': expectedSha256,
+        'intraOpThreads': intraOpThreads,
       },
       debugName: 'SmartLoadAiRuntimeInitializer',
       onError: errors.sendPort,
@@ -190,6 +198,7 @@ class _OwnedSessionIsolate {
         sessionAddress: response['sessionAddress']! as int,
         integrityMs: response['integrityMs']! as int,
         sessionMs: response['sessionMs']! as int,
+        intraOpThreads: response['intraOpThreads']! as int,
       );
     } catch (_) {
       isolate.kill(priority: Isolate.immediate);
@@ -235,8 +244,9 @@ Future<void> _createOwnedOnnxSession(Map<String, Object?> message) async {
 
     final sessionWatch = Stopwatch()..start();
     OrtEnv.instance.init();
+    final intraOpThreads = (message['intraOpThreads'] as int?) == 4 ? 4 : 2;
     options = OrtSessionOptions()
-      ..setIntraOpNumThreads(2)
+      ..setIntraOpNumThreads(intraOpThreads)
       ..setInterOpNumThreads(1)
       ..setSessionGraphOptimizationLevel(GraphOptimizationLevel.ortEnableAll);
     session = OrtSession.fromBuffer(bytes, options);
@@ -249,6 +259,7 @@ Future<void> _createOwnedOnnxSession(Map<String, Object?> message) async {
       'sessionAddress': session.address,
       'integrityMs': integrityWatch.elapsedMilliseconds,
       'sessionMs': sessionWatch.elapsedMilliseconds,
+      'intraOpThreads': intraOpThreads,
       'controlPort': controls.sendPort,
     });
 

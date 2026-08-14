@@ -2,7 +2,7 @@ name: mobile
 description: "Logistics Vision AI - Mobile client application"
 publish_to: 'none'
 
-version: 1.0.17+4017
+version: 1.0.18+10020
 
 environment:
   sdk: '>=3.2.0 <4.0.0'
@@ -55,7 +55,6 @@ dependencies:
   excel: ^4.0.6
   qr_flutter: ^4.1.0
   jwt_decoder: ^2.0.1
-  file_selector: ^1.1.0
   desktop_drop: ^0.7.1
 
   path: any
@@ -78,4 +77,3 @@ flutter:
   assets:
     - assets/images/
     - assets/models/stage1_carton_yolo26m_seg_960.onnx
-    - assets/models/stage1_carton_yolo26m_seg.onnx

@@ -53,27 +53,4 @@ class AIModel {
           'Stage 1 YOLO26m instance-segmentation checkpoint exported to ONNX at 960 px. Metrics are final-epoch internal validation mask metrics (mAP50 0.98290, precision 0.95921, recall 0.94627), not independent warehouse acceptance results. Counting threshold: 0.27.',
     );
   }
-
-  factory AIModel.modelForInputSize(int size) {
-    if (size == 640) {
-      return AIModel(
-        id: '${activeVersion}_640',
-        name: 'YOLO26m Stage 1 Carton Segmentation Model (640)',
-        version: '1.0.0-640',
-        trainingDate: DateTime(2026, 8, 9),
-        deploymentDate: DateTime(2026, 8, 10),
-        inputWidth: 640,
-        inputHeight: 640,
-        outputClasses: const ['carton'],
-        expectedMap: 0.98290,
-        expectedPrecision: 0.95921,
-        expectedRecall: 0.94627,
-        assetPath: 'assets/models/stage1_carton_yolo26m_seg.onnx',
-        expectedSha256:
-            '3dfbbc32bac3e5124e83e1bf2edf39747f5aaf9b0e678126d287dbf0295e721b',
-        developerNotes: '640 x 640 packaged model for fast carton analysis.',
-      );
-    }
-    return AIModel.modelB();
-  }
 }

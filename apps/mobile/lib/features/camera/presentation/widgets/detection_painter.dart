@@ -81,6 +81,7 @@ class DetectionPainter extends CustomPainter {
   final String? selectedId;
   final bool showLabels;
   final bool showNumbers;
+  final bool showOutlines;
   final bool useDarkPalette;
 
   DetectionPainter({
@@ -90,6 +91,7 @@ class DetectionPainter extends CustomPainter {
     this.selectedId,
     this.showLabels = true,
     this.showNumbers = false,
+    this.showOutlines = true,
     this.useDarkPalette = false,
   });
 
@@ -162,26 +164,29 @@ class DetectionPainter extends CustomPainter {
           detection.boundingBox.yMax * cameraSize.height * scale + dy;
 
       final rect = Rect.fromLTRB(left, top, right, bottom);
-      if (detection.polygon.length >= 3) {
-        final path = Path();
-        for (var i = 0; i < detection.polygon.length; i++) {
-          final point = detection.polygon[i];
-          if (point.length < 2) continue;
-          final px = point[0] * cameraSize.width * scale + dx;
-          final py = point[1] * cameraSize.height * scale + dy;
-          if (i == 0) {
-            path.moveTo(px, py);
-          } else {
-            path.lineTo(px, py);
+      if (showOutlines) {
+        if (detection.polygon.length >= 3) {
+          final path = Path();
+          for (var i = 0; i < detection.polygon.length; i++) {
+            final point = detection.polygon[i];
+            if (point.length < 2) continue;
+            final px = point[0] * cameraSize.width * scale + dx;
+            final py = point[1] * cameraSize.height * scale + dy;
+            if (i == 0) {
+              path.moveTo(px, py);
+            } else {
+              path.lineTo(px, py);
+            }
           }
+          path.close();
+          canvas.drawPath(path, fillPaint);
+          canvas.drawPath(path, outlinePaint);
+        } else {
+          final rounded =
+              RRect.fromRectAndRadius(rect, const Radius.circular(3));
+          canvas.drawRRect(rounded, fillPaint);
+          canvas.drawRRect(rounded, outlinePaint);
         }
-        path.close();
-        canvas.drawPath(path, fillPaint);
-        canvas.drawPath(path, outlinePaint);
-      } else {
-        final rounded = RRect.fromRectAndRadius(rect, const Radius.circular(3));
-        canvas.drawRRect(rounded, fillPaint);
-        canvas.drawRRect(rounded, outlinePaint);
       }
 
       if (showNumbers) {
@@ -225,6 +230,7 @@ class DetectionPainter extends CustomPainter {
         oldDelegate.selectedId != selectedId ||
         oldDelegate.showLabels != showLabels ||
         oldDelegate.showNumbers != showNumbers ||
+        oldDelegate.showOutlines != showOutlines ||
         oldDelegate.useDarkPalette != useDarkPalette;
   }
 

@@ -46,7 +46,11 @@ class OfflineAuthenticationImpl implements OfflineAuthentication {
     }
 
     // 3. Verify
-    bool isValid = _passwordHasher.verifyPassword(password, storedHash, salt);
+    final isValid = await _passwordHasher.verifyPasswordAsync(
+      password,
+      storedHash,
+      salt,
+    );
 
     if (!isValid) {
       // Increment failed attempts
@@ -96,7 +100,7 @@ class OfflineAuthenticationImpl implements OfflineAuthentication {
     final normalizedEmployeeId = user.employeeId.trim().toUpperCase();
     // 1. Generate salt & hash
     final salt = _passwordHasher.generateSalt();
-    final hash = _passwordHasher.hashPassword(password, salt);
+    final hash = await _passwordHasher.hashPasswordAsync(password, salt);
 
     // 2. Store securely
     await _credentialStorage.storeCredentials(normalizedEmployeeId, hash, salt);
@@ -126,7 +130,8 @@ class OfflineAuthenticationImpl implements OfflineAuthentication {
     }
 
     final newSalt = _passwordHasher.generateSalt();
-    final newHash = _passwordHasher.hashPassword(newPassword, newSalt);
+    final newHash =
+        await _passwordHasher.hashPasswordAsync(newPassword, newSalt);
 
     await _credentialStorage.storeCredentials(employeeId, newHash, newSalt);
     return true;

@@ -5,26 +5,25 @@ import 'package:flutter/foundation.dart';
 class AiCameraSettings {
   AiCameraSettings._();
 
+  static const int modelInputSize = 960;
+
   static final ValueNotifier<double> confidence = ValueNotifier<double>(0.27);
-  static final ValueNotifier<int> inputSize = ValueNotifier<int>(960);
   static final ValueNotifier<double> iou = ValueNotifier<double>(0.70);
-  static final ValueNotifier<int> cropQuality = ValueNotifier<int>(96);
+  static final ValueNotifier<int> cropQuality = ValueNotifier<int>(98);
   static final ValueNotifier<bool> detailedMasks = ValueNotifier<bool>(true);
-  static final ValueNotifier<bool> showTimings = ValueNotifier<bool>(false);
+  static final ValueNotifier<int> processingThreads = ValueNotifier<int>(4);
 
   static void apply({
     required double confidenceValue,
-    required int inputSizeValue,
     required double iouValue,
     required int cropQualityValue,
     required bool detailedMasksValue,
-    required bool showTimingsValue,
+    required int processingThreadsValue,
   }) {
-    confidence.value = confidenceValue;
-    inputSize.value = inputSizeValue == 640 ? 640 : 960;
-    iou.value = iouValue;
-    cropQuality.value = cropQualityValue;
+    confidence.value = confidenceValue.clamp(0.05, 1.0).toDouble();
+    iou.value = iouValue.clamp(0.20, 0.95).toDouble();
+    cropQuality.value = cropQualityValue.clamp(85, 100).toInt();
     detailedMasks.value = detailedMasksValue;
-    showTimings.value = showTimingsValue;
+    processingThreads.value = processingThreadsValue >= 4 ? 4 : 2;
   }
 }

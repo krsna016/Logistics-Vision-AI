@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mobile/core/ai_engine/models/detection_result.dart';
 import 'package:mobile/core/ai_engine/modules/postprocessor.dart';
+import 'package:mobile/core/ai_engine/modules/detection_validator.dart';
 import 'package:mobile/core/ai_engine/modules/tracking_engine.dart';
 
 DetectionResult box(
@@ -83,6 +84,21 @@ void main() {
     expect(detections.single.yMin, closeTo(0.20, 0.001));
     expect(detections.single.xMax, closeTo(0.50, 0.001));
     expect(detections.single.yMax, closeTo(0.60, 0.001));
+  });
+
+  test('validator does not override a configurable low confidence threshold',
+      () {
+    const detection = DetectionResult(
+      id: 'low-but-allowed',
+      label: 'carton',
+      confidence: .10,
+      xMin: .1,
+      yMin: .1,
+      xMax: .2,
+      yMax: .2,
+    );
+
+    expect(DetectionValidator().validate([detection]), [detection]);
   });
 
   test('postprocessor preserves adjacent overlapping cartons below NMS IoU',

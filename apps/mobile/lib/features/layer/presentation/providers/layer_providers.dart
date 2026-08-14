@@ -4,6 +4,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 
 import '../../domain/entities/layer.dart';
+import '../../../camera/domain/entities/detection.dart';
 import '../../domain/repositories/layer_repository.dart';
 import '../../data/repositories_impl/local_layer_repository.dart';
 import '../../../truck/presentation/providers/truck_providers.dart';
@@ -133,6 +134,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     String? photoPath,
     String? croppedPhotoPath,
     CountingRegion? countingRegion,
+    List<Detection> detections = const [],
   }) async {
     if (cartonCount <= 0 || cartonCount > 9999) {
       return 'Enter a carton count from 1 to 9,999.';
@@ -215,6 +217,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         photoPath: photoPath,
         croppedPhotoPath: croppedPhotoPath,
         countingRegion: countingRegion,
+        detections: detections,
         notes: notes,
         itemName:
             itemAllocations.length == 1 ? itemAllocations.first.itemName : null,
@@ -274,6 +277,81 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
       AppLogger.error('Failed to update notes', e);
       return 'Failed to update notes.';
     }
+  }
+
+  Future<String?> updateLayerDetections(
+    String layerId,
+    List<Detection> detections,
+  ) async {
+    try {
+      final index = state.layers.indexWhere((layer) => layer.id == layerId);
+      if (index < 0) return 'Layer not found.';
+      final current = state.layers[index];
+      final cartonCount = detections.length;
+      final resizedAllocations = _resizeAllocations(
+        current.itemAllocations,
+        cartonCount,
+      );
+      final updated = current.copyWith(
+        cartonCount: cartonCount,
+        defectCount: current.defectCount.clamp(0, cartonCount),
+        detections: List<Detection>.of(detections),
+        itemAllocations: resizedAllocations,
+        itemName: resizedAllocations.length == 1
+            ? resizedAllocations.first.itemName
+            : current.itemName,
+        updatedAt: DateTime.now(),
+      );
+      await _layerRepository.updateLayer(
+        updated,
+        correctionReason: 'Verified boxes updated from Layer History',
+      );
+      await _ref
+          .read(activeSessionProvider.notifier)
+          .refreshTotalsForTruck(_truckId);
+      await _ref.read(truckListProvider.notifier).refresh();
+      await refresh();
+      final truck =
+          await _ref.read(truckRepositoryProvider).getTruckById(_truckId);
+      if (truck?.wagonId != null) {
+        _ref.invalidate(wagonInventoryProvider(truck!.wagonId!));
+      }
+      return null;
+    } catch (error) {
+      AppLogger.error('Failed to update verified layer boxes', error);
+      return 'Failed to save verified boxes.';
+    }
+  }
+
+  List<LayerItemAllocation> _resizeAllocations(
+    List<LayerItemAllocation> current,
+    int cartonCount,
+  ) {
+    if (current.isEmpty || cartonCount == 0) return const [];
+    var remaining = cartonCount;
+    final result = <LayerItemAllocation>[];
+    for (var index = 0; index < current.length && remaining > 0; index++) {
+      final allocation = current[index];
+      final isLast = index == current.length - 1;
+      final quantity = isLast
+          ? remaining
+          : (allocation.quantity < remaining ? allocation.quantity : remaining);
+      if (quantity > 0) {
+        result.add(LayerItemAllocation(
+          itemName: allocation.itemName,
+          quantity: quantity,
+        ));
+        remaining -= quantity;
+      }
+    }
+    if (remaining > 0 && result.isNotEmpty) {
+      final last = result.removeLast();
+      result.add(LayerItemAllocation(
+        itemName: last.itemName,
+        quantity: last.quantity + remaining,
+      ));
+    }
+    return result;
   }
 
   Future<String?> correctLayer({

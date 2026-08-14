@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -58,9 +60,20 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
             if (mounted && !_hasNavigated) {
               _hasNavigated = true;
               if (user != null) {
-                await _prepareSharedAiRuntime();
-                if (!mounted) return;
+                final inferenceNotifier =
+                    ref.read(inferenceNotifierProvider.notifier);
                 context.go('/wagons');
+                unawaited(Future<void>.delayed(Duration.zero, () async {
+                  try {
+                    await inferenceNotifier.ensureModelReady();
+                  } catch (error, stack) {
+                    AppLogger.error(
+                      'Startup AI preparation failed',
+                      error,
+                      stack,
+                    );
+                  }
+                }));
               } else {
                 context.go('/login');
               }
@@ -69,15 +82,6 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
         });
       }
     });
-  }
-
-  Future<void> _prepareSharedAiRuntime() async {
-    try {
-      await ref.read(inferenceNotifierProvider.notifier).ensureModelReady();
-    } catch (error, stack) {
-      // Keep the dashboard usable. Capture can retry this same shared runtime.
-      AppLogger.error('Startup AI preparation failed', error, stack);
-    }
   }
 
   @override

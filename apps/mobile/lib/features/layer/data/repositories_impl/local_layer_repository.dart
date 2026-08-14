@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
 import '../../domain/entities/layer.dart';
+import '../models/layer_model.dart';
 import '../../domain/repositories/layer_repository.dart';
+import '../../../camera/domain/entities/detection.dart';
 import '../../../truck/domain/entities/truck.dart';
-import '../../../../core/database/app_database.dart';
+import '../../../../core/database/app_database.dart' hide Detection;
 import '../../../../core/storage/image_storage_service.dart';
 import '../../../../utils/logger.dart';
 
@@ -31,6 +33,19 @@ class LocalLayerRepository implements LayerRepository {
             itemName: data.itemName!.trim(), quantity: data.cartonCount),
       ];
     }
+    var detections = const <Detection>[];
+    try {
+      detections = (jsonDecode(data.detectionsJson) as List<dynamic>)
+          .whereType<Map<String, dynamic>>()
+          .map(LayerModel.detectionFromJson)
+          .toList(growable: false);
+    } catch (error, stack) {
+      AppLogger.warning(
+        'Ignored unreadable saved masks for layer ${data.id}',
+        error,
+        stack,
+      );
+    }
     return LayerRecord(
       id: data.id,
       truckId: data.truckId,
@@ -42,6 +57,7 @@ class LocalLayerRepository implements LayerRepository {
       photoPath: data.photoPath,
       croppedPhotoPath: data.croppedPhotoPath,
       countingRegion: _decodeCountingRegion(data.countingRegionJson),
+      detections: detections,
       notes: data.notes,
       itemName: data.itemName,
       itemAllocations: allocations,
@@ -83,6 +99,9 @@ class LocalLayerRepository implements LayerRepository {
             countingRegionJson: drift.Value(layer.countingRegion == null
                 ? null
                 : jsonEncode(layer.countingRegion!.toJson())),
+            detectionsJson: drift.Value(jsonEncode(
+              layer.detections.map(LayerModel.detectionToJson).toList(),
+            )),
             notes: drift.Value(layer.notes),
             itemName: drift.Value(layer.itemName),
             itemAllocationsJson: drift.Value(jsonEncode(layer.itemAllocations
@@ -190,6 +209,9 @@ class LocalLayerRepository implements LayerRepository {
     final nextAllocationsJson = jsonEncode(layer.itemAllocations
         .map((allocation) => allocation.toJson())
         .toList());
+    final nextDetectionsJson = jsonEncode(
+      layer.detections.map(LayerModel.detectionToJson).toList(),
+    );
     final allocatedCartons = layer.itemAllocations
         .fold<int>(0, (sum, allocation) => sum + allocation.quantity);
     final effectiveCartons =
@@ -207,6 +229,7 @@ class LocalLayerRepository implements LayerRepository {
         countingRegionJson: drift.Value(layer.countingRegion == null
             ? null
             : jsonEncode(layer.countingRegion!.toJson())),
+        detectionsJson: drift.Value(nextDetectionsJson),
         notes: drift.Value(layer.notes),
         itemName: drift.Value(layer.itemName),
         itemAllocationsJson: drift.Value(nextAllocationsJson),
@@ -245,8 +268,9 @@ class LocalLayerRepository implements LayerRepository {
       final countChanged = existing.cartonCount != effectiveCartons ||
           existing.defectCount != layer.defectCount ||
           existing.itemAllocationsJson != nextAllocationsJson;
+      final detectionsChanged = existing.detectionsJson != nextDetectionsJson;
       final photoChanged = existing.photoPath != layer.photoPath;
-      if (countChanged || photoChanged) {
+      if (countChanged || detectionsChanged || photoChanged) {
         await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
               id: 'audit_layer_correct_${DateTime.now().microsecondsSinceEpoch}',
               entityId: layer.id,
@@ -259,6 +283,7 @@ class LocalLayerRepository implements LayerRepository {
                 '${existing.defectCount} -> ${layer.defectCount}. Reason: '
                 '${correctionReason?.trim().isNotEmpty == true ? correctionReason!.trim() : 'Not provided'}'
                 '${photoChanged ? ' (Photo ${existing.photoPath == null ? 'added' : 'replaced'})' : ''}. '
+                '${detectionsChanged ? 'Verified carton boxes updated. ' : ''}'
                 'Items: ${existing.itemAllocationsJson} -> $nextAllocationsJson',
               ),
             ));

@@ -67,6 +67,7 @@ class Layers extends Table with SyncMetadata {
 
   /// JSON normalized rectangle used to produce [croppedPhotoPath].
   TextColumn get countingRegionJson => text().nullable()();
+  TextColumn get detectionsJson => text().withDefault(const Constant('[]'))();
   TextColumn get notes => text().nullable()();
   TextColumn get itemName => text().nullable()();
   TextColumn get itemAllocationsJson =>

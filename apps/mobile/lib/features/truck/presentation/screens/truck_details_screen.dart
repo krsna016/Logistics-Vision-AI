@@ -265,6 +265,11 @@ class TruckDetailsScreen extends ConsumerWidget {
                         ),
                       );
                     },
+                    onSaveDetections: (layer, detections) =>
+                        layerNotifier.updateLayerDetections(
+                      layer.id,
+                      detections,
+                    ),
                   ),
 
                 // bottom padding for sticky bar
@@ -295,8 +300,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                   ? null
                   : () => context.push('/trucks/$truckId/camera'),
               onComplete: !isWorkflowReadOnly && layerState.layers.isNotEmpty
-                  ? () => _confirmComplete(
-                      context, notifier, sessionNotifier, truck)
+                  ? () => _confirmComplete(context, sessionNotifier, truck)
                   : null,
               onArchive:
                   truck.status == TruckStatus.completed && !truck.isArchived
@@ -1037,63 +1041,29 @@ class TruckDetailsScreen extends ConsumerWidget {
     });
   }
 
-  Widget _buildMetricSub(String label, String value, {bool isAlert = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: const TextStyle(color: AppTheme.textSecondary)),
-        Text(
-          value,
-          style: TextStyle(
-            color: isAlert ? AppTheme.errorColor : Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ],
-    );
-  }
-
   void _confirmComplete(
     BuildContext context,
-    TruckListNotifier notifier,
     ActiveSessionNotifier sessionNotifier,
     Truck truck,
   ) {
+    final confirmationNumber = truck.vehicleNumber.trim().isNotEmpty
+        ? truck.vehicleNumber.trim()
+        : truck.truckNumber.trim();
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Complete Loading Session?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-                'Are you sure you want to complete this truck session? It will be locked as read-only.',
-                style: TextStyle(color: Colors.white70)),
-            const SizedBox(height: 16),
-            _buildMetricSub('Total Layers', '${truck.totalLayers}'),
-            const SizedBox(height: 8),
-            _buildMetricSub('Total Cartons', '${truck.totalCartons}'),
-            const SizedBox(height: 8),
-            _buildMetricSub('Total Defects', '${truck.totalDefects}',
-                isAlert: truck.totalDefects > 0),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Continue Loading')),
-          ElevatedButton(
-            onPressed: () async {
-              await sessionNotifier
-                  .completeSession(); // This auto-updates the truck status
-              if (context.mounted) Navigator.pop(ctx);
-            },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.successColor),
-            child: const Text('Complete'),
-          ),
-        ],
+      builder: (_) => StrictActionWarningDialog(
+        title: 'Complete Loading Session?',
+        content: 'This will lock the session as read-only.\n\n'
+            'Layers: ${truck.totalLayers}  •  Cartons: ${truck.totalCartons}  •  '
+            'Defects: ${truck.totalDefects}',
+        expectedConfirmationText: confirmationNumber,
+        actionLabel: 'Complete',
+        actionColor: AppTheme.successColor,
+        icon: Icons.check_circle_outline,
+        onConfirm: () async {
+          // The strict dialog has already verified the exact vehicle number.
+          await sessionNotifier.completeSession();
+        },
       ),
     );
   }

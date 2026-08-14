@@ -6,8 +6,10 @@ All currently implemented endpoint URLs are prefixed with `/api`. Communication 
 
 ## 1. Authentication
 
-### POST `/api/v1/auth/login`
-Exchanges an employee ID and password for a short-lived JWT token.
+### POST `/api/auth/login`
+Exchanges an employee ID and password for a short-lived JWT token and the
+authenticated employee profile in one response. Returning both avoids a
+second profile request on the critical login path.
 *   **Request Body**:
     ```json
     username=EMP-001&password=secure_password_123
@@ -16,7 +18,16 @@ Exchanges an employee ID and password for a short-lived JWT token.
     ```json
     {
         "access_token": "eyJhbGciOi...",
-        "token_type": "bearer"
+        "token_type": "bearer",
+        "user": {
+          "id": "e0e37bc9-56b0-466d-a9a7-47bdfd92f9d1",
+          "employee_id": "EMP-001",
+          "name": "Priya Sharma",
+          "role": "Supervisor",
+          "is_active": true,
+          "created_at": "2026-08-14T09:00:00Z",
+          "updated_at": null
+        }
     }
     ```
 

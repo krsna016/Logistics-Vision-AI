@@ -18,6 +18,7 @@ import '../../../../core/providers/database_provider.dart';
 import '../../../../services/storage_service.dart';
 import '../../../../services/network_service.dart';
 import '../../../../services/location_tracking_service.dart';
+import '../../../../utils/logger.dart';
 import '../../data/services/password_hasher_impl.dart';
 import '../../data/services/secure_credential_storage.dart';
 import '../../data/services/offline_authentication_impl.dart';
@@ -190,6 +191,7 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
     try {
       final normalizedEmployeeId = employeeId.trim().toUpperCase();
       User? user;
+      var authenticatedOnline = false;
       if (offline) {
         user = await _authenticateOffline(normalizedEmployeeId, password);
       } else {
@@ -198,29 +200,45 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
           password,
           offline: false,
         );
-        if (user != null) {
-          // Provision a bounded offline credential only after the server has
-          // accepted the same password and returned an active employee.
-          await _offlineAuth.registerUser(user, password);
-          await _storage.write(
-            key: '$_offlineAccessPrefix${user.employeeId.toUpperCase()}',
-            value: DateTime.now()
-                .add(_offlineAccessWindow)
-                .toUtc()
-                .toIso8601String(),
-          );
-        } else if (_repository is RemoteAuthRepository &&
+        authenticatedOnline = user != null;
+        if (user == null &&
+            _repository is RemoteAuthRepository &&
             (_repository).lastLoginFailedForConnectivity) {
           user = await _authenticateOffline(normalizedEmployeeId, password);
         }
       }
-      state = user;
       if (user != null) {
         await _cacheUser(user);
+        state = user;
+        if (authenticatedOnline) {
+          // Offline access is useful but it should not keep a successfully
+          // authenticated operator on the login screen.
+          unawaited(_provisionOfflineAccess(user, password));
+        }
+        return true;
       }
-      return user != null;
-    } catch (_) {
+      state = null;
       return false;
+    } catch (error, stack) {
+      AppLogger.error('Login processing failed', error, stack);
+      return false;
+    }
+  }
+
+  Future<void> _provisionOfflineAccess(User user, String password) async {
+    try {
+      await _offlineAuth.registerUser(user, password);
+      await _storage.write(
+        key: '$_offlineAccessPrefix${user.employeeId.toUpperCase()}',
+        value:
+            DateTime.now().add(_offlineAccessWindow).toUtc().toIso8601String(),
+      );
+    } catch (error, stack) {
+      AppLogger.error(
+        'Could not prepare bounded offline access after login',
+        error,
+        stack,
+      );
     }
   }
 

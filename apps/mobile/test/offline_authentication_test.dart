@@ -108,6 +108,15 @@ class _DeterministicHasher implements PasswordHasher {
   String hashPassword(String password, String salt) => '$salt:$password';
 
   @override
+  Future<String> hashPasswordAsync(String password, String salt) async =>
+      hashPassword(password, salt);
+
+  @override
   bool verifyPassword(String plaintext, String hashedPassword, String salt) =>
       hashPassword(plaintext, salt) == hashedPassword;
+
+  @override
+  Future<bool> verifyPasswordAsync(
+          String plaintext, String hashedPassword, String salt) async =>
+      verifyPassword(plaintext, hashedPassword, salt);
 }

@@ -11,6 +11,7 @@ class DetectionOverlayWidget extends StatelessWidget {
   final String? selectedId;
   final bool showLabels;
   final bool showNumbers;
+  final bool showOutlines;
   final bool useDarkPalette;
   final ValueChanged<Detection>? onDetectionTapped;
   final ValueChanged<Detection>? onDetectionLongPressed;
@@ -26,6 +27,7 @@ class DetectionOverlayWidget extends StatelessWidget {
     this.selectedId,
     this.showLabels = true,
     this.showNumbers = false,
+    this.showOutlines = true,
     this.useDarkPalette = false,
     this.onDetectionTapped,
     this.onDetectionLongPressed,
@@ -88,6 +90,7 @@ class DetectionOverlayWidget extends StatelessWidget {
           selectedId: selectedId,
           showLabels: showLabels,
           showNumbers: showNumbers,
+          showOutlines: showOutlines,
           useDarkPalette: useDarkPalette,
         ),
         child: Container(),

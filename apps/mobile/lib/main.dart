@@ -11,6 +11,7 @@ import 'theme/app_theme.dart';
 import 'utils/logger.dart';
 import 'core/presentation/layout/reference_viewport.dart';
 import 'features/sync/presentation/providers/sync_providers.dart';
+import 'core/providers/ai_camera_settings_provider.dart';
 
 void main() async {
   // Ensure widget bindings are loaded before background async initializes.
@@ -83,6 +84,7 @@ class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
     // not depend on the user opening the backup screen first.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(syncEngineProvider);
+      ref.read(aiCameraSettingsLoaderProvider);
     });
   }
 

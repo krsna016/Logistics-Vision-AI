@@ -46,10 +46,11 @@ class ImageStorageService {
     String sourcePath,
     CountingRegion region,
   ) async {
+    final quality = AiCameraSettings.cropQuality.value;
     return Isolate.run(() => _createNormalizedCropBytesFromEncoded(
           File(sourcePath).readAsBytesSync(),
           region.toJson(),
-          AiCameraSettings.cropQuality.value,
+          quality,
         ));
   }
 
@@ -60,10 +61,11 @@ class ImageStorageService {
     Uint8List sourceBytes,
     CountingRegion region,
   ) async {
+    final quality = AiCameraSettings.cropQuality.value;
     return Isolate.run(() => _createNormalizedCropBytesFromEncoded(
           sourceBytes,
           region.toJson(),
-          AiCameraSettings.cropQuality.value,
+          quality,
         ));
   }
 

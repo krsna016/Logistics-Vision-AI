@@ -2247,6 +2247,14 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
   late final GeneratedColumn<String> countingRegionJson =
       GeneratedColumn<String>('counting_region_json', aliasedName, true,
           type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _detectionsJsonMeta =
+      const VerificationMeta('detectionsJson');
+  @override
+  late final GeneratedColumn<String> detectionsJson = GeneratedColumn<String>(
+      'detections_json', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('[]'));
   static const VerificationMeta _notesMeta = const VerificationMeta('notes');
   @override
   late final GeneratedColumn<String> notes = GeneratedColumn<String>(
@@ -2307,6 +2315,7 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
         photoPath,
         croppedPhotoPath,
         countingRegionJson,
+        detectionsJson,
         notes,
         itemName,
         itemAllocationsJson,
@@ -2396,6 +2405,12 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
           countingRegionJson.isAcceptableOrUnknown(
               data['counting_region_json']!, _countingRegionJsonMeta));
     }
+    if (data.containsKey('detections_json')) {
+      context.handle(
+          _detectionsJsonMeta,
+          detectionsJson.isAcceptableOrUnknown(
+              data['detections_json']!, _detectionsJsonMeta));
+    }
     if (data.containsKey('notes')) {
       context.handle(
           _notesMeta, notes.isAcceptableOrUnknown(data['notes']!, _notesMeta));
@@ -2467,6 +2482,8 @@ class $LayersTable extends Layers with TableInfo<$LayersTable, Layer> {
           DriftSqlType.string, data['${effectivePrefix}cropped_photo_path']),
       countingRegionJson: attachedDatabase.typeMapping.read(
           DriftSqlType.string, data['${effectivePrefix}counting_region_json']),
+      detectionsJson: attachedDatabase.typeMapping.read(
+          DriftSqlType.string, data['${effectivePrefix}detections_json'])!,
       notes: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}notes']),
       itemName: attachedDatabase.typeMapping
@@ -2507,6 +2524,7 @@ class Layer extends DataClass implements Insertable<Layer> {
 
   /// JSON normalized rectangle used to produce [croppedPhotoPath].
   final String? countingRegionJson;
+  final String detectionsJson;
   final String? notes;
   final String? itemName;
   final String itemAllocationsJson;
@@ -2528,6 +2546,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       this.photoPath,
       this.croppedPhotoPath,
       this.countingRegionJson,
+      required this.detectionsJson,
       this.notes,
       this.itemName,
       required this.itemAllocationsJson,
@@ -2557,6 +2576,7 @@ class Layer extends DataClass implements Insertable<Layer> {
     if (!nullToAbsent || countingRegionJson != null) {
       map['counting_region_json'] = Variable<String>(countingRegionJson);
     }
+    map['detections_json'] = Variable<String>(detectionsJson);
     if (!nullToAbsent || notes != null) {
       map['notes'] = Variable<String>(notes);
     }
@@ -2598,6 +2618,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       countingRegionJson: countingRegionJson == null && nullToAbsent
           ? const Value.absent()
           : Value(countingRegionJson),
+      detectionsJson: Value(detectionsJson),
       notes:
           notes == null && nullToAbsent ? const Value.absent() : Value(notes),
       itemName: itemName == null && nullToAbsent
@@ -2635,6 +2656,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       croppedPhotoPath: serializer.fromJson<String?>(json['croppedPhotoPath']),
       countingRegionJson:
           serializer.fromJson<String?>(json['countingRegionJson']),
+      detectionsJson: serializer.fromJson<String>(json['detectionsJson']),
       notes: serializer.fromJson<String?>(json['notes']),
       itemName: serializer.fromJson<String?>(json['itemName']),
       itemAllocationsJson:
@@ -2662,6 +2684,7 @@ class Layer extends DataClass implements Insertable<Layer> {
       'photoPath': serializer.toJson<String?>(photoPath),
       'croppedPhotoPath': serializer.toJson<String?>(croppedPhotoPath),
       'countingRegionJson': serializer.toJson<String?>(countingRegionJson),
+      'detectionsJson': serializer.toJson<String>(detectionsJson),
       'notes': serializer.toJson<String?>(notes),
       'itemName': serializer.toJson<String?>(itemName),
       'itemAllocationsJson': serializer.toJson<String>(itemAllocationsJson),
@@ -2686,6 +2709,7 @@ class Layer extends DataClass implements Insertable<Layer> {
           Value<String?> photoPath = const Value.absent(),
           Value<String?> croppedPhotoPath = const Value.absent(),
           Value<String?> countingRegionJson = const Value.absent(),
+          String? detectionsJson,
           Value<String?> notes = const Value.absent(),
           Value<String?> itemName = const Value.absent(),
           String? itemAllocationsJson,
@@ -2711,6 +2735,7 @@ class Layer extends DataClass implements Insertable<Layer> {
         countingRegionJson: countingRegionJson.present
             ? countingRegionJson.value
             : this.countingRegionJson,
+        detectionsJson: detectionsJson ?? this.detectionsJson,
         notes: notes.present ? notes.value : this.notes,
         itemName: itemName.present ? itemName.value : this.itemName,
         itemAllocationsJson: itemAllocationsJson ?? this.itemAllocationsJson,
@@ -2743,6 +2768,9 @@ class Layer extends DataClass implements Insertable<Layer> {
       countingRegionJson: data.countingRegionJson.present
           ? data.countingRegionJson.value
           : this.countingRegionJson,
+      detectionsJson: data.detectionsJson.present
+          ? data.detectionsJson.value
+          : this.detectionsJson,
       notes: data.notes.present ? data.notes.value : this.notes,
       itemName: data.itemName.present ? data.itemName.value : this.itemName,
       itemAllocationsJson: data.itemAllocationsJson.present
@@ -2776,6 +2804,7 @@ class Layer extends DataClass implements Insertable<Layer> {
           ..write('photoPath: $photoPath, ')
           ..write('croppedPhotoPath: $croppedPhotoPath, ')
           ..write('countingRegionJson: $countingRegionJson, ')
+          ..write('detectionsJson: $detectionsJson, ')
           ..write('notes: $notes, ')
           ..write('itemName: $itemName, ')
           ..write('itemAllocationsJson: $itemAllocationsJson, ')
@@ -2788,27 +2817,29 @@ class Layer extends DataClass implements Insertable<Layer> {
   }
 
   @override
-  int get hashCode => Object.hash(
-      id,
-      createdAt,
-      updatedAt,
-      isDeleted,
-      version,
-      syncStatus,
-      truckId,
-      layerNumber,
-      cartonCount,
-      defectCount,
-      photoPath,
-      croppedPhotoPath,
-      countingRegionJson,
-      notes,
-      itemName,
-      itemAllocationsJson,
-      averageConfidence,
-      timestamp,
-      operatorId,
-      modelVersion);
+  int get hashCode => Object.hashAll([
+        id,
+        createdAt,
+        updatedAt,
+        isDeleted,
+        version,
+        syncStatus,
+        truckId,
+        layerNumber,
+        cartonCount,
+        defectCount,
+        photoPath,
+        croppedPhotoPath,
+        countingRegionJson,
+        detectionsJson,
+        notes,
+        itemName,
+        itemAllocationsJson,
+        averageConfidence,
+        timestamp,
+        operatorId,
+        modelVersion
+      ]);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -2826,6 +2857,7 @@ class Layer extends DataClass implements Insertable<Layer> {
           other.photoPath == this.photoPath &&
           other.croppedPhotoPath == this.croppedPhotoPath &&
           other.countingRegionJson == this.countingRegionJson &&
+          other.detectionsJson == this.detectionsJson &&
           other.notes == this.notes &&
           other.itemName == this.itemName &&
           other.itemAllocationsJson == this.itemAllocationsJson &&
@@ -2849,6 +2881,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
   final Value<String?> photoPath;
   final Value<String?> croppedPhotoPath;
   final Value<String?> countingRegionJson;
+  final Value<String> detectionsJson;
   final Value<String?> notes;
   final Value<String?> itemName;
   final Value<String> itemAllocationsJson;
@@ -2871,6 +2904,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     this.photoPath = const Value.absent(),
     this.croppedPhotoPath = const Value.absent(),
     this.countingRegionJson = const Value.absent(),
+    this.detectionsJson = const Value.absent(),
     this.notes = const Value.absent(),
     this.itemName = const Value.absent(),
     this.itemAllocationsJson = const Value.absent(),
@@ -2894,6 +2928,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     this.photoPath = const Value.absent(),
     this.croppedPhotoPath = const Value.absent(),
     this.countingRegionJson = const Value.absent(),
+    this.detectionsJson = const Value.absent(),
     this.notes = const Value.absent(),
     this.itemName = const Value.absent(),
     this.itemAllocationsJson = const Value.absent(),
@@ -2920,6 +2955,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     Expression<String>? photoPath,
     Expression<String>? croppedPhotoPath,
     Expression<String>? countingRegionJson,
+    Expression<String>? detectionsJson,
     Expression<String>? notes,
     Expression<String>? itemName,
     Expression<String>? itemAllocationsJson,
@@ -2944,6 +2980,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
       if (croppedPhotoPath != null) 'cropped_photo_path': croppedPhotoPath,
       if (countingRegionJson != null)
         'counting_region_json': countingRegionJson,
+      if (detectionsJson != null) 'detections_json': detectionsJson,
       if (notes != null) 'notes': notes,
       if (itemName != null) 'item_name': itemName,
       if (itemAllocationsJson != null)
@@ -2970,6 +3007,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
       Value<String?>? photoPath,
       Value<String?>? croppedPhotoPath,
       Value<String?>? countingRegionJson,
+      Value<String>? detectionsJson,
       Value<String?>? notes,
       Value<String?>? itemName,
       Value<String>? itemAllocationsJson,
@@ -2992,6 +3030,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
       photoPath: photoPath ?? this.photoPath,
       croppedPhotoPath: croppedPhotoPath ?? this.croppedPhotoPath,
       countingRegionJson: countingRegionJson ?? this.countingRegionJson,
+      detectionsJson: detectionsJson ?? this.detectionsJson,
       notes: notes ?? this.notes,
       itemName: itemName ?? this.itemName,
       itemAllocationsJson: itemAllocationsJson ?? this.itemAllocationsJson,
@@ -3045,6 +3084,9 @@ class LayersCompanion extends UpdateCompanion<Layer> {
     if (countingRegionJson.present) {
       map['counting_region_json'] = Variable<String>(countingRegionJson.value);
     }
+    if (detectionsJson.present) {
+      map['detections_json'] = Variable<String>(detectionsJson.value);
+    }
     if (notes.present) {
       map['notes'] = Variable<String>(notes.value);
     }
@@ -3089,6 +3131,7 @@ class LayersCompanion extends UpdateCompanion<Layer> {
           ..write('photoPath: $photoPath, ')
           ..write('croppedPhotoPath: $croppedPhotoPath, ')
           ..write('countingRegionJson: $countingRegionJson, ')
+          ..write('detectionsJson: $detectionsJson, ')
           ..write('notes: $notes, ')
           ..write('itemName: $itemName, ')
           ..write('itemAllocationsJson: $itemAllocationsJson, ')
@@ -13716,6 +13759,7 @@ typedef $$LayersTableCreateCompanionBuilder = LayersCompanion Function({
   Value<String?> photoPath,
   Value<String?> croppedPhotoPath,
   Value<String?> countingRegionJson,
+  Value<String> detectionsJson,
   Value<String?> notes,
   Value<String?> itemName,
   Value<String> itemAllocationsJson,
@@ -13739,6 +13783,7 @@ typedef $$LayersTableUpdateCompanionBuilder = LayersCompanion Function({
   Value<String?> photoPath,
   Value<String?> croppedPhotoPath,
   Value<String?> countingRegionJson,
+  Value<String> detectionsJson,
   Value<String?> notes,
   Value<String?> itemName,
   Value<String> itemAllocationsJson,
@@ -13827,6 +13872,10 @@ class $$LayersTableFilterComposer
 
   ColumnFilters<String> get countingRegionJson => $composableBuilder(
       column: $table.countingRegionJson,
+      builder: (column) => ColumnFilters(column));
+
+  ColumnFilters<String> get detectionsJson => $composableBuilder(
+      column: $table.detectionsJson,
       builder: (column) => ColumnFilters(column));
 
   ColumnFilters<String> get notes => $composableBuilder(
@@ -13941,6 +13990,10 @@ class $$LayersTableOrderingComposer
       column: $table.countingRegionJson,
       builder: (column) => ColumnOrderings(column));
 
+  ColumnOrderings<String> get detectionsJson => $composableBuilder(
+      column: $table.detectionsJson,
+      builder: (column) => ColumnOrderings(column));
+
   ColumnOrderings<String> get notes => $composableBuilder(
       column: $table.notes, builder: (column) => ColumnOrderings(column));
 
@@ -14030,6 +14083,9 @@ class $$LayersTableAnnotationComposer
 
   GeneratedColumn<String> get countingRegionJson => $composableBuilder(
       column: $table.countingRegionJson, builder: (column) => column);
+
+  GeneratedColumn<String> get detectionsJson => $composableBuilder(
+      column: $table.detectionsJson, builder: (column) => column);
 
   GeneratedColumn<String> get notes =>
       $composableBuilder(column: $table.notes, builder: (column) => column);
@@ -14130,6 +14186,7 @@ class $$LayersTableTableManager extends RootTableManager<
             Value<String?> photoPath = const Value.absent(),
             Value<String?> croppedPhotoPath = const Value.absent(),
             Value<String?> countingRegionJson = const Value.absent(),
+            Value<String> detectionsJson = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             Value<String?> itemName = const Value.absent(),
             Value<String> itemAllocationsJson = const Value.absent(),
@@ -14153,6 +14210,7 @@ class $$LayersTableTableManager extends RootTableManager<
             photoPath: photoPath,
             croppedPhotoPath: croppedPhotoPath,
             countingRegionJson: countingRegionJson,
+            detectionsJson: detectionsJson,
             notes: notes,
             itemName: itemName,
             itemAllocationsJson: itemAllocationsJson,
@@ -14176,6 +14234,7 @@ class $$LayersTableTableManager extends RootTableManager<
             Value<String?> photoPath = const Value.absent(),
             Value<String?> croppedPhotoPath = const Value.absent(),
             Value<String?> countingRegionJson = const Value.absent(),
+            Value<String> detectionsJson = const Value.absent(),
             Value<String?> notes = const Value.absent(),
             Value<String?> itemName = const Value.absent(),
             Value<String> itemAllocationsJson = const Value.absent(),
@@ -14199,6 +14258,7 @@ class $$LayersTableTableManager extends RootTableManager<
             photoPath: photoPath,
             croppedPhotoPath: croppedPhotoPath,
             countingRegionJson: countingRegionJson,
+            detectionsJson: detectionsJson,
             notes: notes,
             itemName: itemName,
             itemAllocationsJson: itemAllocationsJson,

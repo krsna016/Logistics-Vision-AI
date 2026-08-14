@@ -35,7 +35,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 10;
+  int get schemaVersion => 11;
 
   @override
   MigrationStrategy get migration {
@@ -142,6 +142,11 @@ class AppDatabase extends _$AppDatabase {
             WHERE id IN (SELECT id FROM ranked WHERE active_rank > 1)
           ''');
           await _createIntegrityIndexes(m);
+        }
+        if (from < 11) {
+          // Persist the final verified masks with each layer so history can
+          // reproduce exactly what the operator accepted during review.
+          await m.addColumn(layers, layers.detectionsJson);
         }
       },
       beforeOpen: (details) async {

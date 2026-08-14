@@ -1,12 +1,15 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../core/ai_engine/ai_camera_settings.dart';
-import '../../../camera/presentation/providers/inference_notifier.dart';
 import '../../../../core/database/app_database.dart';
+import '../../../../core/providers/ai_camera_settings_provider.dart';
 import '../../../../core/providers/database_provider.dart';
 import '../../../../presentation/widgets/app_card.dart';
 import '../../../../theme/app_theme.dart';
+import '../../../camera/presentation/providers/inference_notifier.dart';
 
 class AiCameraSettingsScreen extends ConsumerStatefulWidget {
   const AiCameraSettingsScreen({super.key});
@@ -19,11 +22,10 @@ class AiCameraSettingsScreen extends ConsumerStatefulWidget {
 class _AiCameraSettingsScreenState
     extends ConsumerState<AiCameraSettingsScreen> {
   double _confidence = AiCameraSettings.confidence.value;
-  int _inputSize = AiCameraSettings.inputSize.value;
   double _iou = AiCameraSettings.iou.value;
   double _quality = AiCameraSettings.cropQuality.value.toDouble();
   bool _masks = AiCameraSettings.detailedMasks.value;
-  bool _timings = AiCameraSettings.showTimings.value;
+  int _threads = AiCameraSettings.processingThreads.value;
   bool _loading = true;
   bool _saving = false;
 
@@ -34,64 +36,68 @@ class _AiCameraSettingsScreenState
   }
 
   Future<void> _load() async {
-    final rows = await (ref.read(databaseProvider).select(
-              ref.read(databaseProvider).settings,
-            )..where((s) => s.key.equals('ai_camera')))
-        .get();
-    if (!mounted) return;
-    if (rows.isNotEmpty) {
-      final data = jsonDecode(rows.first.value) as Map<String, dynamic>;
+    try {
+      await ref.read(aiCameraSettingsLoaderProvider.future);
+      if (!mounted) return;
       setState(() {
-        _confidence = (data['confidence'] as num?)?.toDouble() ?? _confidence;
-        _inputSize = (data['inputSize'] as num?)?.toInt() == 640 ? 640 : 960;
-        _iou = (data['iou'] as num?)?.toDouble() ?? _iou;
-        _quality = (data['quality'] as num?)?.toDouble() ?? _quality;
-        _masks = data['masks'] as bool? ?? _masks;
-        _timings = data['timings'] as bool? ?? _timings;
+        _confidence = AiCameraSettings.confidence.value;
+        _iou = AiCameraSettings.iou.value;
+        _quality = AiCameraSettings.cropQuality.value.toDouble();
+        _masks = AiCameraSettings.detailedMasks.value;
+        _threads = AiCameraSettings.processingThreads.value;
       });
+    } catch (_) {
+      // Invalid legacy settings must never prevent this page from opening.
       _apply();
+    } finally {
+      if (mounted) setState(() => _loading = false);
     }
-    setState(() => _loading = false);
   }
 
   void _apply() => AiCameraSettings.apply(
         confidenceValue: _confidence,
-        inputSizeValue: _inputSize,
         iouValue: _iou,
         cropQualityValue: _quality.round(),
         detailedMasksValue: _masks,
-        showTimingsValue: _timings,
+        processingThreadsValue: _threads,
       );
 
   Future<void> _save() async {
-    final previousInputSize = AiCameraSettings.inputSize.value;
+    if (_saving) return;
+    final previousThreads = AiCameraSettings.processingThreads.value;
     _apply();
-    if (mounted) setState(() => _saving = true);
-    final db = ref.read(databaseProvider);
-    final value = jsonEncode({
-      'confidence': _confidence,
-      'inputSize': _inputSize,
-      'iou': _iou,
-      'quality': _quality.round(),
-      'masks': _masks,
-      'timings': _timings,
-    });
-    await db.into(db.settings).insertOnConflictUpdate(
-          SettingsCompanion.insert(key: 'ai_camera', value: value),
-        );
-    if (previousInputSize != AiCameraSettings.inputSize.value) {
-      try {
+    setState(() => _saving = true);
+    try {
+      final db = ref.read(databaseProvider);
+      final value = jsonEncode({
+        'confidence': AiCameraSettings.confidence.value,
+        'iou': AiCameraSettings.iou.value,
+        'quality': AiCameraSettings.cropQuality.value,
+        'masks': AiCameraSettings.detailedMasks.value,
+        'processingThreads': AiCameraSettings.processingThreads.value,
+        'modelInputSize': AiCameraSettings.modelInputSize,
+      });
+      await db.into(db.settings).insertOnConflictUpdate(
+            SettingsCompanion.insert(key: 'ai_camera', value: value),
+          );
+
+      final inferenceState = ref.read(inferenceNotifierProvider);
+      if (previousThreads != AiCameraSettings.processingThreads.value &&
+          inferenceState.isModelLoaded) {
         await ref.read(inferenceNotifierProvider.notifier).reloadModel();
-      } catch (_) {
-        // The current model remains available if a device cannot load the
-        // selected packaged variant.
       }
-    }
-    if (mounted) {
-      setState(() => _saving = false);
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('AI camera settings saved locally.')),
       );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Could not apply AI settings. Please try again.'),
+        backgroundColor: AppTheme.errorColor,
+      ));
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
   }
 
@@ -99,9 +105,9 @@ class _AiCameraSettingsScreenState
     setState(() {
       _confidence = .27;
       _iou = .70;
-      _quality = 96;
+      _quality = 98;
       _masks = true;
-      _timings = false;
+      _threads = 4;
     });
     await _save();
   }
@@ -109,75 +115,169 @@ class _AiCameraSettingsScreenState
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return Scaffold(
       appBar: AppBar(title: const Text('AI Camera Settings')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('AI PROCESSING',
-              style: TextStyle(fontWeight: FontWeight.w800)),
+          const AppCard(
+            child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor: Color(0x1F1976D2),
+                child: Icon(Icons.psychology_alt_rounded,
+                    color: AppTheme.primaryColor),
+              ),
+              title: Text('High-accuracy carton model',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(
+                'Fixed at 960 × 960 so every capture uses the verified high-detail model.',
+              ),
+              trailing:
+                  Icon(Icons.verified_rounded, color: AppTheme.successColor),
+            ),
+          ),
+          const SizedBox(height: 18),
+          _sectionTitle('COUNTING CONTROLS'),
           const SizedBox(height: 8),
           AppCard(
             child: Column(
               children: [
                 _slider(
-                    'Confidence threshold',
-                    _confidence,
-                    .10,
-                    .80,
-                    (v) => setState(() => _confidence = v),
-                    _confidence.toStringAsFixed(2)),
-                _slider('Overlap (IoU) threshold', _iou, .30, .95,
-                    (v) => setState(() => _iou = v), _iou.toStringAsFixed(2)),
-                _slider('Crop JPEG quality', _quality, 85, 100,
-                    (v) => setState(() => _quality = v), '${_quality.round()}'),
-                SwitchListTile.adaptive(
-                  value: _masks,
-                  onChanged: (v) => setState(() => _masks = v),
-                  title: const Text('Detailed outlines and masks'),
-                  subtitle: const Text('More detail, slightly more processing'),
+                  title: 'Confidence threshold',
+                  description:
+                      'Minimum certainty required before a carton is counted.',
+                  value: _confidence,
+                  minimum: .05,
+                  maximum: 1,
+                  divisions: 95,
+                  onChanged: (value) => setState(() => _confidence = value),
+                  label: '${(_confidence * 100).round()}%',
                 ),
-                SwitchListTile.adaptive(
-                  value: _timings,
-                  onChanged: (v) => setState(() => _timings = v),
-                  title: const Text('Show timing diagnostics'),
-                  subtitle: const Text('Useful for performance audits'),
+                const Divider(height: 24),
+                _slider(
+                  title: 'Overlap (IoU) threshold',
+                  description:
+                      'Controls when overlapping detections are treated as duplicates.',
+                  value: _iou,
+                  minimum: .20,
+                  maximum: .95,
+                  divisions: 75,
+                  onChanged: (value) => setState(() => _iou = value),
+                  label: '${(_iou * 100).round()}%',
+                ),
+                const Divider(height: 24),
+                _slider(
+                  title: 'Crop JPEG quality',
+                  description:
+                      'Quality of the selected carton-area image. The original audit photo remains unchanged.',
+                  value: _quality,
+                  minimum: 85,
+                  maximum: 100,
+                  divisions: 15,
+                  onChanged: (value) => setState(() => _quality = value),
+                  label: '${_quality.round()}%',
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 16),
-          const Text('MODEL INPUT',
-              style: TextStyle(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 18),
+          _sectionTitle('PERFORMANCE & DETAIL'),
           const SizedBox(height: 8),
           AppCard(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                ListTile(
-                  leading: const Icon(Icons.aspect_ratio,
-                      color: AppTheme.primaryColor),
-                  title: const Text('960 × 960'),
-                  selected: _inputSize == 960,
-                  onTap: () => setState(() => _inputSize = 960),
-                  subtitle: const Text(
-                      'Required by the currently loaded ONNX model.'),
-                  trailing: const Icon(Icons.check_circle,
-                      color: AppTheme.successColor),
+                const Text('AI processing power',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                const Text(
+                  'High performance uses more CPU power to finish analysis sooner.',
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                 ),
-                ListTile(
-                  selected: _inputSize == 640,
-                  onTap: () => setState(() => _inputSize = 640),
-                  leading: const Icon(Icons.speed),
-                  title: const Text('640 × 640'),
+                const SizedBox(height: 12),
+                SegmentedButton<int>(
+                  style: SegmentedButton.styleFrom(
+                    side: BorderSide.none,
+                    foregroundColor: AppTheme.textSecondary,
+                    selectedForegroundColor: Colors.white,
+                    backgroundColor: Colors.white.withValues(alpha: .06),
+                    selectedBackgroundColor:
+                        AppTheme.primaryColor.withValues(alpha: .82),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  segments: const [
+                    ButtonSegment<int>(
+                      value: 2,
+                      icon: Icon(Icons.battery_5_bar_rounded),
+                      label: Text('Balanced'),
+                    ),
+                    ButtonSegment<int>(
+                      value: 4,
+                      icon: Icon(Icons.bolt_rounded),
+                      label: Text('High'),
+                    ),
+                  ],
+                  selected: {_threads},
+                  onSelectionChanged: (values) =>
+                      setState(() => _threads = values.first),
+                ),
+                const Divider(height: 28),
+                SwitchListTile.adaptive(
+                  contentPadding: EdgeInsets.zero,
+                  value: _masks,
+                  onChanged: (value) => setState(() => _masks = value),
+                  title: const Text('Detailed carton outlines'),
                   subtitle: const Text(
-                      'Fast model variant; verify accuracy on operational carton photos.'),
-                  trailing: Icon(_inputSize == 640
-                      ? Icons.radio_button_checked
-                      : Icons.radio_button_off),
+                    'Shows precise carton shapes. Turning this off can reduce post-processing time.',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          _sectionTitle('EASY GUIDE'),
+          const SizedBox(height: 8),
+          const AppCard(
+            child: Column(
+              children: [
+                _GuideItem(
+                  icon: Icons.center_focus_strong_rounded,
+                  title: 'Confidence',
+                  text:
+                      'Lower finds more possible cartons but may add false counts. Higher rejects uncertain cartons. At 100%, almost every real detection may be rejected. Recommended: 27%.',
+                ),
+                Divider(height: 20),
+                _GuideItem(
+                  icon: Icons.layers_rounded,
+                  title: 'Overlap / IoU',
+                  text:
+                      'Higher keeps more nearby overlapping cartons. Lower removes more duplicate boxes but can remove cartons packed very close together. Recommended: 70%.',
+                ),
+                Divider(height: 20),
+                _GuideItem(
+                  icon: Icons.high_quality_rounded,
+                  title: 'Crop JPEG quality',
+                  text:
+                      'Higher produces a sharper selected-area file but takes more storage and a little more encoding time. It never changes the original full-quality audit image. Recommended: 98%.',
+                ),
+                Divider(height: 20),
+                _GuideItem(
+                  icon: Icons.bolt_rounded,
+                  title: 'Processing power',
+                  text:
+                      'High uses four AI CPU workers for quicker results and more power. Balanced uses two workers for less heat and battery use.',
+                ),
+                Divider(height: 20),
+                _GuideItem(
+                  icon: Icons.gesture_rounded,
+                  title: 'Detailed outlines',
+                  text:
+                      'Keep enabled when you want precise carton boundaries during review. Disable only when faster post-processing matters more than shape detail.',
                 ),
               ],
             ),
@@ -188,29 +288,95 @@ class _AiCameraSettingsScreenState
             icon: const Icon(Icons.save_outlined),
             label: Text(_saving ? 'Applying settings…' : 'Save locally'),
           ),
+          const SizedBox(height: 10),
           TextButton(
-              onPressed: _reset,
-              child: const Text('Reset recommended settings')),
+            onPressed: _saving ? null : _reset,
+            child: const Text('Reset recommended settings'),
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );
   }
 
-  Widget _slider(String title, double value, double min, double max,
-      ValueChanged<double> onChanged, String label) {
+  Widget _sectionTitle(String text) => Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w800, letterSpacing: .4),
+      );
+
+  Widget _slider({
+    required String title,
+    required String description,
+    required double value,
+    required double minimum,
+    required double maximum,
+    required int divisions,
+    required ValueChanged<double> onChanged,
+    required String label,
+  }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Text(title),
-          Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
-        ]),
+        Row(
+          children: [
+            Expanded(
+              child: Text(title,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            Text(label,
+                style: const TextStyle(
+                    color: AppTheme.primaryColor, fontWeight: FontWeight.w800)),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(description,
+            style:
+                const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
         Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: 100,
-            onChanged: onChanged),
+          value: value,
+          min: minimum,
+          max: maximum,
+          divisions: divisions,
+          label: label,
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+}
+
+class _GuideItem extends StatelessWidget {
+  const _GuideItem({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  final IconData icon;
+  final String title;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, color: AppTheme.primaryColor, size: 21),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 3),
+              Text(text,
+                  style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      height: 1.4)),
+            ],
+          ),
+        ),
       ],
     );
   }

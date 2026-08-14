@@ -19,13 +19,16 @@ class UserBase(BaseModel):
     def normalize_name(cls, value: str) -> str:
         return value.strip()
 
+
 class UserCreate(UserBase):
     password: str = Field(min_length=12, max_length=72)
+
 
 class UserUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     role: Literal["Administrator", "Supervisor"] | None = None
     is_active: bool | None = None
+
 
 class UserResponse(UserBase):
     id: str
@@ -35,9 +38,12 @@ class UserResponse(UserBase):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user: UserResponse
+
 
 class TokenData(BaseModel):
     employee_id: str | None = None

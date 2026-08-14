@@ -50,6 +50,21 @@ class RemoteAuthRepository implements AuthRepository {
 
   bool _isTokenUsable(String token) => _tokenValidationFailure(token) == null;
 
+  User? _userFromResponse(dynamic value) {
+    if (value is! Map) return null;
+    final data = Map<String, dynamic>.from(value);
+    final employeeId = data['employee_id'];
+    if (employeeId is! String || employeeId.isEmpty) return null;
+    return User(
+      id: data['id'] as String? ?? employeeId,
+      employeeId: employeeId,
+      name: data['name'] as String? ?? employeeId,
+      role: parseRole(data['role'] as String?),
+      warehouse: 'warehouse_1',
+      isActive: data['is_active'] as bool? ?? true,
+    );
+  }
+
   Future<bool> hasValidToken() async {
     final token = await _storage.read(key: StorageService.keyJwtToken);
     return token != null && token.isNotEmpty && _isTokenUsable(token);
@@ -87,7 +102,12 @@ class RemoteAuthRepository implements AuthRepository {
         await _storage.write(key: StorageService.keyJwtToken, value: token);
         _activeEmployeeId = employeeId;
         _locked = false;
-        final user = await getCurrentUser();
+        // Newer servers return the authenticated profile with the token,
+        // avoiding a second network round trip. Keep the fallback so a mobile
+        // release can still sign in while an older backend is being replaced.
+        final responseUser = _userFromResponse(responseData['user']);
+        final user = responseUser ?? await getCurrentUser();
+        if (responseUser != null) _cachedUser = responseUser;
         if (user == null) {
           _lastLoginErrorMessage ??=
               'Credentials were accepted, but the server rejected the new session. Contact an administrator.';

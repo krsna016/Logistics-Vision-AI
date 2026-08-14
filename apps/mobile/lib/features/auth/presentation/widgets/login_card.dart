@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../theme/app_theme.dart';
@@ -30,12 +32,13 @@ class _LoginCardState extends ConsumerState<LoginCard> {
 
   Future<void> _handleLogin() async {
     setState(() => _isLoading = true);
+    final inferenceNotifier = ref.read(inferenceNotifierProvider.notifier);
     final success = await ref.read(authProvider.notifier).login(
           _employeeIdController.text,
           _passwordController.text,
         );
     if (success) {
-      await _completeEntry();
+      _completeEntry(inferenceNotifier);
     } else {
       if (!mounted) return;
       final errorMessage = ref.read(authProvider.notifier).loginErrorMessage;
@@ -60,21 +63,28 @@ class _LoginCardState extends ConsumerState<LoginCard> {
     }
   }
 
-  Future<void> _handleDemoEntry() async {
+  void _handleDemoEntry() {
     setState(() => _isLoading = true);
+    final inferenceNotifier = ref.read(inferenceNotifierProvider.notifier);
     ref.read(authProvider.notifier).enterDemo();
-    await _completeEntry();
+    _completeEntry(inferenceNotifier);
   }
 
-  Future<void> _completeEntry() async {
-    try {
-      await ref.read(inferenceNotifierProvider.notifier).ensureModelReady();
-    } catch (error, stack) {
-      AppLogger.error('Post-login AI preparation failed', error, stack);
+  void _completeEntry(InferenceNotifier inferenceNotifier) {
+    if (mounted) {
+      setState(() => _isLoading = false);
+      widget.onLoginSuccess();
     }
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-    widget.onLoginSuccess();
+    // The dashboard does not need the carton-counting model. Warm it after
+    // navigation so loading a large ONNX asset is never presented as login
+    // time. Capture still awaits the same shared initialization if necessary.
+    unawaited(Future<void>.delayed(Duration.zero, () async {
+      try {
+        await inferenceNotifier.ensureModelReady();
+      } catch (error, stack) {
+        AppLogger.error('Post-login AI preparation failed', error, stack);
+      }
+    }));
   }
 
   @override

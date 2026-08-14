@@ -15,8 +15,10 @@ import '../../domain/repositories/inference_repository.dart';
 
 class ONNXInferenceRepository implements InferenceRepository {
   late final InferencePipeline _pipeline;
+  final Future<void> _settingsReady;
 
-  ONNXInferenceRepository() {
+  ONNXInferenceRepository({Future<void>? settingsReady})
+      : _settingsReady = settingsReady ?? Future<void>.value() {
     _pipeline = InferencePipeline(
       modelManager: ModelManager(),
       preprocessor: ImagePreprocessor(targetWidth: 960, targetHeight: 960),
@@ -27,14 +29,14 @@ class ONNXInferenceRepository implements InferenceRepository {
 
   @override
   Future<void> loadModel() async {
-    await _pipeline.modelManager
-        .loadModel(AIModel.modelForInputSize(AiCameraSettings.inputSize.value));
+    await _settingsReady;
+    await _pipeline.modelManager.loadModel(AIModel.modelB());
   }
 
   @override
   Future<List<Detection>> runGalleryInference(String imagePath) async {
     final preprocessing = Stopwatch()..start();
-    final size = AiCameraSettings.inputSize.value;
+    const size = AiCameraSettings.modelInputSize;
     final image = await ImagePreprocessor(
       targetWidth: size,
       targetHeight: size,
@@ -46,7 +48,7 @@ class ONNXInferenceRepository implements InferenceRepository {
   @override
   Future<List<Detection>> runGalleryInferenceBytes(Uint8List imageBytes) async {
     final preprocessing = Stopwatch()..start();
-    final size = AiCameraSettings.inputSize.value;
+    const size = AiCameraSettings.modelInputSize;
     final image = await ImagePreprocessor(
       targetWidth: size,
       targetHeight: size,
@@ -68,7 +70,7 @@ class ONNXInferenceRepository implements InferenceRepository {
     final confidenceThreshold = AiCameraSettings.confidence.value;
     final iouThreshold = AiCameraSettings.iou.value;
     final decodeMasks = AiCameraSettings.detailedMasks.value;
-    final inputSize = AiCameraSettings.inputSize.value;
+    const inputSize = AiCameraSettings.modelInputSize;
     final decodedResults = await Isolate.run(
       () => Postprocessor(
         confidenceThreshold: confidenceThreshold,
@@ -129,5 +131,6 @@ class ONNXInferenceRepository implements InferenceRepository {
   @override
   Future<void> release() async {
     await _pipeline.modelManager.unloadModel();
+    _pipeline.performanceMonitor.reset();
   }
 }

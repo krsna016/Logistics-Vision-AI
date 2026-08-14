@@ -11,11 +11,15 @@ class DetectionValidator {
     return ConfidenceTier.needsReview;
   }
 
-  /// Filters out boxes that are below an absolute minimum acceptable tier
+  /// Performs final sanity validation after the configurable postprocessor.
+  /// Confidence filtering belongs to Postprocessor; applying the historical
+  /// fixed 0.27 threshold here would make lower user settings ineffective.
   List<DetectionResult> validate(List<DetectionResult> detections) {
-    // In strict enterprise settings, we might reject boxes that completely fail sanity checks
-    // The deployed Stage-1 checkpoint was count-calibrated at 0.27. Do not
-    // silently apply a second, stricter threshold after post-processing.
-    return detections.where((det) => det.confidence >= 0.27).toList();
+    return detections
+        .where((detection) =>
+            detection.confidence.isFinite &&
+            detection.confidence >= 0 &&
+            detection.confidence <= 1)
+        .toList(growable: false);
   }
 }

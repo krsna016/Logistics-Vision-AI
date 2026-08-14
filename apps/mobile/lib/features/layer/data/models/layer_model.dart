@@ -1,4 +1,5 @@
 import '../../domain/entities/layer.dart';
+import '../../../camera/domain/entities/detection.dart';
 import '../../../truck/domain/entities/truck.dart';
 
 class LayerModel {
@@ -17,6 +18,10 @@ class LayerModel {
           ? CountingRegion.fromJson(
               json['countingRegion'] as Map<String, dynamic>)
           : null,
+      detections: (json['detections'] as List<dynamic>? ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(detectionFromJson)
+          .toList(growable: false),
       notes: json['notes'] as String?,
       itemName: json['itemName'] as String?,
       itemAllocations: (json['itemAllocations'] as List<dynamic>? ?? const [])
@@ -48,6 +53,7 @@ class LayerModel {
       'photoPath': record.photoPath,
       'croppedPhotoPath': record.croppedPhotoPath,
       'countingRegion': record.countingRegion?.toJson(),
+      'detections': record.detections.map(detectionToJson).toList(),
       'notes': record.notes,
       'itemName': record.itemName,
       'itemAllocations': record.itemAllocations
@@ -61,4 +67,46 @@ class LayerModel {
       'isDeleted': record.isDeleted,
     };
   }
+
+  static Detection detectionFromJson(Map<String, dynamic> json) {
+    final box = json['boundingBox'] as Map<String, dynamic>? ?? const {};
+    return Detection(
+      id: json['id'] as String? ?? '',
+      boundingBox: BoundingBox(
+        xMin: (box['xMin'] as num? ?? 0).toDouble(),
+        yMin: (box['yMin'] as num? ?? 0).toDouble(),
+        xMax: (box['xMax'] as num? ?? 0).toDouble(),
+        yMax: (box['yMax'] as num? ?? 0).toDouble(),
+      ),
+      label: json['label'] as String? ?? 'carton',
+      confidence: (json['confidence'] as num? ?? 0).toDouble(),
+      trackingId: json['trackingId'] as String?,
+      polygon: (json['polygon'] as List<dynamic>? ?? const [])
+          .whereType<List<dynamic>>()
+          .map((point) => point
+              .whereType<num>()
+              .map((coordinate) => coordinate.toDouble())
+              .toList(growable: false))
+          .where((point) => point.length >= 2)
+          .toList(growable: false),
+      metadata: Map<String, dynamic>.from(
+        json['metadata'] as Map? ?? const <String, dynamic>{},
+      ),
+    );
+  }
+
+  static Map<String, dynamic> detectionToJson(Detection detection) => {
+        'id': detection.id,
+        'boundingBox': {
+          'xMin': detection.boundingBox.xMin,
+          'yMin': detection.boundingBox.yMin,
+          'xMax': detection.boundingBox.xMax,
+          'yMax': detection.boundingBox.yMax,
+        },
+        'label': detection.label,
+        'confidence': detection.confidence,
+        'trackingId': detection.trackingId,
+        'polygon': detection.polygon,
+        'metadata': detection.metadata,
+      };
 }

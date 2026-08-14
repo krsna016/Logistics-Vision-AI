@@ -444,6 +444,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                 countingRegion: widget.countingRegion,
                 croppedPhotoPath:
                     widget.countingRegion == null ? null : widget.photoPath,
+                detections: _visibleDetections,
               );
 
       if (mounted) {
