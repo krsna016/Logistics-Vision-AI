@@ -284,6 +284,8 @@ The app opens the Wagon Control Center first, then prepares the shared AI counti
 
 Logout ends the signed-in session. It does not delete operational data. Never share a signed-in phone with another operator without logging out first.
 
+From the signed-in profile, an operator may optionally enable **Share live work location**. This shares precise location with authorized administrators, including while the app is in the background, and stops at logout. Android location and notification permissions are requested separately; live tracking does not start unless the required permissions are granted.
+
 ---
 
 ## 4. Wagon Control Center
@@ -313,8 +315,11 @@ Each card shows the wagon number, status, vehicle count, carton information and 
 
 - Digital Registers: historical wagon register and exports.
 - Documentation: this English and Hindi handbook.
+- AI Camera Settings: adjust local confidence, overlap/IoU, crop quality, processing power and detailed-outline settings, then tap **Save locally**. Use **Reset recommended settings** when needed.
 - Load Demo Data (administrators only): deletes current operational data and creates enterprise training data.
 - Logout: ends the current user session.
+
+Administrators also have **Backup & Restore** for creating and sharing a local archive containing the database, photos, audit records and exports, importing a SmartLoad ZIP or extracted folder, and restoring an earlier local backup. Treat imports and restores as controlled data operations and verify the selected archive before confirming.
 
 ---
 
@@ -567,7 +572,7 @@ It contains:
 - Operator notes
 - Operator identity and timestamp
 
-Tap a layer reference photo to open the verification viewer. The compact bar at the top keeps the layer number and total cartons visible while you zoom. Use the mask and number buttons independently. For editable layers, tap an empty image area to add a missing carton or tap an existing carton outline to remove it, exactly like the Review screen. Every change saves automatically to that layer and updates its carton total and related totals. Older layers may not have saved AI polygons, but an editable layer can still be corrected manually.
+Tap a layer reference photo to open the verification viewer. The compact bar at the top keeps the layer number and total cartons visible while you zoom. Use the mask and number buttons independently. For editable layers, tap an empty image area to add a missing carton, tap an existing carton outline to remove it, or tap the same location again to restore it, exactly like the Review screen. These preview edits are temporary and are not auto-saved. If you close the image, tap outside it, or use the Android back/swipe gesture after editing, SmartLoad warns you. Choose **Keep editing** to return to the preview, or **Go to correction** to open the normal Layer Correction page with the preview boxes carried over, then explicitly save the correction there. Older layers may not have saved AI polygons, but an editable layer can still be corrected manually.
 
 ### Correct an existing layer
 
@@ -582,7 +587,7 @@ For a wagon with items, carton count is calculated from item quantities. Enter a
 
 ### Remove a layer
 
-Use Remove Layer only if the entire saved layer is invalid or duplicated. Type the requested layer number to confirm. Removal recalculates truck totals, wagon item inventory and reports. The audit trail keeps the action.
+Use the circular delete button at the far right of a Layer History card only if the entire saved layer is invalid or duplicated. Type the requested layer number to confirm. Removal recalculates truck totals, wagon item inventory and reports. The audit trail keeps the action.
 
 Do not remove a valid layer merely to hide a counting mistake. Correct it and record the reason.
 
@@ -653,7 +658,7 @@ Expand a vehicle to see all its layers. Supervisors can inspect historical vehic
 
 ### Correction history
 
-Historical corrections show the layer, time, operator, before value, after value and reason. This protects accountability.
+Historical corrections show the vehicle, layer, time, operator, before values, after values and reason. This protects accountability. Opening a specific truck shows only that truck's correction history.
 
 ### Remarks
 
@@ -667,7 +672,7 @@ Use the report icon on Wagon Details, Truck Details or Digital Register.
 
 ### Truck report
 
-Contains Wagon No., Vehicle No., Driver, Company, Driver Phone, Status, Warehouse, Supervisor, layers, cartons, item breakdown, defects, notes, operator timestamps, corrections, totals and signatures.
+Contains Wagon No., Vehicle No., Driver, Company, Driver Phone, Status, Warehouse, Supervisor, layers, cartons, item breakdown, defects, notes, operator timestamps, Layer Correction History, totals and signatures. Truck correction history is scoped to that truck and does not repeat a vehicle column.
 
 ### Wagon report
 
@@ -677,11 +682,11 @@ Contains wagon information, item inventory and a summary of all connected vehicl
 
 The opening landscape section lists each vehicle with Cartons and Item for every layer. If there are many layers, it continues onto additional landscape pages and repeats the table headings. After the final row it shows a bordered summary for Vehicles, Layers, Cartons and Defects, followed by Supervisor and Remarks.
 
-Detailed portrait pages then show executive summary, item reconciliation, vehicle summary, layer details, correction history and signatures.
+Detailed portrait pages then show executive summary, item reconciliation, vehicle summary, layer details, Layer Correction History with vehicle, layer, before/after values, operator and reason, and signatures.
 
 ### Excel report
 
-Use Excel for sorting and analysis. It includes Register Summary, Item Inventory, Truck Summary, Layer Details, Corrections and the register grid.
+Use Excel for sorting and analysis. It includes Register Summary, Item Inventory, Truck Summary, Layer Details, Layer Correction History and the register grid. The truck workbook's correction history is limited to that truck and omits the redundant vehicle column.
 
 ### Sharing
 
@@ -751,6 +756,10 @@ Saving, correcting or removing a layer recalculates:
 - Wagon loaded and remaining items
 - Digital Register reconciliation
 - Future PDF and Excel content
+
+### Backup, import and restore
+
+Use Backup & Restore before moving data to another device or recovering from an accidental local change. A shared archive can contain operational records, photos, audit history and generated exports. Importing a ZIP or extracted folder validates the archive before replacing local data. Restoring a previous local backup is also a replacement operation; confirm the chosen date and keep a current backup before proceeding.
 
 ---
 
@@ -1146,6 +1155,8 @@ Online login के बाद AI counting engine और 24 घंटे की o
 
 लॉगआउट केवल उपयोगकर्ता सेशन बंद करता है। यह वैगन, वाहन, लेयर या रिपोर्ट नहीं मिटाता। दूसरे ऑपरेटर को फोन देने से पहले लॉगआउट जरूर करें।
 
+Profile से operator वैकल्पिक **Share live work location** चालू कर सकता है। इससे authorized administrators को precise location, background में भी, मिलती है और logout पर tracking बंद हो जाती है। Android location और notification permissions अलग-अलग मांगी जाती हैं; जरूरी permissions के बिना live tracking शुरू नहीं होती।
+
 ---
 
 ## 4. वैगन कंट्रोल सेंटर
@@ -1175,8 +1186,11 @@ Online login के बाद AI counting engine और 24 घंटे की o
 
 - Digital Registers: वैगन इतिहास और रिपोर्ट।
 - Documentation: यह अंग्रेजी और हिंदी पुस्तिका।
+- AI Camera Settings: Confidence, Overlap/IoU, crop quality, processing power और detailed outlines की स्थानीय सेटिंग बदलें। **Save locally** दबाएं; जरूरत हो तो **Reset recommended settings** चुनें।
 - Load Demo Data: केवल Administrator के लिए; वर्तमान लोकल डेटा हटाकर प्रशिक्षण डेटा बनाता है।
 - Logout: वर्तमान उपयोगकर्ता सेशन बंद करता है।
+
+Administrator को **Backup & Restore** भी मिलता है। इससे database, photos, audit records और exports का local archive बनाकर share किया जा सकता है, SmartLoad ZIP या extracted folder import किया जा सकता है और पुराना local backup restore किया जा सकता है। Import या restore से पहले archive और तारीख ध्यान से जांचें।
 
 ---
 
@@ -1405,7 +1419,7 @@ AI कार्टन छोड़ दे तो उपलब्ध कंट्
 
 हर सेव लेयर में नंबर, कार्टन, आइटम मात्रा, डिफेक्ट, फोटो, नोट, ऑपरेटर और समय दिखता है।
 
-लेयर की reference photo दबाकर verification viewer खोलें। ऊपर compact bar में zoom करते समय भी layer number और total cartons दिखते हैं। Mask और carton number को अलग-अलग चालू या बंद कर सकते हैं। Editable layer में खाली जगह दबाने पर missing carton जुड़ता है और existing carton outline दबाने पर वह हटता है—बिल्कुल Review screen की तरह। हर बदलाव उसी layer में अपने आप save होकर carton और related totals update करता है। पुराने layer में AI polygon न हो तो भी editable layer में carton manually जोड़ा जा सकता है।
+लेयर की reference photo दबाकर verification viewer खोलें। ऊपर compact bar में zoom करते समय भी layer number और total cartons दिखते हैं। Mask और carton number को अलग-अलग चालू या बंद कर सकते हैं। Editable layer में खाली जगह दबाने पर missing carton जुड़ता है, existing carton outline दबाने पर वह हटता है और उसी जगह फिर दबाने पर वापस आ जाता है—बिल्कुल Review screen की तरह। ये preview बदलाव अस्थायी हैं और अपने आप save नहीं होते। बदलाव के बाद image बंद करने, बाहर tap करने या Android back/swipe करने पर चेतावनी आती है। **Keep editing** से preview में लौटें या **Go to correction** से preview के boxes साथ लेकर सामान्य Layer Correction page खोलें और वहां स्पष्ट रूप से save करें। पुराने layer में AI polygon न हो तो भी editable layer में carton manually जोड़ा जा सकता है।
 
 ### पुरानी लेयर सुधारना
 
@@ -1415,7 +1429,7 @@ AI कार्टन छोड़ दे तो उपलब्ध कंट्
 
 ### लेयर हटाना
 
-पूरी लेयर गलत या डुप्लिकेट हो तभी Remove Layer करें। मांगा गया लेयर नंबर टाइप करके पुष्टि करें। इससे वाहन कुल, वैगन इन्वेंटरी और रिपोर्ट फिर से गणना होती है। ऑडिट में कार्रवाई रहती है।
+Layer History card के सबसे दाईं ओर circular delete button से पूरी लेयर गलत या डुप्लिकेट हो तभी Remove Layer करें। मांगा गया लेयर नंबर टाइप करके पुष्टि करें। इससे वाहन कुल, वैगन इन्वेंटरी और रिपोर्ट फिर से गणना होती है। ऑडिट में कार्रवाई रहती है।
 
 गलती छिपाने के लिए सही लेयर न हटाएं। उसे कारण के साथ सुधारें।
 
@@ -1481,7 +1495,7 @@ Complete Wagon दबाकर अंतिम सारांश जांच�
 
 वाहन खोलकर Truck Details में ऐतिहासिक रिकॉर्ड देखा जा सकता है। Supervisor कोई बदलाव नहीं कर सकता। केवल Administrator वैगन या वाहन आर्काइव होने के बाद भी वाहन विवरण, लेयर, कार्टन, आइटम विभाजन, डिफेक्ट और Remarks सुधार सकता है। सामान्य लोडिंग कंट्रोल हमेशा बंद रहते हैं।
 
-Correction History में लेयर, समय, ऑपरेटर, पहले की मात्रा, बाद की मात्रा और कारण दिखता है। केवल Administrator को Edit Remarks मिलता है; अन्य भूमिकाएं सेव टिप्पणी केवल देख सकती हैं।
+Correction History में वाहन, लेयर, समय, ऑपरेटर, पहले की मात्रा, बाद की मात्रा और कारण दिखता है। किसी खास वाहन की रिपोर्ट में केवल उसी वाहन का इतिहास दिखता है और वाहन कॉलम दोहराया नहीं जाता। केवल Administrator को Edit Remarks मिलता है; अन्य भूमिकाएं सेव टिप्पणी केवल देख सकती हैं।
 
 ---
 
@@ -1491,7 +1505,7 @@ Wagon Details, Truck Details या Digital Register में Report आइक�
 
 ### Truck Report
 
-Wagon No., Vehicle No., Driver, Company, Driver Phone, Status, Warehouse, Supervisor, लेयर, कार्टन, आइटम बांट, डिफेक्ट, नोट, ऑपरेटर समय, सुधार, कुल और हस्ताक्षर।
+Wagon No., Vehicle No., Driver, Company, Driver Phone, Status, Warehouse, Supervisor, लेयर, कार्टन, आइटम बांट, डिफेक्ट, नोट, ऑपरेटर समय, Layer Correction History, कुल और हस्ताक्षर। Truck report में इतिहास उसी truck तक सीमित रहता है और अलग Vehicle column नहीं दिखता।
 
 ### Wagon Report
 
@@ -1501,11 +1515,11 @@ Wagon No., Vehicle No., Driver, Company, Driver Phone, Status, Warehouse, Superv
 
 शुरुआती Landscape भाग में हर वाहन के लिए हर लेयर का Cartons और Item दिखता है। ज्यादा लेयर होने पर टेबल अगले Landscape पेज पर जारी रहती है और हेडिंग दोहरती है। अंतिम लेयर के बाद Vehicles, Layers, Cartons और Defects का बॉक्स आता है। उसके नीचे Supervisor और Remarks आते हैं।
 
-बाद के Portrait पेज में Executive Summary, Item Reconciliation, Vehicle Summary, Layer Details, Correction History और Signatures आते हैं।
+बाद के Portrait पेज में Executive Summary, Item Reconciliation, Vehicle Summary, Layer Details, वाहन सहित Layer Correction History में पहले/बाद की मात्रा, ऑपरेटर और कारण, और Signatures आते हैं।
 
 ### Excel
 
-विश्लेषण के लिए Register Summary, Item Inventory, Truck Summary, Layer Details, Corrections और Register Grid शीट मिलती हैं।
+विश्लेषण के लिए Register Summary, Item Inventory, Truck Summary, Layer Details, Layer Correction History और Register Grid शीट मिलती हैं। Truck workbook में इतिहास उसी truck का होता है और redundant Vehicle column नहीं होता।
 
 रिपोर्ट बनने के बाद Android Share विकल्प चुनें। भेजने से पहले रिपोर्ट खोलकर जांचें। रिपोर्ट बनाने से सेव डेटा नहीं बदलता।
 
@@ -1555,6 +1569,10 @@ Load Demo Data केवल Administrator के लिए उपलब्ध �
 Strict confirmation गलती से हटाने से बचाता है। पुष्टि टाइप करने से पहले लक्ष्य नंबर ध्यान से पढ़ें।
 
 लेयर Save, Correct या Remove होने पर वाहन की लेयर, कार्टन, डिफेक्ट, वैगन Loaded, Remaining, Digital Register और भविष्य की रिपोर्ट अपने आप अपडेट होती है।
+
+### Backup, import और restore
+
+दूसरे फोन पर डेटा ले जाने या गलती से बदला local data वापस पाने से पहले Backup & Restore उपयोग करें। Archive में records, photos, audit history और generated exports हो सकते हैं। ZIP या extracted folder import करने से पहले archive validate होता है, लेकिन import और restore local data को replace करने वाली कार्रवाई हैं। पहले current backup सुरक्षित रखें और चुनी गई तारीख की पुष्टि करें।
 
 ---
 

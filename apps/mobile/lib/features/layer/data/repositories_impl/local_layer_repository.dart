@@ -283,7 +283,7 @@ class LocalLayerRepository implements LayerRepository {
                 '${existing.defectCount} -> ${layer.defectCount}. Reason: '
                 '${correctionReason?.trim().isNotEmpty == true ? correctionReason!.trim() : 'Not provided'}'
                 '${photoChanged ? ' (Photo ${existing.photoPath == null ? 'added' : 'replaced'})' : ''}. '
-                '${detectionsChanged ? 'Verified carton boxes updated. ' : ''}'
+                '${detectionsChanged ? 'Verified carton boxes updated. Boxes: ${_savedDetectionCount(existing.detectionsJson)} -> ${layer.detections.length}. ' : ''}'
                 'Items: ${existing.itemAllocationsJson} -> $nextAllocationsJson',
               ),
             ));
@@ -304,6 +304,14 @@ class LocalLayerRepository implements LayerRepository {
       await _imageStorage.deleteImage(existing.photoPath!);
     }
     AppLogger.info('Updated layer record: ${layer.id}');
+  }
+
+  int _savedDetectionCount(String raw) {
+    try {
+      return (jsonDecode(raw) as List<dynamic>).length;
+    } catch (_) {
+      return 0;
+    }
   }
 
   @override

@@ -5,7 +5,8 @@ import 'package:excel/excel.dart';
 import '../../domain/services/report_services.dart';
 import '../../../../core/database/app_database.dart';
 import 'package:drift/drift.dart' as drift;
-import 'pdf_report_service_impl.dart' show parseLayerCorrectionDetails;
+import 'pdf_report_service_impl.dart'
+    show buildLayerCorrectionHistoryRows, parseLayerCorrectionDetails;
 
 class ExcelReportServiceImpl implements ExcelReportService {
   final AppDatabase _db;
@@ -262,6 +263,21 @@ class ExcelReportServiceImpl implements ExcelReportService {
               ..where(
                   (l) => l.truckId.isIn(truckIds) & l.isDeleted.equals(false)))
             .get();
+    final layerIds = layers.map((layer) => layer.id).toList(growable: false);
+    final correctionAudits = layerIds.isEmpty
+        ? <AuditLog>[]
+        : await (_db.select(_db.auditLogs)
+              ..where((log) =>
+                  log.entityId.isIn(layerIds) &
+                  log.entityType.equals('Layer') &
+                  log.action.equals('correct'))
+              ..orderBy([(log) => drift.OrderingTerm.asc(log.timestamp)]))
+            .get();
+    final corrections = buildLayerCorrectionHistoryRows(
+      audits: correctionAudits,
+      layers: layers,
+      trucks: trucks,
+    );
     final totalCartons =
         layers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
     final totalDefects =
@@ -391,6 +407,46 @@ class ExcelReportServiceImpl implements ExcelReportService {
     sheet
         .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: currentRow))
         .value = TextCellValue('REMARKS: ${wagon.remarks ?? ''}');
+    final correctionSheet = excel['Layer Correction History'];
+    const correctionHeaders = [
+      'Vehicle',
+      'Layer',
+      'Changed At',
+      'Operator',
+      'Before',
+      'After',
+      'Reason',
+    ];
+    for (var column = 0; column < correctionHeaders.length; column++) {
+      final cell = correctionSheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: column, rowIndex: 0));
+      cell.value = TextCellValue(correctionHeaders[column]);
+      cell.cellStyle = headerStyle;
+    }
+    if (corrections.isEmpty) {
+      correctionSheet
+          .cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1))
+          .value = TextCellValue('No layer corrections recorded.');
+    } else {
+      for (var row = 0; row < corrections.length; row++) {
+        final correction = corrections[row];
+        final values = [
+          correction['vehicleNumber'].toString(),
+          correction['layerNumber'].toString(),
+          correction['timestamp'].toString(),
+          correction['operator'].toString(),
+          correction['before'].toString(),
+          correction['after'].toString(),
+          correction['reason'].toString(),
+        ];
+        for (var column = 0; column < values.length; column++) {
+          correctionSheet
+              .cell(CellIndex.indexByColumnRow(
+                  columnIndex: column, rowIndex: row + 1))
+              .value = TextCellValue(values[column]);
+        }
+      }
+    }
     return _saveExcel(excel, 'WAGON_${wagon.wagonNumber}');
   }
 
@@ -542,10 +598,13 @@ class ExcelReportServiceImpl implements ExcelReportService {
         ? <AuditLog>[]
         : await (_db.select(_db.auditLogs)
               ..where((log) =>
-                  log.entityId.isIn(layerIds) & log.action.equals('correct'))
+                  log.entityId.isIn(layerIds) &
+                  log.entityType.equals('Layer') &
+                  log.action.equals('correct'))
               ..orderBy([(log) => drift.OrderingTerm.asc(log.timestamp)]))
             .get();
     writeRow(correctionSheet, 0, [
+      TextCellValue('Vehicle'),
       TextCellValue('Layer'),
       TextCellValue('Changed At'),
       TextCellValue('Operator'),
@@ -555,10 +614,11 @@ class ExcelReportServiceImpl implements ExcelReportService {
     ]);
     for (var row = 0; row < audits.length; row++) {
       final audit = audits[row];
+      final layer = layers.firstWhere((item) => item.id == audit.entityId);
+      final truck = trucks.firstWhere((item) => item.id == layer.truckId);
       writeRow(correctionSheet, row + 1, [
-        IntCellValue(layers
-            .firstWhere((layer) => layer.id == audit.entityId)
-            .layerNumber),
+        TextCellValue(truck.vehicleNumber),
+        IntCellValue(layer.layerNumber),
         TextCellValue(audit.timestamp.toString()),
         TextCellValue(audit.userId),
         TextCellValue(_correctionPart(audit.details, 'before')),

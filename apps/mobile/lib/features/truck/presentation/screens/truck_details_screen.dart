@@ -270,6 +270,19 @@ class TruckDetailsScreen extends ConsumerWidget {
                       layer.id,
                       detections,
                     ),
+                    onRequestCorrection: (layer) {
+                      // The preview is intentionally non-persistent. Reopen
+                      // the normal correction form so the user can review and
+                      // explicitly save the change there.
+                      _editLayerDialog(
+                        context,
+                        layerNotifier,
+                        layer,
+                        wagon: wagon,
+                        loadedByItem: inventory?.valueOrNull ?? const {},
+                        requireCorrectionReason: isRegisterView,
+                      );
+                    },
                   ),
 
                 // bottom padding for sticky bar
@@ -1005,6 +1018,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                               itemAllocations: nextAllocations,
                               reason: reason,
                               photoPath: storedPhotoPath,
+                              detections: layer.detections,
                             );
                             if (error != null && context.mounted) {
                               setDialogState(() => isSavingCorrection = false);

@@ -67,7 +67,9 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen>
   }
 
   Future<void> _initialize() async {
-    final cameraPermission = await Permission.camera.status;
+    // Request each time this scanner session starts. If the user denied it,
+    // reopening or retrying the scanner will show the system prompt again.
+    final cameraPermission = await Permission.camera.request();
     if (!cameraPermission.isGranted) {
       if (mounted) {
         setState(() {
@@ -484,6 +486,13 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen>
                     key: const ValueKey('camera-error'),
                     child: _ErrorState(
                       message: _error!,
+                      onRetry: () {
+                        setState(() {
+                          _initializing = true;
+                          _error = null;
+                        });
+                        unawaited(_initialize());
+                      },
                     ),
                   )
                 : Stack(
@@ -574,7 +583,8 @@ class _VehicleNumberScanScreenState extends State<VehicleNumberScanScreen>
 
 class _ErrorState extends StatelessWidget {
   final String message;
-  const _ErrorState({required this.message});
+  final VoidCallback onRetry;
+  const _ErrorState({required this.message, required this.onRetry});
 
   @override
   Widget build(BuildContext context) => Center(
@@ -586,7 +596,13 @@ class _ErrorState extends StatelessWidget {
               Text(message, textAlign: TextAlign.center),
               const SizedBox(height: 16),
               FilledButton.icon(
-                onPressed: () => PermissionSettingsService.openAppPermissions(),
+                onPressed: onRetry,
+                icon: const Icon(Icons.camera_alt_outlined),
+                label: const Text('Try camera permission again'),
+              ),
+              const SizedBox(height: 8),
+              TextButton.icon(
+                onPressed: PermissionSettingsService.openAppPermissions,
                 icon: const Icon(Icons.settings_outlined),
                 label: const Text('Open camera settings'),
               ),

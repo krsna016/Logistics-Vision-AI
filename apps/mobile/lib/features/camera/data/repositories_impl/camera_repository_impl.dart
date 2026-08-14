@@ -10,10 +10,9 @@ class CameraRepositoryImpl implements CameraRepository {
   Future<bool> requestCameraPermission() async {
     try {
       AppLogger.info('Checking camera permissions...');
-      final status = await Permission.camera.status;
-      if (status.isGranted) {
-        return true;
-      }
+      // Ask on every camera-session start. Android returns the already-granted
+      // status immediately, while a denied permission gets another prompt on
+      // the next attempt instead of being silently short-circuited.
       final requestStatus = await Permission.camera.request();
       AppLogger.info('Camera permission request status: $requestStatus');
       return requestStatus.isGranted;

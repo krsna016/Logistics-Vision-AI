@@ -17,6 +17,7 @@ class LayerTimeline extends StatelessWidget {
   final void Function(LayerRecord layer) onDeleteLayer;
   final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
       onSaveDetections;
+  final void Function(LayerRecord layer)? onRequestCorrection;
 
   const LayerTimeline({
     super.key,
@@ -25,6 +26,7 @@ class LayerTimeline extends StatelessWidget {
     required this.onEditNotes,
     required this.onDeleteLayer,
     this.onSaveDetections,
+    this.onRequestCorrection,
   });
 
   @override
@@ -43,6 +45,7 @@ class LayerTimeline extends StatelessWidget {
           onEditNotes: () => onEditNotes(layer),
           onDelete: () => onDeleteLayer(layer),
           onSaveDetections: onSaveDetections,
+          onRequestCorrection: onRequestCorrection,
         );
       },
     );
@@ -57,6 +60,7 @@ class _TimelineItem extends StatelessWidget {
   final VoidCallback onDelete;
   final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
       onSaveDetections;
+  final void Function(LayerRecord layer)? onRequestCorrection;
 
   const _TimelineItem({
     required this.layer,
@@ -65,6 +69,7 @@ class _TimelineItem extends StatelessWidget {
     required this.onEditNotes,
     required this.onDelete,
     this.onSaveDetections,
+    this.onRequestCorrection,
   });
 
   bool get _hasDefects =>
@@ -171,19 +176,6 @@ class _TimelineItem extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 5),
-                            if (!isReadOnly)
-                              IconButton(
-                                onPressed: onDelete,
-                                tooltip: 'Delete layer',
-                                visualDensity: VisualDensity.compact,
-                                padding: EdgeInsets.zero,
-                                constraints: const BoxConstraints.tightFor(
-                                  width: 23,
-                                  height: 25,
-                                ),
-                                icon: const Icon(Icons.delete_outline,
-                                    size: 16, color: AppTheme.errorColor),
-                              ),
                             Container(
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 4, vertical: 2),
@@ -205,6 +197,30 @@ class _TimelineItem extends StatelessWidget {
                                 ],
                               ),
                             ),
+                            if (!isReadOnly) ...[
+                              const SizedBox(width: 5),
+                              Container(
+                                key: const ValueKey('layer-delete-button'),
+                                width: 28,
+                                height: 28,
+                                decoration: const BoxDecoration(
+                                  color: AppTheme.errorColor,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: IconButton(
+                                  onPressed: onDelete,
+                                  tooltip: 'Delete layer',
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints.tightFor(
+                                    width: 28,
+                                    height: 28,
+                                  ),
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 16, color: Colors.white),
+                                ),
+                              ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 5),
@@ -242,6 +258,7 @@ class _TimelineItem extends StatelessWidget {
                             layer: layer,
                             canEdit: !isReadOnly && onSaveDetections != null,
                             onSaveDetections: onSaveDetections,
+                            onRequestCorrection: onRequestCorrection,
                           ),
                         ],
 
@@ -298,11 +315,13 @@ class _LayerPhotoThumbnail extends StatelessWidget {
   final bool canEdit;
   final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
       onSaveDetections;
+  final void Function(LayerRecord layer)? onRequestCorrection;
 
   const _LayerPhotoThumbnail({
     required this.layer,
     required this.canEdit,
     this.onSaveDetections,
+    this.onRequestCorrection,
   });
 
   String get path => layer.photoPath!;
@@ -319,12 +338,14 @@ class _LayerPhotoThumbnail extends StatelessWidget {
     }
     if (file == null || !context.mounted) return;
     await showDialog<void>(
+      barrierDismissible: false,
       context: context,
       builder: (dialogContext) => LayerHistoryPhotoViewer(
         layer: layer,
         file: file!,
         canEdit: canEdit,
         onSaveDetections: onSaveDetections,
+        onRequestCorrection: onRequestCorrection,
       ),
     );
   }
@@ -382,6 +403,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
   final bool canEdit;
   final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
       onSaveDetections;
+  final void Function(LayerRecord layer)? onRequestCorrection;
 
   const LayerHistoryPhotoViewer({
     super.key,
@@ -389,6 +411,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
     required this.file,
     required this.canEdit,
     this.onSaveDetections,
+    this.onRequestCorrection,
   });
 
   @override
@@ -400,10 +423,7 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
   Size _photoSize = const Size(720, 1280);
   bool _showMasks = false;
   bool _showNumbers = false;
-  bool _isSaving = false;
-  bool _saveLoopRunning = false;
   int _editRevision = 0;
-  int _persistedRevision = 0;
   String? _errorMessage;
   late List<Detection> _detections;
   late int _displayCartonCount;
@@ -462,7 +482,7 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
       _showMasks = true;
       _errorMessage = null;
     });
-    _queueAutoSave();
+    _markEdited();
   }
 
   void _toggleDetection(Detection detection) {
@@ -475,48 +495,46 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
       _displayCartonCount = _visibleDetections.length;
       _errorMessage = null;
     });
-    _queueAutoSave();
+    _markEdited();
   }
 
-  void _queueAutoSave() {
+  void _markEdited() {
     _editRevision++;
-    if (!_saveLoopRunning) unawaited(_drainAutoSaveQueue());
   }
 
-  Future<void> _drainAutoSaveQueue() async {
-    final callback = widget.onSaveDetections;
-    if (callback == null || _saveLoopRunning) return;
-    _saveLoopRunning = true;
-    if (mounted) {
-      setState(() {
-        _isSaving = true;
-        _errorMessage = null;
-      });
+  Future<void> _closeImage() async {
+    if (_editRevision == 0 || widget.onSaveDetections == null) {
+      if (mounted) Navigator.of(context).pop();
+      return;
     }
-    while (mounted && _persistedRevision < _editRevision) {
-      final targetRevision = _editRevision;
-      final snapshot = List<Detection>.of(_visibleDetections);
-      String? error;
-      try {
-        error = await callback(widget.layer, snapshot);
-      } catch (exception, stack) {
-        AppLogger.error(
-          'Failed to auto-save Layer History boxes',
-          exception,
-          stack,
-        );
-        error = 'Failed to save verified boxes.';
-      }
-      if (!mounted) return;
-      if (error != null) {
-        setState(() => _errorMessage = error);
-        break;
-      }
-      _persistedRevision = targetRevision;
-    }
-    _saveLoopRunning = false;
-    if (mounted) {
-      setState(() => _isSaving = false);
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Unsaved layer changes'),
+        content: const Text('You changed the verified boxes in this image.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop('cancel'),
+            child: const Text('Keep editing'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(dialogContext).pop('correction'),
+            child: const Text('Go to correction'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || choice == 'cancel' || choice == null) return;
+    Navigator.of(context).pop();
+    if (choice == 'correction') {
+      // Carry the preview state into the correction form. The preview remains
+      // non-persistent, but the user's add/remove work should not be lost when
+      // they choose to save it explicitly from the normal correction flow.
+      final editedLayer = widget.layer.copyWith(
+        cartonCount: _visibleDetections.length,
+        detections: List<Detection>.of(_visibleDetections),
+      );
+      widget.onRequestCorrection?.call(editedLayer);
     }
   }
 
@@ -545,150 +563,147 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
   @override
   Widget build(BuildContext context) {
     final viewport = MediaQuery.sizeOf(context);
-    return Dialog(
-      backgroundColor: const Color(0xFF07111F),
-      insetPadding: const EdgeInsets.all(12),
-      clipBehavior: Clip.antiAlias,
-      child: SizedBox(
-        width: viewport.width.clamp(0.0, 920.0).toDouble(),
-        height: (viewport.height * 0.9).clamp(360.0, 900.0).toDouble(),
-        child: Column(
-          children: [
-            Container(
-              key: const ValueKey('layer-photo-summary'),
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(8, 4, 2, 4),
-              decoration: const BoxDecoration(
-                color: AppTheme.cardColor,
-                border: Border(
-                  bottom: BorderSide(color: AppTheme.dividerColor),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) unawaited(_closeImage());
+      },
+      child: Dialog(
+        backgroundColor: const Color(0xFF07111F),
+        insetPadding: const EdgeInsets.all(12),
+        clipBehavior: Clip.antiAlias,
+        child: SizedBox(
+          width: viewport.width.clamp(0.0, 920.0).toDouble(),
+          height: (viewport.height * 0.9).clamp(360.0, 900.0).toDouble(),
+          child: Column(
+            children: [
+              Container(
+                key: const ValueKey('layer-photo-summary'),
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(8, 4, 2, 4),
+                decoration: const BoxDecoration(
+                  color: AppTheme.cardColor,
+                  border: Border(
+                    bottom: BorderSide(color: AppTheme.dividerColor),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppTheme.primaryColor.withValues(alpha: 0.16),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'L${widget.layer.layerNumber}',
+                        style: const TextStyle(
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 7),
+                    Expanded(
+                      child: Text(
+                        '$_displayCartonCount cartons'
+                        '${widget.layer.defectCount > 0 ? ' • ${widget.layer.defectCount} defective' : ''}',
+                        key: const ValueKey('layer-photo-carton-count'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                    _CompactToggleButton(
+                      key: const ValueKey('layer-mask-toggle'),
+                      tooltip: _showMasks ? 'Hide masks' : 'Show masks',
+                      icon: Icons.gesture_rounded,
+                      selected: _showMasks,
+                      enabled: _hasDetections,
+                      onPressed: () => setState(() => _showMasks = !_showMasks),
+                    ),
+                    _CompactToggleButton(
+                      key: const ValueKey('layer-number-toggle'),
+                      tooltip: _showNumbers ? 'Hide numbers' : 'Show numbers',
+                      icon: Icons.pin_outlined,
+                      selected: _showNumbers,
+                      enabled: _hasDetections,
+                      onPressed: () =>
+                          setState(() => _showNumbers = !_showNumbers),
+                    ),
+                    IconButton(
+                      tooltip: 'Close image',
+                      onPressed: _closeImage,
+                      visualDensity: VisualDensity.compact,
+                      icon: const Icon(Icons.close,
+                          color: Colors.white, size: 20),
+                    ),
+                  ],
                 ),
               ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 30,
-                    height: 30,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: AppTheme.primaryColor.withValues(alpha: 0.16),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      'L${widget.layer.layerNumber}',
-                      style: const TextStyle(
-                        color: AppTheme.primaryColor,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: Text(
-                      '$_displayCartonCount cartons'
-                      '${widget.layer.defectCount > 0 ? ' • ${widget.layer.defectCount} defective' : ''}',
-                      key: const ValueKey('layer-photo-carton-count'),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
-                  if (_isSaving)
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 5),
-                      child: SizedBox.square(
-                        key: ValueKey('layer-auto-saving'),
-                        dimension: 13,
-                        child: CircularProgressIndicator(strokeWidth: 1.8),
-                      ),
-                    ),
-                  _CompactToggleButton(
-                    key: const ValueKey('layer-mask-toggle'),
-                    tooltip: _showMasks ? 'Hide masks' : 'Show masks',
-                    icon: Icons.gesture_rounded,
-                    selected: _showMasks,
-                    enabled: _hasDetections,
-                    onPressed: () => setState(() => _showMasks = !_showMasks),
-                  ),
-                  _CompactToggleButton(
-                    key: const ValueKey('layer-number-toggle'),
-                    tooltip: _showNumbers ? 'Hide numbers' : 'Show numbers',
-                    icon: Icons.pin_outlined,
-                    selected: _showNumbers,
-                    enabled: _hasDetections,
-                    onPressed: () =>
-                        setState(() => _showNumbers = !_showNumbers),
-                  ),
-                  IconButton(
-                    tooltip: 'Close image',
-                    onPressed: () => Navigator.of(context).pop(),
-                    visualDensity: VisualDensity.compact,
-                    icon:
-                        const Icon(Icons.close, color: Colors.white, size: 20),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: ColoredBox(
-                color: Colors.black,
-                child: InteractiveViewer(
-                  minScale: 0.8,
-                  maxScale: 4,
-                  boundaryMargin: const EdgeInsets.all(80),
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      Image(
-                        image: ResizeImage(
-                          FileImage(widget.file),
-                          width: 1920,
-                          height: 1920,
-                          policy: ResizeImagePolicy.fit,
-                        ),
-                        fit: BoxFit.contain,
-                        filterQuality: FilterQuality.medium,
-                      ),
-                      if (_showMasks || _showNumbers || widget.canEdit)
-                        Positioned.fill(
-                          child: DetectionOverlayWidget(
-                            key: const ValueKey('layer-mask-overlay'),
-                            detections: _visibleDetections,
-                            hitTestDetections: _detections,
-                            cameraSize: _photoSize,
-                            fit: BoxFit.contain,
-                            showLabels: false,
-                            showNumbers: _showNumbers,
-                            showOutlines: _showMasks,
-                            onDetectionTapped:
-                                widget.canEdit ? _toggleDetection : null,
-                            onEmptyAreaTapped:
-                                widget.canEdit ? _addDetectionAt : null,
+              Expanded(
+                child: ColoredBox(
+                  color: Colors.black,
+                  child: InteractiveViewer(
+                    minScale: 0.8,
+                    maxScale: 4,
+                    boundaryMargin: const EdgeInsets.all(80),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image(
+                          image: ResizeImage(
+                            FileImage(widget.file),
+                            width: 1920,
+                            height: 1920,
+                            policy: ResizeImagePolicy.fit,
                           ),
+                          fit: BoxFit.contain,
+                          filterQuality: FilterQuality.medium,
                         ),
-                      if (_errorMessage != null)
-                        Positioned(
-                          left: 12,
-                          right: 12,
-                          top: 10,
-                          child: Text(
-                            _errorMessage!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: AppTheme.errorColor,
-                              fontWeight: FontWeight.w700,
+                        if (_showMasks || _showNumbers || widget.canEdit)
+                          Positioned.fill(
+                            child: DetectionOverlayWidget(
+                              key: const ValueKey('layer-mask-overlay'),
+                              detections: _visibleDetections,
+                              hitTestDetections: _detections,
+                              cameraSize: _photoSize,
+                              fit: BoxFit.contain,
+                              showLabels: false,
+                              showNumbers: _showNumbers,
+                              showOutlines: _showMasks,
+                              onDetectionTapped:
+                                  widget.canEdit ? _toggleDetection : null,
+                              onEmptyAreaTapped:
+                                  widget.canEdit ? _addDetectionAt : null,
                             ),
                           ),
-                        ),
-                    ],
+                        if (_errorMessage != null)
+                          Positioned(
+                            left: 12,
+                            right: 12,
+                            top: 10,
+                            child: Text(
+                              _errorMessage!,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: AppTheme.errorColor,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

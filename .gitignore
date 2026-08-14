@@ -19,6 +19,7 @@ apps/backend/*.sqlite
 .env
 .env.*
 !.env.example
+keys/
 
 # System Files
 .DS_Store

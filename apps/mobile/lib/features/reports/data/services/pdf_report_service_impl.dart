@@ -31,10 +31,11 @@ Map<String, String> parseLayerCorrectionDetails(String? details) {
       'reason': 'Not provided',
     };
   }
+  final normalized = details.trim();
   final match = RegExp(
-    r'cartons\s+(\d+)\s*->\s*(\d+),\s*defects\s+(\d+)\s*->\s*(\d+)\.\s*Reason:\s*(.*?)(?:\.\s*Items:\s*(\[.*\])\s*->\s*(\[.*\]))?$',
+    r'cartons\s+(\d+)\s*->\s*(\d+),\s*defects\s+(\d+)\s*->\s*(\d+)',
     caseSensitive: false,
-  ).firstMatch(details.trim());
+  ).firstMatch(normalized);
   if (match == null) {
     return {
       'before': 'Previous values unavailable',
@@ -43,25 +44,69 @@ Map<String, String> parseLayerCorrectionDetails(String? details) {
     };
   }
 
-  final beforeItems = _formatCorrectionItems(match.group(6));
-  final afterItems = _formatCorrectionItems(match.group(7));
+  final itemsMatch = RegExp(
+    r'Items:\s*(\[.*?\])\s*->\s*(\[.*?\])',
+    caseSensitive: false,
+    dotAll: true,
+  ).firstMatch(normalized);
+  final beforeItems = _formatCorrectionItems(itemsMatch?.group(1));
+  final afterItems = _formatCorrectionItems(itemsMatch?.group(2));
+  final boxesMarker = normalized.toLowerCase().lastIndexOf('boxes');
+  final boxesText = boxesMarker < 0
+      ? null
+      : normalized.substring(boxesMarker).split('.').first;
+  final boxes = boxesText == null
+      ? null
+      : RegExp(r'(\d+)\s*->\s*(\d+)').firstMatch(boxesText);
+  final reasonMatch = RegExp(
+    r'Reason:\s*(.*?)(?=\.\s*(?:boxes|carton boxes|verified carton boxes updated(?:\.)?|items):?|$)',
+    caseSensitive: false,
+    dotAll: true,
+  ).firstMatch(normalized);
+  final reason = reasonMatch?.group(1)?.trim().isNotEmpty == true
+      ? reasonMatch!.group(1)!.trim()
+      : 'Not provided';
   final beforeLines = <String>[
     'Cartons: ${match.group(1)}',
+    if (boxes != null) 'Boxes: ${boxes.group(1)}',
     if (beforeItems.isNotEmpty) 'Items:\n$beforeItems',
     'Defects: ${match.group(3)}',
   ];
   final afterLines = <String>[
     'Cartons: ${match.group(2)}',
+    if (boxes != null) 'Boxes: ${boxes.group(2)}',
     if (afterItems.isNotEmpty) 'Items:\n$afterItems',
     'Defects: ${match.group(4)}',
   ];
   return {
     'before': beforeLines.join('\n'),
     'after': afterLines.join('\n'),
-    'reason': match.group(5)?.trim().isNotEmpty == true
-        ? match.group(5)!.trim()
-        : 'Not provided',
+    'reason': reason,
   };
+}
+
+List<Map<String, Object?>> buildLayerCorrectionHistoryRows({
+  required Iterable<AuditLog> audits,
+  required Iterable<Layer> layers,
+  required Iterable<Truck> trucks,
+}) {
+  final layerById = {for (final layer in layers) layer.id: layer};
+  final truckById = {for (final truck in trucks) truck.id: truck};
+  return audits.map((audit) {
+    final layer = layerById[audit.entityId];
+    final truck = layer == null ? null : truckById[layer.truckId];
+    final parsed = parseLayerCorrectionDetails(audit.details);
+    return <String, Object?>{
+      'truckNumber': truck?.truckNumber ?? 'Not provided',
+      'vehicleNumber': truck?.vehicleNumber ?? 'Not provided',
+      'layerNumber': layer?.layerNumber ?? 'Not provided',
+      'timestamp': audit.timestamp.toString().split('.')[0],
+      'operator': audit.userId,
+      'before': parsed['before'] ?? 'Not recorded',
+      'after': parsed['after'] ?? 'Not recorded',
+      'reason': parsed['reason'] ?? 'Not provided',
+    };
+  }).toList(growable: false);
 }
 
 String _formatCorrectionItems(String? rawJson) {
@@ -150,7 +195,7 @@ String formatCorrectionChanges(String before, String after) {
   final previous = values(before);
   final current = values(after);
   final keys = <String>{...previous.keys, ...current.keys};
-  const priority = ['Cartons', 'Defects'];
+  const priority = ['Cartons', 'Boxes', 'Defects'];
   final itemKeys = keys.where((key) => !priority.contains(key)).toList()
     ..sort();
   if (itemKeys.isNotEmpty) {
@@ -500,6 +545,21 @@ class PdfReportServiceImpl implements PdfReportService {
       for (final truck in trucks)
         truck.id: layers.where((layer) => layer.truckId == truck.id).toList(),
     };
+    final layerIds = layers.map((layer) => layer.id).toList(growable: false);
+    final correctionAudits = layerIds.isEmpty
+        ? <AuditLog>[]
+        : await (_db.select(_db.auditLogs)
+              ..where((log) =>
+                  log.entityId.isIn(layerIds) &
+                  log.entityType.equals('Layer') &
+                  log.action.equals('correct'))
+              ..orderBy([(log) => drift.OrderingTerm.asc(log.timestamp)]))
+            .get();
+    final corrections = buildLayerCorrectionHistoryRows(
+      audits: correctionAudits,
+      layers: layers,
+      trucks: trucks,
+    );
     final loadedByItem = <String, int>{};
     for (final layer in layers) {
       for (final allocation in _layerAllocations(layer).entries) {
@@ -553,6 +613,7 @@ class PdfReportServiceImpl implements PdfReportService {
           };
         },
       ).toList(growable: false),
+      'corrections': corrections,
     };
     final logoBytes = await _loadReportLogoBytes();
     final supervisor = _supervisor;
@@ -606,12 +667,11 @@ class PdfReportServiceImpl implements PdfReportService {
         ? <AuditLog>[]
         : await (_db.select(_db.auditLogs)
               ..where((log) =>
-                  log.entityId.isIn(layerIds) & log.action.equals('correct'))
+                  log.entityId.isIn(layerIds) &
+                  log.entityType.equals('Layer') &
+                  log.action.equals('correct'))
               ..orderBy([(log) => drift.OrderingTerm.asc(log.timestamp)]))
             .get();
-    final layerNumberById = {
-      for (final layer in layers) layer.id: layer.layerNumber,
-    };
     final rowCount = layers.isEmpty
         ? 0
         : layers
@@ -668,17 +728,11 @@ class PdfReportServiceImpl implements PdfReportService {
           };
         },
       ).toList(growable: false),
-      'corrections': audits.map((audit) {
-        final parsed = parseLayerCorrectionDetails(audit.details);
-        return {
-          'layer': layerNumberById[audit.entityId] ?? 0,
-          'when': audit.timestamp.toString().split('.')[0],
-          'operator': audit.userId,
-          'changes': formatCorrectionChanges(
-              parsed['before'] ?? '', parsed['after'] ?? ''),
-          'reason': parsed['reason'] ?? 'Not provided',
-        };
-      }).toList(growable: false),
+      'corrections': buildLayerCorrectionHistoryRows(
+        audits: audits,
+        layers: layers,
+        trucks: trucks,
+      ),
     };
     final logoBytes = await _loadReportLogoBytes();
     final supervisor = _supervisor;
@@ -814,6 +868,7 @@ Future<Uint8List> _buildWagonPdfBytes(
     0,
     (sum, truck) => sum + (truck['totalLayers']! as int),
   );
+  final corrections = _reportMaps(report['corrections']);
   final logo = logoBytes == null ? null : pw.MemoryImage(logoBytes);
   final wagonNumber = report['wagonNumber']! as String;
   final loadingDate = report['loadingDate']! as String;
@@ -960,6 +1015,54 @@ Future<Uint8List> _buildWagonPdfBytes(
         ),
         pw.SizedBox(height: 16),
         pw.Text('Remarks: ${report['remarks']}'),
+        pw.SizedBox(height: 18),
+        pw.Text(
+          'Layer Correction History',
+          style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+        ),
+        pw.SizedBox(height: 8),
+        if (corrections.isEmpty)
+          pw.Text('No layer corrections recorded.',
+              style: const pw.TextStyle(color: PdfColors.grey600))
+        else
+          pw.TableHelper.fromTextArray(
+            context: context,
+            headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
+            headerStyle:
+                pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold),
+            cellStyle: const pw.TextStyle(fontSize: 6.5),
+            cellPadding:
+                const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 3),
+            headers: const [
+              'Vehicle',
+              'Layer',
+              'Changed At',
+              'Operator',
+              'Before',
+              'After',
+              'Reason',
+            ],
+            columnWidths: const {
+              0: pw.FlexColumnWidth(1.25),
+              1: pw.FlexColumnWidth(0.45),
+              2: pw.FlexColumnWidth(1.35),
+              3: pw.FlexColumnWidth(0.9),
+              4: pw.FlexColumnWidth(1.7),
+              5: pw.FlexColumnWidth(1.7),
+              6: pw.FlexColumnWidth(1.6),
+            },
+            data: corrections
+                .map((correction) => [
+                      correction['vehicleNumber'].toString(),
+                      correction['layerNumber'].toString(),
+                      correction['timestamp'].toString(),
+                      correction['operator'].toString(),
+                      correction['before'].toString(),
+                      correction['after'].toString(),
+                      correction['reason'].toString(),
+                    ])
+                .toList(growable: false),
+          ),
         pw.SizedBox(height: 28),
         ReportTemplateServiceImpl.buildSignatures(supervisorName: supervisor),
       ],
@@ -1158,25 +1261,25 @@ Future<Uint8List> _buildTruckPdfBytes(
               'Layer',
               'Changed At',
               'Operator',
-              'Changes',
+              'Before',
+              'After',
               'Reason',
             ],
             columnWidths: const {
               0: pw.FlexColumnWidth(0.7),
               1: pw.FlexColumnWidth(1.7),
               2: pw.FlexColumnWidth(1.4),
-              3: pw.FlexColumnWidth(3.4),
-              4: pw.FlexColumnWidth(1.8),
+              3: pw.FlexColumnWidth(2.5),
+              4: pw.FlexColumnWidth(2.5),
+              5: pw.FlexColumnWidth(1.8),
             },
             data: corrections
                 .map((correction) => [
                       correction['layerNumber'].toString(),
                       correction['timestamp'].toString(),
                       correction['operator'].toString(),
-                      formatCorrectionChanges(
-                        correction['before'].toString(),
-                        correction['after'].toString(),
-                      ),
+                      correction['before'].toString(),
+                      correction['after'].toString(),
                       correction['reason'].toString(),
                     ])
                 .toList(growable: false),
@@ -1560,26 +1663,32 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
           pw.SizedBox(height: 12),
         ];
       }),
-      if (corrections.isNotEmpty) ...[
-        _registerSectionTitle('Correction Audit'),
+      _registerSectionTitle('Layer Correction History'),
+      if (corrections.isEmpty)
+        pw.Text('No layer corrections recorded.')
+      else ...[
         pw.TableHelper.fromTextArray(
           headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
           headerStyle:
               pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
           cellStyle: const pw.TextStyle(fontSize: 6),
           headers: const [
+            'Vehicle',
             'Layer',
             'Changed At',
             'Operator',
-            'Changes',
+            'Before',
+            'After',
             'Reason'
           ],
           data: corrections
               .map((item) => [
-                    item['layer'],
-                    item['when'],
+                    item['vehicleNumber'],
+                    item['layerNumber'],
+                    item['timestamp'],
                     item['operator'],
-                    item['changes'],
+                    item['before'],
+                    item['after'],
                     item['reason'],
                   ])
               .toList(),

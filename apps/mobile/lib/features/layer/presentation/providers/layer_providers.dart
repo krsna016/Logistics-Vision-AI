@@ -362,6 +362,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     required List<LayerItemAllocation> itemAllocations,
     required String reason,
     String? photoPath,
+    List<Detection>? detections,
   }) async {
     if (cartonCount < 0 || defectCount < 0 || defectCount > cartonCount) {
       return 'Enter valid carton and defect counts.';
@@ -422,6 +423,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
             : current.itemName,
         itemAllocations: allocations,
         photoPath: photoPath ?? current.photoPath,
+        detections: detections ?? current.detections,
         updatedAt: DateTime.now(),
       );
       await _layerRepository.updateLayer(

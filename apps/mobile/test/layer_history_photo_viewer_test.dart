@@ -93,7 +93,7 @@ void main() {
     );
   });
 
-  testWidgets('history taps add and remove boxes and auto-save to its layer',
+  testWidgets('history edits stay temporary until correction is requested',
       (tester) async {
     final directory = Directory.systemTemp.createTempSync('layer-editor-');
     addTearDown(() => directory.deleteSync(recursive: true));
@@ -127,6 +127,7 @@ void main() {
       ],
     );
     final saved = <List<Detection>>[];
+    LayerRecord? correctionLayer;
 
     await tester.pumpWidget(MaterialApp(
       home: Scaffold(
@@ -138,6 +139,9 @@ void main() {
             expect(savedLayer.id, 'layer-correct-id');
             saved.add(List<Detection>.of(detections));
             return null;
+          },
+          onRequestCorrection: (editedLayer) {
+            correctionLayer = editedLayer;
           },
         ),
       ),
@@ -162,8 +166,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('2 cartons'), findsOneWidget);
-    expect(saved, hasLength(1));
-    expect(saved.single, hasLength(2));
+    // Layer History is a preview only: tapping never writes to storage.
+    expect(saved, isEmpty);
 
     final currentOverlay = tester.widget<DetectionOverlayWidget>(overlayFinder);
     final cameraSize = currentOverlay.cameraSize;
@@ -181,15 +185,23 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(find.text('1 cartons'), findsOneWidget);
-    expect(saved, hasLength(2));
-    expect(saved.last, hasLength(1));
-    expect(saved.last.single.id, startsWith('history_manual_'));
+    expect(saved, isEmpty);
 
     // The same tap location is now empty, so it must add a new carton again.
     await tester.tapAt(originalCenter);
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.text('2 cartons'), findsOneWidget);
-    expect(saved, hasLength(3));
-    expect(saved.last, hasLength(2));
+    expect(saved, isEmpty);
+
+    await tester.tap(find.byTooltip('Close image'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unsaved layer changes'), findsOneWidget);
+    await tester.tap(find.text('Go to correction'));
+    await tester.pumpAndSettle();
+
+    expect(saved, isEmpty);
+    expect(correctionLayer, isNotNull);
+    expect(correctionLayer!.cartonCount, 2);
+    expect(correctionLayer!.detections, hasLength(2));
   });
 }

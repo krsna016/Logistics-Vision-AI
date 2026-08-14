@@ -99,6 +99,10 @@ Every confirmed layer is logged to its truck, and source-derived truck and wagon
 
 In **Layer History**, tap a reference photo to open the verification viewer. Its fixed top card keeps the layer number and total carton count visible while zooming. Enable **Show masks** to overlay the verified carton polygons and numbers saved during AI review. The toggle is unavailable for older or manually counted layers that have no saved AI masks.
 
+Layer History verification is a preview workflow. You can tap a carton outline to hide or restore it, or tap an empty area to add a temporary carton box. The preview does not save these edits automatically. If you close the image, tap outside it, or use the Android back/swipe gesture after editing, SmartLoad warns you that the layer was updated. Choose **Keep editing** to return to the preview, or **Go to correction** to open the normal Layer Correction page and explicitly save the correction there.
+
+The Layer History card also has a prominent circular delete button on the far right. Deleting a layer uses the normal confirmation flow and updates the truck and wagon totals.
+
 ---
 
 ### F. Completing the Process
@@ -114,6 +118,8 @@ In **Layer History**, tap a reference photo to open the verification viewer. Its
 Digital Registers are the permanent history of wagons and their loading activity. They include wagons that are planning, loading, completed, or archived. Open a wagon to review its trucks, layers, carton counts, defects, operators, and captured reference photos.
 
 From the wagon register detail page, tap the report icon to export the loading history as **PDF** or **Excel**. The report is formatted like a professional wagon loading sheet: it includes wagon information, unloading date, one quantity/item pair for each truck, row numbers, remarks, totals, and the person who prepared the report.
+
+Reports also include **Layer Correction History** when a layer has been corrected. Wagon and Digital Register reports list the vehicle, layer, change time, operator, before values, after values, and correction reason. Truck reports show the same fields except the vehicle column, because the report already represents one specific truck. Correction history includes carton, defect, item-allocation, and verified-box changes when those values are available.
 
 ## 5. Troubleshooting & Developer Tools
 
