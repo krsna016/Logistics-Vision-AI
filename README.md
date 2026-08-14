@@ -1,6 +1,6 @@
 # Logistics Vision AI - Project Foundation
 
-Welcome to the foundation of **Logistics Vision AI**, an enterprise-grade, offline-first mobile application designed for warehouse truck-loading operations. Using camera-based AI, the app automates carton counting and detect damaged cartons, synchronizing offline work to a secure cloud backend.
+Welcome to the foundation of **Logistics Vision AI**, an enterprise-grade, offline-first mobile application designed for warehouse truck-loading operations. Using camera-based AI, the app automates carton counting, synchronizing offline work to a secure cloud backend if available.
 
 This repository is organized as a monorepo to separate frontend, backend, AI pipeline code, and shared packages.
 
