@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/utils/field_normalizer.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../domain/entities/wagon.dart';
@@ -21,6 +22,10 @@ final wagonByIdProvider = FutureProvider.autoDispose.family<Wagon?, String>(
 
 class WagonListState {
   final List<Wagon> wagons;
+
+  /// Archived trucks remain part of register totals, but are kept separate
+  /// from the active workflow list so loading selectors do not offer them.
+  final List<Truck> archivedTrucks;
   final String searchQuery;
   final WagonStatus? statusFilter;
   final bool isLoading;
@@ -28,6 +33,7 @@ class WagonListState {
 
   const WagonListState({
     this.wagons = const [],
+    this.archivedTrucks = const [],
     this.searchQuery = '',
     this.statusFilter,
     this.isLoading = false,
@@ -69,6 +75,7 @@ class WagonListState {
 
   WagonListState copyWith({
     List<Wagon>? wagons,
+    List<Truck>? archivedTrucks,
     String? searchQuery,
     WagonStatus? statusFilter,
     bool? isLoading,
@@ -77,6 +84,7 @@ class WagonListState {
   }) {
     return WagonListState(
       wagons: wagons ?? this.wagons,
+      archivedTrucks: archivedTrucks ?? this.archivedTrucks,
       searchQuery: searchQuery ?? this.searchQuery,
       statusFilter:
           clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
@@ -103,6 +111,8 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
           .where((wagon) => wagon.status != WagonStatus.archived)
           .toList();
       final allTrucks = await _truckRepository.getActiveTrucks();
+      final archivedTrucks =
+          allTrucks.where((truck) => truck.isArchived).toList(growable: false);
 
       // Calculate dynamic completed counts based on current trucks state
       final updatedList = list.map((wagon) {
@@ -119,7 +129,10 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
       }).toList();
 
       state = state.copyWith(
-          wagons: updatedList, isLoading: false, errorMessage: null);
+          wagons: updatedList,
+          archivedTrucks: archivedTrucks,
+          isLoading: false,
+          errorMessage: null);
     } catch (e) {
       state = state.copyWith(
           isLoading: false, errorMessage: 'Failed to read wagon records.');
@@ -134,20 +147,25 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
     String? remarks,
     List<WagonItem> items = const [],
   }) async {
-    final cleanNum = wagonNumber.trim();
+    final cleanNum = FieldNormalizer.code(wagonNumber);
     if (cleanNum.isEmpty) return 'Wagon number is required.';
 
     final newWagon = Wagon(
       id: const Uuid().v4(),
       wagonNumber: cleanNum,
-      origin: origin.trim(),
-      destination: destination.trim(),
+      origin: FieldNormalizer.title(origin),
+      destination: FieldNormalizer.title(destination),
       loadingDate: loadingDate,
       expectedTruckCount: 0,
       completedTruckCount: 0,
       status: WagonStatus.planning,
-      remarks: remarks?.trim(),
-      items: items,
+      remarks: FieldNormalizer.text(remarks),
+      items: items
+          .map((item) => WagonItem(
+                name: FieldNormalizer.title(item.name),
+                quantity: item.quantity,
+              ))
+          .toList(growable: false),
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
     );
@@ -177,19 +195,41 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
   }
 
   Future<String?> updateWagon(Wagon wagon) async {
-    final loaded = await _repository.getLoadedItemQuantities(wagon.id);
-    for (final item in wagon.items) {
+    final normalized = wagon.copyWith(
+      wagonNumber: FieldNormalizer.code(wagon.wagonNumber),
+      origin: FieldNormalizer.title(wagon.origin),
+      destination: FieldNormalizer.title(wagon.destination),
+      remarks: FieldNormalizer.text(wagon.remarks),
+      items: wagon.items
+          .map((item) => WagonItem(
+                name: FieldNormalizer.title(item.name),
+                quantity: item.quantity,
+              ))
+          .toList(growable: false),
+    );
+    final loadedRaw = await _repository.getLoadedItemQuantities(normalized.id);
+    // Compare canonical names so capitalization/spacing edits are not
+    // mistaken for deleting an item that already has cartons loaded.
+    final loaded = <String, int>{};
+    for (final entry in loadedRaw.entries) {
+      final key = FieldNormalizer.title(entry.key);
+      loaded[key] = (loaded[key] ?? 0) + entry.value;
+    }
+    for (final item in normalized.items) {
       final loadedQuantity = loaded[item.name] ?? 0;
       if (item.quantity < loadedQuantity) {
         return '${item.name} already has $loadedQuantity cartons loaded. Its total cannot be reduced below that.';
       }
     }
     final removedLoadedItem = loaded.entries.where((entry) =>
-        entry.value > 0 && !wagon.items.any((item) => item.name == entry.key));
+        entry.value > 0 &&
+        !normalized.items
+            .any((item) => FieldNormalizer.title(item.name) == entry.key));
     if (removedLoadedItem.isNotEmpty) {
       return '${removedLoadedItem.first.key} cannot be removed because cartons are already loaded.';
     }
-    await _repository.updateWagon(wagon.copyWith(updatedAt: DateTime.now()));
+    await _repository
+        .updateWagon(normalized.copyWith(updatedAt: DateTime.now()));
     await refresh();
     return null;
   }
@@ -237,7 +277,7 @@ final wagonStatsProvider = Provider.autoDispose<(int, int, int, int)>((ref) {
       wagonState.wagons.where((w) => w.status == WagonStatus.completed).length;
 
   final activeWagonIds = wagonState.wagons.map((w) => w.id).toSet();
-  final validTrucks = truckState.trucks
+  final validTrucks = [...truckState.trucks, ...wagonState.archivedTrucks]
       .where((t) => !t.isDeleted && activeWagonIds.contains(t.wagonId))
       .toList();
 

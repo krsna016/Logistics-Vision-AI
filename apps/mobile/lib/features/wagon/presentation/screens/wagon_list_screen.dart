@@ -33,6 +33,7 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
     final stats = ref.watch(wagonStatsProvider);
     final notifier = ref.read(wagonListProvider.notifier);
     final truckState = ref.watch(truckListProvider);
+    final allTrucks = [...truckState.trucks, ...state.archivedTrucks];
 
     // Keep the selector stable while the operator works. If a wagon is
     // created/deleted, gracefully move selection to the first available one.
@@ -297,8 +298,11 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
                               final wagon = state.processedWagons[index];
 
                               // Calculate computed metrics
-                              final wagonTrucks = truckState.trucks.where(
+                              final wagonTrucks = allTrucks.where(
                                   (t) => t.wagonId == wagon.id && !t.isDeleted);
+                              final archivedWagonTrucks = wagonTrucks
+                                  .where((truck) => truck.isArchived)
+                                  .toList(growable: false);
                               final loadedCartons = wagonTrucks.fold(
                                   0, (sum, t) => sum + t.totalCartons);
                               final hasManifest = wagon.items.isNotEmpty;
@@ -317,6 +321,7 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
                                   loadedCartons: loadedCartons,
                                   remainingCartons: remainingCartons,
                                   truckCount: wagonTrucks.length,
+                                  archivedTrucks: archivedWagonTrucks,
                                   onTap: () =>
                                       context.push('/wagons/${wagon.id}'),
                                 ),

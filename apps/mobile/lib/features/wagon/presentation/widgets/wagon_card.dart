@@ -3,6 +3,7 @@ import '../../../../core/presentation/layout/responsive.dart';
 import '../../../../presentation/widgets/app_card.dart';
 import '../../../../theme/app_theme.dart';
 import '../../domain/entities/wagon.dart';
+import '../../../truck/domain/entities/truck.dart';
 
 class WagonCard extends StatelessWidget {
   final Wagon wagon;
@@ -10,6 +11,7 @@ class WagonCard extends StatelessWidget {
   final int loadedCartons;
   final int? remainingCartons;
   final int truckCount;
+  final List<Truck> archivedTrucks;
   final VoidCallback onTap;
 
   const WagonCard({
@@ -19,6 +21,7 @@ class WagonCard extends StatelessWidget {
     required this.loadedCartons,
     required this.remainingCartons,
     required this.truckCount,
+    this.archivedTrucks = const [],
     required this.onTap,
   });
 
@@ -81,6 +84,29 @@ class WagonCard extends StatelessWidget {
               ),
             ],
           ),
+          if (archivedTrucks.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppTheme.warningColor.withValues(alpha: 0.10),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                    color: AppTheme.warningColor.withValues(alpha: 0.28)),
+              ),
+              child: Text(
+                archivedTrucks
+                    .map((truck) =>
+                        'Archived: ${truck.vehicleNumber.isNotEmpty ? truck.vehicleNumber : truck.truckNumber} (${truck.totalCartons} cartons)')
+                    .join('\n'),
+                style: const TextStyle(
+                    color: AppTheme.warningColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
           const SizedBox(height: 8),
           Row(
             children: [
