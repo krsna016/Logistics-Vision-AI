@@ -328,13 +328,12 @@ Administrators also have **Backup & Restore** for creating and sharing a local a
 Tap Create Wagon on the Wagon Control Center.
 
 ### Wagon fields
-
-- Wagon Number: required operational wagon identity. Use the number on the physical wagon.
+- Wagon Number: required operational wagon identity. Use the number on the physical wagon. (Automatically formatted to ALL CAPS without spaces).
 - Scan button: opens the wagon-number camera. Confirm the detected value before saving.
-- Origin: where the wagon came from. Use NIL only when genuinely unavailable.
-- Destination: receiving location or route destination.
+- Origin: where the wagon came from. (Automatically formatted to Title Case). Use NIL only when genuinely unavailable.
+- Destination: receiving location or route destination. (Automatically formatted to Title Case).
 - Loading Date: date on which unloading or loading begins.
-- Remarks: special instructions, seal information, condition or operational note.
+- Remarks: special instructions, seal information, condition or operational note. (Automatically formatted to Sentence case).
 
 ### Item manifest
 
@@ -344,7 +343,7 @@ If no manifest is available, remove the unused blank item row and save the wagon
 
 For each row:
 
-1. Enter a clear item name, such as `Soap 100g Blue`.
+1. Enter a clear item name, such as `Soap 100g Blue`. (Automatically formatted to Title Case).
 2. Enter its carton quantity as a positive whole number.
 3. Use Add Item for another item.
 4. Remove an unused blank row before saving.
@@ -404,14 +403,13 @@ The app blocks an operator from assigning more of an item than is currently avai
 Open Wagon Details and tap Add Truck or Register Truck.
 
 ### Vehicle fields
-
-- Vehicle Number: required. Enter the registration number used during creation. This is displayed in the Digital Register and reports.
+- Vehicle Number: required. Enter the registration number used during creation. This is displayed in the Digital Register and reports. (Automatically formatted to ALL CAPS without spaces).
 - Scan icon: photographs and reads the number plate. Always compare the result with the physical plate.
-- Driver Name: optional, but recommended.
+- Driver Name: optional, but recommended. (Automatically formatted to Title Case).
 - Driver Mobile Number: optional contact number.
-- Carrier Company: optional transport company.
-- Warehouse Facility: optional receiving warehouse.
-- Notes: route, gate pass, seal or other vehicle-specific information.
+- Carrier Company: optional transport company. (Automatically formatted to Title Case).
+- Warehouse Facility: optional receiving warehouse. (Automatically formatted to Title Case).
+- Notes: route, gate pass, seal or other vehicle-specific information. (Automatically formatted to Sentence case).
 
 ### Example
 
@@ -572,7 +570,7 @@ It contains:
 - Operator notes
 - Operator identity and timestamp
 
-Tap a layer reference photo to open the verification viewer. The compact bar at the top keeps the layer number and total cartons visible while you zoom. Use the mask and number buttons independently. For editable layers, tap an empty image area to add a missing carton, tap an existing carton outline to remove it, or tap the same location again to restore it, exactly like the Review screen. These preview edits are temporary and are not auto-saved. If you close the image, tap outside it, or use the Android back/swipe gesture after editing, SmartLoad warns you. Choose **Keep editing** to return to the preview, or **Go to correction** to open the normal Layer Correction page with the preview boxes carried over, then explicitly save the correction there. Older layers may not have saved AI polygons, but an editable layer can still be corrected manually.
+Tap a layer reference photo to open the verification viewer. The compact bar at the top keeps the layer number and total cartons visible while you zoom. Use the mask and number buttons independently. For editable layers, tap an empty image area to add a missing carton, tap an existing carton outline to remove it, or tap the same location again to restore it, exactly like the Review screen. These preview edits are temporary and are not auto-saved. If you close the image, tap outside it, or use the Android back/swipe gesture after editing, SmartLoad warns you. Choose **Discard** to throw away the changes and return, or **Go to correction** to open the normal Layer Correction page with the preview boxes carried over, then explicitly save the correction there. Older layers may not have saved AI polygons, but an editable layer can still be corrected manually.
 
 ### Correct an existing layer
 
@@ -1419,7 +1417,7 @@ AI कार्टन छोड़ दे तो उपलब्ध कंट्
 
 हर सेव लेयर में नंबर, कार्टन, आइटम मात्रा, डिफेक्ट, फोटो, नोट, ऑपरेटर और समय दिखता है।
 
-लेयर की reference photo दबाकर verification viewer खोलें। ऊपर compact bar में zoom करते समय भी layer number और total cartons दिखते हैं। Mask और carton number को अलग-अलग चालू या बंद कर सकते हैं। Editable layer में खाली जगह दबाने पर missing carton जुड़ता है, existing carton outline दबाने पर वह हटता है और उसी जगह फिर दबाने पर वापस आ जाता है—बिल्कुल Review screen की तरह। ये preview बदलाव अस्थायी हैं और अपने आप save नहीं होते। बदलाव के बाद image बंद करने, बाहर tap करने या Android back/swipe करने पर चेतावनी आती है। **Keep editing** से preview में लौटें या **Go to correction** से preview के boxes साथ लेकर सामान्य Layer Correction page खोलें और वहां स्पष्ट रूप से save करें। पुराने layer में AI polygon न हो तो भी editable layer में carton manually जोड़ा जा सकता है।
+लेयर की reference photo दबाकर verification viewer खोलें। ऊपर compact bar में zoom करते समय भी layer number और total cartons दिखते हैं। Mask और carton number को अलग-अलग चालू या बंद कर सकते हैं। Editable layer में खाली जगह दबाने पर missing carton जुड़ता है, existing carton outline दबाने पर वह हटता है और उसी जगह फिर दबाने पर वापस आ जाता है—बिल्कुल Review screen की तरह। ये preview बदलाव अस्थायी हैं और अपने आप save नहीं होते। बदलाव के बाद image बंद करने, बाहर tap करने या Android back/swipe करने पर चेतावनी आती है। **Discard** से बदलाव हटा दें या **Go to correction** से preview के boxes साथ लेकर सामान्य Layer Correction page खोलें और वहां स्पष्ट रूप से save करें। पुराने layer में AI polygon न हो तो भी editable layer में carton manually जोड़ा जा सकता है।
 
 ### पुरानी लेयर सुधारना
 

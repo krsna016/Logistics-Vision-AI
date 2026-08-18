@@ -8,6 +8,7 @@ import '../providers/truck_providers.dart';
 import '../../../../theme/app_theme.dart';
 import '../../data/services/scanner_camera_warmup.dart';
 import '../../../../core/presentation/widgets/unsaved_changes_guard.dart';
+import '../../../../core/utils/formatters.dart';
 
 class TruckFormDialog extends ConsumerStatefulWidget {
   final Truck? existingTruck;
@@ -43,12 +44,12 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
     super.initState();
     final t = widget.existingTruck;
 
-    _vehicleNumberCtrl = TextEditingController(text: t?.vehicleNumber ?? '');
-    _driverNameCtrl = TextEditingController(text: t?.driverName ?? '');
+    _vehicleNumberCtrl = TextEditingController(text: t?.vehicleNumber.toIdentifierFormat() ?? '');
+    _driverNameCtrl = TextEditingController(text: t?.driverName.toTitleCase() ?? '');
     _driverMobileCtrl = TextEditingController(text: t?.driverMobile ?? '');
-    _companyCtrl = TextEditingController(text: t?.company ?? '');
-    _warehouseCtrl = TextEditingController(text: t?.warehouse ?? '');
-    _notesCtrl = TextEditingController(text: t?.notes ?? '');
+    _companyCtrl = TextEditingController(text: t?.company.toTitleCase() ?? '');
+    _warehouseCtrl = TextEditingController(text: t?.warehouse.toTitleCase() ?? '');
+    _notesCtrl = TextEditingController(text: t?.notes?.toSentenceCase() ?? '');
     for (final controller in [
       _vehicleNumberCtrl,
       _driverNameCtrl,
@@ -97,35 +98,24 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
     if (widget.existingTruck == null) {
       error = await notifier.createTruck(
-        truckNumber: _vehicleNumberCtrl.text,
-        vehicleNumber: _vehicleNumberCtrl.text,
-        driverName:
-            _driverNameCtrl.text.trim().isEmpty ? 'NIL' : _driverNameCtrl.text,
-        driverMobile: _driverMobileCtrl.text.trim().isEmpty
-            ? 'NIL'
-            : _driverMobileCtrl.text,
-        company: _companyCtrl.text.trim().isEmpty ? 'NIL' : _companyCtrl.text,
-        warehouse:
-            _warehouseCtrl.text.trim().isEmpty ? 'NIL' : _warehouseCtrl.text,
-        notes: _notesCtrl.text.isEmpty ? 'NIL' : _notesCtrl.text,
+        truckNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
+        vehicleNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
+        driverName: _driverNameCtrl.text.trim().isEmpty ? 'NIL' : _driverNameCtrl.text.trim().toTitleCase(),
+        driverMobile: _driverMobileCtrl.text.trim().isEmpty ? 'NIL' : _driverMobileCtrl.text.trim(),
+        company: _companyCtrl.text.trim().isEmpty ? 'NIL' : _companyCtrl.text.trim().toTitleCase(),
+        warehouse: _warehouseCtrl.text.trim().isEmpty ? 'NIL' : _warehouseCtrl.text.trim().toTitleCase(),
+        notes: _notesCtrl.text.isEmpty ? 'NIL' : _notesCtrl.text.trim().toSentenceCase(),
         wagonId: widget.wagonId,
       );
     } else {
       final updated = widget.existingTruck!.copyWith(
-        truckNumber: _vehicleNumberCtrl.text.trim(),
-        vehicleNumber: _vehicleNumberCtrl.text.trim(),
-        driverName: _driverNameCtrl.text.trim().isEmpty
-            ? 'NIL'
-            : _driverNameCtrl.text.trim(),
-        driverMobile: _driverMobileCtrl.text.trim().isEmpty
-            ? 'NIL'
-            : _driverMobileCtrl.text.trim(),
-        company:
-            _companyCtrl.text.trim().isEmpty ? 'NIL' : _companyCtrl.text.trim(),
-        warehouse: _warehouseCtrl.text.trim().isEmpty
-            ? 'NIL'
-            : _warehouseCtrl.text.trim(),
-        notes: _notesCtrl.text.isEmpty ? 'NIL' : _notesCtrl.text,
+        truckNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
+        vehicleNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
+        driverName: _driverNameCtrl.text.trim().isEmpty ? 'NIL' : _driverNameCtrl.text.trim().toTitleCase(),
+        driverMobile: _driverMobileCtrl.text.trim().isEmpty ? 'NIL' : _driverMobileCtrl.text.trim(),
+        company: _companyCtrl.text.trim().isEmpty ? 'NIL' : _companyCtrl.text.trim().toTitleCase(),
+        warehouse: _warehouseCtrl.text.trim().isEmpty ? 'NIL' : _warehouseCtrl.text.trim().toTitleCase(),
+        notes: _notesCtrl.text.isEmpty ? 'NIL' : _notesCtrl.text.trim().toSentenceCase(),
       );
       error = await notifier.editTruck(
         updated,
@@ -259,6 +249,8 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
 
                     TextFormField(
                       controller: _vehicleNumberCtrl,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [UpperCaseNoSpaceTextFormatter()],
                       decoration: InputDecoration(
                         labelText: 'Vehicle Number*',
                         hintText: 'e.g. MH12AB1234',
@@ -276,6 +268,8 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _driverNameCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      inputFormatters: [TitleCaseTextFormatter()],
                       decoration: const InputDecoration(
                           labelText: 'Driver Name (Optional)',
                           hintText: 'Full name'),
@@ -291,6 +285,8 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _companyCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      inputFormatters: [TitleCaseTextFormatter()],
                       decoration: const InputDecoration(
                           labelText: 'Carrier Company (Optional)',
                           hintText: 'e.g. Swift Carriers'),
@@ -298,6 +294,8 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _warehouseCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      inputFormatters: [TitleCaseTextFormatter()],
                       decoration: const InputDecoration(
                           labelText: 'Warehouse Facility (Optional)',
                           hintText: 'e.g. Austin Fulfillment South'),
@@ -306,6 +304,8 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                     TextFormField(
                       controller: _notesCtrl,
                       maxLines: 2,
+                      textCapitalization: TextCapitalization.sentences,
+                      inputFormatters: [SentenceCaseTextFormatter()],
                       decoration:
                           const InputDecoration(labelText: 'Notes (Optional)'),
                     ),

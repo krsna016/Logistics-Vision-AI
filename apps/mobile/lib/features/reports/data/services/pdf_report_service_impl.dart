@@ -701,15 +701,24 @@ class PdfReportServiceImpl implements PdfReportService {
           final truckLayers = layers
               .where((layer) => layer.truckId == truck.id)
               .toList(growable: false);
+          final truckCartons = truckLayers.fold<int>(
+              0, (sum, layer) => sum + layer.cartonCount);
+          final itemBreakdown = formatTruckItemBreakdown(
+            aggregateTruckItems(
+              truckLayers.map(_layerAllocations),
+              truckCartons,
+            ),
+          );
           return {
             'id': truck.id,
             'truckNumber': truck.truckNumber,
             'vehicleNumber': truck.vehicleNumber,
             'driverName': truck.driverName,
+            'driverMobile': truck.driverMobile ?? 'N/A',
             'status': truck.status,
             'totalLayers': truckLayers.length,
-            'totalCartons': truckLayers.fold<int>(
-                0, (sum, layer) => sum + layer.cartonCount),
+            'totalCartons': truckCartons,
+            'itemBreakdown': itemBreakdown,
             'totalDefects': truckLayers.fold<int>(
                 0, (sum, layer) => sum + layer.defectCount),
             'layers': truckLayers
@@ -1602,27 +1611,51 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
       pw.SizedBox(height: 16),
       _registerSectionTitle('Truck Summary'),
       pw.TableHelper.fromTextArray(
+        context: context,
         headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-        headerStyle: pw.TextStyle(fontSize: 7, fontWeight: pw.FontWeight.bold),
-        cellStyle: const pw.TextStyle(fontSize: 7),
-        headers: const [
-          'Vehicle',
-          'Driver',
-          'Status',
-          'Layers',
-          'Cartons',
-          'Def.'
+        headerStyle:
+            pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
+        cellStyle: const pw.TextStyle(fontSize: 8.5),
+        cellPadding:
+            const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 5),
+        cellBuilder: _wagonTruckSummaryCellBuilder,
+        headers: [
+          for (final label in const [
+            'Vehicle Number',
+            'Driver',
+            'Phone',
+            'Layers',
+            'Cartons',
+            'Defects',
+            'Item Breakdown',
+            'Status',
+          ])
+            _singleLineRegisterText(label, fontSize: 8.5, bold: true),
         ],
+        columnWidths: const {
+          0: pw.FlexColumnWidth(1.5),
+          1: pw.FlexColumnWidth(1.25),
+          2: pw.FlexColumnWidth(1.45),
+          3: pw.FlexColumnWidth(0.55),
+          4: pw.FlexColumnWidth(0.65),
+          5: pw.FlexColumnWidth(0.6),
+          6: pw.FlexColumnWidth(2.35),
+          7: pw.FlexColumnWidth(0.85),
+        },
         data: trucks
-            .map((truck) => [
-                  truck['vehicleNumber'],
-                  truck['driverName'],
-                  truck['status'],
-                  truck['totalLayers'],
-                  truck['totalCartons'],
-                  truck['totalDefects'],
-                ])
-            .toList(),
+            .map(
+              (truck) => [
+                truck['vehicleNumber'].toString(),
+                truck['driverName'].toString(),
+                truck['driverMobile'].toString(),
+                truck['totalLayers'].toString(),
+                truck['totalCartons'].toString(),
+                truck['totalDefects'].toString(),
+                truck['itemBreakdown'].toString(),
+                truck['status'].toString(),
+              ],
+            )
+            .toList(growable: false),
       ),
       pw.SizedBox(height: 16),
       ...trucks.expand((truck) {

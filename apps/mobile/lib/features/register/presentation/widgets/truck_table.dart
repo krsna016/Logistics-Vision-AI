@@ -47,6 +47,7 @@ class TruckTable extends StatelessWidget {
                     style: const TextStyle(fontWeight: FontWeight.w800)),
                 subtitle: Text(
                   'Driver: ${truck.driverName}\n'
+                  'Phone: ${truck.driverMobile?.isNotEmpty == true ? truck.driverMobile : "N/A"}\n'
                   '${truck.totalLayers} layers | ${truck.totalCartons} cartons | '
                   '${truck.totalDefects} defects',
                 ),

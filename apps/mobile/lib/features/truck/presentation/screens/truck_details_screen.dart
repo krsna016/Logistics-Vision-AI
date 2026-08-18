@@ -270,14 +270,12 @@ class TruckDetailsScreen extends ConsumerWidget {
                       layer.id,
                       detections,
                     ),
-                    onRequestCorrection: (layer) {
-                      // The preview is intentionally non-persistent. Reopen
-                      // the normal correction form so the user can review and
-                      // explicitly save the change there.
+                    onRequestCorrection: (layer, [previewWarning]) {
                       _editLayerDialog(
                         context,
                         layerNotifier,
                         layer,
+                        previewWarning: previewWarning,
                         wagon: wagon,
                         loadedByItem: inventory?.valueOrNull ?? const {},
                         requireCorrectionReason: isRegisterView,
@@ -504,6 +502,7 @@ class TruckDetailsScreen extends ConsumerWidget {
   void _editLayerDialog(
       BuildContext context, LayerListNotifier notifier, LayerRecord layer,
       {required bool requireCorrectionReason,
+      String? previewWarning,
       required Wagon? wagon,
       required Map<String, int> loadedByItem}) {
     final cartonController =
@@ -621,6 +620,35 @@ class TruckDetailsScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (previewWarning != null && previewWarning.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppTheme.warningColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                              color: AppTheme.warningColor.withValues(alpha: 0.4)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.warning_amber_rounded,
+                                color: AppTheme.warningColor, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                previewWarning,
+                                style: const TextStyle(
+                                  color: AppTheme.warningColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     // Photo is the first action so a missed image can be added
                     // without searching through the correction form.
                     Container(

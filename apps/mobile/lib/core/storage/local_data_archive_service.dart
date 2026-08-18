@@ -3,10 +3,12 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:archive/archive_io.dart';
+import 'package:drift/drift.dart' show Value;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../database/app_database.dart';
+import '../utils/field_normalizer.dart';
 
 /// Creates a shareable, point-in-time archive of the app's local audit data.
 ///
@@ -292,6 +294,7 @@ class LocalDataArchiveService {
               'SELECT $columnSql FROM imported_archive.${_sqlIdentifier(table)}',
             );
           }
+          await _normalizeImportedData();
           await _repairOptionalParentReferences();
           await _rebaseImportedFilePaths(documents.path);
           final brokenReferences =
@@ -423,6 +426,76 @@ class LocalDataArchiveService {
       throw StateError('The archive uses an incompatible $table table format.');
     }
     return shared;
+  }
+
+  Future<void> _normalizeImportedData() async {
+    final wagons = await _database.select(_database.wagons).get();
+    for (final w in wagons) {
+      String jsonStr = w.itemManifestJson;
+      try {
+        final parsed = jsonDecode(w.itemManifestJson);
+        if (parsed is List) {
+          final List<Map<String, dynamic>> updatedItems = [];
+          for (var item in parsed) {
+            if (item is Map<String, dynamic>) {
+              item['name'] = FieldNormalizer.title(item['name']?.toString() ?? '');
+              updatedItems.add(item);
+            }
+          }
+          jsonStr = jsonEncode(updatedItems);
+        }
+      } catch (_) {}
+
+      await _database.update(_database.wagons).replace(
+        w.copyWith(
+          wagonNumber: FieldNormalizer.code(w.wagonNumber),
+          origin: Value(FieldNormalizer.title(w.origin ?? '')),
+          destination: Value(FieldNormalizer.title(w.destination ?? '')),
+          remarks: Value(FieldNormalizer.text(w.remarks)),
+          itemManifestJson: jsonStr,
+        ),
+      );
+    }
+
+    final trucks = await _database.select(_database.trucks).get();
+    for (final t in trucks) {
+      await _database.update(_database.trucks).replace(
+        t.copyWith(
+          truckNumber: FieldNormalizer.code(t.truckNumber),
+          vehicleNumber: FieldNormalizer.code(t.vehicleNumber),
+          driverName: FieldNormalizer.title(t.driverName),
+          company: FieldNormalizer.title(t.company),
+          warehouse: Value(FieldNormalizer.title(t.warehouse ?? '')),
+          notes: Value(FieldNormalizer.text(t.notes)),
+        ),
+      );
+    }
+
+    final layers = await _database.select(_database.layers).get();
+    for (final l in layers) {
+      String jsonStr = l.itemAllocationsJson;
+      try {
+        final parsed = jsonDecode(l.itemAllocationsJson);
+        if (parsed is List) {
+          final List<Map<String, dynamic>> updatedAllocations = [];
+          for (var alloc in parsed) {
+            if (alloc is Map<String, dynamic>) {
+              alloc['itemName'] = FieldNormalizer.title(alloc['itemName']?.toString() ?? '');
+              updatedAllocations.add(alloc);
+            }
+          }
+          jsonStr = jsonEncode(updatedAllocations);
+        }
+      } catch (_) {}
+
+      await _database.update(_database.layers).replace(
+        l.copyWith(
+          itemName: Value(l.itemName != null ? FieldNormalizer.title(l.itemName!) : null),
+          itemAllocationsJson: jsonStr,
+          notes: Value(FieldNormalizer.text(l.notes)),
+        ),
+      );
+    }
   }
 
   Future<void> _repairOptionalParentReferences() async {

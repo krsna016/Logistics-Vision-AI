@@ -140,7 +140,7 @@ void main() {
             saved.add(List<Detection>.of(detections));
             return null;
           },
-          onRequestCorrection: (editedLayer) {
+          onRequestCorrection: (editedLayer, [warning]) {
             correctionLayer = editedLayer;
           },
         ),

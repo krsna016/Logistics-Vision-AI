@@ -9,6 +9,7 @@ import '../screens/wagon_number_scan_screen.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../truck/data/services/scanner_camera_warmup.dart';
 import '../../../../core/presentation/widgets/unsaved_changes_guard.dart';
+import '../../../../core/utils/formatters.dart';
 
 class CreateWagonSheet extends ConsumerStatefulWidget {
   final Wagon? existingWagon;
@@ -35,13 +36,14 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
   void initState() {
     super.initState();
     final wagon = widget.existingWagon;
-    _numberCtrl = TextEditingController(text: wagon?.wagonNumber);
-    _originCtrl = TextEditingController(text: wagon?.origin ?? '');
-    _destinationCtrl = TextEditingController(text: wagon?.destination);
-    _remarksCtrl = TextEditingController(text: wagon?.remarks);
+    _numberCtrl = TextEditingController(text: wagon?.wagonNumber.toIdentifierFormat());
+    _originCtrl = TextEditingController(text: wagon?.origin.toTitleCase() ?? '');
+    _destinationCtrl = TextEditingController(text: wagon?.destination?.toTitleCase());
+    _remarksCtrl = TextEditingController(text: wagon?.remarks?.toSentenceCase());
     _selectedDate = wagon?.loadingDate ?? DateTime.now();
     _items.addAll((wagon?.items ?? const <WagonItem>[]).map(
-      (item) => _ItemControllers(item.name, item.quantity.toString()),
+      (item) => _ItemControllers(item.name.toTitleCase(), item.quantity.toString()),
+
     ));
     if (_items.isEmpty) _items.add(_ItemControllers('', ''));
     for (final controller in [
@@ -121,13 +123,11 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
     final error = widget.existingWagon == null
         ? await notifier.createWagon(
-            wagonNumber: _numberCtrl.text,
-            origin: _originCtrl.text.trim().isEmpty ? 'NIL' : _originCtrl.text,
-            destination: _destinationCtrl.text.trim().isEmpty
-                ? 'NIL'
-                : _destinationCtrl.text,
+            wagonNumber: _numberCtrl.text.toIdentifierFormat(),
+            origin: _originCtrl.text.trim().isEmpty ? 'NIL' : _originCtrl.text.trim().toTitleCase(),
+            destination: _destinationCtrl.text.trim().isEmpty ? 'NIL' : _destinationCtrl.text.trim().toTitleCase(),
             loadingDate: _selectedDate,
-            remarks: _remarksCtrl.text.isEmpty ? 'NIL' : _remarksCtrl.text,
+            remarks: _remarksCtrl.text.isEmpty ? 'NIL' : _remarksCtrl.text.trim().toSentenceCase(),
             items: manifest,
           )
         : await _updateExistingWagon(notifier, manifest);
@@ -163,15 +163,12 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       WagonListNotifier notifier, List<WagonItem> items) async {
     final current = widget.existingWagon!;
     return notifier.updateWagon(current.copyWith(
-      wagonNumber: _numberCtrl.text.trim(),
-      origin: _originCtrl.text.trim().isEmpty ? 'NIL' : _originCtrl.text.trim(),
-      destination: _destinationCtrl.text.trim().isEmpty
-          ? 'NIL'
-          : _destinationCtrl.text.trim(),
+      wagonNumber: _numberCtrl.text.toIdentifierFormat(),
+      origin: _originCtrl.text.trim().isEmpty ? 'NIL' : _originCtrl.text.trim().toTitleCase(),
+      destination: _destinationCtrl.text.trim().isEmpty ? 'NIL' : _destinationCtrl.text.trim().toTitleCase(),
       loadingDate: _selectedDate,
       expectedTruckCount: 0,
-      remarks:
-          _remarksCtrl.text.trim().isEmpty ? 'NIL' : _remarksCtrl.text.trim(),
+      remarks: _remarksCtrl.text.trim().isEmpty ? 'NIL' : _remarksCtrl.text.trim().toSentenceCase(),
       items: items,
     ));
   }
@@ -179,7 +176,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
   List<WagonItem> _manifestItems() => _items
       .where((row) => row.name.text.trim().isNotEmpty)
       .map((row) => WagonItem(
-            name: row.name.text.trim(),
+            name: row.name.text.trim().toTitleCase(),
             quantity: int.parse(row.quantity.text.trim()),
           ))
       .toList();
@@ -304,6 +301,8 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
                     TextFormField(
                       controller: _numberCtrl,
+                      textCapitalization: TextCapitalization.characters,
+                      inputFormatters: [UpperCaseNoSpaceTextFormatter()],
                       decoration: InputDecoration(
                         labelText: 'Wagon Number*',
                         hintText: 'e.g. BCNAHSM131142324907',
@@ -322,6 +321,8 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
                     TextFormField(
                       controller: _originCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      inputFormatters: [TitleCaseTextFormatter()],
                       decoration: const InputDecoration(
                           labelText: 'Origin Facility (Optional)',
                           hintText: 'e.g. Austin Fulfillment South'),
@@ -330,6 +331,8 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
                     TextFormField(
                       controller: _destinationCtrl,
+                      textCapitalization: TextCapitalization.words,
+                      inputFormatters: [TitleCaseTextFormatter()],
                       decoration: const InputDecoration(
                         labelText: 'Destination Depot (Optional)',
                         hintText: 'e.g. Chicago Logistics Terminal',
@@ -361,6 +364,8 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                     TextFormField(
                       controller: _remarksCtrl,
                       maxLines: 2,
+                      textCapitalization: TextCapitalization.sentences,
+                      inputFormatters: [SentenceCaseTextFormatter()],
                       decoration: const InputDecoration(
                           labelText: 'Remarks (Optional)'),
                     ),
@@ -396,6 +401,8 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                               flex: 3,
                               child: TextFormField(
                                 controller: row.name,
+                                textCapitalization: TextCapitalization.words,
+                                inputFormatters: [TitleCaseTextFormatter()],
                                 decoration: InputDecoration(
                                   labelText: 'Item ${index + 1}',
                                   hintText: 'e.g. Item A',

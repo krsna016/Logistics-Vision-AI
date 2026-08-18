@@ -17,7 +17,7 @@ class LayerTimeline extends StatelessWidget {
   final void Function(LayerRecord layer) onDeleteLayer;
   final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
       onSaveDetections;
-  final void Function(LayerRecord layer)? onRequestCorrection;
+  final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
 
   const LayerTimeline({
     super.key,
@@ -60,7 +60,7 @@ class _TimelineItem extends StatelessWidget {
   final VoidCallback onDelete;
   final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
       onSaveDetections;
-  final void Function(LayerRecord layer)? onRequestCorrection;
+  final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
 
   const _TimelineItem({
     required this.layer,
@@ -315,7 +315,7 @@ class _LayerPhotoThumbnail extends StatelessWidget {
   final bool canEdit;
   final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
       onSaveDetections;
-  final void Function(LayerRecord layer)? onRequestCorrection;
+  final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
 
   const _LayerPhotoThumbnail({
     required this.layer,
@@ -403,7 +403,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
   final bool canEdit;
   final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
       onSaveDetections;
-  final void Function(LayerRecord layer)? onRequestCorrection;
+  final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
 
   const LayerHistoryPhotoViewer({
     super.key,
@@ -513,10 +513,15 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
         title: const Text('Unsaved layer changes'),
         content: const Text('You changed the verified boxes in this image.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop('cancel'),
-            child: const Text('Keep editing'),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppTheme.errorColor,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () => Navigator.of(dialogContext).pop('discard'),
+            child: const Text('Discard'),
           ),
+          const SizedBox(width: 12),
           FilledButton(
             onPressed: () => Navigator.of(dialogContext).pop('correction'),
             child: const Text('Go to correction'),
@@ -524,17 +529,22 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
         ],
       ),
     );
-    if (!mounted || choice == 'cancel' || choice == null) return;
+    if (!mounted || choice == null) return;
     Navigator.of(context).pop();
     if (choice == 'correction') {
-      // Carry the preview state into the correction form. The preview remains
-      // non-persistent, but the user's add/remove work should not be lost when
-      // they choose to save it explicitly from the normal correction flow.
-      final editedLayer = widget.layer.copyWith(
-        cartonCount: _visibleDetections.length,
-        detections: List<Detection>.of(_visibleDetections),
-      );
-      widget.onRequestCorrection?.call(editedLayer);
+      final addedCount = _visibleDetections.where((d) => !widget.layer.detections.any((od) => od.id == d.id)).length;
+      final removedCount = widget.layer.detections.where((od) => !_visibleDetections.any((d) => d.id == od.id)).length;
+      
+      String warning = '';
+      if (addedCount > 0 && removedCount > 0) {
+        warning = 'Warning: You visually added $addedCount and removed $removedCount boxes in the preview. Please update the numbers below to match.';
+      } else if (addedCount > 0) {
+        warning = 'Warning: You visually added $addedCount boxes in the preview. Please update the numbers below to match.';
+      } else if (removedCount > 0) {
+        warning = 'Warning: You visually removed $removedCount boxes in the preview. Please update the numbers below to match.';
+      }
+
+      widget.onRequestCorrection?.call(widget.layer, warning.isEmpty ? null : warning);
     }
   }
 
@@ -589,33 +599,16 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 30,
-                      height: 30,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppTheme.primaryColor.withValues(alpha: 0.16),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        'L${widget.layer.layerNumber}',
-                        style: const TextStyle(
-                          color: AppTheme.primaryColor,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 7),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        '$_displayCartonCount cartons'
-                        '${widget.layer.defectCount > 0 ? ' • ${widget.layer.defectCount} defective' : ''}',
+                        'Layer ${widget.layer.layerNumber} • $_displayCartonCount Cartons'
+                        '${widget.layer.defectCount > 0 ? ' • ${widget.layer.defectCount} Defective' : ''}',
                         key: const ValueKey('layer-photo-carton-count'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
-                          fontSize: 12,
+                          fontSize: 13,
                         ),
                       ),
                     ),

@@ -18,6 +18,14 @@ analyzer:
     # under the same const-constructor standard; they should not block builds.
     prefer_const_constructors: warning
     prefer_const_declarations: warning
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   rules:
