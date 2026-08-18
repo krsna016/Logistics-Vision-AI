@@ -10,7 +10,6 @@ import 'navigation/app_router.dart';
 import 'theme/app_theme.dart';
 import 'utils/logger.dart';
 import 'core/presentation/layout/reference_viewport.dart';
-import 'features/sync/presentation/providers/sync_providers.dart';
 import 'core/providers/ai_camera_settings_provider.dart';
 
 void main() async {
@@ -83,7 +82,6 @@ class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
     // Keep the offline queue engine alive for the whole app session. It must
     // not depend on the user opening the backup screen first.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(syncEngineProvider);
       ref.read(aiCameraSettingsLoaderProvider);
     });
   }

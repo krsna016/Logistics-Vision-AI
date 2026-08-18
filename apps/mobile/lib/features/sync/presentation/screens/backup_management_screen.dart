@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/presentation/widgets/app_drawer.dart';
 import '../providers/backup_providers.dart';
-import '../providers/sync_providers.dart';
 import '../widgets/backup_card.dart';
-import '../widgets/sync_queue_card.dart';
 import '../widgets/storage_card.dart';
 
 class BackupManagementScreen extends ConsumerWidget {
@@ -15,18 +13,11 @@ class BackupManagementScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final backupsAsync = ref.watch(backupListProvider);
     final isCreatingBackup = ref.watch(backupNotifierProvider);
-    final syncQueueAsync = ref.watch(syncQueueStreamProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Backup & Synchronization'),
+        title: const Text('Backup Management'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () {
-              ref.read(syncEngineProvider).forceSync();
-            },
-          ),
           const IconButton(
             icon: Icon(Icons.settings),
             onPressed: null,
@@ -90,36 +81,6 @@ class BackupManagementScreen extends ConsumerWidget {
                   ),
                 ),
               ],
-            ),
-            const SizedBox(height: 32),
-
-            // Sync Queue (Future Cloud Prep)
-            const Text('PENDING SYNCHRONIZATION',
-                style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2)),
-            const SizedBox(height: 12),
-            syncQueueAsync.when(
-              data: (queue) {
-                if (queue.isEmpty) {
-                  return const Center(
-                      child: Text('All data is synced globally.',
-                          style: TextStyle(color: AppTheme.textSecondary)));
-                }
-                return Column(
-                  children: queue
-                      .map((item) => SyncQueueCard(
-                            item: item,
-                            onResolveConflict: () {},
-                          ))
-                      .toList(),
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (_, __) => const Text('Error loading sync queue',
-                  style: TextStyle(color: AppTheme.errorColor)),
             ),
             const SizedBox(height: 32),
 

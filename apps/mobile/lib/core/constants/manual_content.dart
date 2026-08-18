@@ -1507,7 +1507,7 @@ Wagon No., Vehicle No., Driver, Company, Driver Phone, Status, Warehouse, Superv
 
 ### Wagon Report
 
-वैगन जानकारी, आइटम इन्वेंटरी और सभी जुड़े वाहन का सारांश।
+वैगन जानकारी, आइटम इन्वेंटरी (जिसमें Total Inventory, Total Loaded, और Total Remaining का सारांश बॉक्स शामिल है), और सभी जुड़े वाहन का सारांश।
 
 ### Digital Register PDF
 

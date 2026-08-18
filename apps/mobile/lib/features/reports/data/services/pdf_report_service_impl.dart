@@ -939,6 +939,31 @@ Future<Uint8List> _buildWagonPdfBytes(
                     ])
                 .toList(growable: false),
           ),
+          pw.SizedBox(height: 10),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(10),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey400),
+              color: PdfColors.grey100,
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+              children: [
+                pw.Text(
+                  'Total Inventory: ${items.fold<int>(0, (sum, item) => sum + (int.tryParse(item['total']?.toString() ?? '0') ?? 0))}',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                ),
+                pw.Text(
+                  'Total Loaded: ${items.fold<int>(0, (sum, item) => sum + (int.tryParse(item['loaded']?.toString() ?? '0') ?? 0))}',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                ),
+                pw.Text(
+                  'Total Remaining: ${items.fold<int>(0, (sum, item) => sum + (int.tryParse(item['remaining']?.toString() ?? '0') ?? 0))}',
+                  style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+                ),
+              ],
+            ),
+          ),
           pw.SizedBox(height: 20),
         ],
         pw.Text(
