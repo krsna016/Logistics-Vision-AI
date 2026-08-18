@@ -25,7 +25,7 @@ import '../widgets/summary_stat_card.dart';
 import '../widgets/layer_timeline.dart';
 import '../../../wagon/domain/entities/wagon.dart';
 import '../../../wagon/presentation/providers/wagon_providers.dart';
-import '../../../wagon/presentation/widgets/wagon_inventory_card.dart';
+import '../widgets/swipable_inventory_cards.dart';
 import '../../../../core/presentation/widgets/unsaved_changes_guard.dart';
 
 class TruckDetailsScreen extends ConsumerWidget {
@@ -188,11 +188,11 @@ class TruckDetailsScreen extends ConsumerWidget {
                 TruckHeader(truck: truck),
                 if (wagon != null && wagon.items.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  WagonInventoryCard(
+                  SwipableInventoryCards(
                     wagon: wagon,
-                    loadedByItem: inventory?.valueOrNull ?? const {},
+                    globalLoadedByItem: inventory?.valueOrNull ?? const {},
                     isLoading: inventory?.isLoading ?? false,
-                    matchTruckHeader: true,
+                    truckLayers: layerState.layers,
                   ),
                 ],
                 const SizedBox(height: 20),
