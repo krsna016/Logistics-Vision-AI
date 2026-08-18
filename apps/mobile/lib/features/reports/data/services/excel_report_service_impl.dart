@@ -116,13 +116,13 @@ class ExcelReportServiceImpl implements ExcelReportService {
 
     // Data Table Headers
     final headers = [
-      'Layer No',
-      'Carton Count',
+      'Layer',
+      'Cartons',
       'Items',
-      'Defects',
-      'Layer Added',
+      'Def.',
+      'Notes',
+      'Added',
       'Operator',
-      'Operator Notes'
     ];
     for (int i = 0; i < headers.length; i++) {
       var cell =
@@ -155,18 +155,15 @@ class ExcelReportServiceImpl implements ExcelReportService {
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow))
-          .value = TextCellValue(ReportDateFormatter.formatDateTime(layer.timestamp));
+          .value = TextCellValue(layer.notes?.trim().isNotEmpty == true ? layer.notes!.trim() : 'No notes');
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow))
-          .value = TextCellValue(layer.operatorId ?? 'N/A');
+          .value = TextCellValue(ReportDateFormatter.formatDateTime(layer.timestamp));
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow))
-          .value = TextCellValue(layer.notes?.trim().isNotEmpty ==
-              true
-          ? layer.notes!.trim()
-          : 'No notes');
+          .value = TextCellValue(layer.operatorId ?? 'N/A');
       currentRow++;
     }
 
@@ -321,12 +318,13 @@ class ExcelReportServiceImpl implements ExcelReportService {
         TextCellValue('Status: ${wagon.status}');
 
     const headers = [
-      'Vehicle',
+      'Vehicle Number',
       'Driver',
       'Phone',
       'Layers',
       'Cartons',
       'Defects',
+      'Item Breakdown',
       'Status',
     ];
     for (var column = 0; column < headers.length; column++) {
@@ -338,17 +336,23 @@ class ExcelReportServiceImpl implements ExcelReportService {
     sheet.setRowHeight(5, 28);
     var currentRow = 6;
     for (final truck in trucks) {
+      final truckLayers = layersByTruck[truck.id]!;
+      final breakdownMap = <String, int>{};
+      for (final layer in truckLayers) {
+        for (final allocation in _layerAllocations(layer).entries) {
+          breakdownMap[allocation.key] = (breakdownMap[allocation.key] ?? 0) + allocation.value;
+        }
+      }
+      final itemBreakdown = breakdownMap.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+      
       final values = [
         truck.vehicleNumber,
         truck.driverName,
         truck.driverMobile ?? 'N/A',
-        layersByTruck[truck.id]!.length.toString(),
-        layersByTruck[truck.id]!
-            .fold<int>(0, (sum, layer) => sum + layer.cartonCount)
-            .toString(),
-        layersByTruck[truck.id]!
-            .fold<int>(0, (sum, layer) => sum + layer.defectCount)
-            .toString(),
+        truckLayers.length.toString(),
+        truckLayers.fold<int>(0, (sum, layer) => sum + layer.cartonCount).toString(),
+        truckLayers.fold<int>(0, (sum, layer) => sum + layer.defectCount).toString(),
+        itemBreakdown,
         truck.status,
       ];
       for (var column = 0; column < values.length; column++) {
@@ -519,6 +523,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
       TextCellValue('Total'),
       TextCellValue('Loaded'),
       TextCellValue('Remaining'),
+      TextCellValue('Status'),
     ]);
     final loadedByItem = <String, int>{};
     for (final layer in layers) {
@@ -534,39 +539,49 @@ class ExcelReportServiceImpl implements ExcelReportService {
       final name = manifest[row]['name'] as String;
       final total = (manifest[row]['quantity'] as num).toInt();
       final loaded = loadedByItem[name] ?? 0;
+      final remaining = total - loaded;
       writeRow(itemSheet, row + 1, [
         TextCellValue(name),
         IntCellValue(total),
         IntCellValue(loaded),
-        IntCellValue(total - loaded),
+        IntCellValue(remaining),
+        TextCellValue(remaining == 0 ? 'Complete' : 'In progress'),
       ]);
     }
 
     writeRow(truckSheet, 0, [
-      TextCellValue('Vehicle'),
+      TextCellValue('Vehicle Number'),
       TextCellValue('Driver'),
       TextCellValue('Phone'),
-      TextCellValue('Carrier'),
-      TextCellValue('Status'),
       TextCellValue('Layers'),
       TextCellValue('Cartons'),
       TextCellValue('Defects'),
+      TextCellValue('Item Breakdown'),
+      TextCellValue('Status'),
     ]);
     for (var row = 0; row < trucks.length; row++) {
       final truck = trucks[row];
+      final truckLayers = layers.where((layer) => layer.truckId == truck.id).toList();
+      final totalTruckCartons = truckLayers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
+      final totalTruckDefects = truckLayers.fold<int>(0, (sum, layer) => sum + layer.defectCount);
+      
+      final breakdownMap = <String, int>{};
+      for (final layer in truckLayers) {
+        for (final allocation in _layerAllocations(layer).entries) {
+          breakdownMap[allocation.key] = (breakdownMap[allocation.key] ?? 0) + allocation.value;
+        }
+      }
+      final itemBreakdown = breakdownMap.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+      
       writeRow(truckSheet, row + 1, [
         TextCellValue(truck.vehicleNumber),
         TextCellValue(truck.driverName),
         TextCellValue(truck.driverMobile ?? 'Not provided'),
-        TextCellValue(truck.company),
+        IntCellValue(truckLayers.length),
+        IntCellValue(totalTruckCartons),
+        IntCellValue(totalTruckDefects),
+        TextCellValue(itemBreakdown),
         TextCellValue(truck.status),
-        IntCellValue(layers.where((layer) => layer.truckId == truck.id).length),
-        IntCellValue(layers
-            .where((layer) => layer.truckId == truck.id)
-            .fold<int>(0, (sum, layer) => sum + layer.cartonCount)),
-        IntCellValue(layers
-            .where((layer) => layer.truckId == truck.id)
-            .fold<int>(0, (sum, layer) => sum + layer.defectCount)),
       ]);
     }
 
@@ -575,10 +590,10 @@ class ExcelReportServiceImpl implements ExcelReportService {
       TextCellValue('Layer'),
       TextCellValue('Cartons'),
       TextCellValue('Items'),
-      TextCellValue('Defects'),
-      TextCellValue('Operator'),
-      TextCellValue('Added'),
+      TextCellValue('Def.'),
       TextCellValue('Notes'),
+      TextCellValue('Added'),
+      TextCellValue('Operator'),
     ]);
     for (var row = 0; row < layers.length; row++) {
       final layer = layers[row];
@@ -589,9 +604,9 @@ class ExcelReportServiceImpl implements ExcelReportService {
         IntCellValue(layer.cartonCount),
         TextCellValue(_layerItemLabel(layer)),
         IntCellValue(layer.defectCount),
-        TextCellValue(layer.operatorId ?? 'Not provided'),
-        TextCellValue(ReportDateFormatter.formatDateTime(layer.timestamp)),
         TextCellValue(layer.notes ?? 'No notes'),
+        TextCellValue(ReportDateFormatter.formatDateTime(layer.timestamp)),
+        TextCellValue(layer.operatorId ?? 'Not provided'),
       ]);
     }
     final layerIds = layers.map((layer) => layer.id).toList();

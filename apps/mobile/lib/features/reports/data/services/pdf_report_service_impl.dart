@@ -976,7 +976,7 @@ Future<Uint8List> _buildWagonPdfBytes(
           context: context,
           headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
           headerStyle:
-              pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
+              pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold),
           cellStyle: const pw.TextStyle(fontSize: 8.5),
           cellPadding:
               const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 5),
@@ -992,7 +992,7 @@ Future<Uint8List> _buildWagonPdfBytes(
               'Item Breakdown',
               'Status',
             ])
-              _singleLineRegisterText(label, fontSize: 8.5, bold: true),
+              _singleLineRegisterText(label, fontSize: 6.5, bold: true),
           ],
           columnWidths: const {
             0: pw.FlexColumnWidth(1.5),
@@ -1665,8 +1665,8 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
         context: context,
         headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
         headerStyle:
-            pw.TextStyle(fontSize: 8.5, fontWeight: pw.FontWeight.bold),
-        cellStyle: const pw.TextStyle(fontSize: 8.5),
+            pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold),
+        cellStyle: const pw.TextStyle(fontSize: 6.5),
         cellPadding:
             const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 5),
         cellBuilder: _wagonTruckSummaryCellBuilder,
@@ -1681,7 +1681,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
             'Item Breakdown',
             'Status',
           ])
-            _singleLineRegisterText(label, fontSize: 8.5, bold: true),
+            _singleLineRegisterText(label, fontSize: 6.5, bold: true),
         ],
         columnWidths: const {
           0: pw.FlexColumnWidth(1.5),
@@ -1708,6 +1708,35 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
             )
             .toList(growable: false),
       ),
+      pw.SizedBox(height: 20),
+      pw.Container(
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey400),
+          color: PdfColors.grey100,
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+          children: [
+            pw.Text(
+              'Total Trucks: ${trucks.length}',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Text(
+              'Total Layers: ${trucks.fold<int>(0, (sum, t) => sum + (int.tryParse(t['totalLayers']?.toString() ?? '0') ?? 0))}',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Text(
+              'Total Cartons: ${trucks.fold<int>(0, (sum, t) => sum + (int.tryParse(t['totalCartons']?.toString() ?? '0') ?? 0))}',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Text(
+              'Total Defects: ${trucks.fold<int>(0, (sum, t) => sum + (int.tryParse(t['totalDefects']?.toString() ?? '0') ?? 0))}',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
       pw.SizedBox(height: 16),
       ...trucks.expand((truck) {
         final layers = _reportMaps(truck['layers']);
@@ -1717,30 +1746,44 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
                   pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold)),
           pw.SizedBox(height: 5),
           pw.TableHelper.fromTextArray(
+            context: context,
             headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
             headerStyle:
-                pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
-            cellStyle: const pw.TextStyle(fontSize: 6),
+                pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+            cellStyle: const pw.TextStyle(fontSize: 8),
+            cellPadding:
+                const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            cellBuilder: _truckLayerCellBuilder,
+            cellDecoration: (column, data, row) => pw.BoxDecoration(
+              color: column == 2 ? PdfColors.blue50 : PdfColors.white,
+            ),
             headers: const [
               'Layer',
               'Cartons',
               'Items',
               'Def.',
-              'Operator',
+              'Notes',
               'Added',
-              'Notes'
+              'Operator'
             ],
+            columnWidths: const {
+              0: pw.FlexColumnWidth(0.7),
+              1: pw.FlexColumnWidth(1),
+              2: pw.FlexColumnWidth(2.7),
+              3: pw.FlexColumnWidth(0.65),
+              4: pw.FlexColumnWidth(2),
+              5: pw.FlexColumnWidth(2.1),
+              6: pw.FlexColumnWidth(1.7),
+            },
             data: layers
                 .map((layer) => [
                       layer['number'],
                       layer['cartons'],
-                      compactDigitalRegisterItems(
-                        layer['items']?.toString() ?? '',
-                      ),
+                      layer['items']?.toString() ?? '',
                       layer['defects'],
-                      layer['operator'],
-                      layer['added'],
                       layer['notes'],
+                      layer['added'],
+                      layer['operator'],
                     ])
                 .toList(),
           ),
@@ -1801,15 +1844,23 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
           pw.SizedBox(height: 12),
         ];
       }),
-      _registerSectionTitle('Layer Correction History'),
+      pw.Text(
+        'Layer Correction History',
+        style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
+      ),
+      pw.SizedBox(height: 8),
       if (corrections.isEmpty)
-        pw.Text('No layer corrections recorded.')
-      else ...[
+        pw.Text('No layer corrections recorded.',
+            style: const pw.TextStyle(color: PdfColors.grey600))
+      else
         pw.TableHelper.fromTextArray(
+          context: context,
           headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
           headerStyle:
-              pw.TextStyle(fontSize: 6, fontWeight: pw.FontWeight.bold),
-          cellStyle: const pw.TextStyle(fontSize: 6),
+              pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold),
+          cellStyle: const pw.TextStyle(fontSize: 6.5),
+          cellPadding:
+              const pw.EdgeInsets.symmetric(horizontal: 2, vertical: 3),
           headers: const [
             'Vehicle',
             'Layer',
@@ -1817,21 +1868,29 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
             'Operator',
             'Before',
             'After',
-            'Reason'
+            'Reason',
           ],
+          columnWidths: const {
+            0: pw.FlexColumnWidth(1.25),
+            1: pw.FlexColumnWidth(0.45),
+            2: pw.FlexColumnWidth(1.35),
+            3: pw.FlexColumnWidth(0.9),
+            4: pw.FlexColumnWidth(1.7),
+            5: pw.FlexColumnWidth(1.7),
+            6: pw.FlexColumnWidth(1.6),
+          },
           data: corrections
-              .map((item) => [
-                    item['vehicleNumber'],
-                    item['layerNumber'],
-                    item['timestamp'],
-                    item['operator'],
-                    item['before'],
-                    item['after'],
-                    item['reason'],
+              .map((correction) => [
+                    correction['vehicleNumber'].toString(),
+                    correction['layerNumber'].toString(),
+                    correction['timestamp'].toString(),
+                    correction['operator'].toString(),
+                    correction['before'].toString(),
+                    correction['after'].toString(),
+                    correction['reason'].toString(),
                   ])
-              .toList(),
+              .toList(growable: false),
         ),
-      ],
       pw.SizedBox(height: 14),
       pw.Text('Remarks: ${_reportValue(report['remarks'])}'),
       pw.SizedBox(height: 20),
@@ -1908,6 +1967,15 @@ Future<Uint8List> _buildAnalyticsPdfBytes(
             'Status',
             'Completed',
           ],
+          columnWidths: const {
+            0: pw.FlexColumnWidth(1),
+            1: pw.FlexColumnWidth(1.2),
+            2: pw.FlexColumnWidth(1.5),
+            3: pw.FlexColumnWidth(0.8),
+            4: pw.FlexColumnWidth(0.8),
+            5: pw.FlexColumnWidth(1),
+            6: pw.FlexColumnWidth(1.5),
+          },
           data: trucks
               .map((truck) => [
                     truck['truckNumber'].toString(),
