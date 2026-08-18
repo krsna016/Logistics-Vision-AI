@@ -599,7 +599,13 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                 ),
                 child: Row(
                   children: [
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.layers_rounded,
+                      size: 16,
+                      color: Colors.white70,
+                    ),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         'Layer ${widget.layer.layerNumber} • $_displayCartonCount Cartons'

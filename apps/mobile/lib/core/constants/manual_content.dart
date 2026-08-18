@@ -311,6 +311,13 @@ Each card shows the wagon number, status, vehicle count, carton information and 
 - Completed shows finalized wagon operations.
 - Pull down to refresh totals after an edit.
 
+### Loading Selector Bar
+
+When a wagon is actively loading, a persistent selector bar appears at the bottom of the screen.
+- Expand the bar to view the Active Wagon's trucks.
+- Use the **AI MODE / MANUAL** toggle switch on the top-right of the expanded bar to choose your default capture method.
+- Tap a truck to instantly jump to the Camera (if AI MODE is selected) or the Manual Entry screen (if MANUAL is selected).
+
 ### Main menu
 
 - Digital Registers: historical wagon register and exports.
@@ -1179,6 +1186,13 @@ Profile से operator वैकल्पिक **Share live work location** �
 - Loading सक्रिय लोडिंग दिखाता है।
 - Completed पूरा किया हुआ काम दिखाता है।
 - नीचे खींचकर डेटा रिफ्रेश करें।
+
+### लोडिंग सिलेक्टर बार (Loading Selector Bar)
+
+जब किसी वैगन की लोडिंग चल रही हो, तो स्क्रीन के नीचे एक सिलेक्टर बार दिखाई देता है।
+- वैगन से जुड़े ट्रक देखने के लिए इस बार को ऊपर खींचें।
+- अपनी पसंद का मोड चुनने के लिए बार के ऊपरी-दाएं कोने में मौजूद **AI MODE / MANUAL** टॉगल का उपयोग करें।
+- किसी भी ट्रक पर टैप करने से वह सीधा कैमरे (यदि AI MODE चुना है) या मैन्युअल एंट्री स्क्रीन (यदि MANUAL चुना है) पर चला जाएगा।
 
 ### मुख्य मेनू
 

@@ -26,6 +26,7 @@ class WagonListScreen extends ConsumerStatefulWidget {
 class _WagonListScreenState extends ConsumerState<WagonListScreen> {
   String? _selectedWagonId;
   bool _selectorExpanded = false;
+  bool _aiMode = true;
 
   @override
   Widget build(BuildContext context) {
@@ -342,12 +343,18 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
                 trucks: truckState.trucks,
                 selectedWagon: selectedWagon,
                 expanded: _selectorExpanded,
+                aiMode: _aiMode,
+                onAiModeToggle: (mode) => setState(() => _aiMode = mode),
                 onToggle: () =>
                     setState(() => _selectorExpanded = !_selectorExpanded),
                 onWagonSelected: (wagon) =>
                     setState(() => _selectedWagonId = wagon.id),
                 onTruckSelected: (truck) async {
-                  await context.push('/trucks/${truck.id}/camera');
+                  if (_aiMode) {
+                    await context.push('/trucks/${truck.id}/camera');
+                  } else {
+                    await context.push('/trucks/${truck.id}/manual-count');
+                  }
                   if (mounted) {
                     await ref.read(truckListProvider.notifier).refresh();
                     await ref.read(wagonListProvider.notifier).refresh();
@@ -407,6 +414,8 @@ class _LoadingSelectorBar extends StatelessWidget {
   final List<Truck> trucks;
   final Wagon selectedWagon;
   final bool expanded;
+  final bool aiMode;
+  final ValueChanged<bool> onAiModeToggle;
   final VoidCallback onToggle;
   final ValueChanged<Wagon> onWagonSelected;
   final ValueChanged<Truck> onTruckSelected;
@@ -416,6 +425,8 @@ class _LoadingSelectorBar extends StatelessWidget {
     required this.trucks,
     required this.selectedWagon,
     required this.expanded,
+    required this.aiMode,
+    required this.onAiModeToggle,
     required this.onToggle,
     required this.onWagonSelected,
     required this.onTruckSelected,
@@ -490,14 +501,45 @@ class _LoadingSelectorBar extends StatelessWidget {
                             mainAxisSize: MainAxisSize.min,
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                'TRUCKS IN WAGON: ${selectedWagon.wagonNumber}',
-                                style: TextStyle(
-                                  color: colors.onSurface,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: .3,
-                                ),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    'TRUCKS IN WAGON: ${selectedWagon.wagonNumber}',
+                                    style: TextStyle(
+                                      color: colors.onSurface,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: .3,
+                                    ),
+                                  ),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        aiMode ? 'AI MODE' : 'MANUAL',
+                                        style: TextStyle(
+                                          color: aiMode ? const Color(0xFF64B5F6) : colors.onSurface.withOpacity(0.7),
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      SizedBox(
+                                        height: 24,
+                                        child: FittedBox(
+                                          fit: BoxFit.fill,
+                                          child: Switch(
+                                            value: aiMode,
+                                            onChanged: onAiModeToggle,
+                                            activeThumbColor: const Color(0xFF64B5F6),
+                                            activeTrackColor: const Color(0xFF64B5F6).withOpacity(0.3),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                               const SizedBox(height: 6),
                               GestureDetector(
