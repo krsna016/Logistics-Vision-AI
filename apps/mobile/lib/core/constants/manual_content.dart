@@ -263,9 +263,9 @@ Only use the access level assigned to you. If an action is unavailable, ask the 
 4. Tap Login.
 5. The Wagon Control Center opens as soon as authentication succeeds.
 
-The AI counting engine and 24-hour offline access are prepared in the background after an online login. If counting is opened immediately, it waits safely for preparation to finish.
+The app runs fully locally and offline. The AI counting engine is initialized instantly on startup without requiring any network connection.
 
-In non-production builds, **Demo Entry** opens a temporary Demo Operator session without credentials. It does not create a server token or begin tracking. This control is unavailable in production builds.
+In non-production builds, **Demo Entry** opens a temporary Demo Operator session without credentials. This control is unavailable in production builds.
 
 The signed-in user's name is used as the operator and supervisor identity in new records. One logged-in session should therefore show one operator name for work performed in that session.
 
@@ -283,8 +283,6 @@ The app opens the Wagon Control Center first, then prepares the shared AI counti
 4. Confirm logout.
 
 Logout ends the signed-in session. It does not delete operational data. Never share a signed-in phone with another operator without logging out first.
-
-From the signed-in profile, an operator may optionally enable **Share live work location**. This shares precise location with authorized administrators, including while the app is in the background, and stops at logout. Android location and notification permissions are requested separately; live tracking does not start unless the required permissions are granted.
 
 ---
 
@@ -792,9 +790,7 @@ Wait for preview recovery, return and reopen capture, or use Retry Camera. Use M
 
 ### A permission is needed
 
-SmartLoad opens normally after installation and does not block the dashboard with a device-access setup screen. When you use a feature that needs access, such as a camera scanner, it explains the required permission and lets you open the app's settings to enable it.
-
-After sign-in, SmartLoad separately requests notification access for the live-location service. This request does not depend on location already being enabled.
+SmartLoad runs entirely locally and offline, and does not track your location. The only permission requested is Camera access, which is strictly used for capturing carton photos and reading QR/Barcode data. If denied, you must open device settings to enable it before using capture features.
 
 ### AI count is wrong
 
@@ -1143,7 +1139,7 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 4. Login दबाएं।
 5. Authentication सफल होते ही Wagon Control Center खुल जाता है।
 
-Online login के बाद AI counting engine और 24 घंटे की offline access तैयारी background में होती है। यदि counting तुरंत खोली जाए, तो तैयारी पूरी होने तक वह सुरक्षित रूप से प्रतीक्षा करती है।
+ऐप पूरी तरह से लोकल और ऑफलाइन काम करता है। ऐप शुरू होते ही AI इंजन तुरंत तैयार हो जाता है, इसके लिए किसी नेटवर्क की जरूरत नहीं होती।
 
 लॉगिन किए हुए उपयोगकर्ता का नाम नई लेयर में ऑपरेटर और रिपोर्ट में सुपरवाइजर के रूप में उपयोग होता है। इसलिए एक ही लॉगिन से किए काम में उसी व्यक्ति का नाम होना चाहिए।
 
@@ -1159,8 +1155,6 @@ Online login के बाद AI counting engine और 24 घंटे की o
 4. लॉगआउट की पुष्टि करें।
 
 लॉगआउट केवल उपयोगकर्ता सेशन बंद करता है। यह वैगन, वाहन, लेयर या रिपोर्ट नहीं मिटाता। दूसरे ऑपरेटर को फोन देने से पहले लॉगआउट जरूर करें।
-
-Profile से operator वैकल्पिक **Share live work location** चालू कर सकता है। इससे authorized administrators को precise location, background में भी, मिलती है और logout पर tracking बंद हो जाती है। Android location और notification permissions अलग-अलग मांगी जाती हैं; जरूरी permissions के बिना live tracking शुरू नहीं होती।
 
 ---
 
@@ -1612,9 +1606,7 @@ Preview आने दें, Capture स्क्रीन दोबारा �
 
 ### किसी permission की जरूरत है
 
-SmartLoad installation के बाद सामान्य रूप से खुलता है और dashboard पर device-access setup screen नहीं रोकता। जब आप Camera Scanner जैसे किसी access-required feature का उपयोग करते हैं, app जरूरी permission बताता है और उसे enable करने के लिए app settings खोलने देता है।
-
-Sign-in के बाद SmartLoad live-location service के लिए notification access अलग से मांगता है। यह request Location पहले से enabled होने पर निर्भर नहीं है।
+SmartLoad पूरी तरह से लोकल और ऑफलाइन काम करता है और आपकी लोकेशन ट्रैक नहीं करता। केवल Camera एक्सेस की अनुमति मांगी जाती है, जिसका उपयोग केवल कार्टन की फोटो खींचने और QR/Barcode पढ़ने के लिए किया जाता है। यदि अनुमति नहीं दी गई है, तो आपको कैप्चर फीचर का उपयोग करने से पहले डिवाइस सेटिंग्स से इसे चालू करना होगा।
 
 ### AI गिनती गलत
 

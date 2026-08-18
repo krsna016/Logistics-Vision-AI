@@ -18,6 +18,7 @@ import '../features/wagon/presentation/screens/wagon_details_screen.dart';
 import '../features/register/presentation/screens/register_list_screen.dart';
 import '../features/register/presentation/screens/register_details_screen.dart';
 import '../core/presentation/screens/user_manual_screen.dart';
+import '../core/presentation/screens/legal_privacy_screen.dart';
 import '../features/auth/presentation/screens/login_screen.dart';
 import '../features/auth/presentation/providers/auth_providers.dart';
 import '../features/auth/domain/entities/user.dart';
@@ -77,6 +78,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RootBackGuard(
           fallbackLocation: '/wagons',
           child: UserManualScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/legal',
+        name: 'legal',
+        builder: (context, state) => const RootBackGuard(
+          fallbackLocation: '/wagons',
+          child: LegalPrivacyScreen(),
         ),
       ),
       GoRoute(

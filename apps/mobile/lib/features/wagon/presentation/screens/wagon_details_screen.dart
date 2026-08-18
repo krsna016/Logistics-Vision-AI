@@ -50,14 +50,23 @@ class WagonDetailsScreen extends ConsumerWidget {
       ),
     );
 
-    // Filter trucks belonging to this wagon
-    final wagonTrucks = truckState.trucks
+    // Filter trucks belonging to this wagon (including archived)
+    final allWagonTrucks = [
+      ...truckState.trucks,
+      ...wagonState.archivedTrucks
+    ].where((t) => t.wagonId == wagonId && !t.isDeleted).toList();
+
+    final activeWagonTrucks = truckState.trucks
         .where((t) => t.wagonId == wagonId && !t.isDeleted)
         .toList();
-    final cartons = wagonTrucks.fold(0, (sum, t) => sum + t.totalCartons);
-    final defects = wagonTrucks.fold(0, (sum, t) => sum + t.totalDefects);
+        
+    final archivedWagonTrucks = wagonState.archivedTrucks
+        .where((t) => t.wagonId == wagonId && !t.isDeleted)
+        .toList();
+    final cartons = allWagonTrucks.fold(0, (sum, t) => sum + t.totalCartons);
+    final defects = allWagonTrucks.fold(0, (sum, t) => sum + t.totalDefects);
     final completedCount =
-        wagonTrucks.where((t) => t.status == TruckStatus.completed).length;
+        allWagonTrucks.where((t) => t.status == TruckStatus.completed).length;
 
     final inventory = ref.watch(wagonInventoryProvider(wagonId));
     final manifestReconciled = wagon.isManifestReconciled(
@@ -209,7 +218,7 @@ class WagonDetailsScreen extends ConsumerWidget {
                 children: [
                   StatsCard(
                     icon: Icons.local_shipping_outlined,
-                    value: '${wagonTrucks.length}',
+                    value: '${allWagonTrucks.length}',
                     title: 'Trucks Loaded',
                   ),
                   const SizedBox(width: 12),
@@ -238,8 +247,35 @@ class WagonDetailsScreen extends ConsumerWidget {
               ),
             ),
 
+            // Archived Trucks Warning Banner
+            if (archivedWagonTrucks.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline, color: Colors.orange, size: 20),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          'Archived: ${archivedWagonTrucks.map((t) => t.truckNumber).join(', ')}\nThese trucks are hidden from the active view but their cartons are included in the totals above. View full details in the Digital Register.',
+                          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
             // Associated Trucks List or Empty State
-            if (wagonTrucks.isEmpty)
+            if (activeWagonTrucks.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 child: AppCard(
@@ -257,7 +293,7 @@ class WagonDetailsScreen extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16.0),
                 child: Column(
-                  children: wagonTrucks.map((truck) {
+                  children: activeWagonTrucks.map((truck) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12.0),
                       child: _buildTruckRowCard(context, truck),
@@ -273,15 +309,15 @@ class WagonDetailsScreen extends ConsumerWidget {
       bottomNavigationBar: _WagonBottomBar(
         isArchived: wagon.status == WagonStatus.archived,
         canComplete: wagon.status == WagonStatus.loading &&
-            wagonTrucks.isNotEmpty &&
-            completedCount == wagonTrucks.length &&
+            allWagonTrucks.isNotEmpty &&
+            completedCount == allWagonTrucks.length &&
             manifestReconciled,
         onRegisterTruck: () => _openAddTruckDialog(context, ref, wagon.id),
         onComplete: () => _confirmCompleteWagon(
           context,
           notifier,
           wagon,
-          wagonTrucks,
+          allWagonTrucks,
           cartons,
           completedCount,
         ),

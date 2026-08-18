@@ -102,19 +102,46 @@ class AppDrawer extends ConsumerWidget {
                     textColor: Colors.redAccent,
                     onTap: () => _confirmLogout(context, ref),
                   ),
-                  const SizedBox(height: 32),
-                  const Padding(
-                    padding: EdgeInsets.all(16.0),
-                    child: Center(
-                      child: Text(
-                        'Vinayak SmartLoad v1.0.0\nSecure Enterprise Release',
-                        style: TextStyle(
-                            color: Colors.white30, fontSize: 11, height: 1.5),
-                        textAlign: TextAlign.center,
+                ],
+              ),
+            ),
+          ),
+          
+          // Sticky Footer
+          Container(
+            color: const Color(0xFF1E2126), // Slightly lighter than background
+            padding: EdgeInsets.only(
+              top: 18,
+              bottom: MediaQuery.of(context).padding.bottom > 0
+                  ? MediaQuery.of(context).padding.bottom + 10
+                  : 24,
+            ),
+            child: InkWell(
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/legal');
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 4.0),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.verified_user_outlined,
+                      color: Colors.blueAccent,
+                      size: 22,
+                    ),
+                    const SizedBox(width: 14),
+                    const Text(
+                      'Legal & Privacy',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.3,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
