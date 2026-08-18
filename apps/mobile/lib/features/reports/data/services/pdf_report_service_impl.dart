@@ -1,3 +1,4 @@
+import 'report_date_formatter.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -100,7 +101,7 @@ List<Map<String, Object?>> buildLayerCorrectionHistoryRows({
       'truckNumber': truck?.truckNumber ?? 'Not provided',
       'vehicleNumber': truck?.vehicleNumber ?? 'Not provided',
       'layerNumber': layer?.layerNumber ?? 'Not provided',
-      'timestamp': audit.timestamp.toString().split('.')[0],
+      'timestamp': ReportDateFormatter.formatDateTime(audit.timestamp),
       'operator': audit.userId,
       'before': parsed['before'] ?? 'Not recorded',
       'after': parsed['after'] ?? 'Not recorded',
@@ -471,7 +472,7 @@ class PdfReportServiceImpl implements PdfReportService {
     final reportData = <String, Object?>{
       'wagonNumber': wagon?.wagonNumber ?? 'N/A',
       'truckNumber': truck.truckNumber,
-      'generatedDate': DateTime.now().toString().split(' ')[0],
+      'generatedDate': ReportDateFormatter.formatDate(DateTime.now()),
       'vehicleNumber': truck.vehicleNumber,
       'driverName': truck.driverName,
       'driverMobile': truck.driverMobile ?? 'N/A',
@@ -489,7 +490,7 @@ class PdfReportServiceImpl implements PdfReportService {
               'cartonCount': layer.cartonCount,
               'defectCount': layer.defectCount,
               'itemName': _layerItem(layer).isEmpty ? 'N/A' : _layerItem(layer),
-              'timestamp': layer.timestamp.toString().split('.')[0],
+              'timestamp': ReportDateFormatter.formatDateTime(layer.timestamp),
               'operator': layer.operatorId ?? 'N/A',
               'operatorNotes': _operatorNotesForReport(layer.notes),
             },
@@ -500,7 +501,7 @@ class PdfReportServiceImpl implements PdfReportService {
         final correction = parseLayerCorrectionDetails(log.details);
         return {
           'layerNumber': layerNumberById[log.entityId] ?? 'N/A',
-          'timestamp': log.timestamp.toString().split('.')[0],
+          'timestamp': ReportDateFormatter.formatDateTime(log.timestamp),
           'operator': log.userId,
           'before': correction['before']!,
           'after': correction['after']!,
@@ -582,7 +583,7 @@ class PdfReportServiceImpl implements PdfReportService {
     }).toList(growable: false);
     final reportData = <String, Object?>{
       'wagonNumber': wagon.wagonNumber,
-      'loadingDate': wagon.loadingDate.toString().split(' ')[0],
+      'loadingDate': ReportDateFormatter.formatDate(wagon.loadingDate),
       'status': wagon.status,
       'origin': wagon.origin,
       'destination': wagon.destination,
@@ -682,7 +683,7 @@ class PdfReportServiceImpl implements PdfReportService {
       'origin': wagon.origin,
       'destination': wagon.destination,
       'wagonNumber': wagon.wagonNumber,
-      'loadingDate': wagon.loadingDate.toString().split(' ')[0],
+      'loadingDate': ReportDateFormatter.formatDate(wagon.loadingDate),
       'remarks': wagon.remarks ?? '',
       'registerId': register?.id,
       'totalCartons': totalCartons,
@@ -731,7 +732,7 @@ class PdfReportServiceImpl implements PdfReportService {
                       'defects': layer.defectCount,
                       'operator': layer.operatorId,
                       'notes': _operatorNotesForReport(layer.notes),
-                      'added': layer.timestamp?.toString().split('.')[0] ?? '',
+                      'added': ReportDateFormatter.formatDateTime(layer.timestamp),
                     })
                 .toList(growable: false),
           };
@@ -783,7 +784,7 @@ class PdfReportServiceImpl implements PdfReportService {
             layers.length;
 
     final reportData = <String, Object?>{
-      'generatedAt': DateTime.now().toString().split('.')[0],
+      'generatedAt': ReportDateFormatter.formatDateTime(DateTime.now()),
       'totalWagons': wagons.length,
       'totalTrucks': trucks.length,
       'totalLayers': layers.length,
@@ -801,7 +802,7 @@ class PdfReportServiceImpl implements PdfReportService {
               'totalDefects': truck.totalDefects,
               'status': truck.status,
               'completedDate':
-                  truck.completedDate?.toString().split('.')[0] ?? 'N/A',
+                  ReportDateFormatter.formatDateTime(truck.completedDate),
             },
           )
           .toList(growable: false),
@@ -1218,7 +1219,7 @@ Future<Uint8List> _buildTruckPdfBytes(
               pw.Expanded(
                 flex: 2,
                 child: pw.Column(children: [
-                  pw.Text('TOTAL CARTONS',
+                  pw.Text('Total Cartons',
                       style: const pw.TextStyle(
                           fontSize: 8, color: PdfColors.grey700)),
                   pw.SizedBox(height: 4),
@@ -1266,7 +1267,7 @@ Future<Uint8List> _buildTruckPdfBytes(
               pw.Expanded(
                 flex: 2,
                 child: pw.Column(children: [
-                  pw.Text('TOTAL DEFECTS',
+                  pw.Text('Total Defects',
                       style: const pw.TextStyle(
                           fontSize: 8, color: PdfColors.grey700)),
                   pw.SizedBox(height: 4),
@@ -1395,7 +1396,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
               'TO: ${report['destination']}',
               'WAGON NO: ${report['wagonNumber']}',
               'WAGON QTY: ${report['totalCartons']}',
-              'UNLOADING DATE: ${report['loadingDate']}',
+              'LOADING DATE: ${report['loadingDate']}',
             ])
               pw.Expanded(
                 child: _singleLineRegisterText(
@@ -1614,13 +1615,13 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
         ],
       ),
       pw.SizedBox(height: 16),
-      _registerSectionTitle('Item Reconciliation'),
+      _registerSectionTitle('Item Inventory'),
       if (items.isEmpty)
         pw.Text('No item manifest recorded.')
       else
         pw.TableHelper.fromTextArray(
           headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-          headers: const ['Item', 'Manifest', 'Loaded', 'Remaining', 'Status'],
+          headers: const ['Item', 'Total', 'Loaded', 'Remaining', 'Status'],
           data: items
               .map((item) => [
                     item['name'],
@@ -1633,6 +1634,31 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
                   ])
               .toList(),
         ),
+      pw.SizedBox(height: 10),
+      pw.Container(
+        padding: const pw.EdgeInsets.all(10),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey400),
+          color: PdfColors.grey100,
+        ),
+        child: pw.Row(
+          mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
+          children: [
+            pw.Text(
+              'Total Inventory: ${items.fold<int>(0, (sum, item) => sum + (int.tryParse(item['manifest']?.toString() ?? '0') ?? 0))}',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Text(
+              'Total Loaded: ${items.fold<int>(0, (sum, item) => sum + (int.tryParse(item['loaded']?.toString() ?? '0') ?? 0))}',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+            pw.Text(
+              'Total Remaining: ${items.fold<int>(0, (sum, item) => sum + (int.tryParse(item['remaining']?.toString() ?? '0') ?? 0))}',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
+            ),
+          ],
+        ),
+      ),
       pw.SizedBox(height: 16),
       _registerSectionTitle('Truck Summary'),
       pw.TableHelper.fromTextArray(
@@ -1717,6 +1743,60 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
                       layer['notes'],
                     ])
                 .toList(),
+          ),
+          pw.SizedBox(height: 10),
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.grey400),
+              color: PdfColors.grey100,
+            ),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.center,
+              children: [
+                pw.Expanded(
+                  flex: 2,
+                  child: pw.Column(children: [
+                    pw.Text('Total Cartons',
+                        style: const pw.TextStyle(
+                            fontSize: 8, color: PdfColors.grey700)),
+                    pw.SizedBox(height: 4),
+                    pw.Text('${truck['totalCartons']}',
+                        style: pw.TextStyle(
+                            fontSize: 15, fontWeight: pw.FontWeight.bold)),
+                  ]),
+                ),
+                pw.Container(width: 0.7, height: 42, color: PdfColors.grey400),
+                pw.SizedBox(width: 12),
+                pw.Expanded(
+                  flex: 5,
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                    children: [
+                      pw.Text('ITEM BREAKDOWN',
+                          style: const pw.TextStyle(
+                              fontSize: 8, color: PdfColors.grey700)),
+                      pw.SizedBox(height: 5),
+                      pw.Text(truck['itemBreakdown'].toString().isEmpty ? 'No cartons recorded.' : truck['itemBreakdown'].toString(), style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    ],
+                  ),
+                ),
+                pw.SizedBox(width: 12),
+                pw.Container(width: 0.7, height: 42, color: PdfColors.grey400),
+                pw.Expanded(
+                  flex: 2,
+                  child: pw.Column(children: [
+                    pw.Text('Total Defects',
+                        style: const pw.TextStyle(
+                            fontSize: 8, color: PdfColors.grey700)),
+                    pw.SizedBox(height: 4),
+                    pw.Text('${truck['totalDefects']}',
+                        style: pw.TextStyle(
+                            fontSize: 15, fontWeight: pw.FontWeight.bold)),
+                  ]),
+                ),
+              ],
+            ),
           ),
           pw.SizedBox(height: 12),
         ];

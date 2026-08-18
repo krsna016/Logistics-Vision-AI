@@ -1,3 +1,4 @@
+import 'report_date_formatter.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
@@ -154,7 +155,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow))
-          .value = TextCellValue(layer.timestamp.toString().split('.')[0]);
+          .value = TextCellValue(ReportDateFormatter.formatDateTime(layer.timestamp));
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow))
@@ -198,7 +199,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
               ..orderBy([(log) => drift.OrderingTerm.asc(log.timestamp)]))
             .get();
     if (corrections.isNotEmpty) {
-      final correctionSheet = excel['Correction History'];
+      final correctionSheet = excel['Layer Correction History'];
       const correctionHeaders = [
         'Layer',
         'Changed At',
@@ -223,7 +224,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
               .firstWhere((layer) => layer.id == audit.entityId)
               .layerNumber
               .toString(),
-          audit.timestamp.toString().split('.')[0],
+          ReportDateFormatter.formatDateTime(audit.timestamp),
           audit.userId,
           parsed['before'] ?? 'Not recorded',
           parsed['after'] ?? 'Not recorded',
@@ -313,7 +314,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
     sheet.cell(CellIndex.indexByString('A4')).value =
         TextCellValue('To: ${wagon.destination}');
     sheet.cell(CellIndex.indexByString('D3')).value = TextCellValue(
-        'Loading Date: ${wagon.loadingDate.toString().split(' ')[0]}');
+        'Loading Date: ${ReportDateFormatter.formatDate(wagon.loadingDate)}');
     sheet.cell(CellIndex.indexByString('D4')).value =
         TextCellValue(_supervisorLabel);
     sheet.cell(CellIndex.indexByString('G3')).value =
@@ -452,14 +453,14 @@ class ExcelReportServiceImpl implements ExcelReportService {
 
   @override
   Future<File> generateDigitalRegisterReport({required String wagonId}) async {
-    final excel = Excel.createExcel();
-    final sheet = excel['Wagon_$wagonId'];
-    excel.setDefaultSheet(sheet.sheetName);
-
     final wagon = await (_db.select(_db.wagons)
           ..where((w) => w.id.equals(wagonId) & w.isDeleted.equals(false)))
         .getSingleOrNull();
     if (wagon == null) throw Exception('Wagon not found');
+
+    final excel = Excel.createExcel();
+    final sheet = excel['Wagon_${wagon.wagonNumber}'];
+    excel.setDefaultSheet(sheet.sheetName);
     final trucks = await (_db.select(_db.trucks)
           ..where((t) => t.wagonId.equals(wagonId) & t.isDeleted.equals(false))
           ..orderBy([(t) => drift.OrderingTerm.asc(t.createdAt)]))
@@ -495,7 +496,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
     final itemSheet = excel['Item Inventory'];
     final truckSheet = excel['Truck Summary'];
     final layerSheet = excel['Layer Details'];
-    final correctionSheet = excel['Corrections'];
+    final correctionSheet = excel['Layer Correction History'];
     writeRow(summarySheet, 0, [
       TextCellValue('DIGITAL WAGON REGISTER'),
     ]);
@@ -515,7 +516,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
 
     writeRow(itemSheet, 0, [
       TextCellValue('Item'),
-      TextCellValue('Manifest'),
+      TextCellValue('Total'),
       TextCellValue('Loaded'),
       TextCellValue('Remaining'),
     ]);
@@ -589,7 +590,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
         TextCellValue(_layerItemLabel(layer)),
         IntCellValue(layer.defectCount),
         TextCellValue(layer.operatorId ?? 'Not provided'),
-        TextCellValue(layer.timestamp?.toString().split('.')[0] ?? ''),
+        TextCellValue(ReportDateFormatter.formatDateTime(layer.timestamp)),
         TextCellValue(layer.notes ?? 'No notes'),
       ]);
     }
@@ -619,7 +620,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
       writeRow(correctionSheet, row + 1, [
         TextCellValue(truck.vehicleNumber),
         IntCellValue(layer.layerNumber),
-        TextCellValue(audit.timestamp.toString()),
+        TextCellValue(ReportDateFormatter.formatDateTime(audit.timestamp)),
         TextCellValue(audit.userId),
         TextCellValue(_correctionPart(audit.details, 'before')),
         TextCellValue(_correctionPart(audit.details, 'after')),
@@ -638,7 +639,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
       'TO: ${wagon.destination}',
       'WAGON NO: ${wagon.wagonNumber}',
       'LOADED CARTONS: $totalCartons',
-      'UNLOADING DATE: ${wagon.loadingDate.toString().split(' ')[0]}',
+      'LOADING DATE: ${ReportDateFormatter.formatDate(wagon.loadingDate)}',
     ];
     for (var column = 0; column < topFields.length; column++) {
       sheet
@@ -717,7 +718,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
               CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow))
           .value = TextCellValue(_supervisorLabel);
     }
-    return _saveExcel(excel, 'WAGON_$wagonId');
+    return _saveExcel(excel, 'WAGON_${wagon.wagonNumber}_REGISTER');
   }
 
   @override
@@ -769,7 +770,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
     titleCell.cellStyle = titleStyle;
 
     sheet.cell(CellIndex.indexByString("A2")).value =
-        TextCellValue('Generated: ${DateTime.now().toString()}');
+        TextCellValue('Generated: ${ReportDateFormatter.formatDateTime(DateTime.now())}');
 
     // KPI Summary
     sheet.cell(CellIndex.indexByString("A4")).value =
@@ -860,7 +861,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
               .cell(CellIndex.indexByColumnRow(
                   columnIndex: 6, rowIndex: currentRow))
               .value =
-          TextCellValue(truck.completedDate?.toIso8601String() ?? 'N/A');
+          TextCellValue(ReportDateFormatter.formatDateTime(truck.completedDate));
       currentRow++;
     }
 
