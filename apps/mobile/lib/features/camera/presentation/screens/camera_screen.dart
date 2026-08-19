@@ -75,6 +75,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       if (!_aiStarted) setState(() => _aiStarted = true);
       final cameraNotifier = ref.read(cameraNotifierProvider.notifier);
       cameraNotifier.beginTemporaryOverlay();
+      AppLogger.info('OPERATOR ACTION: Opened Photo Gallery (Main Camera)');
       XFile? image;
       try {
         image = await _picker.pickImage(source: ImageSource.gallery);

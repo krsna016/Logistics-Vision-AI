@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../../theme/app_theme.dart';
 
-class ActionWarningDialog extends StatelessWidget {
+class ActionWarningDialog extends StatefulWidget {
   final String title;
   final String content;
   final String actionLabel;
   final Color actionColor;
-  final VoidCallback onConfirm;
+  final Future<String?> Function() onConfirm;
   final IconData icon;
 
   const ActionWarningDialog({
@@ -18,6 +18,14 @@ class ActionWarningDialog extends StatelessWidget {
     required this.onConfirm,
     this.icon = Icons.warning_amber_rounded,
   });
+
+  @override
+  State<ActionWarningDialog> createState() => _ActionWarningDialogState();
+}
+
+class _ActionWarningDialogState extends State<ActionWarningDialog> {
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -34,14 +42,40 @@ class ActionWarningDialog extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: actionColor.withValues(alpha: 0.1),
+                color: widget.actionColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, color: actionColor, size: 48),
+              child: Icon(widget.icon, color: widget.actionColor, size: 48),
             ),
             const SizedBox(height: 24),
+            if (_errorMessage != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppTheme.errorColor.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 20),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _errorMessage!,
+                        style: const TextStyle(
+                          color: AppTheme.errorColor,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             Text(
-              title,
+              widget.title,
               style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
@@ -51,7 +85,7 @@ class ActionWarningDialog extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              content,
+              widget.content,
               style: const TextStyle(
                 fontSize: 15,
                 color: AppTheme.textSecondary,
@@ -64,7 +98,7 @@ class ActionWarningDialog extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextButton(
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: _isLoading ? null : () => Navigator.pop(context),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
@@ -81,26 +115,47 @@ class ActionWarningDialog extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      onConfirm();
-                    },
+                    onPressed: _isLoading
+                        ? null
+                        : () async {
+                            setState(() {
+                              _isLoading = true;
+                              _errorMessage = null;
+                            });
+                            final error = await widget.onConfirm();
+                            if (mounted) {
+                              if (error != null) {
+                                setState(() {
+                                  _isLoading = false;
+                                  _errorMessage = error;
+                                });
+                              } else {
+                                Navigator.pop(context);
+                              }
+                            }
+                          },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: actionColor,
+                      backgroundColor: widget.actionColor,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(
-                        actionLabel,
-                        maxLines: 1,
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              widget.actionLabel,
+                              maxLines: 1,
+                              style: const TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold),
+                            ),
+                          ),
                   ),
                 ),
               ],

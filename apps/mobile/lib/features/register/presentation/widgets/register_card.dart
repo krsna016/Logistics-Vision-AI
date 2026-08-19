@@ -146,6 +146,7 @@ class RegisterCard extends StatelessWidget {
                   ],
                 ),
               ),
+
             ],
           ),
         ),

@@ -9,6 +9,10 @@ import '../providers/register_providers.dart';
 import '../../../wagon/domain/entities/wagon.dart';
 import '../widgets/register_card.dart';
 
+import '../../../../utils/file_logger.dart';
+import '../../../../features/auth/domain/entities/role.dart';
+import '../../../../features/auth/presentation/providers/auth_providers.dart';
+
 class RegisterListScreen extends ConsumerWidget {
   const RegisterListScreen({super.key});
 
@@ -16,6 +20,7 @@ class RegisterListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(registerListProvider);
     final notifier = ref.read(registerListProvider.notifier);
+    final user = ref.watch(authProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -31,11 +36,8 @@ class RegisterListScreen extends ConsumerWidget {
         ),
         title: const Text('Digital Registers'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => notifier.refresh(),
-            tooltip: 'Refresh Registers',
-          ),
+
+
           Builder(
             builder: (context) => IconButton(
               icon: const Icon(Icons.menu),

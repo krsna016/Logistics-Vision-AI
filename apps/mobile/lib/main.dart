@@ -12,9 +12,20 @@ import 'utils/logger.dart';
 import 'core/presentation/layout/reference_viewport.dart';
 import 'core/providers/ai_camera_settings_provider.dart';
 
+import 'utils/file_logger.dart';
+
+Future<void> _fileLoggerInit() async {
+  await FileLogger.init();
+}
+
 void main() async {
   // Ensure widget bindings are loaded before background async initializes.
   WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    await _fileLoggerInit();
+  } catch (_) {}
+
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   // SmartLoad's operational camera, review, forms and register workflows are

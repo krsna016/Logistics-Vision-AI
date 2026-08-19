@@ -149,12 +149,24 @@ class LayerRecord {
 
   /// Extracts just the visible operator notes, stripping out internal [SPLIT_DATA] blocks.
   String? get displayNotes {
-    if (notes == null || notes!.isEmpty) return null;
-    final splitIndex = notes!.indexOf('[SPLIT_DATA]:');
-    if (splitIndex == -1) return notes;
-    final text = notes!.substring(0, splitIndex).trim();
-    if (text.endsWith('|')) return text.substring(0, text.length - 1).trim();
-    return text.isEmpty ? null : text;
+    String baseNote = '';
+    if (notes != null && notes!.isNotEmpty) {
+      final splitIndex = notes!.indexOf('[SPLIT_DATA]:');
+      if (splitIndex == -1) {
+        baseNote = notes!;
+      } else {
+        baseNote = notes!.substring(0, splitIndex).trim();
+        if (baseNote.endsWith('|')) {
+          baseNote = baseNote.substring(0, baseNote.length - 1).trim();
+        }
+      }
+    }
+    
+    if (splitData != null) {
+      final splitWarning = '-- This layer contains two merged images (Split Mode) --';
+      return baseNote.isEmpty ? splitWarning : '$baseNote\n\n$splitWarning';
+    }
+    return baseNote.isEmpty ? null : baseNote;
   }
 
   /// Parses the internal [SPLIT_DATA] JSON block if this layer was captured in Split Mode.

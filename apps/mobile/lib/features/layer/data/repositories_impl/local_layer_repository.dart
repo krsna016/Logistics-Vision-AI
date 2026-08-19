@@ -202,6 +202,7 @@ class LocalLayerRepository implements LayerRepository {
   @override
   Future<void> updateLayer(LayerRecord layer,
       {String? correctionReason}) async {
+    String changeSummary = '';
     final existing = await (_db.select(_db.layers)
           ..where((t) => t.id.equals(layer.id)))
         .getSingleOrNull();
@@ -270,6 +271,15 @@ class LocalLayerRepository implements LayerRepository {
           existing.itemAllocationsJson != nextAllocationsJson;
       final detectionsChanged = existing.detectionsJson != nextDetectionsJson;
       final photoChanged = existing.photoPath != layer.photoPath;
+      
+      changeSummary = 'Layer ${layer.layerNumber}: cartons '
+          '${existing.cartonCount} -> $effectiveCartons, defects '
+          '${existing.defectCount} -> ${layer.defectCount}. Reason: '
+          '${correctionReason?.trim().isNotEmpty == true ? correctionReason!.trim() : 'Not provided'}'
+          '${photoChanged ? ' (Photo ${existing.photoPath == null ? 'added' : 'replaced'})' : ''}. '
+          '${detectionsChanged ? 'Verified carton boxes updated. Boxes: ${_savedDetectionCount(existing.detectionsJson)} -> ${layer.detections.length}. ' : ''}'
+          '${_formatItemsDiff(existing.itemAllocationsJson, nextAllocationsJson)}';
+
       if (countChanged || detectionsChanged || photoChanged) {
         await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
               id: 'audit_layer_correct_${DateTime.now().microsecondsSinceEpoch}',
@@ -277,15 +287,7 @@ class LocalLayerRepository implements LayerRepository {
               entityType: 'Layer',
               action: 'correct',
               userId: layer.operatorId,
-              details: drift.Value(
-                'Layer ${layer.layerNumber}: cartons '
-                '${existing.cartonCount} -> $effectiveCartons, defects '
-                '${existing.defectCount} -> ${layer.defectCount}. Reason: '
-                '${correctionReason?.trim().isNotEmpty == true ? correctionReason!.trim() : 'Not provided'}'
-                '${photoChanged ? ' (Photo ${existing.photoPath == null ? 'added' : 'replaced'})' : ''}. '
-                '${detectionsChanged ? 'Verified carton boxes updated. Boxes: ${_savedDetectionCount(existing.detectionsJson)} -> ${layer.detections.length}. ' : ''}'
-                'Items: ${existing.itemAllocationsJson} -> $nextAllocationsJson',
-              ),
+              details: drift.Value(changeSummary),
             ));
       }
 
@@ -303,7 +305,8 @@ class LocalLayerRepository implements LayerRepository {
     if (existing.photoPath != null && existing.photoPath != layer.photoPath) {
       await _imageStorage.deleteImage(existing.photoPath!);
     }
-    AppLogger.info('Updated layer record: ${layer.id}');
+    
+    AppLogger.info('Updated layer record: ${layer.id} | Changes: $changeSummary');
   }
 
   int _savedDetectionCount(String raw) {
@@ -311,6 +314,37 @@ class LocalLayerRepository implements LayerRepository {
       return (jsonDecode(raw) as List<dynamic>).length;
     } catch (_) {
       return 0;
+    }
+  }
+
+  String _formatItemsDiff(String oldJson, String newJson) {
+    try {
+      final oldItems = jsonDecode(oldJson) as List;
+      final newItems = jsonDecode(newJson) as List;
+      
+      final oldMap = <String, int>{};
+      for (final i in oldItems) {
+        oldMap[i['itemName'].toString()] = (i['quantity'] as num).toInt();
+      }
+      
+      final newMap = <String, int>{};
+      for (final i in newItems) {
+        newMap[i['itemName'].toString()] = (i['quantity'] as num).toInt();
+      }
+      
+      final changes = <String>[];
+      final allKeys = {...oldMap.keys, ...newMap.keys};
+      for (final key in allKeys) {
+        final oldQty = oldMap[key] ?? 0;
+        final newQty = newMap[key] ?? 0;
+        if (oldQty != newQty) {
+          changes.add('$key ($oldQty -> $newQty)');
+        }
+      }
+      if (changes.isEmpty) return '';
+      return 'Items: ${changes.join(', ')}';
+    } catch (_) {
+      return 'Items modified';
     }
   }
 

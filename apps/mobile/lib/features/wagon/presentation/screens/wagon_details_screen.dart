@@ -571,18 +571,11 @@ class WagonDetailsScreen extends ConsumerWidget {
         actionLabel: 'Archive',
         actionColor: AppTheme.textSecondary,
         icon: Icons.archive_outlined,
-        onConfirm: () {
-          notifier
-              .updateWagonStatus(wagon.id, WagonStatus.archived)
-              .then((error) {
-            if (!context.mounted) return;
-            if (error != null) {
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(SnackBar(content: Text(error)));
-              return;
-            }
-            context.go('/wagons');
-          });
+        onConfirm: () async {
+          final error = await notifier.updateWagonStatus(wagon.id, WagonStatus.archived);
+          if (error != null) return error;
+          if (context.mounted) context.go('/wagons');
+          return null;
         },
       ),
     );
@@ -598,43 +591,85 @@ class WagonDetailsScreen extends ConsumerWidget {
   ) {
     showDialog<void>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Complete Wagon Session?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-                'This will finalize the wagon and make it ready for the digital register.',
-                style: TextStyle(color: Colors.white70)),
-            const SizedBox(height: 16),
-            _buildMetricSub('Completed Trucks', '$completedCount'),
-            const SizedBox(height: 8),
-            _buildMetricSub('Total Cartons', '$totalCartons'),
-          ],
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          ElevatedButton(
-            onPressed: () async {
-              final error = await notifier.updateWagonStatus(
-                  wagon.id, WagonStatus.completed);
-              if (error != null && ctx.mounted) {
-                ScaffoldMessenger.of(ctx)
-                    .showSnackBar(SnackBar(content: Text(error)));
-                return;
-              }
-              if (ctx.mounted) {
-                Navigator.pop(ctx);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.successColor),
-            child: const Text('Complete'),
-          ),
-        ],
-      ),
+      builder: (ctx) {
+        String? errorMessage;
+        bool isSaving = false;
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: const Text('Complete Wagon Session?'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (errorMessage != null)
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppTheme.errorColor.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 20),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              errorMessage!,
+                              style: const TextStyle(
+                                color: AppTheme.errorColor,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  const Text(
+                      'This will finalize the wagon and make it ready for the digital register.',
+                      style: TextStyle(color: Colors.white70)),
+                  const SizedBox(height: 16),
+                  _buildMetricSub('Completed Trucks', '$completedCount'),
+                  const SizedBox(height: 8),
+                  _buildMetricSub('Total Cartons', '$totalCartons'),
+                ],
+              ),
+              actions: [
+                TextButton(
+                    onPressed: isSaving ? null : () => Navigator.pop(ctx), child: const Text('Cancel')),
+                ElevatedButton(
+                  onPressed: isSaving ? null : () async {
+                    setState(() {
+                      isSaving = true;
+                      errorMessage = null;
+                    });
+                    final error = await notifier.updateWagonStatus(
+                        wagon.id, WagonStatus.completed);
+                    if (ctx.mounted) {
+                      if (error != null) {
+                        setState(() {
+                          errorMessage = error;
+                          isSaving = false;
+                        });
+                      } else {
+                        Navigator.pop(ctx);
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.successColor),
+                  child: isSaving 
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('Complete'),
+                ),
+              ],
+            );
+          }
+        );
+      }
     );
   }
 
@@ -666,27 +701,10 @@ class WagonDetailsScreen extends ConsumerWidget {
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.fingerprint_outlined,
-                  size: 13, color: Color(0xFF7E8A99)),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  'ID: ${truck.id}',
-                  style: const TextStyle(
-                      color: Color(0xFF7E8A99),
-                      fontSize: 10,
-                      fontFamily: 'monospace'),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+
           const SizedBox(height: 4),
           Text(
-            'Driver: ${truck.driverName}${truck.driverMobile != null && truck.driverMobile!.isNotEmpty ? ' (${truck.driverMobile})' : ''}  •  Carrier: ${truck.company}',
+            'Driver: ${truck.driverName}${truck.driverMobile != null && truck.driverMobile!.isNotEmpty ? ' (${truck.driverMobile})' : ''}',
             style: const TextStyle(color: Color(0xFFBDBDBD), fontSize: 12),
           ),
           const Padding(

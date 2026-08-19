@@ -82,8 +82,7 @@ class AdminSecurityScreen extends ConsumerWidget {
           const SizedBox(height: 12),
           _buildActionTile(context, Icons.devices, 'Active Devices',
               'View and revoke connected scanners', '/admin/security/devices'),
-          _buildActionTile(context, Icons.sync_problem, 'Sync Status',
-              'Force security policy push to devices', '/admin/backup'),
+
           const SizedBox(height: 32),
           const Text('GLOBAL AUDIT',
               style: TextStyle(

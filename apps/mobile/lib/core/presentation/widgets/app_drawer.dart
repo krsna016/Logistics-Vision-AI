@@ -16,6 +16,7 @@ import '../../../features/reports/presentation/providers/report_providers.dart'
 import '../../providers/database_provider.dart';
 import '../../storage/local_data_archive_service.dart';
 import 'action_warning_dialog.dart';
+import '../../../utils/logger.dart';
 
 class AppDrawer extends ConsumerWidget {
   const AppDrawer({super.key});
@@ -152,6 +153,7 @@ class AppDrawer extends ConsumerWidget {
 
   Future<void> _showBackupAndRestore(
       BuildContext context, WidgetRef ref) async {
+    AppLogger.info('ADMIN ACTION: Opened Backup & Restore menu');
     final choice = await showDialog<String>(
       context: context,
       builder: (dialogContext) => SimpleDialog(
@@ -199,13 +201,19 @@ class AppDrawer extends ConsumerWidget {
     if (choice == null || !context.mounted) return;
     switch (choice) {
       case 'create':
+        AppLogger.info('ADMIN ACTION: Selected "Create & share backup"');
         _confirmLocalDataArchive(context, ref);
         return;
       case 'zip':
+        AppLogger.info('ADMIN ACTION: Selected "Import ZIP backup"');
+        await _selectAuditArchive(context, choice: choice);
+        return;
       case 'folder':
+        AppLogger.info('ADMIN ACTION: Selected "Import extracted folder"');
         await _selectAuditArchive(context, choice: choice);
         return;
       case 'previous':
+        AppLogger.info('ADMIN ACTION: Selected "Restore previous local data"');
         await _restorePreviousLocalData(context);
         return;
     }
@@ -628,7 +636,7 @@ class AppDrawer extends ConsumerWidget {
         actionLabel: 'Import and Replace',
         actionColor: AppTheme.primaryColor,
         icon: Icons.file_download_outlined,
-        onConfirm: () => confirmed = true,
+        onConfirm: () async { confirmed = true; return null; },
       ),
     );
     if (!confirmed || !rootContext.mounted) {
@@ -671,6 +679,9 @@ class AppDrawer extends ConsumerWidget {
       providerContainer.invalidate(wagonListProvider);
       providerContainer.invalidate(truckListProvider);
       providerContainer.invalidate(layerListProvider);
+      
+      AppLogger.info('ADMIN IMPORT: Imported ${summary.copiedFiles} files from archive.');
+
       if (!rootContext.mounted) return;
       Navigator.of(rootContext, rootNavigator: true).pop();
       ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
@@ -678,7 +689,7 @@ class AppDrawer extends ConsumerWidget {
             'Imported operational data and ${summary.copiedFiles} local files successfully.'),
       ));
     } catch (error, stackTrace) {
-      debugPrint('Audit archive import failed: $error\n$stackTrace');
+      AppLogger.error('ADMIN IMPORT FAILED', error, stackTrace);
       if (!rootContext.mounted) return;
       Navigator.of(rootContext, rootNavigator: true).pop();
       ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
@@ -763,7 +774,7 @@ class AppDrawer extends ConsumerWidget {
         actionLabel: 'Restore Backup',
         actionColor: AppTheme.primaryColor,
         icon: Icons.restore_rounded,
-        onConfirm: () => confirmed = true,
+        onConfirm: () async { confirmed = true; return null; },
       ),
     );
     if (!confirmed || !rootContext.mounted) return;
@@ -853,6 +864,7 @@ class AppDrawer extends ConsumerWidget {
             Navigator.pop(context); // close the navigation drawer
             context.go('/login');
           }
+          return null;
         },
       ),
     );

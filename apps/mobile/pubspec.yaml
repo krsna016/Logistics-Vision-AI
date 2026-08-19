@@ -60,6 +60,7 @@ dependencies:
   path: any
   sqlite3: any
   uuid: any
+  intl: ^0.20.3
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -294,6 +294,7 @@ class _TimelineItem extends StatelessWidget {
                             ),
                           ),
                         ],
+
                       ],
                     ),
                   ),
@@ -432,6 +433,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
   final Future<String?> Function(LayerRecord layer, List<Detection> detections, {int? cartonCountOverride, String? notesOverride})?
       onSaveDetections;
   final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
+  final bool isActive;
 
   const LayerHistoryPhotoViewer({
     super.key,
@@ -444,6 +446,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
     this.extraHeaderWidget,
     this.onSaveDetections,
     this.onRequestCorrection,
+    this.isActive = true,
   });
 
   @override
@@ -896,8 +899,12 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
     
     final p1 = split['part1Path'] as String;
     final p2 = split['part2Path'] as String;
-    final c1 = split['part1Count'] as int;
-    final c2 = split['part2Count'] as int;
+    
+    // Instead of using the static frozen AI counts, we divide the current verified cartonCount
+    // in half so it stays synced with any edits made in the Layer Correction page.
+    final totalCartons = layer.cartonCount;
+    final c1 = (totalCartons / 2).ceil();
+    final c2 = totalCartons - c1;
     
     final d1Raw = split['part1Detections'] as List<dynamic>? ?? [];
     final d2Raw = split['part2Detections'] as List<dynamic>? ?? [];
@@ -948,6 +955,7 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
           layer: layer,
           file: File(p1),
           canEdit: canEdit,
+          isActive: _currentIndex == 0,
           titlePrefixOverride: 'Layer ${layer.layerNumber}',
           initialDetectionsOverride: d1,
           displayCountOverride: c1,
@@ -967,6 +975,7 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
           layer: layer,
           file: File(p2),
           canEdit: canEdit,
+          isActive: _currentIndex == 1,
           titlePrefixOverride: 'Layer ${layer.layerNumber}',
           initialDetectionsOverride: d2,
           displayCountOverride: c2,

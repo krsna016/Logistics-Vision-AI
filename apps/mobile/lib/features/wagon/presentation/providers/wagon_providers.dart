@@ -194,7 +194,7 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
     return null;
   }
 
-  Future<String?> updateWagon(Wagon wagon) async {
+  Future<String?> updateWagon(Wagon wagon, {Map<String, String>? renames}) async {
     final normalized = wagon.copyWith(
       wagonNumber: FieldNormalizer.code(wagon.wagonNumber),
       origin: FieldNormalizer.title(wagon.origin),
@@ -207,6 +207,15 @@ class WagonListNotifier extends StateNotifier<WagonListState> {
               ))
           .toList(growable: false),
     );
+    
+    if (renames != null && renames.isNotEmpty) {
+      final normalizedRenames = <String, String>{};
+      for (final entry in renames.entries) {
+        normalizedRenames[FieldNormalizer.title(entry.key)] = FieldNormalizer.title(entry.value);
+      }
+      await _repository.applyItemRenames(normalized.id, normalizedRenames);
+    }
+
     final loadedRaw = await _repository.getLoadedItemQuantities(normalized.id);
     // Compare canonical names so capitalization/spacing edits are not
     // mistaken for deleting an item that already has cartons loaded.

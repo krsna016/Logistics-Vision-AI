@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../../utils/logger.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../../core/presentation/widgets/strict_action_warning_dialog.dart';
 import '../../../../core/presentation/widgets/action_warning_dialog.dart';
@@ -305,8 +306,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                 final error = await sessionNotifier.startSession(
                     truckId: truckId, warehouseId: truck.warehouse);
                 if (error != null && context.mounted) {
-                  ScaffoldMessenger.of(context)
-                      .showSnackBar(SnackBar(content: Text(error)));
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
                 }
               },
               onCapture: isWorkflowReadOnly
@@ -516,6 +516,7 @@ class TruckDetailsScreen extends ConsumerWidget {
     String? selectedPhotoPath = layer.photoPath;
     bool isSavingCorrection = false;
     bool allowCorrectionPop = false;
+    String? errorMessage;
     final existingByItem = {
       for (final allocation in layer.itemAllocations)
         allocation.itemName: allocation.quantity,
@@ -622,6 +623,32 @@ class TruckDetailsScreen extends ConsumerWidget {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    if (errorMessage != null)
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppTheme.errorColor.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                errorMessage!,
+                                style: const TextStyle(
+                                  color: AppTheme.errorColor,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     if (previewWarning != null && previewWarning.isNotEmpty)
                       Container(
                         margin: const EdgeInsets.only(bottom: 12),
@@ -720,6 +747,10 @@ class TruckDetailsScreen extends ConsumerWidget {
                                   horizontal: 9, vertical: 7),
                             ),
                             onPressed: () async {
+                              if (layer.splitData != null) {
+                                setDialogState(() => errorMessage = 'Split Layers cannot be replaced with a single photo. Please delete this layer and recapture it.');
+                                return;
+                              }
                               final source =
                                   await showModalBottomSheet<ImageSource>(
                                 context: context,
@@ -748,6 +779,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                                 ),
                               );
                               if (source == null) return;
+                              AppLogger.info('OPERATOR ACTION: Adding Audit Photo from ${source.name}');
                               final picked = await ImagePicker().pickImage(
                                 source: source,
                                 imageQuality: 88,
@@ -849,7 +881,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                                         style: const TextStyle(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600)),
-                                    Text('$available available',
+                                    Text('${available - entered} available',
                                         style: TextStyle(
                                           fontSize: 10,
                                           color: entered > available
@@ -979,18 +1011,13 @@ class TruckDetailsScreen extends ConsumerWidget {
                                   next.quantity);
                           final reason = reasonController.text.trim();
                           if (cartons == null || defects == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Enter valid carton and defect counts.')));
+                            setDialogState(() => errorMessage = 'Enter valid carton and defect counts.');
                             return;
                           }
                           if (wagon != null &&
                               wagon.items.isNotEmpty &&
                               allocated != cartons) {
-                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                                content: Text(
-                                    'Item quantities must total exactly $cartons cartons.')));
+                            setDialogState(() => errorMessage = 'Item quantities must total exactly $cartons cartons.');
                             return;
                           }
                           if ((requireCorrectionReason ||
@@ -998,10 +1025,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                                   allocationsChanged ||
                                   photoChanged) &&
                               reason.isEmpty) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text(
-                                        'Enter a reason for this correction.')));
+                            setDialogState(() => errorMessage = 'Enter a reason for this correction.');
                             return;
                           }
                           if (!countChanged &&
@@ -1029,11 +1053,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                                 if (context.mounted) {
                                   setDialogState(
                                       () => isSavingCorrection = false);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                        content: Text(
-                                            'Could not save layer photo.')),
-                                  );
+                                  setDialogState(() => errorMessage = 'Could not save layer photo.');
                                 }
                                 return;
                               }
@@ -1052,8 +1072,7 @@ class TruckDetailsScreen extends ConsumerWidget {
                             );
                             if (error != null && context.mounted) {
                               setDialogState(() => isSavingCorrection = false);
-                              ScaffoldMessenger.of(context)
-                                  .showSnackBar(SnackBar(content: Text(error)));
+                              setDialogState(() => errorMessage = error);
                               return;
                             }
                           }
@@ -1125,12 +1144,12 @@ class TruckDetailsScreen extends ConsumerWidget {
             'This truck will leave the active loading view and remain in Digital Registers. Operational loading is locked, while controlled corrections remain available there.',
         actionLabel: 'Archive',
         actionColor: AppTheme.textSecondary,
-        onConfirm: () {
-          notifier.archiveTruck(truck.id).then((_) {
-            if (context.mounted) {
-              context.go('/wagons');
-            }
-          });
+        onConfirm: () async {
+          await notifier.archiveTruck(truck.id);
+          if (context.mounted) {
+            context.go('/wagons');
+          }
+          return null;
         },
       ),
     );

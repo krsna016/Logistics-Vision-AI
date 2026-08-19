@@ -326,6 +326,14 @@ When a wagon is actively loading, a persistent selector bar appears at the botto
 
 Administrators also have **Backup & Restore** for creating and sharing a local archive containing the database, photos, audit records and exports, importing a SmartLoad ZIP or extracted folder, and restoring an earlier local backup. Treat imports and restores as controlled data operations and verify the selected archive before confirming.
 
+### Offline Unique ID System (UUIDs)
+
+Because SmartLoad operates completely offline, it does not rely on simple numbers (like Wagon #1, Wagon #2) to identify records. Instead, it generates a mathematically unique 36-character UUID (Universally Unique Identifier) the exact millisecond a record is created.
+
+This provides two massive advantages:
+1. **Name Duplication is Safe:** You can create two wagons named "Train Express A", or two trucks with the same license plate. Because their hidden UUIDs are completely different, the system will never confuse their layers, photos, or inventory.
+2. **Offline Safety:** Two operators working offline in different warehouses will never accidentally generate the same ID. When their data is eventually synchronized or backed up, there are zero data collisions. Every Wagon, Truck, Layer, Photo, and Audit Log has its own guaranteed unique ID.
+
 ---
 
 ## 5. Creating a wagon and item manifest
@@ -1439,6 +1447,14 @@ AI कार्टन छोड़ दे तो उपलब्ध कंट्
 Layer History card के सबसे दाईं ओर circular delete button से पूरी लेयर गलत या डुप्लिकेट हो तभी Remove Layer करें। मांगा गया लेयर नंबर टाइप करके पुष्टि करें। इससे वाहन कुल, वैगन इन्वेंटरी और रिपोर्ट फिर से गणना होती है। ऑडिट में कार्रवाई रहती है।
 
 गलती छिपाने के लिए सही लेयर न हटाएं। उसे कारण के साथ सुधारें।
+
+### Offline Unique ID System (UUIDs)
+
+चूंकि SmartLoad पूरी तरह से ऑफ़लाइन काम करता है, इसलिए यह रिकॉर्ड की पहचान करने के लिए सरल नंबरों (जैसे Wagon #1, Wagon #2) पर निर्भर नहीं करता है। इसके बजाय, यह हर रिकॉर्ड के लिए 36-अक्षरों का एक जटिल और पूरी तरह से अद्वितीय UUID (Universally Unique Identifier) जनरेट करता है।
+
+इसके दो बहुत बड़े फायदे हैं:
+1. **एक ही नाम सुरक्षित है (Name Duplication is Safe):** आप "Train Express A" नाम से दो वैगन या एक ही नंबर प्लेट वाले दो ट्रक बना सकते हैं। चूँकि उनके छिपे हुए UUID पूरी तरह से अलग होंगे, सिस्टम कभी भी उनके लेयर, फोटो या इन्वेंट्री को आपस में नहीं मिलाएगा।
+2. **ऑफ़लाइन सुरक्षा (Offline Safety):** बिना इंटरनेट वाले दो अलग-अलग गोदामों में काम कर रहे दो ऑपरेटर कभी भी गलती से एक ही ID जनरेट नहीं कर सकते। जब उनका डेटा बैकअप के ज़रिए एक जगह लाया जाता है, तो कोई डेटा आपस में नहीं टकराता। हर वैगन, ट्रक, लेयर, फोटो और ऑडिट लॉग की अपनी एक 100% यूनिक ID होती है।
 
 ---
 

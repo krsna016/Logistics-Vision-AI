@@ -219,7 +219,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                         onChanged: (_) => setSheetState(() {}),
                         decoration: InputDecoration(
                           labelText: item.name,
-                          suffixText: '$remaining left',
+                          suffixText: '${remaining - entered} left',
                           errorText: entered > remaining
                               ? 'Only $remaining cartons available'
                               : null,

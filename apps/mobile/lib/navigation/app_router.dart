@@ -31,8 +31,25 @@ import '../features/auth/presentation/screens/user_management_screen.dart';
 import '../features/auth/presentation/screens/role_policies_screen.dart';
 import '../features/auth/presentation/screens/device_management_screen.dart';
 import '../features/auth/presentation/screens/global_audit_screen.dart';
-import '../features/sync/presentation/screens/backup_management_screen.dart';
+
 import '../core/presentation/widgets/root_back_guard.dart';
+import '../utils/file_logger.dart';
+
+class AppRouteObserver extends NavigatorObserver {
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (route.settings.name != null) {
+      FileLogger.log('NAVIGATED TO: ${route.settings.name} (${route.settings.arguments ?? ""})');
+    }
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    if (previousRoute?.settings.name != null) {
+      FileLogger.log('RETURNED TO: ${previousRoute!.settings.name}');
+    }
+  }
+}
 
 // Router provider representing Riverpod-based dependency injection for GoRouter
 final routerProvider = Provider<GoRouter>((ref) {
@@ -42,6 +59,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/', // default to splash
     refreshListenable: authRefresh,
+    observers: [AppRouteObserver()],
     redirect: (context, state) {
       final user = ref.read(authProvider);
       final isLoggingIn = state.uri.toString() == '/login';
@@ -292,14 +310,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           child: GlobalAuditScreen(),
         ),
       ),
-      GoRoute(
-        path: '/admin/backup',
-        name: 'admin_backup',
-        builder: (context, state) => const RootBackGuard(
-          fallbackLocation: '/admin/security',
-          child: BackupManagementScreen(),
-        ),
-      ),
+
     ],
     errorBuilder: (context, state) => RootBackGuard(
       fallbackLocation: '/wagons',

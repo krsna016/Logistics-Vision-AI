@@ -130,8 +130,17 @@ class LocalTruckRepository implements TruckRepository {
             payloadData: '{}',
             version: drift.Value(nextVersion),
           ));
+
+      final changes = <String>[];
+      if (existing.truckNumber != truck.truckNumber) changes.add('Number: ${existing.truckNumber} -> ${truck.truckNumber}');
+      if (existing.driverName != truck.driverName) changes.add('Driver: ${existing.driverName} -> ${truck.driverName}');
+      if (existing.driverMobile != truck.driverMobile) changes.add('Mobile: ${existing.driverMobile} -> ${truck.driverMobile}');
+      if (existing.status != truck.status.name) changes.add('Status: ${existing.status} -> ${truck.status.name}');
+      if (existing.notes != truck.notes) changes.add('Notes: ${existing.notes} -> ${truck.notes}');
+
+      final changeStr = changes.isEmpty ? 'No values changed' : changes.join(', ');
+      AppLogger.info('Updated truck record: ${truck.truckNumber} | Changes: $changeStr');
     });
-    AppLogger.info('Updated truck record: ${truck.truckNumber}');
   }
 
   @override

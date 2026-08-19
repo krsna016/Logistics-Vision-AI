@@ -1,3 +1,5 @@
+import '../../../../core/utils/field_normalizer.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -31,6 +33,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
   bool _isDirty = false;
   String? _errorMessage;
   final List<_ItemControllers> _items = [];
+  Map<String, int>? _loadedByItem;
 
   @override
   void initState() {
@@ -63,7 +66,17 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       Future<void>.delayed(const Duration(milliseconds: 350), () {
         if (mounted) unawaited(ScannerCameraWarmup.prepare());
       });
+      if (widget.existingWagon != null) {
+        _fetchLoaded();
+      }
     });
+  }
+
+  Future<void> _fetchLoaded() async {
+    try {
+      final map = await ref.read(wagonRepositoryProvider).getLoadedItemQuantities(widget.existingWagon!.id);
+      if (mounted) setState(() => _loadedByItem = map);
+    } catch (_) {}
   }
 
   void _markDirty() {
@@ -162,7 +175,16 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
   Future<String?> _updateExistingWagon(
       WagonListNotifier notifier, List<WagonItem> items) async {
     final current = widget.existingWagon!;
-    return notifier.updateWagon(current.copyWith(
+    final renames = <String, String>{};
+    for (final controller in _items) {
+      final oldName = controller.originalName.trim();
+      final newName = controller.name.text.trim();
+      if (oldName.isNotEmpty && newName.isNotEmpty && oldName.toLowerCase() != newName.toLowerCase()) {
+        renames[oldName] = newName;
+      }
+    }
+    
+    final result = await notifier.updateWagon(current.copyWith(
       wagonNumber: _numberCtrl.text.toIdentifierFormat(),
       origin: _originCtrl.text.trim().isEmpty ? 'NIL' : _originCtrl.text.trim().toTitleCase(),
       destination: _destinationCtrl.text.trim().isEmpty ? 'NIL' : _destinationCtrl.text.trim().toTitleCase(),
@@ -170,7 +192,12 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
       expectedTruckCount: 0,
       remarks: _remarksCtrl.text.trim().isEmpty ? 'NIL' : _remarksCtrl.text.trim().toSentenceCase(),
       items: items,
-    ));
+    ), renames: renames);
+    
+    if (result == null && renames.isNotEmpty) {
+      ref.invalidate(wagonInventoryProvider(current.id));
+    }
+    return result;
   }
 
   List<WagonItem> _manifestItems() => _items
@@ -444,12 +471,18 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                                 },
                               ),
                             ),
-                            IconButton(
-                              onPressed:
-                                  _isSaving ? null : () => _removeItem(index),
-                              icon: const Icon(Icons.remove_circle_outline,
-                                  color: AppTheme.errorColor),
-                              tooltip: 'Remove item',
+                            Builder(
+                              builder: (context) {
+                                final titleName = FieldNormalizer.title(row.originalName);
+                                final loaded = _loadedByItem?[titleName] ?? 0;
+                                final canDelete = loaded == 0;
+                                return IconButton(
+                                  onPressed: (_isSaving || !canDelete) ? null : () => _removeItem(index),
+                                  icon: Icon(Icons.remove_circle_outline,
+                                      color: canDelete ? AppTheme.errorColor : Colors.white24),
+                                  tooltip: canDelete ? 'Remove item' : 'Cannot remove (cartons loaded)',
+                                );
+                              }
                             ),
                           ],
                         ),
@@ -483,11 +516,12 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 }
 
 class _ItemControllers {
+  final String originalName;
   final TextEditingController name;
   final TextEditingController quantity;
 
-  _ItemControllers(String itemName, String itemQuantity)
-      : name = TextEditingController(text: itemName),
+  _ItemControllers(this.originalName, String itemQuantity)
+      : name = TextEditingController(text: originalName),
         quantity = TextEditingController(text: itemQuantity);
 
   void dispose() {

@@ -50,6 +50,7 @@ class _SplitLayerCameraScreenState extends ConsumerState<SplitLayerCameraScreen>
   final _picker = ImagePicker();
 
   Future<void> _pickGalleryImage(String truckId) async {
+    AppLogger.info('OPERATOR ACTION: Opened Photo Gallery (Split Camera)');
     final image = await _picker.pickImage(source: ImageSource.gallery);
     if (image == null || !mounted) return;
     

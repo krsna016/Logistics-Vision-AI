@@ -1407,10 +1407,13 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
               'LOADING DATE: ${report['loadingDate']}',
             ])
               pw.Expanded(
-                child: _singleLineRegisterText(
+                child: pw.Text(
                   text,
-                  fontSize: 9,
-                  bold: true,
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                    fontSize: 9,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
                 ),
               ),
           ]),
@@ -1528,10 +1531,13 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
             'DATE: ${report['loadingDate']}',
           ])
             pw.Expanded(
-              child: _singleLineRegisterText(
+              child: pw.Text(
                 value,
-                fontSize: 8,
-                bold: true,
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  fontSize: 8,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
             ),
         ]),

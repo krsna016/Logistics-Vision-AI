@@ -13,7 +13,6 @@ import '../widgets/register_header.dart';
 import '../widgets/truck_table.dart';
 import '../widgets/summary_section.dart';
 import '../widgets/remark_card.dart';
-import '../widgets/history_tile.dart';
 import '../widgets/register_reconciliation_card.dart';
 import '../../../reports/presentation/providers/report_providers.dart';
 import '../../../reports/presentation/widgets/generate_report_dialog.dart';
@@ -85,8 +84,7 @@ class RegisterDetailsScreen extends ConsumerWidget {
             RegisterHeader(register: register),
             const SizedBox(height: 16),
 
-            _RegisterAccessBanner(canModify: canModify),
-            const SizedBox(height: 16),
+
 
             // Summary Section
             SummarySection(register: register),
@@ -124,9 +122,6 @@ class RegisterDetailsScreen extends ConsumerWidget {
                   : null,
             ),
             const SizedBox(height: 16),
-
-            // History Section
-            HistoryTile(register: register),
             const SizedBox(height: 40),
           ],
         ),
@@ -280,44 +275,3 @@ class RegisterDetailsScreen extends ConsumerWidget {
   }
 }
 
-class _RegisterAccessBanner extends StatelessWidget {
-  final bool canModify;
-
-  const _RegisterAccessBanner({required this.canModify});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = canModify ? AppTheme.warningColor : AppTheme.primaryColor;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        children: [
-          Icon(
-              canModify
-                  ? Icons.admin_panel_settings_outlined
-                  : Icons.lock_outline,
-              color: color,
-              size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              canModify
-                  ? 'Administrator correction mode. Archived wagon, truck and layer records can be corrected with an audit reason.'
-                  : 'Read-only register. Only administrators can modify wagon, truck or layer records.',
-              style: TextStyle(
-                color: color,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

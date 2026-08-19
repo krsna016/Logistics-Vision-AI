@@ -60,7 +60,7 @@ class LocalRegisterRepository implements RegisterRepository {
             .map((t) => t.createdDate)
             .reduce((a, b) => a.isBefore(b) ? a : b);
         final latest = wagonTrucks
-            .map((t) => t.updatedDate)
+            .map((t) => t.completedDate ?? t.updatedDate)
             .reduce((a, b) => a.isAfter(b) ? a : b);
         duration = latest.isAfter(earliest)
             ? latest.difference(earliest)

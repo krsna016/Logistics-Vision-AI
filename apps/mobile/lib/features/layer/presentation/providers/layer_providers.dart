@@ -263,13 +263,23 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     }
   }
 
+
+  String? _preserveSplitData(String? newNotes, String? oldNotes) {
+    if (oldNotes == null || !oldNotes.contains('[SPLIT_DATA]:')) return newNotes;
+    final splitData = oldNotes.substring(oldNotes.indexOf('[SPLIT_DATA]:'));
+    if (newNotes == null || newNotes.trim().isEmpty) return splitData;
+    return '${newNotes.trim()} | $splitData';
+  }
+
   Future<String?> editNotes(String layerId, String? nextNotes) async {
     try {
       final matchIndex =
           state.layers.indexWhere((element) => element.id == layerId);
       if (matchIndex != -1) {
-        final updated = state.layers[matchIndex].copyWith(
-          notes: nextNotes,
+        final current = state.layers[matchIndex];
+        final updatedNotes = _preserveSplitData(nextNotes, current.notes);
+        final updated = current.copyWith(
+          notes: updatedNotes,
           updatedAt: DateTime.now(),
         );
         await _layerRepository.updateLayer(updated);
@@ -421,10 +431,11 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
           }
         }
       }
+      final updatedNotes = _preserveSplitData(notes, current.notes);
       final updated = current.copyWith(
         cartonCount: allocatedTotal > 0 ? allocatedTotal : cartonCount,
         defectCount: defectCount,
-        notes: notes,
+        notes: updatedNotes,
         itemName: allocations.length == 1
             ? allocations.first.itemName
             : current.itemName,

@@ -107,24 +107,7 @@ class WagonCard extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              const Icon(Icons.fingerprint_outlined,
-                  size: 13, color: Color(0xFF7E8A99)),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  'ID: ${wagon.id}',
-                  style: const TextStyle(
-                      color: Color(0xFF7E8A99),
-                      fontSize: 10,
-                      fontFamily: 'monospace'),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+
           const SizedBox(height: 6),
 
           // Route Details

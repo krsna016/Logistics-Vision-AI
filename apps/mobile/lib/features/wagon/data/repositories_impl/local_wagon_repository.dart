@@ -1,3 +1,5 @@
+import './../../../../core/utils/field_normalizer.dart';
+
 import 'dart:convert';
 import 'package:drift/drift.dart' as drift;
 import '../../domain/entities/wagon.dart';
@@ -125,8 +127,17 @@ class LocalWagonRepository implements WagonRepository {
             payloadData: '{}',
             version: drift.Value(nextVersion),
           ));
+
+      final changes = <String>[];
+      if (existing.wagonNumber != wagon.wagonNumber) changes.add('Number: ${existing.wagonNumber} -> ${wagon.wagonNumber}');
+      if (existing.status != wagon.status.name) changes.add('Status: ${existing.status} -> ${wagon.status.name}');
+      if (existing.origin != wagon.origin) changes.add('Origin: ${existing.origin} -> ${wagon.origin}');
+      if (existing.destination != wagon.destination) changes.add('Dest: ${existing.destination} -> ${wagon.destination}');
+      if (existing.remarks != wagon.remarks) changes.add('Remarks: ${existing.remarks} -> ${wagon.remarks}');
+      
+      final changeStr = changes.isEmpty ? 'No values changed' : changes.join(', ');
+      AppLogger.info('Updated wagon record: ${wagon.wagonNumber} | Changes: $changeStr');
     });
-    AppLogger.info('Updated wagon record: ${wagon.wagonNumber}');
   }
 
   @override
@@ -276,6 +287,42 @@ class LocalWagonRepository implements WagonRepository {
     }
     final rows = await query.get();
     return rows.isNotEmpty;
+  }
+
+  @override
+  Future<void> applyItemRenames(String wagonId, Map<String, String> renames) async {
+    final query = _db.select(_db.layers).join([
+      drift.innerJoin(
+        _db.trucks,
+        _db.trucks.id.equalsExp(_db.layers.truckId),
+      ),
+    ])
+      ..where(_db.trucks.wagonId.equals(wagonId) &
+          _db.trucks.isDeleted.equals(false) &
+          _db.layers.isDeleted.equals(false));
+    final rows = await query.get();
+    for (final row in rows) {
+      final layer = row.readTable(_db.layers);
+      try {
+        final allocations = jsonDecode(layer.itemAllocationsJson) as List<dynamic>;
+        bool changed = false;
+        final newAllocations = <Map<String, dynamic>>[];
+        for (final value in allocations.whereType<Map<String, dynamic>>()) {
+          final itemName = (value['itemName'] as String? ?? '').trim();
+          final titleName = FieldNormalizer.title(itemName);
+          if (renames.containsKey(titleName)) {
+            value['itemName'] = renames[titleName]!;
+            changed = true;
+          }
+          newAllocations.add(value);
+        }
+        if (changed) {
+          await _db.update(_db.layers).replace(
+            layer.copyWith(itemAllocationsJson: jsonEncode(newAllocations)),
+          );
+        }
+      } catch (_) {}
+    }
   }
 
   @override

@@ -28,7 +28,7 @@ class WagonInventoryCard extends StatelessWidget {
     );
     final remaining = total - loaded;
     final progress = total == 0 ? 0.0 : (loaded / total).clamp(0.0, 1.0);
-    final percentage = (progress * 100).round();
+    final percentage = total == 0 ? 0.0 : (loaded / total) * 100.0;
 
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -138,7 +138,7 @@ class WagonInventoryCard extends StatelessWidget {
 }
 
 class _PercentageBadge extends StatelessWidget {
-  final int value;
+  final double value;
   const _PercentageBadge({required this.value});
 
   @override
@@ -150,7 +150,7 @@ class _PercentageBadge extends StatelessWidget {
           border:
               Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.25)),
         ),
-        child: Text('$value% loaded',
+        child: Text('${value.toStringAsFixed(2)}% loaded',
             style: const TextStyle(
                 color: AppTheme.primaryColor,
                 fontSize: 10,

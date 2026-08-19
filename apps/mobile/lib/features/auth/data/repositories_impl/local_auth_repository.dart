@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import '../../../../core/database/app_database.dart'
     hide User, AuditLog, DeviceSession;
+import '../../../../utils/file_logger.dart' as import_file_logger;
 import '../../domain/entities/user.dart';
 import '../../domain/entities/session.dart';
 import '../../domain/entities/audit_log.dart';
@@ -115,6 +116,12 @@ class LocalAuthRepository implements AuthRepository {
       String? userId,
       String? userName,
       Role? userRole}) async {
+    try {
+      final String safeUserId = userId ?? 'guest';
+      final String safeUserName = userName ?? 'Unknown';
+      import_file_logger.FileLogger.setUserId(safeUserId);
+      import_file_logger.FileLogger.log('AUTH: $action | Success: $isSuccess | User: $safeUserName | Details: $details');
+    } catch (_) {}
     final session = _sessionManager.currentSession.value;
     final uid = userId ?? session?.userId ?? 'guest';
     await _db.into(_db.auditLogs).insert(
