@@ -75,9 +75,14 @@ class RegisterDetailsScreen extends ConsumerWidget {
           const SizedBox(width: 8),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await ref.read(registerListProvider.notifier).refresh();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Header Section
@@ -125,6 +130,7 @@ class RegisterDetailsScreen extends ConsumerWidget {
             const SizedBox(height: 40),
           ],
         ),
+      ),
       ),
     );
   }

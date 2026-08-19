@@ -26,6 +26,7 @@ class _AiCameraSettingsScreenState
   double _quality = AiCameraSettings.cropQuality.value.toDouble();
   bool _masks = AiCameraSettings.detailedMasks.value;
   int _threads = AiCameraSettings.processingThreads.value;
+  bool _showId = AiCameraSettings.showDatabaseIds.value;
   bool _loading = true;
   bool _saving = false;
 
@@ -45,6 +46,7 @@ class _AiCameraSettingsScreenState
         _quality = AiCameraSettings.cropQuality.value.toDouble();
         _masks = AiCameraSettings.detailedMasks.value;
         _threads = AiCameraSettings.processingThreads.value;
+        _showId = AiCameraSettings.showDatabaseIds.value;
       });
     } catch (_) {
       // Invalid legacy settings must never prevent this page from opening.
@@ -60,6 +62,7 @@ class _AiCameraSettingsScreenState
         cropQualityValue: _quality.round(),
         detailedMasksValue: _masks,
         processingThreadsValue: _threads,
+        showDatabaseIdsValue: _showId,
       );
 
   Future<void> _save() async {
@@ -76,6 +79,7 @@ class _AiCameraSettingsScreenState
         'masks': AiCameraSettings.detailedMasks.value,
         'processingThreads': AiCameraSettings.processingThreads.value,
         'modelInputSize': AiCameraSettings.modelInputSize,
+        'showIds': AiCameraSettings.showDatabaseIds.value,
       });
       await db.into(db.settings).insertOnConflictUpdate(
             SettingsCompanion.insert(key: 'ai_camera', value: value),
@@ -88,12 +92,12 @@ class _AiCameraSettingsScreenState
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('AI camera settings saved locally.')),
+        const SnackBar(content: Text('Settings saved locally.')),
       );
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Could not apply AI settings. Please try again.'),
+        content: Text('Could not apply settings. Please try again.'),
         backgroundColor: AppTheme.errorColor,
       ));
     } finally {
@@ -108,6 +112,7 @@ class _AiCameraSettingsScreenState
       _quality = 98;
       _masks = true;
       _threads = 4;
+      _showId = false;
     });
     await _save();
   }
@@ -118,7 +123,7 @@ class _AiCameraSettingsScreenState
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
     return Scaffold(
-      appBar: AppBar(title: const Text('AI Camera Settings')),
+      appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -137,6 +142,18 @@ class _AiCameraSettingsScreenState
               ),
               trailing:
                   Icon(Icons.verified_rounded, color: AppTheme.successColor),
+            ),
+          ),
+          const SizedBox(height: 18),
+          _sectionTitle('DISPLAY SETTINGS'),
+          const SizedBox(height: 8),
+          AppCard(
+            child: SwitchListTile.adaptive(
+              title: const Text('Show Database IDs', style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text('Display fingerprint IDs across all cards for debugging or manual lookups.'),
+              value: _showId,
+              onChanged: (val) => setState(() => _showId = val),
+              contentPadding: EdgeInsets.zero,
             ),
           ),
           const SizedBox(height: 18),

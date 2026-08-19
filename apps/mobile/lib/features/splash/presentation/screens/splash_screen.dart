@@ -93,11 +93,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFF121212) : const Color(0xFF0F2027),
+      backgroundColor: const Color(0xFF121212),
       body: Stack(
         children: [
           // The logo is centered independently, matching the native launch

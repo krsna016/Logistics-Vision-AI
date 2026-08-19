@@ -5,6 +5,10 @@ This manual explains the complete mobile app in easy English. Follow it from top
 
 > Important: The app stores operational records such as wagons, vehicles, layers, item quantities, photos, corrections and reports. Always check information before saving. Use correction tools with a clear reason. Do not load demo data on a phone containing real work.
 
+> **WARNING: SPLIT MODE CAPABILITIES**
+> Split Mode is currently limited to AI Camera only. Manual mode split capture is not supported at this time.
+
+
 ### Quick Start / visual workflow
 
 `1. Create Wagon` -> `2. Add Manifest (optional)` -> `3. Add Vehicle` -> `4. Capture or Manually Count Layers` -> `5. Review and Save` -> `6. Complete Vehicle` -> `7. Complete Wagon` -> `8. Generate Report`
@@ -320,8 +324,8 @@ When a wagon is actively loading, a persistent selector bar appears at the botto
 
 - Digital Registers: historical wagon register and exports.
 - Documentation: this English and Hindi handbook.
-- AI Camera Settings: adjust local confidence, overlap/IoU, crop quality, processing power and detailed-outline settings, then tap **Save locally**. Use **Reset recommended settings** when needed.
-- Load Demo Data (administrators only): deletes current operational data and creates enterprise training data.
+- Settings: adjust local confidence, overlap/IoU, crop quality, processing power, detailed-outline settings, and toggle **Show Database IDs** (to see hidden UUIDs), then tap **Save locally**. Use **Reset recommended settings** when needed.
+- Load Demo/Clear Screen (administrators only): allows loading enterprise training data or completely wiping all local operational data for a fresh start.
 - Logout: ends the current user session.
 
 Administrators also have **Backup & Restore** for creating and sharing a local archive containing the database, photos, audit records and exports, importing a SmartLoad ZIP or extracted folder, and restoring an earlier local backup. Treat imports and restores as controlled data operations and verify the selected archive before confirming.
@@ -468,6 +472,9 @@ Only one active workflow should be used for the physical vehicle being loaded. I
 ## 9. AI camera counting
 
 AI mode counts visible cartons from a captured layer image. You can capture a single wide image, use "Split Capture" mode for very wide trucks, or import existing images using the Gallery icon.
+
+### Full-Screen Capture Toggle
+By default, you are shown a blue dotted box to crop the exact region of cartons you want to count. If you prefer to capture the entire camera view automatically without cropping, open the three-dots menu (bottom-left) and tap the Crop icon to toggle the blue box completely off.
 
 ### Standard Capture (1 Photo)
 1. Select AI mode on the camera screen.
@@ -715,9 +722,11 @@ Search changes only what is displayed. It never deletes hidden records.
 
 ---
 
-## 19. Demo data
+## 19. Demo Data and Clear Screen
 
-Load Demo Data is available only to administrators. It creates enterprise training records with multiple wagon statuses, vehicles, many layers, mixed items, defects and correction history.
+The Load Demo/Clear Screen menu is available only to administrators. 
+- **Load Demo Data** creates enterprise training records with multiple wagon statuses, vehicles, layers, defects and correction history.
+- **Clear Screen / Wipe Data** completely wipes all local records from the database, giving you a fresh, clean slate.
 
 ### Critical warning
 
@@ -1199,8 +1208,8 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 
 - Digital Registers: वैगन इतिहास और रिपोर्ट।
 - Documentation: यह अंग्रेजी और हिंदी पुस्तिका।
-- AI Camera Settings: Confidence, Overlap/IoU, crop quality, processing power और detailed outlines की स्थानीय सेटिंग बदलें। **Save locally** दबाएं; जरूरत हो तो **Reset recommended settings** चुनें।
-- Load Demo Data: केवल Administrator के लिए; वर्तमान लोकल डेटा हटाकर प्रशिक्षण डेटा बनाता है।
+- Settings: Confidence, Overlap/IoU, crop quality, processing power, detailed outlines की स्थानीय सेटिंग बदलें और **Show Database IDs** को ऑन/ऑफ करें। **Save locally** दबाएं; जरूरत हो तो **Reset recommended settings** चुनें।
+- Load Demo/Clear Screen: केवल Administrator के लिए; यह आपको प्रशिक्षण डेटा लोड करने या सभी वर्तमान लोकल डेटा को पूरी तरह से मिटाने (Clear Screen) की सुविधा देता है।
 - Logout: वर्तमान उपयोगकर्ता सेशन बंद करता है।
 
 Administrator को **Backup & Restore** भी मिलता है। इससे database, photos, audit records और exports का local archive बनाकर share किया जा सकता है, SmartLoad ZIP या extracted folder import किया जा सकता है और पुराना local backup restore किया जा सकता है। Import या restore से पहले archive और तारीख ध्यान से जांचें।
@@ -1331,6 +1340,9 @@ Truck Details में वाहन, ड्राइवर, कैरियर,
 ## 9. AI कैमरा गिनती
 
 AI मोड फोटो में दिख रहे कार्टन गिनता है। आप एक पूरी लेयर की फोटो ले सकते हैं, बड़े ट्रकों के लिए "Split Capture" (स्प्लिट कैप्चर) मोड का उपयोग कर सकते हैं, या Gallery आइकन का उपयोग करके फोन से पुरानी फोटो भी चुन सकते हैं।
+
+### फुल-स्क्रीन कैप्चर टॉगल
+डिफ़ॉल्ट रूप से, आपको कार्टन का सटीक हिस्सा चुनने के लिए एक नीले रंग का डॉटेड बॉक्स (Crop box) दिखाई देता है। यदि आप बिना क्रॉप किए पूरी स्क्रीन की फोटो एक साथ लेना चाहते हैं, तो नीचे बाईं ओर तीन-बिंदु (3-dots) मेनू खोलें और नीले बॉक्स को बंद करने के लिए क्रॉप आइकन को दबाएं।
 
 ### Standard Capture (1 फोटो)
 
@@ -1559,9 +1571,11 @@ Wagon No., Vehicle No., Driver, Company, Driver Phone, Status, Warehouse, Superv
 
 ---
 
-## 19. डेमो डेटा
+## 19. डेमो डेटा और क्लियर स्क्रीन
 
-Load Demo Data केवल Administrator के लिए उपलब्ध है। यह कई स्थिति वाले वैगन, वाहन, बहुत सी लेयर, मिश्रित आइटम, डिफेक्ट और Correction History बनाता है।
+Load Demo/Clear Screen केवल Administrator के लिए उपलब्ध है।
+- **Load Demo Data** कई स्थिति वाले वैगन, वाहन, लेयर, मिश्रित आइटम, डिफेक्ट और Correction History (प्रशिक्षण डेटा) बनाता है।
+- **Clear Screen / Wipe Data** डेटाबेस से सभी लोकल रिकॉर्ड को पूरी तरह से मिटा देता है, जिससे आपको एक बिल्कुल नया और खाली ऐप मिल जाता है।
 
 ### बहुत महत्वपूर्ण चेतावनी
 

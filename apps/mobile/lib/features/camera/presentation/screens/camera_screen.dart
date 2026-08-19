@@ -54,6 +54,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   bool _isFinalizingCapture = false;
   bool _torchOn = false;
   bool _aiStarted = false;
+  bool _showCropBox = true;
   CameraController? _previewReadyController;
   CountingRegion _countingRegion = CountingRegion.rectangle(
     left: 0.09,
@@ -206,8 +207,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
             cameraState.status == CameraStatus.switching ||
             (cameraState.status == CameraStatus.ready && !previewReady));
     return PopScope(
-      canPop: !_isFinalizingCapture,
+      canPop: !widget.isActive ? true : !_isFinalizingCapture,
       onPopInvokedWithResult: (didPop, result) {
+        if (!widget.isActive) return;
         if (!didPop && _isFinalizingCapture) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
@@ -261,7 +263,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
 
             if (!isGallery &&
                 cameraState.status == CameraStatus.ready &&
-                previewReady)
+                previewReady &&
+                _showCropBox)
               Positioned.fill(
                 child: ResizableCountingRegion(
                   region: _countingRegion,
@@ -368,6 +371,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                   isReadyForReview: isReadyForReview,
                   isGallery: isGallery,
                   torchOn: _torchOn,
+                  showCropBox: _showCropBox,
+                  onToggleCropBox: () => setState(() => _showCropBox = !_showCropBox),
                   onToggleTorch: isGallery || !previewReady
                       ? null
                       : () => _toggleTorch(cameraState.controller),
@@ -569,8 +574,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     BuildContext context, {
     required CameraState cameraState,
   }) {
+    final regionToMap = _showCropBox ? _countingRegion : CountingRegion.rectangle(left: 0, top: 0, right: 1, bottom: 1);
     final preview = cameraState.controller?.value.previewSize;
-    if (preview == null) return _countingRegion;
+    if (preview == null) return regionToMap;
     final sourceSize = preview.width > preview.height
         ? Size(preview.height, preview.width)
         : Size(preview.width, preview.height);
@@ -590,10 +596,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
               .clamp(0.0, 1.0),
         );
     return CountingRegion(
-      topLeft: sourcePoint(_countingRegion.topLeft),
-      topRight: sourcePoint(_countingRegion.topRight),
-      bottomRight: sourcePoint(_countingRegion.bottomRight),
-      bottomLeft: sourcePoint(_countingRegion.bottomLeft),
+      topLeft: sourcePoint(regionToMap.topLeft),
+      topRight: sourcePoint(regionToMap.topRight),
+      bottomRight: sourcePoint(regionToMap.bottomRight),
+      bottomLeft: sourcePoint(regionToMap.bottomLeft),
     );
   }
 
@@ -1411,9 +1417,11 @@ class _CameraOverlayControls extends StatefulWidget {
   final bool isReadyForReview;
   final bool isGallery;
   final bool torchOn;
+  final bool showCropBox;
   final VoidCallback? onToggleTorch;
   final VoidCallback onGallery;
   final VoidCallback onFlipCamera;
+  final VoidCallback onToggleCropBox;
   final VoidCallback? onCapture;
   final VoidCallback? onReview;
 
@@ -1421,9 +1429,11 @@ class _CameraOverlayControls extends StatefulWidget {
     required this.isReadyForReview,
     required this.isGallery,
     required this.torchOn,
+    required this.showCropBox,
     required this.onToggleTorch,
     required this.onGallery,
     required this.onFlipCamera,
+    required this.onToggleCropBox,
     required this.onCapture,
     required this.onReview,
   });
@@ -1555,11 +1565,17 @@ class _CameraOverlayControlsState extends State<_CameraOverlayControls>
         ),
         SizedBox(
           width: 52,
-          height: 174,
+          height: 234,
           child: Stack(
             alignment: Alignment.bottomCenter,
             clipBehavior: Clip.none,
             children: [
+              _menuOption(
+                index: 2,
+                icon: widget.showCropBox ? Icons.crop_free : Icons.crop,
+                tooltip: widget.showCropBox ? 'Capture Full Screen' : 'Enable Crop Box',
+                onTap: widget.onToggleCropBox,
+              ),
               _menuOption(
                 index: 1,
                 icon: Icons.photo_library_outlined,

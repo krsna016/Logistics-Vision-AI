@@ -1,3 +1,5 @@
+import '../widgets/resizable_counting_region.dart';
+import 'dart:math' as math;
 import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
@@ -33,10 +35,77 @@ class SplitLayerCameraScreen extends ConsumerStatefulWidget {
       _SplitLayerCameraScreenState();
 }
 
-class _SplitLayerCameraScreenState extends ConsumerState<SplitLayerCameraScreen> {
+class _SplitLayerCameraScreenState extends ConsumerState<SplitLayerCameraScreen> with SingleTickerProviderStateMixin {
   final _imageStorage = ImageStorageService();
 
   int _step = 1;
+  bool _menuOpen = false;
+  late AnimationController _menuController;
+
+  @override
+  void initState() {
+    super.initState();
+    _menuController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+  }
+
+  @override
+  void dispose() {
+    _menuController.dispose();
+    super.dispose();
+  }
+
+  void _toggleMenu() {
+    setState(() => _menuOpen = !_menuOpen);
+    if (_menuOpen) {
+      _menuController.forward();
+    } else {
+      _menuController.reverse();
+    }
+  }
+
+  Widget _menuOption({
+    required int index,
+    required IconData icon,
+    required String tooltip,
+    required VoidCallback onTap,
+  }) {
+    final animation = CurvedAnimation(
+      parent: _menuController,
+      curve: Interval(index * 0.1, 0.78 + index * 0.1, curve: Curves.easeOutBack),
+      reverseCurve: Curves.easeInCubic,
+    );
+    return Positioned(
+      bottom: 62.0 + index * 60,
+      child: AnimatedBuilder(
+        animation: animation,
+        builder: (context, child) => IgnorePointer(
+          ignoring: animation.value < 0.95,
+          child: Opacity(
+            opacity: animation.value.clamp(0.0, 1.0),
+            child: Transform.translate(
+              offset: Offset(0, 16 * (1 - animation.value)),
+              child: Transform.scale(
+                scale: 0.72 + 0.28 * animation.value,
+                child: child,
+              ),
+            ),
+          ),
+        ),
+        child: _RoundSplitButton(
+          icon: icon,
+          tooltip: tooltip,
+          onTap: () {
+            onTap();
+            if (_menuOpen) _toggleMenu();
+          },
+        ),
+      ),
+    );
+  }
+  bool _showCropBox = true;
   bool _isCapturing = false;
   String _processingMessage = '';
 
@@ -48,6 +117,41 @@ class _SplitLayerCameraScreenState extends ConsumerState<SplitLayerCameraScreen>
 
   bool _torchOn = false;
   final _picker = ImagePicker();
+
+  CountingRegion _countingRegion = CountingRegion.rectangle(
+    left: 0.09,
+    top: 0.24,
+    right: 0.91,
+    bottom: 0.76,
+  );
+
+  CountingRegion _sourceRegionForPreview(BuildContext context, {required CameraState cameraState}) {
+    final regionToMap = _showCropBox ? _countingRegion : CountingRegion.rectangle(left: 0, top: 0, right: 1, bottom: 1);
+    final preview = cameraState.controller?.value.previewSize;
+    if (preview == null) return regionToMap;
+    final sourceSize = preview.width > preview.height
+        ? Size(preview.height, preview.width)
+        : Size(preview.width, preview.height);
+    final viewport = MediaQuery.sizeOf(context);
+    final scale = math.max(
+      viewport.width / sourceSize.width,
+      viewport.height / sourceSize.height,
+    );
+    final displayedWidth = sourceSize.width * scale;
+    final displayedHeight = sourceSize.height * scale;
+    final offsetX = (viewport.width - displayedWidth) / 2;
+    final offsetY = (viewport.height - displayedHeight) / 2;
+    CountingPoint sourcePoint(CountingPoint point) => CountingPoint(
+          ((point.x * viewport.width - offsetX) / displayedWidth).clamp(0.0, 1.0),
+          ((point.y * viewport.height - offsetY) / displayedHeight).clamp(0.0, 1.0),
+        );
+    return CountingRegion(
+      topLeft: sourcePoint(regionToMap.topLeft),
+      topRight: sourcePoint(regionToMap.topRight),
+      bottomRight: sourcePoint(regionToMap.bottomRight),
+      bottomLeft: sourcePoint(regionToMap.bottomLeft),
+    );
+  }
 
   Future<void> _pickGalleryImage(String truckId) async {
     AppLogger.info('OPERATOR ACTION: Opened Photo Gallery (Split Camera)');
@@ -118,8 +222,19 @@ class _SplitLayerCameraScreenState extends ConsumerState<SplitLayerCameraScreen>
     try {
       final photo = await controller.takePicture();
 
-      final bytes = await File(photo.path).readAsBytes();
-      final savedPath = await _imageStorage.saveImageBytes(bytes, 'split_part${_step}_$truckId');
+      final sourceBytes = await File(photo.path).readAsBytes();
+      final savedPath = await _imageStorage.saveImageBytes(sourceBytes, 'split_part${_step}_audit_$truckId');
+
+      final sourceRegion = _sourceRegionForPreview(
+        context,
+        cameraState: ref.read(cameraNotifierProvider),
+      );
+
+      final bytes = await _imageStorage.createCountingCropBytesFromBytes(
+        sourceBytes,
+        sourceRegion,
+      );
+      final cropPath = await _imageStorage.saveImageBytes(bytes, 'split_part${_step}_crop_$truckId');
       
       try {
         await File(photo.path).delete();
@@ -275,6 +390,14 @@ class _SplitLayerCameraScreenState extends ConsumerState<SplitLayerCameraScreen>
             if (controller != null && controller.value.isInitialized)
               Positioned.fill(child: CameraPreview(controller)),
 
+            if (controller != null && controller.value.isInitialized && !_isCapturing && _showCropBox)
+              Positioned.fill(
+                child: ResizableCountingRegion(
+                  region: _countingRegion,
+                  onChanged: (region) => setState(() => _countingRegion = region),
+                ),
+              ),
+
             if (_isCapturing)
               Positioned.fill(
                 child: Container(
@@ -370,10 +493,45 @@ class _SplitLayerCameraScreenState extends ConsumerState<SplitLayerCameraScreen>
                         ),
                       ),
                     ),
-                    _RoundSplitButton(
-                      icon: Icons.photo_library_outlined,
-                      tooltip: 'Gallery',
-                      onTap: () => _pickGalleryImage(truckId),
+                    SizedBox(
+                      width: 52,
+                      height: 234,
+                      child: Stack(
+                        alignment: Alignment.bottomCenter,
+                        clipBehavior: Clip.none,
+                        children: [
+                          _menuOption(
+                            index: 2,
+                            icon: _showCropBox ? Icons.crop_free : Icons.crop,
+                            tooltip: _showCropBox ? 'Capture Full Screen' : 'Enable Crop Box',
+                            onTap: () => setState(() => _showCropBox = !_showCropBox),
+                          ),
+                          _menuOption(
+                            index: 1,
+                            icon: Icons.photo_library_outlined,
+                            tooltip: 'Gallery',
+                            onTap: () => _pickGalleryImage(truckId),
+                          ),
+                          _menuOption(
+                            index: 0,
+                            icon: Icons.flip_camera_ios_outlined,
+                            tooltip: 'Flip camera',
+                            onTap: () {
+                              if (cameraState.availableCameras.length > 1) {
+                                setState(() {
+                                  _torchOn = false;
+                                });
+                                ref.read(cameraNotifierProvider.notifier).switchCamera();
+                              }
+                            },
+                          ),
+                          _RoundSplitButton(
+                            icon: _menuOpen ? Icons.close_rounded : Icons.more_vert_rounded,
+                            tooltip: _menuOpen ? 'Close camera options' : 'More camera options',
+                            onTap: _toggleMenu,
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ),

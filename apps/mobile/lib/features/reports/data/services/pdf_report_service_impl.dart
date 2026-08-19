@@ -760,7 +760,7 @@ class PdfReportServiceImpl implements PdfReportService {
       logoBytes: logoBytes,
       supervisor: supervisor,
     );
-    return _savePdfBytes(bytes, 'WAGON_$wagonId');
+    return _savePdfBytes(bytes, 'WAGON_${wagon.wagonNumber}_REGISTER');
   }
 
   @override

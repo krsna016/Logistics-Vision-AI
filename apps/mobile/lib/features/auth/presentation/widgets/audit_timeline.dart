@@ -17,8 +17,7 @@ class AuditTimeline extends StatelessWidget {
     }
 
     return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+      physics: const AlwaysScrollableScrollPhysics(),
       itemCount: logs.length,
       itemBuilder: (context, index) {
         final log = logs[index];

@@ -9,6 +9,7 @@ import '../../../../utils/logger.dart';
 import '../../../camera/presentation/widgets/detection_overlay_widget.dart';
 import '../../../camera/domain/entities/detection.dart';
 import '../../../layer/domain/entities/layer.dart';
+import '../../../../core/ai_engine/ai_camera_settings.dart';
 import '../../../layer/data/models/layer_model.dart';
 import '../../domain/entities/truck.dart';
 
@@ -142,6 +143,29 @@ class _TimelineItem extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+          ValueListenableBuilder<bool>(
+            valueListenable: AiCameraSettings.showDatabaseIds,
+            builder: (context, showId, _) => showId ? Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.fingerprint_outlined,
+                      size: 13, color: Color(0xFF7E8A99)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'ID: ${layer.id}',
+                      style: const TextStyle(
+                          color: Color(0xFF7E8A99),
+                          fontSize: 10,
+                          fontFamily: 'monospace'),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ) : const SizedBox.shrink(),
+          ),
                         // Keep the full layer summary and its actions on one
                         // compact line. The card itself remains tappable for
                         // corrections, so a separate edit button is not needed.
@@ -610,8 +634,9 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
   Widget build(BuildContext context) {
     final viewport = MediaQuery.sizeOf(context);
     return PopScope(
-      canPop: false,
+      canPop: widget.isActive ? false : true,
       onPopInvokedWithResult: (didPop, result) {
+        if (!widget.isActive) return;
         if (!didPop) unawaited(_closeImage());
       },
       child: Dialog(

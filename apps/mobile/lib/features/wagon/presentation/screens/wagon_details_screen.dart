@@ -1,3 +1,4 @@
+import '../../../../core/ai_engine/ai_camera_settings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -137,9 +138,16 @@ class WagonDetailsScreen extends ConsumerWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+      body: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(wagonByIdProvider(wagonId));
+          await ref.read(wagonListProvider.notifier).refresh();
+          await ref.read(truckListProvider.notifier).refresh();
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Wagon Header Detail Card
             Padding(
@@ -148,6 +156,7 @@ class WagonDetailsScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -306,6 +315,7 @@ class WagonDetailsScreen extends ConsumerWidget {
           ],
         ),
       ),
+      ),
       bottomNavigationBar: _WagonBottomBar(
         isArchived: wagon.status == WagonStatus.archived,
         canComplete: wagon.status == WagonStatus.loading &&
@@ -432,6 +442,7 @@ class WagonDetailsScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+
                           Text(
                             'Generate Report',
                             style: TextStyle(
@@ -680,6 +691,29 @@ class WagonDetailsScreen extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          ValueListenableBuilder<bool>(
+            valueListenable: AiCameraSettings.showDatabaseIds,
+            builder: (context, showId, _) => showId ? Padding(
+              padding: const EdgeInsets.only(bottom: 12.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.fingerprint_outlined,
+                      size: 13, color: Color(0xFF7E8A99)),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'ID: ${truck.id}',
+                      style: const TextStyle(
+                          color: Color(0xFF7E8A99),
+                          fontSize: 10,
+                          fontFamily: 'monospace'),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ) : const SizedBox.shrink(),
+          ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,

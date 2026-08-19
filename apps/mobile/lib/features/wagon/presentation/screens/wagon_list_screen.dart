@@ -529,11 +529,9 @@ class _LoadingSelectorBar extends StatelessWidget {
                                         height: 24,
                                         child: FittedBox(
                                           fit: BoxFit.fill,
-                                          child: Switch(
+                                          child: Switch.adaptive(
                                             value: aiMode,
                                             onChanged: onAiModeToggle,
-                                            activeThumbColor: const Color(0xFF64B5F6),
-                                            activeTrackColor: const Color(0xFF64B5F6).withOpacity(0.3),
                                           ),
                                         ),
                                       ),

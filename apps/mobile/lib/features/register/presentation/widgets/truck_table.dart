@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../theme/app_theme.dart';
 import '../../../layer/domain/entities/layer.dart';
 import '../../../truck/domain/entities/truck.dart';
+import '../../../../core/ai_engine/ai_camera_settings.dart';
 
 class TruckTable extends StatelessWidget {
   final List<Truck> trucks;
@@ -35,6 +36,8 @@ class TruckTable extends StatelessWidget {
               final truck = entry.$2;
               final layers = layersByTruck[truck.id] ?? const <LayerRecord>[];
               return ExpansionTile(
+                shape: const Border(),
+                collapsedShape: const Border(),
                 leading: CircleAvatar(
                   backgroundColor:
                       AppTheme.primaryColor.withValues(alpha: 0.15),
@@ -43,8 +46,31 @@ class TruckTable extends StatelessWidget {
                           color: AppTheme.primaryColor,
                           fontWeight: FontWeight.bold)),
                 ),
-                title: Text(truck.vehicleNumber,
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                title: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ValueListenableBuilder<bool>(
+                      valueListenable: AiCameraSettings.showDatabaseIds,
+                      builder: (context, showId, _) => showId ? Padding(
+                        padding: const EdgeInsets.only(bottom: 4.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.fingerprint_outlined, size: 13, color: Color(0xFF7E8A99)),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'ID: ${truck.id}',
+                                style: const TextStyle(color: Color(0xFF7E8A99), fontSize: 10, fontFamily: 'monospace'),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ) : const SizedBox.shrink(),
+                    ),
+                    Text(truck.vehicleNumber, style: const TextStyle(fontWeight: FontWeight.w800)),
+                  ],
+                ),
                 subtitle: Text(
                   'Driver: ${truck.driverName}\n'
                   'Phone: ${truck.driverMobile?.isNotEmpty == true ? truck.driverMobile : "N/A"}\n'
@@ -92,6 +118,25 @@ class TruckTable extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            ValueListenableBuilder<bool>(
+              valueListenable: AiCameraSettings.showDatabaseIds,
+              builder: (context, showId, _) => showId ? Padding(
+                padding: const EdgeInsets.only(bottom: 6.0),
+                child: Row(
+                  children: [
+                    const Icon(Icons.fingerprint_outlined, size: 13, color: Color(0xFF7E8A99)),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        'ID: ${layer.id}',
+                        style: const TextStyle(color: Color(0xFF7E8A99), fontSize: 10, fontFamily: 'monospace'),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ) : const SizedBox.shrink(),
+            ),
             Row(
               children: [
                 Expanded(

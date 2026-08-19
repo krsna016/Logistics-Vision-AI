@@ -83,13 +83,29 @@ class GlobalAuditScreen extends ConsumerWidget {
       body: auditAsync.when(
         data: (logs) {
           if (logs.isEmpty) {
-            return const Center(
-                child: Text('No audit logs available.',
-                    style: TextStyle(color: AppTheme.textSecondary)));
+            return RefreshIndicator(
+              onRefresh: () async {
+                ref.invalidate(auditLogsProvider);
+              },
+              child: ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                children: const [
+                  SizedBox(height: 200),
+                  Center(
+                    child: Text('No audit logs available.',
+                        style: TextStyle(color: AppTheme.textSecondary))),
+                ],
+              ),
+            );
           }
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: AuditTimeline(logs: logs),
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(auditLogsProvider);
+            },
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: AuditTimeline(logs: logs),
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

@@ -75,8 +75,8 @@ class AppDrawer extends ConsumerWidget {
                   ],
                   const SizedBox(height: 8),
                   _buildTile(
-                    icon: Icons.tune_rounded,
-                    title: 'AI Camera Settings',
+                    icon: Icons.settings,
+                    title: 'Settings',
                     subtitle: 'Adjust carton-counting behavior locally',
                     iconColor: AppTheme.primaryColor,
                     onTap: () {
@@ -87,12 +87,12 @@ class AppDrawer extends ConsumerWidget {
                   if (user?.role == Role.administrator) ...[
                     const SizedBox(height: 8),
                     _buildTile(
-                      icon: Icons.bug_report_rounded,
-                      title: 'Load Demo Data',
-                      subtitle: 'Replace local records with test data',
+                      icon: Icons.storage_rounded,
+                      title: 'Manage App Data',
+                      subtitle: 'Load demo data or wipe screen',
                       iconColor: Colors.redAccent,
                       textColor: Colors.redAccent,
-                      onTap: () => _confirmDemoDataLoad(context, ref),
+                      onTap: () => _showDemoAndClear(context, ref),
                     ),
                   ],
                   const SizedBox(height: 8),
@@ -369,6 +369,114 @@ class AppDrawer extends ConsumerWidget {
         visualDensity: const VisualDensity(horizontal: 0, vertical: -1),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         onTap: onTap,
+      ),
+    );
+  }
+
+  Future<void> _showDemoAndClear(BuildContext context, WidgetRef ref) async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => SimpleDialog(
+        title: const Text('Data Management'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, 'demo'),
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.bug_report_rounded, color: Colors.orangeAccent),
+              title: Text('Load Demo Data'),
+              subtitle: Text('Replace local records with test data'),
+            ),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(dialogContext, 'clear'),
+            child: const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.delete_forever_rounded, color: Colors.redAccent),
+              title: Text('Clear Screen / Wipe Data'),
+              subtitle: Text('Wipe all local operational records (clean slate)'),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !context.mounted) return;
+    if (choice == 'demo') {
+      _confirmDemoDataLoad(context, ref);
+    } else if (choice == 'clear') {
+      _confirmClearData(context, ref);
+    }
+  }
+
+  void _confirmClearData(BuildContext context, WidgetRef ref) {
+    final wagonRepo = ref.read(wagonRepositoryProvider);
+    final truckRepo = ref.read(truckRepositoryProvider);
+    final layerRepo = ref.read(layerRepositoryProvider);
+    final database = ref.read(databaseProvider);
+    final wagonNotifier = ref.read(wagonListProvider.notifier);
+    final truckNotifier = ref.read(truckListProvider.notifier);
+    final rootContext = context;
+
+    showDialog<void>(
+      context: context,
+      builder: (_) => ActionWarningDialog(
+        title: 'Clear Screen / Wipe Data?',
+        content:
+            'This completely deletes all operational records: wagons, trucks, layers, sessions, registers, reports, sync entries, and audit history. User accounts and app settings remain safe. This gives you a completely clean, fresh app state.',
+        actionLabel: 'Wipe All Data',
+        actionColor: Colors.redAccent,
+        icon: Icons.delete_forever_rounded,
+        onConfirm: () async {
+          Navigator.of(context).pop(); // close drawer
+
+          showDialog<void>(
+            context: rootContext,
+            barrierDismissible: false,
+            builder: (_) => const PopScope(
+              canPop: false,
+              child: AlertDialog(
+                content: Row(
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(width: 20),
+                    Expanded(child: Text('Wiping all local data...')),
+                  ],
+                ),
+              ),
+            ),
+          );
+
+          try {
+            await database.transaction(() async {
+              await database.delete(database.detections).go();
+              await database.delete(database.loadingSessions).go();
+              await database.delete(database.digitalRegisters).go();
+              await database.delete(database.auditLogs).go();
+              await database.delete(database.syncQueues).go();
+              await database.delete(database.reportExports).go();
+            });
+            await layerRepo.clearAllData();
+            await truckRepo.clearAllData();
+            await wagonRepo.clearAllData();
+
+            wagonNotifier.refresh();
+            truckNotifier.refresh();
+            if (rootContext.mounted) {
+              Navigator.of(rootContext, rootNavigator: true).pop(); // remove spinner
+              ScaffoldMessenger.of(rootContext).showSnackBar(const SnackBar(
+                content: Text('Screen cleared. App state is now empty.'),
+              ));
+            }
+          } catch (e) {
+            if (rootContext.mounted) {
+              Navigator.of(rootContext, rootNavigator: true).pop();
+              ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
+                content: Text('Failed to clear data: $e'),
+                backgroundColor: AppTheme.errorColor,
+              ));
+            }
+          }
+        },
       ),
     );
   }

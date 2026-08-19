@@ -24,6 +24,7 @@ final aiCameraSettingsLoaderProvider = FutureProvider<void>((ref) async {
       detailedMasksValue: decoded['masks'] as bool? ?? true,
       processingThreadsValue:
           (decoded['processingThreads'] as num?)?.toInt() ?? 4,
+      showDatabaseIdsValue: decoded['showIds'] as bool? ?? false,
     );
   } catch (_) {
     // Corrupt legacy settings must not prevent camera/model startup. The

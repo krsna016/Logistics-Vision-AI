@@ -45,13 +45,19 @@ class UserManagementScreen extends ConsumerWidget {
       ),
       body: usersAsync.when(
         data: (users) {
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: users.length,
-            itemBuilder: (context, index) {
-              final u = users[index];
-              return _buildUserCard(context, ref, u);
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(userListProvider);
             },
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: users.length,
+              itemBuilder: (context, index) {
+                final u = users[index];
+                return _buildUserCard(context, ref, u);
+              },
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

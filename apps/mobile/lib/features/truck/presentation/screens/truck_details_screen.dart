@@ -179,8 +179,14 @@ class TruckDetailsScreen extends ConsumerWidget {
       ),
 
       body: SafeArea(
-          child: CustomScrollView(
-        slivers: [
+          child: RefreshIndicator(
+            onRefresh: () async {
+              await ref.read(truckListProvider.notifier).refresh();
+              await ref.read(layerListProvider(truckId).notifier).refresh();
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              slivers: [
           SliverPadding(
             padding: const EdgeInsets.all(16),
             sliver: SliverList(
@@ -292,7 +298,7 @@ class TruckDetailsScreen extends ConsumerWidget {
             ),
           ),
         ],
-      )),
+      ))),
 
       // ── 6. Sticky Bottom Action Bar ─────────────────────────────────────
       // Digital Register is a history workspace, not an operational workflow.

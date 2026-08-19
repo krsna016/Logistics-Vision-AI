@@ -12,6 +12,7 @@ class AiCameraSettings {
   static final ValueNotifier<int> cropQuality = ValueNotifier<int>(98);
   static final ValueNotifier<bool> detailedMasks = ValueNotifier<bool>(true);
   static final ValueNotifier<int> processingThreads = ValueNotifier<int>(4);
+  static final ValueNotifier<bool> showDatabaseIds = ValueNotifier<bool>(false);
 
   static void apply({
     required double confidenceValue,
@@ -19,11 +20,13 @@ class AiCameraSettings {
     required int cropQualityValue,
     required bool detailedMasksValue,
     required int processingThreadsValue,
+    bool showDatabaseIdsValue = false,
   }) {
     confidence.value = confidenceValue.clamp(0.05, 1.0).toDouble();
     iou.value = iouValue.clamp(0.20, 0.95).toDouble();
     cropQuality.value = cropQualityValue.clamp(85, 100).toInt();
     detailedMasks.value = detailedMasksValue;
     processingThreads.value = processingThreadsValue >= 4 ? 4 : 2;
+    showDatabaseIds.value = showDatabaseIdsValue;
   }
 }

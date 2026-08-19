@@ -20,9 +20,6 @@ class RegisterReconciliationCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: stateColor.withValues(alpha: 0.45),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

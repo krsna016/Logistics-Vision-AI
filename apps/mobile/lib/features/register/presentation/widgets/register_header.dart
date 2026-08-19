@@ -11,117 +11,139 @@ class RegisterHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.surfaceColor,
+        color: AppTheme.cardColor,
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Branding Header
-          Row(
-            children: [
-              Image.asset('assets/images/logo.png',
-                  height: 38, width: 38, fit: BoxFit.contain),
-              const SizedBox(width: 12),
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Vinayak SmartLoad',
-                    style: TextStyle(
-                      fontSize: 18,
+          // Top accent bar
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppTheme.primaryColor.withValues(alpha: 0.1),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.assignment_turned_in_outlined, 
+                    color: AppTheme.primaryColor, size: 20),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'REGISTER • ${register.wagonNumber}',
+                    style: const TextStyle(
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      letterSpacing: 0.8,
+                      color: AppTheme.primaryColor,
                     ),
                   ),
-                  Text(
-                    'Powered by Vinayak Logistics',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppTheme.textSecondary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              const Spacer(),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  'OFFICIAL REGISTER',
-                  style: TextStyle(
-                    color: AppTheme.primaryColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppTheme.surfaceColor,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.calendar_today_outlined, size: 12, color: AppTheme.textSecondary),
+                      const SizedBox(width: 6),
+                      Text(
+                        _formatDate(register.loadingDate),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          const SizedBox(height: 16),
-          const Divider(color: AppTheme.dividerColor),
-          const SizedBox(height: 16),
-
-          // Wagon Meta Info Grid
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildMetaItem('Wagon Number', register.wagonNumber,
-                        isAccent: true),
-                    const SizedBox(height: 10),
-                    _buildMetaItem('Route',
-                        '${register.origin} -> ${register.destination}'),
-                  ],
+          // Bottom info row
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildInfoItem(
+                    icon: Icons.route_outlined,
+                    label: 'ROUTE',
+                    value: '${register.origin} → ${register.destination}',
+                  ),
                 ),
-              ),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildMetaItem(
-                        'Loading Date', _formatDate(register.loadingDate)),
-                    const SizedBox(height: 10),
-                    _buildMetaItem('Supervisor', register.supervisor),
-                  ],
+                Container(
+                  width: 1, 
+                  height: 36, 
+                  color: AppTheme.dividerColor,
+                  margin: const EdgeInsets.symmetric(horizontal: 12),
                 ),
-              ),
-            ],
+                Expanded(
+                  child: _buildInfoItem(
+                    icon: Icons.person_outline,
+                    label: 'SUPERVISOR',
+                    value: register.supervisor,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMetaItem(String label, String value, {bool isAccent = false}) {
-    return Column(
+  Widget _buildInfoItem({required IconData icon, required String label, required String value}) {
+    return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label.toUpperCase(),
-          style: const TextStyle(
-            fontSize: 10,
-            color: AppTheme.textSecondary,
-            fontWeight: FontWeight.bold,
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceColor,
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: Icon(icon, size: 16, color: AppTheme.textSecondary),
         ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: isAccent ? 16 : 14,
-            fontWeight: FontWeight.bold,
-            color: isAccent ? AppTheme.warningColor : Colors.white,
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold,
+                  color: AppTheme.textSecondary,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.white,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
         ),
       ],
@@ -129,20 +151,7 @@ class RegisterHeader extends StatelessWidget {
   }
 
   String _formatDate(DateTime dt) {
-    final months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec'
-    ];
+    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 }

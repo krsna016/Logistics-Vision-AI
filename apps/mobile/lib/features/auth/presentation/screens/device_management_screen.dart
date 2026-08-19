@@ -17,12 +17,18 @@ class DeviceManagementScreen extends ConsumerWidget {
       ),
       body: devicesAsync.when(
         data: (devices) {
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: devices.length,
-            itemBuilder: (context, index) {
-              return _buildDeviceCard(context, ref, devices[index]);
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(deviceListProvider);
             },
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              itemCount: devices.length,
+              itemBuilder: (context, index) {
+                return _buildDeviceCard(context, ref, devices[index]);
+              },
+            ),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
