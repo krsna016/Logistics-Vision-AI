@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/camera/presentation/screens/count_method_screens.dart';
 import '../features/camera/presentation/screens/capture_workspace_screen.dart';
+import '../features/camera/presentation/screens/split_layer_camera_screen.dart';
 import '../features/truck/presentation/screens/truck_details_screen.dart';
 import '../features/truck/domain/entities/truck.dart';
 import '../features/layer/presentation/screens/layer_review_screen.dart';
@@ -185,6 +186,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
+            path: 'split-capture',
+            name: 'split_capture',
+            builder: (context, state) => const SplitLayerCameraScreen(),
+          ),
+          GoRoute(
             path: 'review',
             name: 'layer_review',
             builder: (context, state) {
@@ -203,17 +209,20 @@ final routerProvider = Provider<GoRouter>((ref) {
               final photoPath = extra['photoPath'] as String?;
               final auditPhotoPath = extra['auditPhotoPath'] as String?;
               final countingRegion = extra['countingRegion'] as CountingRegion?;
-              final manualNotes = extra['manualNotes'] as String?;
-              final finalResultLoader =
-                  extra['finalResultLoader'] as Future<AIResult> Function()?;
+              final initialNotes = extra['initialNotes'] as String?;
+              final finalResultLoader = extra['finalResultLoader']
+                  as Future<AIResult> Function()?;
+              final returnResultOnly = extra['returnResultOnly'] as bool? ?? false;
+
               return LayerReviewScreen(
                 truckId: truckId,
                 aiResult: aiResult,
                 photoPath: photoPath,
                 auditPhotoPath: auditPhotoPath,
                 countingRegion: countingRegion,
-                initialNotes: manualNotes,
+                initialNotes: initialNotes,
                 finalResultLoader: finalResultLoader,
+                returnResultOnly: returnResultOnly,
               );
             },
           ),

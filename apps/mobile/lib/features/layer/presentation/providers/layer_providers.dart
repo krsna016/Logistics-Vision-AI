@@ -157,8 +157,12 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     }
     state = state.copyWith(isLoading: true);
     try {
-      final nextLayerNum =
-          state.layers.isEmpty ? 1 : state.layers.last.layerNumber + 1;
+      // Always query the database for the true max layer number.
+      // The in-memory state.layers may be stale or empty if the provider
+      // was not refreshed (e.g. navigating from manual count control center).
+      final dbMax = await _layerRepository.getMaxLayerNumber(_truckId);
+      final stateMax = state.layers.isEmpty ? 0 : state.layers.last.layerNumber;
+      final nextLayerNum = (dbMax > stateMax ? dbMax : stateMax) + 1;
 
       // Verify double save checks
       final exists =
@@ -281,13 +285,15 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
 
   Future<String?> updateLayerDetections(
     String layerId,
-    List<Detection> detections,
-  ) async {
+    List<Detection> detections, {
+    int? cartonCountOverride,
+    String? notesOverride,
+  }) async {
     try {
       final index = state.layers.indexWhere((layer) => layer.id == layerId);
       if (index < 0) return 'Layer not found.';
       final current = state.layers[index];
-      final cartonCount = detections.length;
+      final cartonCount = cartonCountOverride ?? detections.length;
       final resizedAllocations = _resizeAllocations(
         current.itemAllocations,
         cartonCount,
@@ -297,6 +303,7 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
         defectCount: current.defectCount.clamp(0, cartonCount),
         detections: List<Detection>.of(detections),
         itemAllocations: resizedAllocations,
+        notes: notesOverride ?? current.notes,
         itemName: resizedAllocations.length == 1
             ? resizedAllocations.first.itemName
             : current.itemName,

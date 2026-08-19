@@ -420,7 +420,15 @@ class PdfReportServiceImpl implements PdfReportService {
 
   String _operatorNotesForReport(String? notes) {
     if (notes == null || notes.trim().isEmpty) return 'No notes';
-    final operatorNotes = notes
+    // Strip internal split-capture metadata before processing.
+    var cleaned = notes;
+    final splitIdx = cleaned.indexOf('[SPLIT_DATA]:');
+    if (splitIdx >= 0) {
+      cleaned = cleaned.substring(0, splitIdx).trim();
+      if (cleaned.endsWith('|')) cleaned = cleaned.substring(0, cleaned.length - 1).trim();
+    }
+    if (cleaned.isEmpty) return 'No notes';
+    final operatorNotes = cleaned
         .split('|')
         .map((part) => part.trim())
         .where((part) =>

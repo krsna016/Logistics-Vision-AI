@@ -397,6 +397,19 @@ class LocalLayerRepository implements LayerRepository {
     return rows.isNotEmpty;
   }
 
+  @override
+  Future<int> getMaxLayerNumber(String truckId) async {
+    final query = _db.select(_db.layers)
+      ..where((t) =>
+          t.truckId.equals(truckId) &
+          t.isDeleted.equals(false))
+      ..orderBy([(t) => drift.OrderingTerm.desc(t.layerNumber)])
+      ..limit(1);
+    final rows = await query.get();
+    if (rows.isEmpty) return 0;
+    return rows.first.layerNumber;
+  }
+
   Future<void> _updateParentAggregatesAndQueue({
     required String truckId,
     required int totalLayers,

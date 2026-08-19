@@ -33,6 +33,7 @@ class LayerReviewScreen extends ConsumerStatefulWidget {
   final CountingRegion? countingRegion;
   final String? initialNotes;
   final Future<AIResult> Function()? finalResultLoader;
+  final bool returnResultOnly;
 
   const LayerReviewScreen({
     super.key,
@@ -43,6 +44,7 @@ class LayerReviewScreen extends ConsumerStatefulWidget {
     this.countingRegion,
     this.initialNotes,
     this.finalResultLoader,
+    this.returnResultOnly = false,
   });
 
   @override
@@ -402,33 +404,50 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
               .where((entry) => entry.id == truck!.wagonId)
               .toList();
       final wagon = wagons.isEmpty ? null : wagons.first;
-      if (wagon != null && wagon.items.isNotEmpty) {
-        final allocated = _itemAllocations.values
-            .fold<int>(0, (sum, quantity) => sum + quantity);
-        if (allocated != _correctedCount) {
-          setState(() {
-            _isSaving = false;
-            _errorMessage =
-                'Assign all $_correctedCount cartons in the item breakdown.';
-          });
-          return;
-        }
-        final loaded = await ref.read(wagonInventoryProvider(wagon.id).future);
-        for (final entry in _itemAllocations.entries) {
-          final manifestItem =
-              wagon.items.firstWhere((item) => item.name == entry.key);
-          final remaining = manifestItem.quantity - (loaded[entry.key] ?? 0);
-          if (entry.value > remaining) {
+      if (wagon != null) {
+        if (wagon.items.length == 1) {
+          _itemAllocations = {wagon.items.first.name: _correctedCount};
+        } else if (wagon.items.isNotEmpty) {
+          final allocated = _itemAllocations.values
+              .fold<int>(0, (sum, quantity) => sum + quantity);
+          if (allocated != _correctedCount) {
             setState(() {
               _isSaving = false;
               _errorMessage =
-                  'Only $remaining cartons of ${entry.key} remain in the wagon.';
+                  'Assign all $_correctedCount cartons in the item breakdown.';
             });
             return;
+          }
+          final loaded = await ref.read(wagonInventoryProvider(wagon.id).future);
+          for (final entry in _itemAllocations.entries) {
+            final manifestItem =
+                wagon.items.firstWhere((item) => item.name == entry.key);
+            final remaining = manifestItem.quantity - (loaded[entry.key] ?? 0);
+            if (entry.value > remaining) {
+              setState(() {
+                _isSaving = false;
+                _errorMessage =
+                    'Only $remaining cartons of ${entry.key} remain in the wagon.';
+              });
+              return;
+            }
           }
         }
       }
       final noteText = _notesCtrl.text.trim();
+
+      if (widget.returnResultOnly) {
+        if (mounted) {
+          Navigator.pop(context, {
+            'count': _correctedCount,
+            'defectCount': _correctedDefectCount,
+            'notes': noteText.isEmpty ? null : noteText,
+            'detections': _visibleDetections,
+            'allocations': _itemAllocations,
+          });
+        }
+        return;
+      }
 
       final error =
           await ref.read(layerListProvider(widget.truckId).notifier).saveLayer(
@@ -1468,7 +1487,7 @@ class _ReviewBottomBar extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (items.isNotEmpty) ...[
+          if (items.length > 1) ...[
             OutlinedButton.icon(
               onPressed: isBusy ? null : onEditItems,
               icon: const Icon(Icons.playlist_add_outlined),
@@ -1493,6 +1512,32 @@ class _ReviewBottomBar extends StatelessWidget {
                       ? AppTheme.successColor
                       : AppTheme.warningColor,
                 ),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ] else if (items.length == 1) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              decoration: BoxDecoration(
+                color: AppTheme.successColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppTheme.successColor.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, color: AppTheme.successColor, size: 20),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Count auto-saved in ${items.first.name}',
+                      style: const TextStyle(
+                        color: AppTheme.successColor,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 10),

@@ -15,6 +15,16 @@ class ExcelReportServiceImpl implements ExcelReportService {
 
   ExcelReportServiceImpl(this._db, {this.supervisorName});
 
+  /// Strips internal [SPLIT_DATA] metadata from layer notes.
+  String _cleanNotes(String? notes) {
+    if (notes == null || notes.trim().isEmpty) return 'No notes';
+    final splitIdx = notes.indexOf('[SPLIT_DATA]:');
+    if (splitIdx < 0) return notes.trim();
+    var cleaned = notes.substring(0, splitIdx).trim();
+    if (cleaned.endsWith('|')) cleaned = cleaned.substring(0, cleaned.length - 1).trim();
+    return cleaned.isEmpty ? 'No notes' : cleaned;
+  }
+
   String get _supervisor => supervisorName?.trim().isNotEmpty == true
       ? supervisorName!.trim()
       : 'Not provided';
@@ -155,7 +165,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow))
-          .value = TextCellValue(layer.notes?.trim().isNotEmpty == true ? layer.notes!.trim() : 'No notes');
+          .value = TextCellValue(_cleanNotes(layer.notes));
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow))
@@ -604,7 +614,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
         IntCellValue(layer.cartonCount),
         TextCellValue(_layerItemLabel(layer)),
         IntCellValue(layer.defectCount),
-        TextCellValue(layer.notes ?? 'No notes'),
+        TextCellValue(_cleanNotes(layer.notes)),
         TextCellValue(ReportDateFormatter.formatDateTime(layer.timestamp)),
         TextCellValue(layer.operatorId ?? 'Not provided'),
       ]);

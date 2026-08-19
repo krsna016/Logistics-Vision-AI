@@ -15,6 +15,10 @@ abstract class LayerRepository {
 
   /// Verify if a layer number is already taken inside a truck session.
   Future<bool> isLayerNumberExists(String truckId, int layerNumber);
+
+  /// Get the highest layer number currently in the database for a truck.
+  Future<int> getMaxLayerNumber(String truckId);
+
   Future<void> clearAllData();
   Future<void> loadDemoData({String? operatorName});
 }

@@ -742,12 +742,34 @@ class _SimpleCameraHeader extends StatelessWidget {
         right: 16,
         bottom: 12,
       ),
-      child: Center(
-        child: CountModeSwitcher(
-          selectedMode: CountMode.ai,
-          onAiSelected: () {},
-          onManualSelected: onManualSelected,
-        ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          const SizedBox(width: 48), // Balance for center alignment
+          CountModeSwitcher(
+            selectedMode: CountMode.ai,
+            onAiSelected: () {},
+            onManualSelected: onManualSelected,
+          ),
+          Container(
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.black45,
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.call_split, color: Colors.white, size: 20),
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(minWidth: 48),
+              tooltip: 'Split Layer Mode',
+              onPressed: () {
+                final truckId = GoRouterState.of(context).pathParameters['id'] ?? '';
+                context.pushReplacement('/trucks/$truckId/split-capture');
+              },
+            ),
+          ),
+        ],
       ),
     );
   }

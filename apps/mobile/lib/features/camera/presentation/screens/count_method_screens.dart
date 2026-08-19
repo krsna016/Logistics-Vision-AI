@@ -341,6 +341,16 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
       _error = null;
     });
     try {
+      final matchingTrucks = ref.read(truckListProvider).trucks.where((t) => t.id == widget.truckId);
+      final truck = matchingTrucks.isEmpty ? null : matchingTrucks.first;
+      final matchingWagons = truck?.wagonId == null ? <Wagon>[] : ref.read(wagonListProvider).wagons.where((w) => w.id == truck!.wagonId).toList();
+      final wagon = matchingWagons.isEmpty ? null : matchingWagons.first;
+      
+      Map<String, int> finalAllocations = Map.from(_itemAllocations);
+      if (wagon != null && wagon.items.length == 1) {
+        finalAllocations = {wagon.items.first.name: count};
+      }
+
       final operatorNotes = _notesController.text.trim();
       final error =
           await ref.read(layerListProvider(widget.truckId).notifier).saveLayer(
@@ -348,7 +358,7 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
                 defectCount: defectCount,
                 confidence: 0,
                 notes: operatorNotes.isEmpty ? null : operatorNotes,
-                itemAllocations: _itemAllocations.entries
+                itemAllocations: finalAllocations.entries
                     .map((entry) => LayerItemAllocation(
                           itemName: entry.key,
                           quantity: entry.value,
@@ -466,7 +476,7 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
               onIncrease: () => _adjustValue(_defectController, 1),
               onChanged: _clearError,
             ),
-            if (wagon != null && wagon.items.isNotEmpty) ...[
+            if (wagon != null && wagon.items.length > 1) ...[
               const SizedBox(height: 14),
               _ManualItemBreakdownCard(
                 allocations: _itemAllocations,
@@ -475,6 +485,32 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
                 onTap: _isSavingLayer
                     ? null
                     : () => _editItemBreakdown(wagon, inventory ?? const {}),
+              ),
+            ] else if (wagon != null && wagon.items.length == 1) ...[
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppTheme.successColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppTheme.successColor.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.check_circle_outline, color: AppTheme.successColor, size: 20),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Count will auto-save in ${wagon.items.first.name}',
+                        style: const TextStyle(
+                          color: AppTheme.successColor,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
             const SizedBox(height: 14),

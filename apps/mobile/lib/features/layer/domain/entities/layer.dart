@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../../camera/domain/entities/detection.dart';
 import '../../../truck/domain/entities/truck.dart';
@@ -145,6 +146,27 @@ class LayerRecord {
     required this.updatedAt,
     this.isDeleted = false,
   });
+
+  /// Extracts just the visible operator notes, stripping out internal [SPLIT_DATA] blocks.
+  String? get displayNotes {
+    if (notes == null || notes!.isEmpty) return null;
+    final splitIndex = notes!.indexOf('[SPLIT_DATA]:');
+    if (splitIndex == -1) return notes;
+    final text = notes!.substring(0, splitIndex).trim();
+    if (text.endsWith('|')) return text.substring(0, text.length - 1).trim();
+    return text.isEmpty ? null : text;
+  }
+
+  /// Parses the internal [SPLIT_DATA] JSON block if this layer was captured in Split Mode.
+  Map<String, dynamic>? get splitData {
+    if (notes == null || !notes!.contains('[SPLIT_DATA]:')) return null;
+    try {
+      final jsonStr = notes!.substring(notes!.indexOf('[SPLIT_DATA]:') + '[SPLIT_DATA]:'.length);
+      return jsonDecode(jsonStr) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
 
   LayerRecord copyWith({
     String? id,

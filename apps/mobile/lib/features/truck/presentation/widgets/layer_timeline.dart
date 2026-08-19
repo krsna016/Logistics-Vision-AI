@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:image/image.dart' as img;
@@ -8,6 +9,8 @@ import '../../../../utils/logger.dart';
 import '../../../camera/presentation/widgets/detection_overlay_widget.dart';
 import '../../../camera/domain/entities/detection.dart';
 import '../../../layer/domain/entities/layer.dart';
+import '../../../layer/data/models/layer_model.dart';
+import '../../domain/entities/truck.dart';
 
 /// Vertical timeline showing layer capture history.
 class LayerTimeline extends StatelessWidget {
@@ -15,7 +18,7 @@ class LayerTimeline extends StatelessWidget {
   final bool isReadOnly;
   final void Function(LayerRecord layer) onEditNotes;
   final void Function(LayerRecord layer) onDeleteLayer;
-  final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
+  final Future<String?> Function(LayerRecord layer, List<Detection> detections, {int? cartonCountOverride, String? notesOverride})?
       onSaveDetections;
   final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
 
@@ -58,7 +61,7 @@ class _TimelineItem extends StatelessWidget {
   final bool isReadOnly;
   final VoidCallback onEditNotes;
   final VoidCallback onDelete;
-  final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
+  final Future<String?> Function(LayerRecord layer, List<Detection> detections, {int? cartonCountOverride, String? notesOverride})?
       onSaveDetections;
   final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
 
@@ -74,7 +77,7 @@ class _TimelineItem extends StatelessWidget {
 
   bool get _hasDefects =>
       layer.defectCount > 0 ||
-      (layer.notes != null && layer.notes!.toLowerCase().contains('defect'));
+      (layer.displayNotes != null && layer.displayNotes!.toLowerCase().contains('defect'));
   Color get _statusColor =>
       _hasDefects ? AppTheme.warningColor : AppTheme.successColor;
   IconData get _statusIcon =>
@@ -262,7 +265,7 @@ class _TimelineItem extends StatelessWidget {
                           ),
                         ],
 
-                        if (layer.notes != null) ...[
+                        if (layer.displayNotes != null) ...[
                           const SizedBox(height: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(
@@ -279,7 +282,7 @@ class _TimelineItem extends StatelessWidget {
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
-                                    layer.notes!,
+                                    layer.displayNotes!,
                                     style: const TextStyle(
                                       fontSize: 12,
                                       color: AppTheme.warningColor,
@@ -313,7 +316,7 @@ class _TimelineItem extends StatelessWidget {
 class _LayerPhotoThumbnail extends StatelessWidget {
   final LayerRecord layer;
   final bool canEdit;
-  final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
+  final Future<String?> Function(LayerRecord layer, List<Detection> detections, {int? cartonCountOverride, String? notesOverride})?
       onSaveDetections;
   final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
 
@@ -326,7 +329,25 @@ class _LayerPhotoThumbnail extends StatelessWidget {
 
   String get path => layer.photoPath!;
 
+
+
   Future<void> _openPhoto(BuildContext context) async {
+    final split = layer.splitData;
+    if (split != null && split['isSplit'] == true) {
+      await showDialog<void>(
+        barrierDismissible: false,
+        context: context,
+        builder: (dialogContext) => _SplitLayerPhotoViewer(
+          layer: layer,
+          split: split,
+          canEdit: canEdit,
+          onSaveDetections: onSaveDetections,
+          onRequestCorrection: onRequestCorrection,
+        ),
+      );
+      return;
+    }
+
     File? file;
     for (final candidate in [layer.croppedPhotoPath, layer.photoPath]) {
       if (candidate == null) continue;
@@ -353,6 +374,9 @@ class _LayerPhotoThumbnail extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (!File(path).existsSync()) return const SizedBox.shrink();
+    
+    final split = layer.splitData;
+
     return InkWell(
       onTap: () => _openPhoto(context),
       borderRadius: BorderRadius.circular(10),
@@ -401,7 +425,11 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
   final LayerRecord layer;
   final File file;
   final bool canEdit;
-  final Future<String?> Function(LayerRecord layer, List<Detection> detections)?
+  final String? titlePrefixOverride;
+  final List<Detection>? initialDetectionsOverride;
+  final int? displayCountOverride;
+  final Widget? extraHeaderWidget;
+  final Future<String?> Function(LayerRecord layer, List<Detection> detections, {int? cartonCountOverride, String? notesOverride})?
       onSaveDetections;
   final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
 
@@ -410,6 +438,10 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
     required this.layer,
     required this.file,
     required this.canEdit,
+    this.titlePrefixOverride,
+    this.initialDetectionsOverride,
+    this.displayCountOverride,
+    this.extraHeaderWidget,
     this.onSaveDetections,
     this.onRequestCorrection,
   });
@@ -437,10 +469,11 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
   @override
   void initState() {
     super.initState();
-    _detections = List<Detection>.of(widget.layer.detections);
-    _displayCartonCount = _visibleDetections.length == _detections.length
-        ? widget.layer.cartonCount
-        : _visibleDetections.length;
+    _detections = List<Detection>.of(widget.initialDetectionsOverride ?? widget.layer.detections);
+    _displayCartonCount = widget.displayCountOverride ?? 
+        (_visibleDetections.length == _detections.length
+            ? widget.layer.cartonCount
+            : _visibleDetections.length);
     _showMasks = widget.canEdit && _detections.isNotEmpty;
     _loadPhotoSize();
   }
@@ -608,7 +641,7 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Layer ${widget.layer.layerNumber} • $_displayCartonCount Cartons'
+                        '${widget.titlePrefixOverride ?? 'Layer ${widget.layer.layerNumber}'} • $_displayCartonCount Cartons'
                         '${widget.layer.defectCount > 0 ? ' • ${widget.layer.defectCount} Defective' : ''}',
                         key: const ValueKey('layer-photo-carton-count'),
                         style: const TextStyle(
@@ -618,6 +651,7 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                         ),
                       ),
                     ),
+                    if (widget.extraHeaderWidget != null) widget.extraHeaderWidget!,
                     _CompactToggleButton(
                       key: const ValueKey('layer-mask-toggle'),
                       tooltip: _showMasks ? 'Hide masks' : 'Show masks',
@@ -825,6 +859,130 @@ class _CompactHeaderChip extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+
+
+class _SplitLayerPhotoViewer extends StatefulWidget {
+  final LayerRecord layer;
+  final Map<String, dynamic> split;
+  final bool canEdit;
+  final Future<String?> Function(LayerRecord layer, List<Detection> detections, {int? cartonCountOverride, String? notesOverride})? onSaveDetections;
+  final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
+
+  const _SplitLayerPhotoViewer({
+    required this.layer,
+    required this.split,
+    required this.canEdit,
+    this.onSaveDetections,
+    this.onRequestCorrection,
+  });
+
+  @override
+  State<_SplitLayerPhotoViewer> createState() => _SplitLayerPhotoViewerState();
+}
+
+class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
+  int _currentIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final split = widget.split;
+    final layer = widget.layer;
+    final canEdit = widget.canEdit;
+    final onSaveDetections = widget.onSaveDetections;
+    
+    final p1 = split['part1Path'] as String;
+    final p2 = split['part2Path'] as String;
+    final c1 = split['part1Count'] as int;
+    final c2 = split['part2Count'] as int;
+    
+    final d1Raw = split['part1Detections'] as List<dynamic>? ?? [];
+    final d2Raw = split['part2Detections'] as List<dynamic>? ?? [];
+    
+    final d1 = d1Raw.whereType<Map<String, dynamic>>().map(LayerModel.detectionFromJson).toList();
+    final d2 = d2Raw.whereType<Map<String, dynamic>>().map(LayerModel.detectionFromJson).toList();
+
+    Widget buildToggle(int targetIndex, String label) {
+      final isSelected = _currentIndex == targetIndex;
+      return GestureDetector(
+        onTap: () {
+          if (!isSelected) {
+            setState(() => _currentIndex = targetIndex);
+          }
+        },
+        child: Container(
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: isSelected ? AppTheme.primaryColor : Colors.white12,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.black : Colors.white70,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ),
+      );
+    }
+
+    final headerToggle = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        buildToggle(0, 'LEFT'),
+        buildToggle(1, 'RIGHT'),
+        const SizedBox(width: 8),
+      ],
+    );
+
+    return IndexedStack(
+      index: _currentIndex,
+      children: [
+        LayerHistoryPhotoViewer(
+          layer: layer,
+          file: File(p1),
+          canEdit: canEdit,
+          titlePrefixOverride: 'Layer ${layer.layerNumber}',
+          initialDetectionsOverride: d1,
+          displayCountOverride: c1,
+          extraHeaderWidget: headerToggle,
+          onSaveDetections: onSaveDetections == null ? null : (l, newDets, {cartonCountOverride, notesOverride}) async {
+            final newSplit = Map<String, dynamic>.from(split);
+            newSplit['part1Count'] = newDets.length;
+            newSplit['part1Detections'] = newDets.map(LayerModel.detectionToJson).toList();
+            return await onSaveDetections(l, newDets, 
+              cartonCountOverride: newDets.length + (newSplit['part2Count'] as int),
+              notesOverride: '[SPLIT_DATA]:${jsonEncode(newSplit)}',
+            );
+          },
+          onRequestCorrection: widget.onRequestCorrection,
+        ),
+        LayerHistoryPhotoViewer(
+          layer: layer,
+          file: File(p2),
+          canEdit: canEdit,
+          titlePrefixOverride: 'Layer ${layer.layerNumber}',
+          initialDetectionsOverride: d2,
+          displayCountOverride: c2,
+          extraHeaderWidget: headerToggle,
+          onSaveDetections: onSaveDetections == null ? null : (l, newDets, {cartonCountOverride, notesOverride}) async {
+            final newSplit = Map<String, dynamic>.from(split);
+            newSplit['part2Count'] = newDets.length;
+            newSplit['part2Detections'] = newDets.map(LayerModel.detectionToJson).toList();
+            return await onSaveDetections(l, newDets, 
+              cartonCountOverride: newDets.length + (newSplit['part1Count'] as int),
+              notesOverride: '[SPLIT_DATA]:${jsonEncode(newSplit)}',
+            );
+          },
+          onRequestCorrection: widget.onRequestCorrection,
+        ),
+      ],
     );
   }
 }

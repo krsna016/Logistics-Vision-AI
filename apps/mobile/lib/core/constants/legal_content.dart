@@ -4,8 +4,9 @@ class LegalContent {
 
 **Vinayak SmartLoad**  
 **Effective date:** 15 August 2026  
-**Developer:** Anurag Pareek, Vinayak SmartLoad, Guwahati, Assam, India  
-**Privacy contact:** anurag.pareek.work@gmail.com  
+**Developer:** The Logistics Vision AI Team  
+**Lead Developer:** Anurag  
+**Privacy contact:** 016.krsna@gmail.com
 
 ---
 
@@ -58,8 +59,9 @@ Only you (and your company's administrators who hold the device) have the power 
 
 **विनायक स्मार्टलोड (Vinayak SmartLoad)**  
 **प्रभावी तिथि:** 15 अगस्त 2026  
-**डेवलपर:** अनुराग पारीक, विनायक स्मार्टलोड, गुवाहाटी, असम, भारत  
-**संपर्क:** anurag.pareek.work@gmail.com  
+**डेवलपर:** द लॉजिस्टिक्स विज़न AI टीम  
+**मुख्य डेवलपर:** अनुराग  
+**गोपनीयता संपर्क (Privacy contact):** 016.krsna@gmail.com
 
 ---
 
@@ -204,7 +206,7 @@ Environmental factors can routinely disrupt the AI's accuracy, including:
 *   Taking the photograph while moving, causing motion blur.
 *   Torn, non-standard, or heavily crushed carton packaging.
 
-**Your Responsibility:** You are explicitly instructed to meticulously double-check the counting screen before finalizing any layer. Because you are provided with the interactive tools to correct the AI's count, **Vinayak SmartLoad (and its Developer, Anurag Pareek) is not legally or financially liable for any monetary losses, missing inventory, or supply chain disputes resulting from an operator saving an incorrect count without verification.**
+**Your Responsibility:** You are explicitly instructed to meticulously double-check the counting screen before finalizing any layer. Because you are provided with the interactive tools to correct the AI's count, **Vinayak SmartLoad (and its Lead Developer, Anurag) is not legally or financially liable for any monetary losses, missing inventory, or supply chain disputes resulting from an operator saving an incorrect count without verification.**
 
 ## 2. Hardware Dependencies
 
@@ -216,7 +218,7 @@ Because we do not rely on remote internet servers, all processing power is drawn
 
 We provide this software strictly on an "AS-IS" and "AS-AVAILABLE" basis. We offer no implied or explicit warranties regarding uninterrupted operations. 
 
-In the event of unexpected failures—whether your device crashes resulting in data loss, a truck departure is delayed due to scanning operations, or any other direct or indirect business disruption occurs—**Anurag Pareek, Vinayak SmartLoad, and its affiliates cannot be sued, held liable, or held responsible for damages of any kind.** 
+In the event of unexpected failures—whether your device crashes resulting in data loss, a truck departure is delayed due to scanning operations, or any other direct or indirect business disruption occurs—**The Logistics Vision AI Team and its affiliates cannot be sued, held liable, or held responsible for damages of any kind.** 
 
 By deploying and utilizing this application within your business workflow, you acknowledge these strict limitations and accept that you are operating the software entirely at your own risk.
 ''';
@@ -238,7 +240,7 @@ By deploying and utilizing this application within your business workflow, you a
 *   जल्दबाजी में फोटो खींचना, जिससे फोटो धुंधली हो जाए।
 *   फटे हुए या गैर-मानक (non-standard) कार्टन बॉक्स।
 
-**आपकी जिम्मेदारी:** आपको स्पष्ट रूप से निर्देश दिया जाता है कि लेयर सेव करने से पहले हमेशा गिनती की बारीकी से जाँच करें। चूँकि आपको AI की गिनती को सुधारने (edit) के टूल दिए गए हैं, **इसलिए विनायक स्मार्टलोड (और इसके डेवलपर, अनुराग पारीक) किसी भी आर्थिक नुकसान, इन्वेंट्री की कमी या विवाद के लिए कानूनी या आर्थिक रूप से उत्तरदायी नहीं हैं, यदि ऑपरेटर ने बिना जाँच किए गलत गिनती सेव कर ली है।**
+**आपकी जिम्मेदारी:** आपको स्पष्ट रूप से निर्देश दिया जाता है कि लेयर सेव करने से पहले हमेशा गिनती की बारीकी से जाँच करें। चूँकि आपको AI की गिनती को सुधारने (edit) के टूल दिए गए हैं, **इसलिए विनायक स्मार्टलोड (और इसके मुख्य डेवलपर, अनुराग) किसी भी आर्थिक नुकसान, इन्वेंट्री की कमी या विवाद के लिए कानूनी या आर्थिक रूप से उत्तरदायी नहीं हैं, यदि ऑपरेटर ने बिना जाँच किए गलत गिनती सेव कर ली है।**
 
 ## 2. हार्डवेयर पर निर्भरता
 
@@ -250,7 +252,7 @@ By deploying and utilizing this application within your business workflow, you a
 
 हम यह सॉफ़्टवेयर बिल्कुल "जैसा है (AS-IS)" के आधार पर प्रदान करते हैं। हम बिना किसी रुकावट के काम करने की कोई स्पष्ट वारंटी नहीं देते हैं।
 
-यदि कुछ अप्रत्याशित रूप से विफल हो जाता है—चाहे डिवाइस क्रैश होने के कारण डेटा खो जाए, स्कैनिंग के कारण ट्रक लेट हो जाए, या कोई अन्य व्यावसायिक नुकसान हो—**अनुराग पारीक, विनायक स्मार्टलोड, और इसके सहयोगियों पर मुकदमा नहीं चलाया जा सकता है या उन्हें किसी भी प्रकार के नुकसान के लिए उत्तरदायी नहीं ठहराया जा सकता है।**
+यदि कुछ अप्रत्याशित रूप से विफल हो जाता है—चाहे डिवाइस क्रैश होने के कारण डेटा खो जाए, स्कैनिंग के कारण ट्रक लेट हो जाए, या कोई अन्य व्यावसायिक नुकसान हो—**द लॉजिस्टिक्स विज़न AI टीम और इसके सहयोगियों पर मुकदमा नहीं चलाया जा सकता है या उन्हें किसी भी प्रकार के नुकसान के लिए उत्तरदायी नहीं ठहराया जा सकता है।**
 
 अपने व्यवसाय में इस एप्लिकेशन का उपयोग करके, आप इन सख्त सीमाओं को स्वीकार करते हैं और मानते हैं कि आप सॉफ़्टवेयर का उपयोग पूरी तरह से अपने जोखिम पर कर रहे हैं।
 ''';

@@ -459,25 +459,22 @@ Only one active workflow should be used for the physical vehicle being loaded. I
 
 ## 9. AI camera counting
 
-AI mode counts visible cartons from a captured layer image.
+AI mode counts visible cartons from a captured layer image. You can capture a single wide image, use "Split Capture" mode for very wide trucks, or import existing images using the Gallery icon.
 
-### Before capture
+### Standard Capture (1 Photo)
+1. Select AI mode on the camera screen.
+2. Drag the dotted crop edges to cover only the cartons you want to count. 
+3. Hold the phone steady and tap Capture Layer (or tap the Gallery icon to pick an existing image).
+4. Wait for analysis and the Review Layer Scan screen.
 
-- Clean the camera lens.
-- Stand squarely in front of the layer.
-- Keep the complete layer inside the frame.
-- Avoid strong glare, deep shadow and motion blur.
-- Do not include workers or unrelated carton piles where possible.
-- Wait until the preview is ready.
-
-### Capture procedure
-
-1. Select AI mode.
-2. Drag the left/right dotted edges horizontally or the top/bottom dotted edges vertically until the rectangle covers only the cartons to count. The four corner dots are visual markers only. A fixed bottom hint disappears after your first adjustment. Drag inside it to reposition the whole area.
-3. Use flash only when necessary.
-4. Hold the phone steady.
-5. Tap Capture Layer.
-6. Wait for analysis and the Review Layer Scan screen.
+### Split Capture (2 Photos)
+Use the Split Capture button (the split-arrows icon next to the capture button) when the truck is too wide to fit in one clear photo.
+1. Tap the Split Capture icon.
+2. Stand on the **Left** side of the truck and take the first photo (or pick from Gallery).
+3. Review and allocate the items for the Left side.
+4. Stand on the **Right** side of the truck and take the second photo (or pick from Gallery).
+5. Review and allocate the items for the Right side.
+6. The app will magically combine both sides into a single unified layer in your timeline!
 
 The active engine uses the packaged segmentation model to find carton shapes. AI is an assistant, not the final authority. The operator must inspect every result.
 
@@ -538,7 +535,9 @@ Tap Save only after the photo, count and items agree. A successful save creates 
 
 ## 12. Mixed-item layers
 
-A single layer may contain several wagon items.
+A single layer may contain several wagon items. 
+
+> **Note:** If your Wagon Manifest only has ONE item in total, the app is smart enough to hide the item breakdown screen entirely! It will automatically save 100% of your counted cartons to that single item. You only need to do item breakdown for mixed layers.
 
 Example:
 
@@ -575,7 +574,7 @@ It contains:
 - Operator notes
 - Operator identity and timestamp
 
-Tap a layer reference photo to open the verification viewer. The compact bar at the top keeps the layer number and total cartons visible while you zoom. Use the mask and number buttons independently. For editable layers, tap an empty image area to add a missing carton, tap an existing carton outline to remove it, or tap the same location again to restore it, exactly like the Review screen. These preview edits are temporary and are not auto-saved. If you close the image, tap outside it, or use the Android back/swipe gesture after editing, SmartLoad warns you. Choose **Discard** to throw away the changes and return, or **Go to correction** to open the normal Layer Correction page with the preview boxes carried over, then explicitly save the correction there. Older layers may not have saved AI polygons, but an editable layer can still be corrected manually.
+Tap a layer reference photo to open the verification viewer. The compact bar at the top keeps the layer number and total cartons visible while you zoom. Use the mask and number buttons independently. For split layers, you will also see a LEFT SIDE / RIGHT SIDE toggle in the header to easily switch between the two photos while viewing their respective counts. For editable layers, tap an empty image area to add a missing carton, tap an existing carton outline to remove it, or tap the same location again to restore it, exactly like the Review screen. These preview edits are temporary and are not auto-saved. If you close the image, tap outside it, or use the Android back/swipe gesture after editing, SmartLoad warns you. Choose **Discard** to throw away the changes and return, or **Go to correction** to open the normal Layer Correction page with the preview boxes carried over, then explicitly save the correction there. Older layers may not have saved AI polygons, but an editable layer can still be corrected manually.
 
 ### Correct an existing layer
 
@@ -1323,25 +1322,25 @@ Truck Details में वाहन, ड्राइवर, कैरियर,
 
 ## 9. AI कैमरा गिनती
 
-AI मोड फोटो में दिख रहे कार्टन गिनता है।
+AI मोड फोटो में दिख रहे कार्टन गिनता है। आप एक पूरी लेयर की फोटो ले सकते हैं, बड़े ट्रकों के लिए "Split Capture" (स्प्लिट कैप्चर) मोड का उपयोग कर सकते हैं, या Gallery आइकन का उपयोग करके फोन से पुरानी फोटो भी चुन सकते हैं।
 
-### फोटो से पहले
-
-- कैमरा लेंस साफ करें।
-- लेयर के सामने सीधा खड़े हों।
-- पूरी लेयर फ्रेम में रखें।
-- तेज चमक, अंधेरा और हिलती फोटो से बचें।
-- संभव हो तो व्यक्ति और दूसरी कार्टन ढेरी फ्रेम से हटाएं।
-- Preview तैयार होने दें।
-
-### प्रक्रिया
+### Standard Capture (1 फोटो)
 
 1. AI मोड चुनें।
-2. केवल गिनने वाले कार्टन को आयत में रखने के लिए left/right dotted edge को horizontal और top/bottom edge को vertical खींचें। चारों corner dots केवल visual markers हैं। नीचे का fixed hint पहले adjustment के बाद हट जाता है। पूरे चुने हुए भाग को सरकाने के लिए उसके अंदर खींचें।
-3. जरूरत पर ही Flash उपयोग करें।
-4. फोन स्थिर रखें।
-5. Capture Layer दबाएं।
-6. विश्लेषण के बाद Review Layer Scan देखें।
+2. केवल गिनने वाले कार्टन को आयत में रखने के लिए left/right dotted edge को horizontal और top/bottom edge को vertical खींचें।
+3. फोन स्थिर रखें और Capture Layer दबाएं (या पुरानी फोटो के लिए Gallery आइकन दबाएं)।
+4. विश्लेषण के बाद Review Layer Scan देखें।
+
+### Split Capture (2 फोटो)
+
+जब ट्रक इतना चौड़ा हो कि एक साफ फोटो में न आए, तब Split Capture बटन (कैप्चर बटन के पास तीर वाला आइकन) का उपयोग करें।
+
+1. Split Capture आइकन दबाएं।
+2. ट्रक के **बाईं (Left)** ओर खड़े होकर पहली फोटो लें (या Gallery से चुनें)।
+3. बाईं ओर के आइटम जांचें और बांटें।
+4. ट्रक के **दाईं (Right)** ओर खड़े होकर दूसरी फोटो लें (या Gallery से चुनें)।
+5. दाईं ओर के आइटम जांचें और बांटें।
+6. ऐप दोनों हिस्सों को जोड़कर आपकी टाइमलाइन में एक ही लेयर बना देगा!
 
 AI केवल सहायक है। अंतिम जिम्मेदारी ऑपरेटर की है। हर बॉक्स और गिनती जांचें।
 
@@ -1400,6 +1399,8 @@ AI कार्टन छोड़ दे तो उपलब्ध कंट्
 
 एक लेयर में कई आइटम हो सकते हैं।
 
+> **ध्यान दें:** यदि आपके वैगन मैनिफेस्ट में केवल एक ही आइटम है, तो ऐप इतना स्मार्ट है कि वह आइटम बांटने वाली स्क्रीन को छिपा देगा! वह आपके गिने हुए सभी कार्टन अपने आप उस एक आइटम में सेव कर देगा। आइटम बांटने का काम केवल मिश्रित लेयर (Mixed layers) में करना होता है।
+
 उदाहरण:
 
 - Item A: 40 कार्टन
@@ -1425,7 +1426,7 @@ AI कार्टन छोड़ दे तो उपलब्ध कंट्
 
 हर सेव लेयर में नंबर, कार्टन, आइटम मात्रा, डिफेक्ट, फोटो, नोट, ऑपरेटर और समय दिखता है।
 
-लेयर की reference photo दबाकर verification viewer खोलें। ऊपर compact bar में zoom करते समय भी layer number और total cartons दिखते हैं। Mask और carton number को अलग-अलग चालू या बंद कर सकते हैं। Editable layer में खाली जगह दबाने पर missing carton जुड़ता है, existing carton outline दबाने पर वह हटता है और उसी जगह फिर दबाने पर वापस आ जाता है—बिल्कुल Review screen की तरह। ये preview बदलाव अस्थायी हैं और अपने आप save नहीं होते। बदलाव के बाद image बंद करने, बाहर tap करने या Android back/swipe करने पर चेतावनी आती है। **Discard** से बदलाव हटा दें या **Go to correction** से preview के boxes साथ लेकर सामान्य Layer Correction page खोलें और वहां स्पष्ट रूप से save करें। पुराने layer में AI polygon न हो तो भी editable layer में carton manually जोड़ा जा सकता है।
+लेयर की reference photo दबाकर verification viewer खोलें। ऊपर compact bar में zoom करते समय भी layer number और total cartons दिखते हैं। Mask और carton number को अलग-अलग चालू या बंद कर सकते हैं। स्प्लिट (Split) लेयर के लिए, आपको हेडर में LEFT SIDE / RIGHT SIDE टॉगल भी दिखाई देगा जिससे आप दोनों फोटो और उनकी गिनती आसानी से देख सकें। Editable layer में खाली जगह दबाने पर missing carton जुड़ता है, existing carton outline दबाने पर वह हटता है और उसी जगह फिर दबाने पर वापस आ जाता है—बिल्कुल Review screen की तरह। ये preview बदलाव अस्थायी हैं और अपने आप save नहीं होते। बदलाव के बाद image बंद करने, बाहर tap करने या Android back/swipe करने पर चेतावनी आती है। **Discard** से बदलाव हटा दें या **Go to correction** से preview के boxes साथ लेकर सामान्य Layer Correction page खोलें और वहां स्पष्ट रूप से save करें। पुराने layer में AI polygon न हो तो भी editable layer में carton manually जोड़ा जा सकता है।
 
 ### पुरानी लेयर सुधारना
 

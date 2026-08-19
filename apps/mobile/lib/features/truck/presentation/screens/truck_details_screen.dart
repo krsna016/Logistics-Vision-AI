@@ -265,10 +265,12 @@ class TruckDetailsScreen extends ConsumerWidget {
                         ),
                       );
                     },
-                    onSaveDetections: (layer, detections) =>
+                    onSaveDetections: (layer, detections, {cartonCountOverride, notesOverride}) =>
                         layerNotifier.updateLayerDetections(
                       layer.id,
                       detections,
+                      cartonCountOverride: cartonCountOverride,
+                      notesOverride: notesOverride,
                     ),
                     onRequestCorrection: (layer, [previewWarning]) {
                       _editLayerDialog(
@@ -509,7 +511,7 @@ class TruckDetailsScreen extends ConsumerWidget {
         TextEditingController(text: layer.cartonCount.toString());
     final defectController =
         TextEditingController(text: layer.defectCount.toString());
-    final notesController = TextEditingController(text: layer.notes);
+    final notesController = TextEditingController(text: layer.displayNotes);
     final reasonController = TextEditingController();
     String? selectedPhotoPath = layer.photoPath;
     bool isSavingCorrection = false;
