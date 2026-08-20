@@ -4,11 +4,20 @@ services:
     runtime: docker
     rootDir: apps/backend
     healthCheckPath: /health
+    preDeployCommand: alembic upgrade head
     autoDeploy: true
     envVars:
+      - key: ENVIRONMENT
+        value: production
       - key: SECRET_KEY
         generateValue: true
       - key: DATABASE_URL
+        sync: false
+      - key: AUTO_CREATE_SCHEMA
+        value: "false"
+      - key: ADMIN_CORS_ORIGINS
+        sync: false
+      - key: TRUSTED_HOSTS
         sync: false
       - key: BOOTSTRAP_ADMIN_PASSWORD
         sync: false

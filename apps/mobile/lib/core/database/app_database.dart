@@ -34,7 +34,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 13;
+  int get schemaVersion => 14;
 
   @override
   MigrationStrategy get migration {
@@ -102,6 +102,19 @@ class AppDatabase extends _$AppDatabase {
             await m.database
                 .customStatement('ALTER TABLE $table DROP COLUMN sync_status');
           }
+        }
+        // Version 14 removes a never-used token column and replaces the
+        // misleading legacy sync timestamp with local device activity.
+        // Only obsolete metadata is removed; operational records remain.
+        if (from < 14) {
+          await m.database
+              .customStatement('ALTER TABLE users DROP COLUMN token');
+          await m.database.customStatement(
+              'ALTER TABLE device_sessions DROP COLUMN last_sync');
+          await m.database.customStatement(
+            'ALTER TABLE device_sessions ADD COLUMN last_active_at DATETIME '
+            'NOT NULL DEFAULT CURRENT_TIMESTAMP',
+          );
         }
         if (from < 5) {
           await m.addColumn(wagons, wagons.itemManifestJson);

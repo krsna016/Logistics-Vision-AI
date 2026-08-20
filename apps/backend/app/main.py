@@ -5,6 +5,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .core.config import settings
 from .db.database import Base, engine, get_db
@@ -23,6 +24,22 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type"],
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
+
+
+@app.middleware("http")
+async def apply_security_headers(request, call_next):
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "no-referrer")
+    response.headers.setdefault("Permissions-Policy", "camera=(), geolocation=(), microphone=()")
+    response.headers.setdefault("Cross-Origin-Resource-Policy", "same-site")
+    if request.url.scheme == "https" or settings.is_production:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    if request.url.path.startswith(f"{settings.API_V1_STR}/auth"):
+        response.headers.setdefault("Cache-Control", "no-store")
+    return response
 
 from sqlalchemy.future import select
 
@@ -34,17 +51,18 @@ from .models.user import User
 async def startup_event():
     settings.validate_runtime_secrets()
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        if settings.AUTO_CREATE_SCHEMA:
+            await conn.run_sync(Base.metadata.create_all)
         # Compatibility migration for the original local SQLite database.
         # Production deployments should use versioned migrations.
-        if settings.get_database_url.startswith("sqlite"):
+        if settings.AUTO_CREATE_SCHEMA and settings.get_database_url.startswith("sqlite"):
             columns = await conn.execute(text("PRAGMA table_info(users)"))
             existing = {row[1] for row in columns}
             if "failed_login_attempts" not in existing:
                 await conn.execute(text("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0"))
             if "locked_until" not in existing:
                 await conn.execute(text("ALTER TABLE users ADD COLUMN locked_until DATETIME"))
-        else:
+        elif settings.AUTO_CREATE_SCHEMA:
             # The original production PostgreSQL table predates the login
             # lockout fields. Keep startup self-healing until migrations are
             # introduced, and make each alteration idempotent.

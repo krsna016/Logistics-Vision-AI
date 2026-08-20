@@ -264,29 +264,22 @@ class WagonDetailsScreen extends ConsumerWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 16.0, vertical: 8.0),
                   child: Container(
-                    padding: const EdgeInsets.all(12),
+                    width: double.infinity,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                          color: Colors.orange.withValues(alpha: 0.3)),
+                      color: AppTheme.warningColor.withValues(alpha: 0.10),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Icon(Icons.info_outline,
-                            color: Colors.orange, size: 20),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            'Archived: ${archivedWagonTrucks.map((t) => t.truckNumber).join(', ')}\nThese trucks are hidden from the active view but their cartons are included in the totals above. View full details in the Digital Register.',
-                            style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 13,
-                                height: 1.4),
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      archivedWagonTrucks
+                          .map((truck) =>
+                              'Archived: ${truck.vehicleNumber.isNotEmpty ? truck.vehicleNumber : truck.truckNumber} (${truck.totalCartons} cartons)')
+                          .join('\n'),
+                      style: const TextStyle(
+                          color: AppTheme.warningColor,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),
@@ -382,7 +375,7 @@ class WagonDetailsScreen extends ConsumerWidget {
       );
       await ref
           .read(shareServiceProvider)
-          .shareFile(file, subject: 'Wagon Loading Report ($type)');
+          .shareFile(file, subject: 'SmartLoad Wagon Loading Report ($type)');
     } catch (e) {
       await logGeneratedReport(
         ref,

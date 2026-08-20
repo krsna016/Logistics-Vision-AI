@@ -3,16 +3,23 @@ import 'package:path_provider/path_provider.dart';
 import 'package:csv/csv.dart';
 import '../../domain/services/report_services.dart';
 import '../../../../core/database/app_database.dart';
+import 'report_file_name.dart';
 
 class CsvExportServiceImpl implements CsvExportService {
   final AppDatabase _db;
 
   CsvExportServiceImpl(this._db);
 
-  Future<File> _createFile(String prefix) async {
+  Future<File> _createFile({
+    required String reportName,
+    String? subject,
+  }) async {
     final dir = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    return File('${dir.path}/${prefix}_$timestamp.csv');
+    return File('${dir.path}/${buildReportFileName(
+      reportName: reportName,
+      subject: subject,
+      extension: 'csv',
+    )}');
   }
 
   @override
@@ -50,7 +57,10 @@ class CsvExportServiceImpl implements CsvExportService {
     }
 
     final csvData = csv.encode(rows);
-    final file = await _createFile('DATASET_$datasetId');
+    final file = await _createFile(
+      reportName: 'Dataset_Export',
+      subject: datasetId,
+    );
     await file.writeAsString(csvData);
     return file;
   }
@@ -84,7 +94,7 @@ class CsvExportServiceImpl implements CsvExportService {
     }
 
     final csvData = csv.encode(rows);
-    final file = await _createFile('AUDIT_LOGS');
+    final file = await _createFile(reportName: 'Audit_Log_Export');
     await file.writeAsString(csvData);
     return file;
   }

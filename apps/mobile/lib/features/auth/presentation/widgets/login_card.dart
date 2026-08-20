@@ -21,7 +21,8 @@ class LoginCard extends ConsumerStatefulWidget {
 class _LoginCardState extends ConsumerState<LoginCard> {
   final _employeeIdController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false; String? _errorMessage;
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -31,6 +32,10 @@ class _LoginCardState extends ConsumerState<LoginCard> {
   }
 
   Future<void> _handleLogin() async {
+    await _authenticate();
+  }
+
+  Future<void> _authenticate() async {
     setState(() => _isLoading = true);
     final inferenceNotifier = ref.read(inferenceNotifierProvider.notifier);
     final success = await ref.read(authProvider.notifier).login(
@@ -122,11 +127,13 @@ class _LoginCardState extends ConsumerState<LoginCard> {
               decoration: BoxDecoration(
                 color: AppTheme.errorColor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: AppTheme.errorColor.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 20),
+                  const Icon(Icons.error_outline,
+                      color: AppTheme.errorColor, size: 20),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
@@ -219,6 +226,12 @@ class _LoginCardState extends ConsumerState<LoginCard> {
                           fontSize: 16,
                           color: Colors.white)),
             ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Your approved account stays signed in on this device.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
           if (Environment.current != Environment.production) ...[
             const SizedBox(height: 12),

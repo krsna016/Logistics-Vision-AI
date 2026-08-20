@@ -83,10 +83,8 @@ class _TimelineItem extends StatelessWidget {
       layer.defectCount > 0 ||
       (layer.displayNotes != null &&
           layer.displayNotes!.toLowerCase().contains('defect'));
-  Color get _statusColor =>
-      _hasDefects ? AppTheme.warningColor : AppTheme.successColor;
-  IconData get _statusIcon =>
-      _hasDefects ? Icons.warning_amber_rounded : Icons.check_circle_rounded;
+  Color get _timelineColor =>
+      _hasDefects ? AppTheme.errorColor : AppTheme.successColor;
 
   @override
   Widget build(BuildContext context) {
@@ -101,14 +99,14 @@ class _TimelineItem extends StatelessWidget {
                 width: 30,
                 height: 30,
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.15),
+                  color: _timelineColor.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
                   child: Text(
                     '${layer.layerNumber}',
-                    style: const TextStyle(
-                      color: AppTheme.primaryColor,
+                    style: TextStyle(
+                      color: _timelineColor,
                       fontWeight: FontWeight.bold,
                       fontSize: 14,
                     ),
@@ -192,44 +190,52 @@ class _TimelineItem extends StatelessWidget {
                                         color: Colors.white,
                                       ),
                                     ),
-                                    const SizedBox(width: 4),
-                                    _CompactHeaderChip(
-                                      icon: Icons.inventory_2_outlined,
-                                      label: '${layer.cartonCount} Cartons',
-                                      color: AppTheme.textSecondary,
+                                    const _HeaderDot(),
+                                    Text(
+                                      '${layer.cartonCount} Cartons',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                      ),
                                     ),
-                                    const SizedBox(width: 4),
-                                    _CompactHeaderChip(
-                                      icon: Icons.access_time_outlined,
-                                      label: _formatTime(layer.timestamp),
-                                      color: AppTheme.textSecondary,
+                                    const _HeaderDot(),
+                                    Text(
+                                      _formatTime(layer.timestamp),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                        color: Colors.white,
+                                      ),
                                     ),
                                   ],
                                 ),
                               ),
                             ),
-                            const SizedBox(width: 5),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: _statusColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(20),
+                            if (!isReadOnly) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                key: const ValueKey('layer-delete-button'),
+                                width: 34,
+                                height: 34,
+                                decoration: BoxDecoration(
+                                  color: AppTheme.cardColor,
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: IconButton(
+                                  onPressed: onDelete,
+                                  tooltip: 'Delete layer',
+                                  visualDensity: VisualDensity.compact,
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints.tightFor(
+                                    width: 34,
+                                    height: 34,
+                                  ),
+                                  icon: const Icon(Icons.delete_outline,
+                                      size: 17, color: AppTheme.errorColor),
+                                ),
                               ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(_statusIcon,
-                                      size: 11, color: _statusColor),
-                                  const SizedBox(width: 2),
-                                  Text(_hasDefects ? 'Defect' : 'OK',
-                                      style: TextStyle(
-                                          color: _statusColor,
-                                          fontSize: 8.5,
-                                          fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
+                            ],
                           ],
                         ),
                         const SizedBox(height: 5),
@@ -307,33 +313,6 @@ class _TimelineItem extends StatelessWidget {
               ),
             ),
           ),
-          if (!isReadOnly) ...[
-            const SizedBox(width: 6),
-            // Keep deletion available without taking space from the layer
-            // summary. This small standalone card stays at the far right.
-            Container(
-              key: const ValueKey('layer-delete-button'),
-              margin: EdgeInsets.only(bottom: isLast ? 0 : 7),
-              width: 34,
-              height: 34,
-              decoration: BoxDecoration(
-                color: AppTheme.cardColor,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: IconButton(
-                onPressed: onDelete,
-                tooltip: 'Delete layer',
-                visualDensity: VisualDensity.compact,
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints.tightFor(
-                  width: 34,
-                  height: 34,
-                ),
-                icon: const Icon(Icons.delete_outline,
-                    size: 17, color: AppTheme.errorColor),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -727,7 +706,8 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                               fontSize: 13,
                             ),
                           ),
-                          const Text(' • ', style: TextStyle(color: Colors.white70)),
+                          const Text(' • ',
+                              style: TextStyle(color: Colors.white70)),
                           Expanded(
                             child: Text(
                               '$_displayCartonCount cartons'
@@ -919,44 +899,21 @@ class _ChipLabel extends StatelessWidget {
   }
 }
 
-class _CompactHeaderChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
-  const _CompactHeaderChip({
-    required this.icon,
-    required this.label,
-    required this.color,
-  });
+class _HeaderDot extends StatelessWidget {
+  const _HeaderDot();
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 22,
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 10, color: color),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            maxLines: 1,
-            style: TextStyle(
-              color: color,
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
-            ),
+  Widget build(BuildContext context) => const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 5),
+        child: Text(
+          '•',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 13,
+            fontWeight: FontWeight.bold,
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      );
 }
 
 class _SplitLayerPhotoViewer extends StatefulWidget {

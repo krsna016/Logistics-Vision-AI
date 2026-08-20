@@ -9008,11 +9008,11 @@ class $DeviceSessionsTable extends DeviceSessions
   late final GeneratedColumn<String> osVersion = GeneratedColumn<String>(
       'os_version', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
-  static const VerificationMeta _lastSyncMeta =
-      const VerificationMeta('lastSync');
+  static const VerificationMeta _lastActiveAtMeta =
+      const VerificationMeta('lastActiveAt');
   @override
-  late final GeneratedColumn<DateTime> lastSync = GeneratedColumn<DateTime>(
-      'last_sync', aliasedName, false,
+  late final GeneratedColumn<DateTime> lastActiveAt = GeneratedColumn<DateTime>(
+      'last_active_at', aliasedName, false,
       type: DriftSqlType.dateTime,
       requiredDuringInsert: false,
       defaultValue: currentDateAndTime);
@@ -9036,7 +9036,7 @@ class $DeviceSessionsTable extends DeviceSessions
         deviceName,
         deviceModel,
         osVersion,
-        lastSync,
+        lastActiveAt,
         isActive
       ];
   @override
@@ -9092,9 +9092,11 @@ class $DeviceSessionsTable extends DeviceSessions
     } else if (isInserting) {
       context.missing(_osVersionMeta);
     }
-    if (data.containsKey('last_sync')) {
-      context.handle(_lastSyncMeta,
-          lastSync.isAcceptableOrUnknown(data['last_sync']!, _lastSyncMeta));
+    if (data.containsKey('last_active_at')) {
+      context.handle(
+          _lastActiveAtMeta,
+          lastActiveAt.isAcceptableOrUnknown(
+              data['last_active_at']!, _lastActiveAtMeta));
     }
     if (data.containsKey('is_active')) {
       context.handle(_isActiveMeta,
@@ -9125,8 +9127,8 @@ class $DeviceSessionsTable extends DeviceSessions
           .read(DriftSqlType.string, data['${effectivePrefix}device_model'])!,
       osVersion: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}os_version'])!,
-      lastSync: attachedDatabase.typeMapping
-          .read(DriftSqlType.dateTime, data['${effectivePrefix}last_sync'])!,
+      lastActiveAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_active_at'])!,
       isActive: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
     );
@@ -9147,7 +9149,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
   final String deviceName;
   final String deviceModel;
   final String osVersion;
-  final DateTime lastSync;
+  final DateTime lastActiveAt;
   final bool isActive;
   const DeviceSession(
       {required this.id,
@@ -9158,7 +9160,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
       required this.deviceName,
       required this.deviceModel,
       required this.osVersion,
-      required this.lastSync,
+      required this.lastActiveAt,
       required this.isActive});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -9171,7 +9173,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
     map['device_name'] = Variable<String>(deviceName);
     map['device_model'] = Variable<String>(deviceModel);
     map['os_version'] = Variable<String>(osVersion);
-    map['last_sync'] = Variable<DateTime>(lastSync);
+    map['last_active_at'] = Variable<DateTime>(lastActiveAt);
     map['is_active'] = Variable<bool>(isActive);
     return map;
   }
@@ -9186,7 +9188,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
       deviceName: Value(deviceName),
       deviceModel: Value(deviceModel),
       osVersion: Value(osVersion),
-      lastSync: Value(lastSync),
+      lastActiveAt: Value(lastActiveAt),
       isActive: Value(isActive),
     );
   }
@@ -9203,7 +9205,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
       deviceName: serializer.fromJson<String>(json['deviceName']),
       deviceModel: serializer.fromJson<String>(json['deviceModel']),
       osVersion: serializer.fromJson<String>(json['osVersion']),
-      lastSync: serializer.fromJson<DateTime>(json['lastSync']),
+      lastActiveAt: serializer.fromJson<DateTime>(json['lastActiveAt']),
       isActive: serializer.fromJson<bool>(json['isActive']),
     );
   }
@@ -9219,7 +9221,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
       'deviceName': serializer.toJson<String>(deviceName),
       'deviceModel': serializer.toJson<String>(deviceModel),
       'osVersion': serializer.toJson<String>(osVersion),
-      'lastSync': serializer.toJson<DateTime>(lastSync),
+      'lastActiveAt': serializer.toJson<DateTime>(lastActiveAt),
       'isActive': serializer.toJson<bool>(isActive),
     };
   }
@@ -9233,7 +9235,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
           String? deviceName,
           String? deviceModel,
           String? osVersion,
-          DateTime? lastSync,
+          DateTime? lastActiveAt,
           bool? isActive}) =>
       DeviceSession(
         id: id ?? this.id,
@@ -9244,7 +9246,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
         deviceName: deviceName ?? this.deviceName,
         deviceModel: deviceModel ?? this.deviceModel,
         osVersion: osVersion ?? this.osVersion,
-        lastSync: lastSync ?? this.lastSync,
+        lastActiveAt: lastActiveAt ?? this.lastActiveAt,
         isActive: isActive ?? this.isActive,
       );
   DeviceSession copyWithCompanion(DeviceSessionsCompanion data) {
@@ -9259,7 +9261,9 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
       deviceModel:
           data.deviceModel.present ? data.deviceModel.value : this.deviceModel,
       osVersion: data.osVersion.present ? data.osVersion.value : this.osVersion,
-      lastSync: data.lastSync.present ? data.lastSync.value : this.lastSync,
+      lastActiveAt: data.lastActiveAt.present
+          ? data.lastActiveAt.value
+          : this.lastActiveAt,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
     );
   }
@@ -9275,7 +9279,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
           ..write('deviceName: $deviceName, ')
           ..write('deviceModel: $deviceModel, ')
           ..write('osVersion: $osVersion, ')
-          ..write('lastSync: $lastSync, ')
+          ..write('lastActiveAt: $lastActiveAt, ')
           ..write('isActive: $isActive')
           ..write(')'))
         .toString();
@@ -9283,7 +9287,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
 
   @override
   int get hashCode => Object.hash(id, createdAt, updatedAt, isDeleted, version,
-      deviceName, deviceModel, osVersion, lastSync, isActive);
+      deviceName, deviceModel, osVersion, lastActiveAt, isActive);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -9296,7 +9300,7 @@ class DeviceSession extends DataClass implements Insertable<DeviceSession> {
           other.deviceName == this.deviceName &&
           other.deviceModel == this.deviceModel &&
           other.osVersion == this.osVersion &&
-          other.lastSync == this.lastSync &&
+          other.lastActiveAt == this.lastActiveAt &&
           other.isActive == this.isActive);
 }
 
@@ -9309,7 +9313,7 @@ class DeviceSessionsCompanion extends UpdateCompanion<DeviceSession> {
   final Value<String> deviceName;
   final Value<String> deviceModel;
   final Value<String> osVersion;
-  final Value<DateTime> lastSync;
+  final Value<DateTime> lastActiveAt;
   final Value<bool> isActive;
   final Value<int> rowid;
   const DeviceSessionsCompanion({
@@ -9321,7 +9325,7 @@ class DeviceSessionsCompanion extends UpdateCompanion<DeviceSession> {
     this.deviceName = const Value.absent(),
     this.deviceModel = const Value.absent(),
     this.osVersion = const Value.absent(),
-    this.lastSync = const Value.absent(),
+    this.lastActiveAt = const Value.absent(),
     this.isActive = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -9334,7 +9338,7 @@ class DeviceSessionsCompanion extends UpdateCompanion<DeviceSession> {
     required String deviceName,
     required String deviceModel,
     required String osVersion,
-    this.lastSync = const Value.absent(),
+    this.lastActiveAt = const Value.absent(),
     this.isActive = const Value.absent(),
     this.rowid = const Value.absent(),
   })  : id = Value(id),
@@ -9350,7 +9354,7 @@ class DeviceSessionsCompanion extends UpdateCompanion<DeviceSession> {
     Expression<String>? deviceName,
     Expression<String>? deviceModel,
     Expression<String>? osVersion,
-    Expression<DateTime>? lastSync,
+    Expression<DateTime>? lastActiveAt,
     Expression<bool>? isActive,
     Expression<int>? rowid,
   }) {
@@ -9363,7 +9367,7 @@ class DeviceSessionsCompanion extends UpdateCompanion<DeviceSession> {
       if (deviceName != null) 'device_name': deviceName,
       if (deviceModel != null) 'device_model': deviceModel,
       if (osVersion != null) 'os_version': osVersion,
-      if (lastSync != null) 'last_sync': lastSync,
+      if (lastActiveAt != null) 'last_active_at': lastActiveAt,
       if (isActive != null) 'is_active': isActive,
       if (rowid != null) 'rowid': rowid,
     });
@@ -9378,7 +9382,7 @@ class DeviceSessionsCompanion extends UpdateCompanion<DeviceSession> {
       Value<String>? deviceName,
       Value<String>? deviceModel,
       Value<String>? osVersion,
-      Value<DateTime>? lastSync,
+      Value<DateTime>? lastActiveAt,
       Value<bool>? isActive,
       Value<int>? rowid}) {
     return DeviceSessionsCompanion(
@@ -9390,7 +9394,7 @@ class DeviceSessionsCompanion extends UpdateCompanion<DeviceSession> {
       deviceName: deviceName ?? this.deviceName,
       deviceModel: deviceModel ?? this.deviceModel,
       osVersion: osVersion ?? this.osVersion,
-      lastSync: lastSync ?? this.lastSync,
+      lastActiveAt: lastActiveAt ?? this.lastActiveAt,
       isActive: isActive ?? this.isActive,
       rowid: rowid ?? this.rowid,
     );
@@ -9423,8 +9427,8 @@ class DeviceSessionsCompanion extends UpdateCompanion<DeviceSession> {
     if (osVersion.present) {
       map['os_version'] = Variable<String>(osVersion.value);
     }
-    if (lastSync.present) {
-      map['last_sync'] = Variable<DateTime>(lastSync.value);
+    if (lastActiveAt.present) {
+      map['last_active_at'] = Variable<DateTime>(lastActiveAt.value);
     }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
@@ -9446,7 +9450,7 @@ class DeviceSessionsCompanion extends UpdateCompanion<DeviceSession> {
           ..write('deviceName: $deviceName, ')
           ..write('deviceModel: $deviceModel, ')
           ..write('osVersion: $osVersion, ')
-          ..write('lastSync: $lastSync, ')
+          ..write('lastActiveAt: $lastActiveAt, ')
           ..write('isActive: $isActive, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -10107,11 +10111,6 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
   late final GeneratedColumn<String> warehouseId = GeneratedColumn<String>(
       'warehouse_id', aliasedName, true,
       type: DriftSqlType.string, requiredDuringInsert: false);
-  static const VerificationMeta _tokenMeta = const VerificationMeta('token');
-  @override
-  late final GeneratedColumn<String> token = GeneratedColumn<String>(
-      'token', aliasedName, true,
-      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _isActiveMeta =
       const VerificationMeta('isActive');
   @override
@@ -10147,7 +10146,6 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
         name,
         role,
         warehouseId,
-        token,
         isActive,
         failedLoginAttempts,
         lockedUntil
@@ -10209,10 +10207,6 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
           warehouseId.isAcceptableOrUnknown(
               data['warehouse_id']!, _warehouseIdMeta));
     }
-    if (data.containsKey('token')) {
-      context.handle(
-          _tokenMeta, token.isAcceptableOrUnknown(data['token']!, _tokenMeta));
-    }
     if (data.containsKey('is_active')) {
       context.handle(_isActiveMeta,
           isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta));
@@ -10256,8 +10250,6 @@ class $UsersTable extends Users with TableInfo<$UsersTable, User> {
           .read(DriftSqlType.string, data['${effectivePrefix}role'])!,
       warehouseId: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}warehouse_id']),
-      token: attachedDatabase.typeMapping
-          .read(DriftSqlType.string, data['${effectivePrefix}token']),
       isActive: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_active'])!,
       failedLoginAttempts: attachedDatabase.typeMapping.read(
@@ -10283,7 +10275,6 @@ class User extends DataClass implements Insertable<User> {
   final String name;
   final String role;
   final String? warehouseId;
-  final String? token;
   final bool isActive;
   final int failedLoginAttempts;
   final DateTime? lockedUntil;
@@ -10297,7 +10288,6 @@ class User extends DataClass implements Insertable<User> {
       required this.name,
       required this.role,
       this.warehouseId,
-      this.token,
       required this.isActive,
       required this.failedLoginAttempts,
       this.lockedUntil});
@@ -10314,9 +10304,6 @@ class User extends DataClass implements Insertable<User> {
     map['role'] = Variable<String>(role);
     if (!nullToAbsent || warehouseId != null) {
       map['warehouse_id'] = Variable<String>(warehouseId);
-    }
-    if (!nullToAbsent || token != null) {
-      map['token'] = Variable<String>(token);
     }
     map['is_active'] = Variable<bool>(isActive);
     map['failed_login_attempts'] = Variable<int>(failedLoginAttempts);
@@ -10339,8 +10326,6 @@ class User extends DataClass implements Insertable<User> {
       warehouseId: warehouseId == null && nullToAbsent
           ? const Value.absent()
           : Value(warehouseId),
-      token:
-          token == null && nullToAbsent ? const Value.absent() : Value(token),
       isActive: Value(isActive),
       failedLoginAttempts: Value(failedLoginAttempts),
       lockedUntil: lockedUntil == null && nullToAbsent
@@ -10362,7 +10347,6 @@ class User extends DataClass implements Insertable<User> {
       name: serializer.fromJson<String>(json['name']),
       role: serializer.fromJson<String>(json['role']),
       warehouseId: serializer.fromJson<String?>(json['warehouseId']),
-      token: serializer.fromJson<String?>(json['token']),
       isActive: serializer.fromJson<bool>(json['isActive']),
       failedLoginAttempts:
           serializer.fromJson<int>(json['failedLoginAttempts']),
@@ -10382,7 +10366,6 @@ class User extends DataClass implements Insertable<User> {
       'name': serializer.toJson<String>(name),
       'role': serializer.toJson<String>(role),
       'warehouseId': serializer.toJson<String?>(warehouseId),
-      'token': serializer.toJson<String?>(token),
       'isActive': serializer.toJson<bool>(isActive),
       'failedLoginAttempts': serializer.toJson<int>(failedLoginAttempts),
       'lockedUntil': serializer.toJson<DateTime?>(lockedUntil),
@@ -10399,7 +10382,6 @@ class User extends DataClass implements Insertable<User> {
           String? name,
           String? role,
           Value<String?> warehouseId = const Value.absent(),
-          Value<String?> token = const Value.absent(),
           bool? isActive,
           int? failedLoginAttempts,
           Value<DateTime?> lockedUntil = const Value.absent()}) =>
@@ -10413,7 +10395,6 @@ class User extends DataClass implements Insertable<User> {
         name: name ?? this.name,
         role: role ?? this.role,
         warehouseId: warehouseId.present ? warehouseId.value : this.warehouseId,
-        token: token.present ? token.value : this.token,
         isActive: isActive ?? this.isActive,
         failedLoginAttempts: failedLoginAttempts ?? this.failedLoginAttempts,
         lockedUntil: lockedUntil.present ? lockedUntil.value : this.lockedUntil,
@@ -10431,7 +10412,6 @@ class User extends DataClass implements Insertable<User> {
       role: data.role.present ? data.role.value : this.role,
       warehouseId:
           data.warehouseId.present ? data.warehouseId.value : this.warehouseId,
-      token: data.token.present ? data.token.value : this.token,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
       failedLoginAttempts: data.failedLoginAttempts.present
           ? data.failedLoginAttempts.value
@@ -10453,7 +10433,6 @@ class User extends DataClass implements Insertable<User> {
           ..write('name: $name, ')
           ..write('role: $role, ')
           ..write('warehouseId: $warehouseId, ')
-          ..write('token: $token, ')
           ..write('isActive: $isActive, ')
           ..write('failedLoginAttempts: $failedLoginAttempts, ')
           ..write('lockedUntil: $lockedUntil')
@@ -10472,7 +10451,6 @@ class User extends DataClass implements Insertable<User> {
       name,
       role,
       warehouseId,
-      token,
       isActive,
       failedLoginAttempts,
       lockedUntil);
@@ -10489,7 +10467,6 @@ class User extends DataClass implements Insertable<User> {
           other.name == this.name &&
           other.role == this.role &&
           other.warehouseId == this.warehouseId &&
-          other.token == this.token &&
           other.isActive == this.isActive &&
           other.failedLoginAttempts == this.failedLoginAttempts &&
           other.lockedUntil == this.lockedUntil);
@@ -10505,7 +10482,6 @@ class UsersCompanion extends UpdateCompanion<User> {
   final Value<String> name;
   final Value<String> role;
   final Value<String?> warehouseId;
-  final Value<String?> token;
   final Value<bool> isActive;
   final Value<int> failedLoginAttempts;
   final Value<DateTime?> lockedUntil;
@@ -10520,7 +10496,6 @@ class UsersCompanion extends UpdateCompanion<User> {
     this.name = const Value.absent(),
     this.role = const Value.absent(),
     this.warehouseId = const Value.absent(),
-    this.token = const Value.absent(),
     this.isActive = const Value.absent(),
     this.failedLoginAttempts = const Value.absent(),
     this.lockedUntil = const Value.absent(),
@@ -10536,7 +10511,6 @@ class UsersCompanion extends UpdateCompanion<User> {
     required String name,
     required String role,
     this.warehouseId = const Value.absent(),
-    this.token = const Value.absent(),
     this.isActive = const Value.absent(),
     this.failedLoginAttempts = const Value.absent(),
     this.lockedUntil = const Value.absent(),
@@ -10555,7 +10529,6 @@ class UsersCompanion extends UpdateCompanion<User> {
     Expression<String>? name,
     Expression<String>? role,
     Expression<String>? warehouseId,
-    Expression<String>? token,
     Expression<bool>? isActive,
     Expression<int>? failedLoginAttempts,
     Expression<DateTime>? lockedUntil,
@@ -10571,7 +10544,6 @@ class UsersCompanion extends UpdateCompanion<User> {
       if (name != null) 'name': name,
       if (role != null) 'role': role,
       if (warehouseId != null) 'warehouse_id': warehouseId,
-      if (token != null) 'token': token,
       if (isActive != null) 'is_active': isActive,
       if (failedLoginAttempts != null)
         'failed_login_attempts': failedLoginAttempts,
@@ -10590,7 +10562,6 @@ class UsersCompanion extends UpdateCompanion<User> {
       Value<String>? name,
       Value<String>? role,
       Value<String?>? warehouseId,
-      Value<String?>? token,
       Value<bool>? isActive,
       Value<int>? failedLoginAttempts,
       Value<DateTime?>? lockedUntil,
@@ -10605,7 +10576,6 @@ class UsersCompanion extends UpdateCompanion<User> {
       name: name ?? this.name,
       role: role ?? this.role,
       warehouseId: warehouseId ?? this.warehouseId,
-      token: token ?? this.token,
       isActive: isActive ?? this.isActive,
       failedLoginAttempts: failedLoginAttempts ?? this.failedLoginAttempts,
       lockedUntil: lockedUntil ?? this.lockedUntil,
@@ -10643,9 +10613,6 @@ class UsersCompanion extends UpdateCompanion<User> {
     if (warehouseId.present) {
       map['warehouse_id'] = Variable<String>(warehouseId.value);
     }
-    if (token.present) {
-      map['token'] = Variable<String>(token.value);
-    }
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
@@ -10673,7 +10640,6 @@ class UsersCompanion extends UpdateCompanion<User> {
           ..write('name: $name, ')
           ..write('role: $role, ')
           ..write('warehouseId: $warehouseId, ')
-          ..write('token: $token, ')
           ..write('isActive: $isActive, ')
           ..write('failedLoginAttempts: $failedLoginAttempts, ')
           ..write('lockedUntil: $lockedUntil, ')
@@ -16812,7 +16778,7 @@ typedef $$DeviceSessionsTableCreateCompanionBuilder = DeviceSessionsCompanion
   required String deviceName,
   required String deviceModel,
   required String osVersion,
-  Value<DateTime> lastSync,
+  Value<DateTime> lastActiveAt,
   Value<bool> isActive,
   Value<int> rowid,
 });
@@ -16826,7 +16792,7 @@ typedef $$DeviceSessionsTableUpdateCompanionBuilder = DeviceSessionsCompanion
   Value<String> deviceName,
   Value<String> deviceModel,
   Value<String> osVersion,
-  Value<DateTime> lastSync,
+  Value<DateTime> lastActiveAt,
   Value<bool> isActive,
   Value<int> rowid,
 });
@@ -16864,8 +16830,8 @@ class $$DeviceSessionsTableFilterComposer
   ColumnFilters<String> get osVersion => $composableBuilder(
       column: $table.osVersion, builder: (column) => ColumnFilters(column));
 
-  ColumnFilters<DateTime> get lastSync => $composableBuilder(
-      column: $table.lastSync, builder: (column) => ColumnFilters(column));
+  ColumnFilters<DateTime> get lastActiveAt => $composableBuilder(
+      column: $table.lastActiveAt, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isActive => $composableBuilder(
       column: $table.isActive, builder: (column) => ColumnFilters(column));
@@ -16904,8 +16870,9 @@ class $$DeviceSessionsTableOrderingComposer
   ColumnOrderings<String> get osVersion => $composableBuilder(
       column: $table.osVersion, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<DateTime> get lastSync => $composableBuilder(
-      column: $table.lastSync, builder: (column) => ColumnOrderings(column));
+  ColumnOrderings<DateTime> get lastActiveAt => $composableBuilder(
+      column: $table.lastActiveAt,
+      builder: (column) => ColumnOrderings(column));
 
   ColumnOrderings<bool> get isActive => $composableBuilder(
       column: $table.isActive, builder: (column) => ColumnOrderings(column));
@@ -16944,8 +16911,8 @@ class $$DeviceSessionsTableAnnotationComposer
   GeneratedColumn<String> get osVersion =>
       $composableBuilder(column: $table.osVersion, builder: (column) => column);
 
-  GeneratedColumn<DateTime> get lastSync =>
-      $composableBuilder(column: $table.lastSync, builder: (column) => column);
+  GeneratedColumn<DateTime> get lastActiveAt => $composableBuilder(
+      column: $table.lastActiveAt, builder: (column) => column);
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
@@ -16986,7 +16953,7 @@ class $$DeviceSessionsTableTableManager extends RootTableManager<
             Value<String> deviceName = const Value.absent(),
             Value<String> deviceModel = const Value.absent(),
             Value<String> osVersion = const Value.absent(),
-            Value<DateTime> lastSync = const Value.absent(),
+            Value<DateTime> lastActiveAt = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -16999,7 +16966,7 @@ class $$DeviceSessionsTableTableManager extends RootTableManager<
             deviceName: deviceName,
             deviceModel: deviceModel,
             osVersion: osVersion,
-            lastSync: lastSync,
+            lastActiveAt: lastActiveAt,
             isActive: isActive,
             rowid: rowid,
           ),
@@ -17012,7 +16979,7 @@ class $$DeviceSessionsTableTableManager extends RootTableManager<
             required String deviceName,
             required String deviceModel,
             required String osVersion,
-            Value<DateTime> lastSync = const Value.absent(),
+            Value<DateTime> lastActiveAt = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
             Value<int> rowid = const Value.absent(),
           }) =>
@@ -17025,7 +16992,7 @@ class $$DeviceSessionsTableTableManager extends RootTableManager<
             deviceName: deviceName,
             deviceModel: deviceModel,
             osVersion: osVersion,
-            lastSync: lastSync,
+            lastActiveAt: lastActiveAt,
             isActive: isActive,
             rowid: rowid,
           ),
@@ -17339,7 +17306,6 @@ typedef $$UsersTableCreateCompanionBuilder = UsersCompanion Function({
   required String name,
   required String role,
   Value<String?> warehouseId,
-  Value<String?> token,
   Value<bool> isActive,
   Value<int> failedLoginAttempts,
   Value<DateTime?> lockedUntil,
@@ -17355,7 +17321,6 @@ typedef $$UsersTableUpdateCompanionBuilder = UsersCompanion Function({
   Value<String> name,
   Value<String> role,
   Value<String?> warehouseId,
-  Value<String?> token,
   Value<bool> isActive,
   Value<int> failedLoginAttempts,
   Value<DateTime?> lockedUntil,
@@ -17396,9 +17361,6 @@ class $$UsersTableFilterComposer extends Composer<_$AppDatabase, $UsersTable> {
 
   ColumnFilters<String> get warehouseId => $composableBuilder(
       column: $table.warehouseId, builder: (column) => ColumnFilters(column));
-
-  ColumnFilters<String> get token => $composableBuilder(
-      column: $table.token, builder: (column) => ColumnFilters(column));
 
   ColumnFilters<bool> get isActive => $composableBuilder(
       column: $table.isActive, builder: (column) => ColumnFilters(column));
@@ -17447,9 +17409,6 @@ class $$UsersTableOrderingComposer
   ColumnOrderings<String> get warehouseId => $composableBuilder(
       column: $table.warehouseId, builder: (column) => ColumnOrderings(column));
 
-  ColumnOrderings<String> get token => $composableBuilder(
-      column: $table.token, builder: (column) => ColumnOrderings(column));
-
   ColumnOrderings<bool> get isActive => $composableBuilder(
       column: $table.isActive, builder: (column) => ColumnOrderings(column));
 
@@ -17497,9 +17456,6 @@ class $$UsersTableAnnotationComposer
   GeneratedColumn<String> get warehouseId => $composableBuilder(
       column: $table.warehouseId, builder: (column) => column);
 
-  GeneratedColumn<String> get token =>
-      $composableBuilder(column: $table.token, builder: (column) => column);
-
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
 
@@ -17542,7 +17498,6 @@ class $$UsersTableTableManager extends RootTableManager<
             Value<String> name = const Value.absent(),
             Value<String> role = const Value.absent(),
             Value<String?> warehouseId = const Value.absent(),
-            Value<String?> token = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
             Value<int> failedLoginAttempts = const Value.absent(),
             Value<DateTime?> lockedUntil = const Value.absent(),
@@ -17558,7 +17513,6 @@ class $$UsersTableTableManager extends RootTableManager<
             name: name,
             role: role,
             warehouseId: warehouseId,
-            token: token,
             isActive: isActive,
             failedLoginAttempts: failedLoginAttempts,
             lockedUntil: lockedUntil,
@@ -17574,7 +17528,6 @@ class $$UsersTableTableManager extends RootTableManager<
             required String name,
             required String role,
             Value<String?> warehouseId = const Value.absent(),
-            Value<String?> token = const Value.absent(),
             Value<bool> isActive = const Value.absent(),
             Value<int> failedLoginAttempts = const Value.absent(),
             Value<DateTime?> lockedUntil = const Value.absent(),
@@ -17590,7 +17543,6 @@ class $$UsersTableTableManager extends RootTableManager<
             name: name,
             role: role,
             warehouseId: warehouseId,
-            token: token,
             isActive: isActive,
             failedLoginAttempts: failedLoginAttempts,
             lockedUntil: lockedUntil,

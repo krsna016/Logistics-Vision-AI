@@ -1,4 +1,5 @@
 import 'report_date_formatter.dart';
+import 'report_file_name.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
@@ -377,10 +378,17 @@ class PdfReportServiceImpl implements PdfReportService {
     }
   }
 
-  Future<File> _savePdfBytes(Uint8List bytes, String prefix) async {
+  Future<File> _savePdfBytes(
+    Uint8List bytes, {
+    required String reportName,
+    String? subject,
+  }) async {
     final dir = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final file = File('${dir.path}/${prefix}_$timestamp.pdf');
+    final file = File('${dir.path}/${buildReportFileName(
+      reportName: reportName,
+      subject: subject,
+      extension: 'pdf',
+    )}');
     await file.writeAsBytes(bytes, flush: true);
     return file;
   }
@@ -425,7 +433,8 @@ class PdfReportServiceImpl implements PdfReportService {
     final splitIdx = cleaned.indexOf('[SPLIT_DATA]:');
     if (splitIdx >= 0) {
       cleaned = cleaned.substring(0, splitIdx).trim();
-      if (cleaned.endsWith('|')) cleaned = cleaned.substring(0, cleaned.length - 1).trim();
+      if (cleaned.endsWith('|'))
+        cleaned = cleaned.substring(0, cleaned.length - 1).trim();
     }
     if (cleaned.isEmpty) return 'No notes';
     final operatorNotes = cleaned
@@ -525,7 +534,11 @@ class PdfReportServiceImpl implements PdfReportService {
       logoBytes: logoBytes,
       supervisor: supervisor,
     );
-    return _savePdfBytes(bytes, 'TRUCK_${truck.truckNumber}');
+    return _savePdfBytes(
+      bytes,
+      reportName: 'Truck_Loading_Report',
+      subject: truck.vehicleNumber,
+    );
   }
 
   @override
@@ -632,7 +645,11 @@ class PdfReportServiceImpl implements PdfReportService {
       logoBytes: logoBytes,
       supervisor: supervisor,
     );
-    return _savePdfBytes(bytes, 'WAGON_${wagon.wagonNumber}');
+    return _savePdfBytes(
+      bytes,
+      reportName: 'Wagon_Loading_Report',
+      subject: wagon.wagonNumber,
+    );
   }
 
   @override
@@ -710,8 +727,8 @@ class PdfReportServiceImpl implements PdfReportService {
           final truckLayers = layers
               .where((layer) => layer.truckId == truck.id)
               .toList(growable: false);
-          final truckCartons = truckLayers.fold<int>(
-              0, (sum, layer) => sum + layer.cartonCount);
+          final truckCartons =
+              truckLayers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
           final itemBreakdown = formatTruckItemBreakdown(
             aggregateTruckItems(
               truckLayers.map(_layerAllocations),
@@ -740,7 +757,8 @@ class PdfReportServiceImpl implements PdfReportService {
                       'defects': layer.defectCount,
                       'operator': layer.operatorId,
                       'notes': _operatorNotesForReport(layer.notes),
-                      'added': ReportDateFormatter.formatDateTime(layer.timestamp),
+                      'added':
+                          ReportDateFormatter.formatDateTime(layer.timestamp),
                     })
                 .toList(growable: false),
           };
@@ -760,7 +778,11 @@ class PdfReportServiceImpl implements PdfReportService {
       logoBytes: logoBytes,
       supervisor: supervisor,
     );
-    return _savePdfBytes(bytes, 'WAGON_${wagon.wagonNumber}_REGISTER');
+    return _savePdfBytes(
+      bytes,
+      reportName: 'Digital_Register_Report',
+      subject: wagon.wagonNumber,
+    );
   }
 
   @override
@@ -823,7 +845,7 @@ class PdfReportServiceImpl implements PdfReportService {
       logoBytes: logoBytes,
       supervisor: supervisor,
     );
-    return _savePdfBytes(bytes, 'ENTERPRISE_ANALYTICS');
+    return _savePdfBytes(bytes, reportName: 'Operations_Analytics_Report');
   }
 }
 
@@ -1681,8 +1703,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
         headerStyle:
             pw.TextStyle(fontSize: 6.5, fontWeight: pw.FontWeight.bold),
         cellStyle: const pw.TextStyle(fontSize: 6.5),
-        cellPadding:
-            const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 5),
+        cellPadding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 5),
         cellBuilder: _wagonTruckSummaryCellBuilder,
         headers: [
           for (final label in const [
@@ -1834,7 +1855,11 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
                           style: const pw.TextStyle(
                               fontSize: 8, color: PdfColors.grey700)),
                       pw.SizedBox(height: 5),
-                      pw.Text(truck['itemBreakdown'].toString().isEmpty ? 'No cartons recorded.' : truck['itemBreakdown'].toString(), style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                      pw.Text(
+                          truck['itemBreakdown'].toString().isEmpty
+                              ? 'No cartons recorded.'
+                              : truck['itemBreakdown'].toString(),
+                          style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                     ],
                   ),
                 ),

@@ -400,7 +400,7 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
       );
       await ref
           .read(shareServiceProvider)
-          .shareFile(file, subject: 'Truck Loading Report ($type)');
+          .shareFile(file, subject: 'SmartLoad Truck Loading Report ($type)');
     } catch (e) {
       await logGeneratedReport(
         ref,

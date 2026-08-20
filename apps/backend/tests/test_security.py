@@ -33,6 +33,26 @@ def test_access_token_contains_subject_and_role(monkeypatch):
     assert claims["jti"]
 
 
+def test_production_refuses_unsafe_database_and_host_settings(monkeypatch):
+    monkeypatch.setattr(settings, "ENVIRONMENT", "production")
+    monkeypatch.setattr(settings, "SECRET_KEY", "x" * 32)
+    monkeypatch.setattr(settings, "DATABASE_URL", "sqlite+aiosqlite:///./unsafe.sqlite")
+    monkeypatch.setattr(settings, "AUTO_CREATE_SCHEMA", False)
+    monkeypatch.setattr(settings, "ADMIN_CORS_ORIGINS", "https://admin.example.com")
+    monkeypatch.setattr(settings, "TRUSTED_HOSTS", "api.example.com")
+    with pytest.raises(RuntimeError, match="managed PostgreSQL"):
+        settings.validate_runtime_secrets()
+
+    monkeypatch.setattr(
+        settings,
+        "DATABASE_URL",
+        "postgresql+asyncpg://user:password@db.example.com/smartload",
+    )
+    monkeypatch.setattr(settings, "AUTO_CREATE_SCHEMA", True)
+    with pytest.raises(RuntimeError, match="AUTO_CREATE_SCHEMA"):
+        settings.validate_runtime_secrets()
+
+
 def test_user_creation_accepts_only_the_two_supported_roles():
     valid = UserCreate(
         employee_id="EMP-1",

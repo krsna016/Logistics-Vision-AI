@@ -58,7 +58,15 @@ jobs:
           cache: 'pip'
 
       - name: Install Backend Requirements
-        run: pip install -r apps/backend/requirements.txt ruff mypy
+        run: pip install -r apps/backend/requirements-dev.txt
+
+      - name: Check Backend Dependency Advisories
+        run: pip-audit -r apps/backend/requirements.txt
+
+      - name: Verify Database Migration
+        run: |
+          cd apps/backend
+          DATABASE_URL=sqlite+aiosqlite:///./ci_migration.sqlite alembic upgrade head
 
       - name: Execute Lint Audits (Ruff)
         run: |
@@ -85,4 +93,6 @@ jobs:
       - run: npm run lint
         working-directory: apps/admin-web
       - run: npm run build
+        working-directory: apps/admin-web
+      - run: npm audit --omit=dev --audit-level=low
         working-directory: apps/admin-web

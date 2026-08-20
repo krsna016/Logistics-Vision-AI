@@ -120,7 +120,8 @@ class LocalAuthRepository implements AuthRepository {
       final String safeUserId = userId ?? 'guest';
       final String safeUserName = userName ?? 'Unknown';
       import_file_logger.FileLogger.setUserId(safeUserId);
-      import_file_logger.FileLogger.log('AUTH: $action | Success: $isSuccess | User: $safeUserName | Details: $details');
+      import_file_logger.FileLogger.log(
+          'AUTH: $action | Success: $isSuccess | User: $safeUserName | Details: $details');
     } catch (_) {}
     final session = _sessionManager.currentSession.value;
     final uid = userId ?? session?.userId ?? 'guest';
@@ -226,7 +227,7 @@ class LocalAuthRepository implements AuthRepository {
               deviceModel: r.deviceModel,
               osVersion: r.osVersion,
               isActive: r.isActive,
-              lastSync: r.lastSync,
+              lastActiveAt: r.lastActiveAt,
             ))
         .toList();
   }

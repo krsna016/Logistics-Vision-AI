@@ -165,8 +165,8 @@ class AppDrawer extends ConsumerWidget {
             child: const ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(Icons.ios_share_rounded),
-              title: Text('Create & share backup'),
-              subtitle: Text('Database, photos, audit records and exports'),
+              title: Text('Create & share protected backup'),
+              subtitle: Text('Password-protected database, photos and records'),
             ),
           ),
           SimpleDialogOption(
@@ -174,17 +174,8 @@ class AppDrawer extends ConsumerWidget {
             child: const ListTile(
               contentPadding: EdgeInsets.zero,
               leading: Icon(Icons.archive_outlined),
-              title: Text('Import ZIP backup'),
-              subtitle: Text('Choose a SmartLoad ZIP from anywhere'),
-            ),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(dialogContext, 'folder'),
-            child: const ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.folder_open_outlined),
-              title: Text('Import extracted folder'),
-              subtitle: Text('Choose an already extracted backup folder'),
+              title: Text('Import protected backup'),
+              subtitle: Text('Choose a password-protected SmartLoad ZIP'),
             ),
           ),
           SimpleDialogOption(
@@ -207,10 +198,6 @@ class AppDrawer extends ConsumerWidget {
         return;
       case 'zip':
         AppLogger.info('ADMIN ACTION: Selected "Import ZIP backup"');
-        await _selectAuditArchive(context, choice: choice);
-        return;
-      case 'folder':
-        AppLogger.info('ADMIN ACTION: Selected "Import extracted folder"');
         await _selectAuditArchive(context, choice: choice);
         return;
       case 'previous':
@@ -614,17 +601,25 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
-  void _confirmLocalDataArchive(BuildContext context, WidgetRef ref) {
+  Future<void> _confirmLocalDataArchive(
+      BuildContext context, WidgetRef ref) async {
     final database = ref.read(databaseProvider);
     final shareService = ref.read(shareServiceProvider);
+    final password = await _requestBackupPassword(
+      context,
+      title: 'Protect Backup',
+      message: 'Choose a password. It cannot be recovered, so store it safely.',
+      confirmation: true,
+    );
+    if (password == null || !context.mounted) return;
 
     showDialog<void>(
       context: context,
       builder: (ctx) => ActionWarningDialog(
-        title: 'Share Local Audit Archive?',
+        title: 'Share Protected Backup?',
         content:
-            'This creates one ZIP containing all local operational data: the database, audit records, saved images, backups, and locally generated exports. Login tokens and password hashes are excluded. Share it only through an approved secure channel.',
-        actionLabel: 'Create & Share ZIP',
+            'This creates one AES-256 encrypted ZIP containing all local operational data: the database, audit records, saved images, backups, and locally generated exports. Login tokens and password hashes are excluded. The receiving device will need the password to restore it.',
+        actionLabel: 'Create & Share Protected ZIP',
         actionColor: AppTheme.primaryColor,
         icon: Icons.inventory_2_outlined,
         onConfirm: () async {
@@ -652,15 +647,17 @@ class AppDrawer extends ConsumerWidget {
 
           try {
             final archive =
-                await LocalDataArchiveService(database).createArchive();
+                await LocalDataArchiveService(database).createArchive(
+              password: password,
+            );
             if (!context.mounted) return;
             Navigator.of(context, rootNavigator: true).pop();
             Navigator.of(context).pop();
             await shareService.shareFile(
               archive,
-              subject: 'SmartLoad Local Audit Archive',
+              subject: 'SmartLoad Password-Protected Local Backup',
               text:
-                  'Local SmartLoad audit archive. Contains operational data; handle securely.',
+                  'Password-protected SmartLoad local backup. Share the password only through a separate approved channel.',
             );
           } catch (error) {
             if (!context.mounted) return;
@@ -687,7 +684,6 @@ class AppDrawer extends ConsumerWidget {
       listen: false,
     );
     File? zipFile;
-    Directory? extractedFolder;
     showDialog<void>(
       context: rootContext,
       useRootNavigator: true,
@@ -709,17 +705,10 @@ class AppDrawer extends ConsumerWidget {
     // external picker covers the app.
     await Future<void>.delayed(const Duration(milliseconds: 80));
     try {
-      if (choice == 'zip') {
-        final path = await const MethodChannel('com.vinayak.smartload/import')
-            .invokeMethod<String>('pickZip');
-        if (path == null || path.isEmpty) return;
-        zipFile = File(path);
-      } else {
-        final path = await const MethodChannel('com.vinayak.smartload/import')
-            .invokeMethod<String>('pickFolder');
-        if (path == null || path.isEmpty) return;
-        extractedFolder = Directory(path);
-      }
+      final path = await const MethodChannel('com.vinayak.smartload/import')
+          .invokeMethod<String>('pickZip');
+      if (path == null || path.isEmpty) return;
+      zipFile = File(path);
     } on PlatformException catch (error) {
       if (rootContext.mounted) {
         ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
@@ -754,7 +743,19 @@ class AppDrawer extends ConsumerWidget {
       ),
     );
     if (!confirmed || !rootContext.mounted) {
-      await _deletePickerCopy(zipFile, extractedFolder);
+      await _deletePickerCopy(zipFile, null);
+      return;
+    }
+
+    final password = await _requestBackupPassword(
+      rootContext,
+      title: 'Backup Password',
+      message:
+          'Enter the password for a protected backup. Leave it blank only for an older unprotected SmartLoad ZIP.',
+      allowEmpty: true,
+    );
+    if (password == null || !rootContext.mounted) {
+      await _deletePickerCopy(zipFile, null);
       return;
     }
 
@@ -763,7 +764,7 @@ class AppDrawer extends ConsumerWidget {
     if (context.mounted) Navigator.of(context).pop();
     await Future<void>.delayed(const Duration(milliseconds: 120));
     if (!rootContext.mounted) {
-      await _deletePickerCopy(zipFile, extractedFolder);
+      await _deletePickerCopy(zipFile, null);
       return;
     }
     showDialog<void>(
@@ -787,9 +788,7 @@ class AppDrawer extends ConsumerWidget {
     final database = providerContainer.read(databaseProvider);
     try {
       final service = LocalDataArchiveService(database);
-      final summary = zipFile != null
-          ? await service.importArchive(zipFile)
-          : await service.importFolder(extractedFolder!);
+      final summary = await service.importArchive(zipFile, password: password);
       providerContainer.invalidate(wagonListProvider);
       providerContainer.invalidate(truckListProvider);
       providerContainer.invalidate(layerListProvider);
@@ -813,7 +812,109 @@ class AppDrawer extends ConsumerWidget {
         duration: const Duration(seconds: 12),
       ));
     } finally {
-      await _deletePickerCopy(zipFile, extractedFolder);
+      await _deletePickerCopy(zipFile, null);
+    }
+  }
+
+  Future<String?> _requestBackupPassword(
+    BuildContext context, {
+    required String title,
+    required String message,
+    bool confirmation = false,
+    bool allowEmpty = false,
+  }) async {
+    final passwordController = TextEditingController();
+    final confirmationController = TextEditingController();
+    var obscure = true;
+    var errorMessage = '';
+    try {
+      return await showDialog<String>(
+        context: context,
+        useRootNavigator: true,
+        builder: (dialogContext) => StatefulBuilder(
+          builder: (context, setState) => AlertDialog(
+            title: Text(title),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(message),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: passwordController,
+                    obscureText: obscure,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    autofillHints: confirmation
+                        ? const [AutofillHints.newPassword]
+                        : const [AutofillHints.password],
+                    decoration: InputDecoration(
+                      labelText: 'Backup password',
+                      suffixIcon: IconButton(
+                        tooltip: obscure ? 'Show password' : 'Hide password',
+                        onPressed: () => setState(() => obscure = !obscure),
+                        icon: Icon(
+                          obscure
+                              ? Icons.visibility_outlined
+                              : Icons.visibility_off_outlined,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (confirmation) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: confirmationController,
+                      obscureText: obscure,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      decoration: const InputDecoration(
+                        labelText: 'Confirm backup password',
+                      ),
+                    ),
+                  ],
+                  if (errorMessage.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(errorMessage,
+                        style: const TextStyle(color: AppTheme.errorColor)),
+                  ],
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () {
+                  final password = passwordController.text;
+                  if (password.isEmpty && !allowEmpty) {
+                    setState(() {
+                      errorMessage = 'Enter a backup password.';
+                    });
+                    return;
+                  }
+                  if (confirmation && password != confirmationController.text) {
+                    setState(() {
+                      errorMessage = 'The two passwords do not match.';
+                    });
+                    return;
+                  }
+                  Navigator.of(dialogContext).pop(password);
+                },
+                child: Text(confirmation ? 'Protect Backup' : 'Continue'),
+              ),
+            ],
+          ),
+        ),
+      );
+    } finally {
+      passwordController.clear();
+      confirmationController.clear();
+      passwordController.dispose();
+      confirmationController.dispose();
     }
   }
 

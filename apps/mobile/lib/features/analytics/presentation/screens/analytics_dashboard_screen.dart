@@ -250,16 +250,14 @@ class AnalyticsDashboardScreen extends ConsumerWidget {
       if (type == 'PDF') {
         final file =
             await ref.read(pdfReportServiceProvider).generateAnalyticsReport();
-        await ref
-            .read(shareServiceProvider)
-            .shareFile(file, subject: 'Analytics PDF Report');
+        await ref.read(shareServiceProvider).shareFile(file,
+            subject: 'SmartLoad Operations Analytics Report (PDF)');
       } else {
         final file = await ref
             .read(excelReportServiceProvider)
             .generateAnalyticsReport();
-        await ref
-            .read(shareServiceProvider)
-            .shareFile(file, subject: 'Analytics Excel Report');
+        await ref.read(shareServiceProvider).shareFile(file,
+            subject: 'SmartLoad Operations Analytics Report (Excel)');
       }
     } catch (e) {
       if (context.mounted) {

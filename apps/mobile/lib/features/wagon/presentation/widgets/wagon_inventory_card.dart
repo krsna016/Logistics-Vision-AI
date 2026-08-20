@@ -214,7 +214,6 @@ class _InventoryItemRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.035),
         borderRadius: BorderRadius.circular(13),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.055)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

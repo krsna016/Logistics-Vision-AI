@@ -85,7 +85,7 @@ class DeviceManagementScreen extends ConsumerWidget {
                       color: AppTheme.textSecondary, fontSize: 12)),
               const SizedBox(height: 2),
               Text(
-                  'Last Sync: ${device.lastSync.toLocal().toString().split('.')[0]}',
+                  'Last active: ${device.lastActiveAt.toLocal().toString().split('.')[0]}',
                   style: const TextStyle(color: Colors.white54, fontSize: 11)),
             ],
           ),

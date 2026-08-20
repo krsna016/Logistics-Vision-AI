@@ -49,7 +49,12 @@ final authServiceProvider = Provider((ref) {
 final dioProvider = Provider((ref) {
   // Uses environment configuration to fetch the correct base URL
   // Development: Local IP | Production: Cloud URL (e.g., Render)
-  final dio = Dio(BaseOptions(baseUrl: Environment.current.apiBaseUrl));
+  final dio = Dio(BaseOptions(
+    baseUrl: Environment.current.apiBaseUrl,
+    connectTimeout: const Duration(seconds: 12),
+    receiveTimeout: const Duration(seconds: 20),
+    sendTimeout: const Duration(seconds: 20),
+  ));
   final storage = ref.watch(secureStorageProvider);
   dio.interceptors.add(InterceptorsWrapper(
     onRequest: (options, handler) async {
@@ -84,61 +89,57 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final authProvider = StateNotifierProvider<AuthNotifier, User?>((ref) {
   return AuthNotifier(
     ref.watch(authRepositoryProvider),
-    ref.watch(offlineAuthProvider),
     ref.watch(secureStorageProvider),
   );
 });
 
 class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   final AuthRepository _repository;
-  final OfflineAuthenticationImpl _offlineAuth;
   final FlutterSecureStorage _storage;
+  // The cached profile makes the user experience persistent. The server is
+  // consulted only to validate account status, never to sync operational data.
   static const _cachedUserKey = 'cached_authenticated_user';
 
-  static const _offlineAccessPrefix = 'offline_access_valid_until_';
-  static const _offlineAccessWindow = Duration(hours: 24);
-
-  AuthNotifier(this._repository, this._offlineAuth, this._storage)
-      : super(null) {
+  AuthNotifier(this._repository, this._storage) : super(null) {
     WidgetsBinding.instance.addObserver(this);
     _init();
   }
 
   Future<void> _init() async {
-    final cachedUser = await _restoreCachedUser();
-    // Local operations must not trigger background network validation. A
-    // cached account is restored immediately; the server is contacted only by
-    // an explicit sign-in attempt.
-    if (cachedUser != null && cachedUser.isActive && state == null) {
+    final cachedUser = await _restoreTrustedUser();
+    if (cachedUser != null && state == null) {
       state = cachedUser;
+      unawaited(_validateCachedAccount(cachedUser));
     }
   }
 
-  Future<void> _cacheUser(User user) async {
-    await _storage.write(
-      key: _cachedUserKey,
-      value: jsonEncode({
-        'id': user.id,
-        'employeeId': user.employeeId,
-        'name': user.name,
-        'role': user.role.name,
-        'warehouse': user.warehouse,
-        'isActive': user.isActive,
-      }),
-    );
-  }
+  Future<void> _cacheTrustedUser(User user) => _storage.write(
+        key: _cachedUserKey,
+        value: jsonEncode({
+          'id': user.id,
+          'employeeId': user.employeeId,
+          'name': user.name,
+          'role': user.role.name,
+          'warehouse': user.warehouse,
+          'isActive': user.isActive,
+        }),
+      );
 
-  Future<User?> _restoreCachedUser() async {
+  Future<User?> _restoreTrustedUser() async {
     try {
       final encoded = await _storage.read(key: _cachedUserKey);
       if (encoded == null || encoded.isEmpty) return null;
       final data = jsonDecode(encoded) as Map<String, dynamic>;
-      final roleName = data['role'] as String?;
+      final employeeId = data['employeeId'] as String?;
+      if (employeeId == null || employeeId.trim().isEmpty) {
+        await _storage.delete(key: _cachedUserKey);
+        return null;
+      }
       return User(
-        id: data['id'] as String? ?? '',
-        employeeId: data['employeeId'] as String? ?? '',
-        name: data['name'] as String? ?? '',
-        role: parseRole(roleName),
+        id: data['id'] as String? ?? employeeId,
+        employeeId: employeeId,
+        name: data['name'] as String? ?? employeeId,
+        role: parseRole(data['role'] as String?),
         warehouse: data['warehouse'] as String?,
         isActive: data['isActive'] as bool? ?? true,
       );
@@ -146,11 +147,6 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
       await _storage.delete(key: _cachedUserKey);
       return null;
     }
-  }
-
-  bool get _sessionWasRevoked {
-    return _repository is RemoteAuthRepository &&
-        (_repository).sessionWasRevoked;
   }
 
   String get loginErrorMessage {
@@ -161,35 +157,17 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
     return 'Sign-in failed.';
   }
 
-  Future<bool> login(String employeeId, String password,
-      {bool offline = false}) async {
+  Future<bool> login(String employeeId, String password) async {
     try {
       final normalizedEmployeeId = employeeId.trim().toUpperCase();
-      User? user;
-      var authenticatedOnline = false;
-      if (offline) {
-        user = await _authenticateOffline(normalizedEmployeeId, password);
-      } else {
-        user = await _repository.login(
-          normalizedEmployeeId,
-          password,
-          offline: false,
-        );
-        authenticatedOnline = user != null;
-        if (user == null &&
-            _repository is RemoteAuthRepository &&
-            (_repository).lastLoginFailedForConnectivity) {
-          user = await _authenticateOffline(normalizedEmployeeId, password);
-        }
-      }
+      final user = await _repository.login(
+        normalizedEmployeeId,
+        password,
+        offline: false,
+      );
       if (user != null) {
-        await _cacheUser(user);
+        await _cacheTrustedUser(user);
         state = user;
-        if (authenticatedOnline) {
-          // Offline access is useful but it should not keep a successfully
-          // authenticated operator on the login screen.
-          unawaited(_provisionOfflineAccess(user, password));
-        }
         return true;
       }
       state = null;
@@ -200,29 +178,20 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _provisionOfflineAccess(User user, String password) async {
-    try {
-      await _offlineAuth.registerUser(user, password);
-      await _storage.write(
-        key: '$_offlineAccessPrefix${user.employeeId.toUpperCase()}',
-        value:
-            DateTime.now().add(_offlineAccessWindow).toUtc().toIso8601String(),
-      );
-    } catch (error, stack) {
-      AppLogger.error(
-        'Could not prepare bounded offline access after login',
-        error,
-        stack,
-      );
+  Future<void> _validateCachedAccount(User cachedUser) async {
+    if (_repository is! RemoteAuthRepository) return;
+    final remoteRepository = _repository;
+    final validatedUser = await remoteRepository.getCurrentUser();
+    if (validatedUser != null) {
+      await _cacheTrustedUser(validatedUser);
+      if (state?.employeeId == cachedUser.employeeId) state = validatedUser;
+      return;
     }
-  }
-
-  Future<User?> _authenticateOffline(String employeeId, String password) async {
-    final expiryValue =
-        await _storage.read(key: '$_offlineAccessPrefix$employeeId');
-    final expiry = DateTime.tryParse(expiryValue ?? '');
-    if (expiry == null || !expiry.isAfter(DateTime.now().toUtc())) return null;
-    return _offlineAuth.authenticate(employeeId, password);
+    if (remoteRepository.sessionWasRevoked &&
+        state?.employeeId == cachedUser.employeeId) {
+      await _storage.delete(key: _cachedUserKey);
+      state = null;
+    }
   }
 
   /// Starts a non-persistent local session for device demonstrations. It never
@@ -242,7 +211,8 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   // ignore: avoid_renaming_method_parameters
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
     if (lifecycleState == AppLifecycleState.resumed) {
-      // Local-first sessions do not perform focus-triggered network checks.
+      final currentUser = state;
+      if (currentUser != null) unawaited(_validateCachedAccount(currentUser));
     } else if (lifecycleState == AppLifecycleState.inactive ||
         lifecycleState == AppLifecycleState.hidden ||
         lifecycleState == AppLifecycleState.paused ||

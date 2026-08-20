@@ -1,4 +1,5 @@
 import 'report_date_formatter.dart';
+import 'report_file_name.dart';
 import 'dart:io';
 import 'dart:convert';
 import 'package:path_provider/path_provider.dart';
@@ -21,7 +22,8 @@ class ExcelReportServiceImpl implements ExcelReportService {
     final splitIdx = notes.indexOf('[SPLIT_DATA]:');
     if (splitIdx < 0) return notes.trim();
     var cleaned = notes.substring(0, splitIdx).trim();
-    if (cleaned.endsWith('|')) cleaned = cleaned.substring(0, cleaned.length - 1).trim();
+    if (cleaned.endsWith('|'))
+      cleaned = cleaned.substring(0, cleaned.length - 1).trim();
     return cleaned.isEmpty ? 'No notes' : cleaned;
   }
 
@@ -57,10 +59,17 @@ class ExcelReportServiceImpl implements ExcelReportService {
   String _correctionPart(String? details, String key) =>
       parseLayerCorrectionDetails(details)[key] ?? 'Not provided';
 
-  Future<File> _saveExcel(Excel excel, String prefix) async {
+  Future<File> _saveExcel(
+    Excel excel, {
+    required String reportName,
+    String? subject,
+  }) async {
     final dir = await getApplicationDocumentsDirectory();
-    final timestamp = DateTime.now().millisecondsSinceEpoch;
-    final file = File('${dir.path}/${prefix}_$timestamp.xlsx');
+    final file = File('${dir.path}/${buildReportFileName(
+      reportName: reportName,
+      subject: subject,
+      extension: 'xlsx',
+    )}');
     final bytes = excel.encode();
     if (bytes != null) {
       await file.writeAsBytes(bytes);
@@ -167,9 +176,10 @@ class ExcelReportServiceImpl implements ExcelReportService {
               CellIndex.indexByColumnRow(columnIndex: 4, rowIndex: currentRow))
           .value = TextCellValue(_cleanNotes(layer.notes));
       sheet
-          .cell(
-              CellIndex.indexByColumnRow(columnIndex: 5, rowIndex: currentRow))
-          .value = TextCellValue(ReportDateFormatter.formatDateTime(layer.timestamp));
+              .cell(CellIndex.indexByColumnRow(
+                  columnIndex: 5, rowIndex: currentRow))
+              .value =
+          TextCellValue(ReportDateFormatter.formatDateTime(layer.timestamp));
       sheet
           .cell(
               CellIndex.indexByColumnRow(columnIndex: 6, rowIndex: currentRow))
@@ -248,7 +258,11 @@ class ExcelReportServiceImpl implements ExcelReportService {
       }
     }
 
-    return _saveExcel(excel, 'TRUCK_${truck.vehicleNumber}');
+    return _saveExcel(
+      excel,
+      reportName: 'Truck_Loading_Report',
+      subject: truck.vehicleNumber,
+    );
   }
 
   @override
@@ -350,18 +364,24 @@ class ExcelReportServiceImpl implements ExcelReportService {
       final breakdownMap = <String, int>{};
       for (final layer in truckLayers) {
         for (final allocation in _layerAllocations(layer).entries) {
-          breakdownMap[allocation.key] = (breakdownMap[allocation.key] ?? 0) + allocation.value;
+          breakdownMap[allocation.key] =
+              (breakdownMap[allocation.key] ?? 0) + allocation.value;
         }
       }
-      final itemBreakdown = breakdownMap.entries.map((e) => '${e.key}: ${e.value}').join(', ');
-      
+      final itemBreakdown =
+          breakdownMap.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+
       final values = [
         truck.vehicleNumber,
         truck.driverName,
         truck.driverMobile ?? 'N/A',
         truckLayers.length.toString(),
-        truckLayers.fold<int>(0, (sum, layer) => sum + layer.cartonCount).toString(),
-        truckLayers.fold<int>(0, (sum, layer) => sum + layer.defectCount).toString(),
+        truckLayers
+            .fold<int>(0, (sum, layer) => sum + layer.cartonCount)
+            .toString(),
+        truckLayers
+            .fold<int>(0, (sum, layer) => sum + layer.defectCount)
+            .toString(),
         itemBreakdown,
         truck.status,
       ];
@@ -462,7 +482,11 @@ class ExcelReportServiceImpl implements ExcelReportService {
         }
       }
     }
-    return _saveExcel(excel, 'WAGON_${wagon.wagonNumber}');
+    return _saveExcel(
+      excel,
+      reportName: 'Wagon_Loading_Report',
+      subject: wagon.wagonNumber,
+    );
   }
 
   @override
@@ -571,18 +595,23 @@ class ExcelReportServiceImpl implements ExcelReportService {
     ]);
     for (var row = 0; row < trucks.length; row++) {
       final truck = trucks[row];
-      final truckLayers = layers.where((layer) => layer.truckId == truck.id).toList();
-      final totalTruckCartons = truckLayers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
-      final totalTruckDefects = truckLayers.fold<int>(0, (sum, layer) => sum + layer.defectCount);
-      
+      final truckLayers =
+          layers.where((layer) => layer.truckId == truck.id).toList();
+      final totalTruckCartons =
+          truckLayers.fold<int>(0, (sum, layer) => sum + layer.cartonCount);
+      final totalTruckDefects =
+          truckLayers.fold<int>(0, (sum, layer) => sum + layer.defectCount);
+
       final breakdownMap = <String, int>{};
       for (final layer in truckLayers) {
         for (final allocation in _layerAllocations(layer).entries) {
-          breakdownMap[allocation.key] = (breakdownMap[allocation.key] ?? 0) + allocation.value;
+          breakdownMap[allocation.key] =
+              (breakdownMap[allocation.key] ?? 0) + allocation.value;
         }
       }
-      final itemBreakdown = breakdownMap.entries.map((e) => '${e.key}: ${e.value}').join(', ');
-      
+      final itemBreakdown =
+          breakdownMap.entries.map((e) => '${e.key}: ${e.value}').join(', ');
+
       writeRow(truckSheet, row + 1, [
         TextCellValue(truck.vehicleNumber),
         TextCellValue(truck.driverName),
@@ -743,7 +772,11 @@ class ExcelReportServiceImpl implements ExcelReportService {
               CellIndex.indexByColumnRow(columnIndex: 3, rowIndex: currentRow))
           .value = TextCellValue(_supervisorLabel);
     }
-    return _saveExcel(excel, 'WAGON_${wagon.wagonNumber}_REGISTER');
+    return _saveExcel(
+      excel,
+      reportName: 'Digital_Register_Report',
+      subject: wagon.wagonNumber,
+    );
   }
 
   @override
@@ -794,8 +827,8 @@ class ExcelReportServiceImpl implements ExcelReportService {
     titleCell.value = TextCellValue('Enterprise Analytics & Operations');
     titleCell.cellStyle = titleStyle;
 
-    sheet.cell(CellIndex.indexByString("A2")).value =
-        TextCellValue('Generated: ${ReportDateFormatter.formatDateTime(DateTime.now())}');
+    sheet.cell(CellIndex.indexByString("A2")).value = TextCellValue(
+        'Generated: ${ReportDateFormatter.formatDateTime(DateTime.now())}');
 
     // KPI Summary
     sheet.cell(CellIndex.indexByString("A4")).value =
@@ -886,10 +919,11 @@ class ExcelReportServiceImpl implements ExcelReportService {
               .cell(CellIndex.indexByColumnRow(
                   columnIndex: 6, rowIndex: currentRow))
               .value =
-          TextCellValue(ReportDateFormatter.formatDateTime(truck.completedDate));
+          TextCellValue(
+              ReportDateFormatter.formatDateTime(truck.completedDate));
       currentRow++;
     }
 
-    return _saveExcel(excel, 'ENTERPRISE_ANALYTICS');
+    return _saveExcel(excel, reportName: 'Operations_Analytics_Report');
   }
 }

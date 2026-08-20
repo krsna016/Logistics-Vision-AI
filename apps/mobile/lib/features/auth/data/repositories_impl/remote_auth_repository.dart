@@ -85,6 +85,21 @@ class RemoteAuthRepository implements AuthRepository {
     }
   }
 
+  Future<User?> _fetchProfileForLogin(String employeeId) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/users/${Uri.encodeComponent(employeeId)}',
+      );
+      return _userFromResponse(response.data);
+    } on DioException {
+      // Some legacy sign-in servers expose only the token endpoint. The
+      // signed-token fallback below keeps login compatible with those servers.
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<bool> hasValidToken() async {
     final token = await _storage.read(key: StorageService.keyJwtToken);
     return token != null && token.isNotEmpty && _isTokenUsable(token);
@@ -122,10 +137,12 @@ class RemoteAuthRepository implements AuthRepository {
         await _storage.write(key: StorageService.keyJwtToken, value: token);
         _activeEmployeeId = employeeId;
         _locked = false;
-        // Newer servers include a profile. Older compatible servers return
-        // only the token, whose signed claims establish the local profile.
-        final responseUser =
-            _userFromResponse(responseData['user']) ?? _userFromToken(token);
+        // Newer servers include a profile. When an older server returns only
+        // a token, fetch the profile as part of this explicit sign-in flow—
+        // never as background synchronization.
+        final responseUser = _userFromResponse(responseData['user']) ??
+            await _fetchProfileForLogin(employeeId) ??
+            _userFromToken(token);
         if (responseUser == null) {
           _lastLoginErrorMessage ??=
               'The sign-in server did not return an account profile.';
@@ -239,7 +256,7 @@ class RemoteAuthRepository implements AuthRepository {
         404 => 'The signed-in employee profile no longer exists.',
         _ => _responseDetail(error.response),
       };
-      if (status == 401 || status == 403) {
+      if (status == 401 || status == 403 || status == 404) {
         _sessionWasRevoked = true;
         await _storage.delete(key: StorageService.keyJwtToken);
         _cachedUser = null;

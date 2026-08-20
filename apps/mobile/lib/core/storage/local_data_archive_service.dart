@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
+import 'dart:math';
 
 import 'package:archive/archive_io.dart';
+import 'package:crypto/crypto.dart' show sha256;
+import 'package:cryptography/cryptography.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -23,17 +26,32 @@ class LocalDataArchiveService {
 
   final AppDatabase _database;
   final Future<Directory> Function() _documentsDirectory;
+  static const _kdfIterations = 600000;
 
-  Future<File> createArchive() async {
+  static void validateBackupPassword(String password) {
+    if (password.isEmpty) {
+      throw ArgumentError.value(
+        password,
+        'password',
+        'Enter a backup password.',
+      );
+    }
+  }
+
+  Future<File> createArchive({required String password}) async {
+    validateBackupPassword(password);
     final documents = await _documentsDirectory();
-    final timestamp = DateTime.now()
-        .toUtc()
-        .toIso8601String()
-        .replaceAll(':', '-')
-        .replaceAll('.', '-');
+    final now = DateTime.now().toUtc();
+    final timestamp = '${now.year.toString().padLeft(4, '0')}-'
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.day.toString().padLeft(2, '0')}_'
+        '${now.hour.toString().padLeft(2, '0')}-'
+        '${now.minute.toString().padLeft(2, '0')}-'
+        '${now.second.toString().padLeft(2, '0')}_UTC';
     final archiveFile = File(
-      p.join(documents.path, 'SmartLoad_local_audit_$timestamp.zip'),
+      p.join(documents.path, 'SmartLoad_Local_Backup_$timestamp.zip'),
     );
+    final unencryptedArchive = File('${archiveFile.path}.temporary');
 
     final databaseFile =
         File(p.join(documents.path, 'smartload_offline.sqlite'));
@@ -74,8 +92,10 @@ class LocalDataArchiveService {
         }
         // Never recursively include earlier full-data archives. It wastes
         // storage and makes every new share progressively slower.
-        if (p.basename(entity.path).startsWith('SmartLoad_local_audit_') &&
-            entity.path.endsWith('.zip')) {
+        final name = p.basename(entity.path);
+        if ((name.startsWith('SmartLoad_local_audit_') ||
+                name.startsWith('SmartLoad_Local_Backup_')) &&
+            name.endsWith('.zip')) {
           continue;
         }
         final relativePath = p.relative(entity.path, from: documents.path);
@@ -87,23 +107,38 @@ class LocalDataArchiveService {
 
       // Compression and file reads are CPU intensive. Isolate.run keeps the
       // Flutter UI responsive, including the progress animation.
+      final filesWithIntegrity = <Map<String, String>>[];
+      for (final file in files) {
+        final source = File(file['source']!);
+        filesWithIntegrity.add({
+          ...file,
+          'sha256': await _sha256File(source),
+        });
+      }
+
       await Isolate.run(
         () => _writeArchive(
-          archivePath: archiveFile.path,
-          files: files,
+          archivePath: unencryptedArchive.path,
+          files: filesWithIntegrity,
         ),
       );
+      await _encryptArchive(unencryptedArchive, archiveFile, password);
       return archiveFile;
     } catch (_) {
       if (await archiveFile.exists()) await archiveFile.delete();
       rethrow;
+    } finally {
+      if (await unencryptedArchive.exists()) await unencryptedArchive.delete();
     }
   }
 
   /// Imports operational records and document files from a SmartLoad archive.
   /// Authentication accounts, secure credentials and app settings remain on
   /// this device. The current database is backed up before any changes.
-  Future<ArchiveImportSummary> importArchive(File archiveFile) async {
+  Future<ArchiveImportSummary> importArchive(
+    File archiveFile, {
+    String password = '',
+  }) async {
     if (!await archiveFile.exists()) {
       throw StateError('The selected archive file was not found.');
     }
@@ -117,7 +152,11 @@ class LocalDataArchiveService {
       'smartload_import_${DateTime.now().microsecondsSinceEpoch}',
     )).create(recursive: true);
     try {
-      final extracted = await _extractAndValidate(archiveFile, tempDir);
+      final extracted = await _extractProtectedOrLegacyArchive(
+        archiveFile,
+        tempDir,
+        password,
+      );
       // Await before entering finally. Returning the Future directly deletes
       // tempDir while SQLite is still trying to stage the extracted database.
       return await _importExtractedDirectory(extracted, documents);
@@ -130,13 +169,120 @@ class LocalDataArchiveService {
   /// contain MANIFEST.json, database/smartload_offline.sqlite and optionally
   /// a documents/ directory.
   Future<ArchiveImportSummary> importFolder(Directory folder) async {
-    if (!await folder.exists()) {
-      throw StateError('The selected archive folder was not found.');
+    throw UnsupportedError(
+      'Extracted-folder import is disabled because protected backups must stay encrypted. Select the SmartLoad ZIP backup instead.',
+    );
+  }
+
+  Future<void> _encryptArchive(
+    File unencryptedArchive,
+    File encryptedArchive,
+    String password,
+  ) async {
+    final random = Random.secure();
+    final salt = List<int>.generate(16, (_) => random.nextInt(256));
+    final nonce = List<int>.generate(12, (_) => random.nextInt(256));
+    final key = await _deriveKey(password, salt);
+    final box = await AesGcm.with256bits().encrypt(
+      await unencryptedArchive.readAsBytes(),
+      secretKey: key,
+      nonce: nonce,
+    );
+    final payload = <int>[...box.cipherText, ...box.mac.bytes];
+    final encoder = ZipFileEncoder();
+    encoder.create(encryptedArchive.path);
+    try {
+      encoder.addArchiveFile(ArchiveFile.string(
+        'BACKUP_INFO.json',
+        jsonEncode({
+          'format': 'SmartLoad encrypted local backup',
+          'formatVersion': 1,
+          'encryption': 'AES-256-GCM',
+          'kdf': 'PBKDF2-HMAC-SHA256',
+          'iterations': _kdfIterations,
+          'salt': base64Encode(salt),
+          'nonce': base64Encode(nonce),
+          'payload': 'backup_payload.bin',
+        }),
+      ));
+      encoder.addArchiveFile(
+        ArchiveFile('backup_payload.bin', payload.length, payload),
+      );
+      await encoder.close();
+    } catch (_) {
+      await encoder.close();
+      rethrow;
     }
-    final documents = await _documentsDirectory();
-    final root = await _findArchiveRoot(folder);
-    final extracted = await _validateExtractedDirectory(root);
-    return _importExtractedDirectory(extracted, documents);
+  }
+
+  Future<Directory> _extractProtectedOrLegacyArchive(
+    File archiveFile,
+    Directory tempDir,
+    String password,
+  ) async {
+    final outer = await Directory(p.join(tempDir.path, 'protected'))
+        .create(recursive: true);
+    await Isolate.run(
+      () => _extractArchiveSync(archiveFile.path, outer.path),
+    );
+    final infoFile = File(p.join(outer.path, 'BACKUP_INFO.json'));
+    final payloadFile = File(p.join(outer.path, 'backup_payload.bin'));
+    if (!await infoFile.exists() && !await payloadFile.exists()) {
+      // Backups created before password protection are still accepted. Their
+      // own integrity manifest remains mandatory.
+      final legacyRoot = await _findArchiveRoot(outer);
+      return _validateExtractedDirectory(legacyRoot);
+    }
+    if (!await infoFile.exists() || !await payloadFile.exists()) {
+      throw StateError('This protected backup is incomplete.');
+    }
+    final info = jsonDecode(await infoFile.readAsString());
+    if (info is! Map ||
+        info['format'] != 'SmartLoad encrypted local backup' ||
+        info['formatVersion'] != 1 ||
+        info['encryption'] != 'AES-256-GCM' ||
+        info['kdf'] != 'PBKDF2-HMAC-SHA256' ||
+        info['iterations'] != _kdfIterations ||
+        info['salt'] is! String ||
+        info['nonce'] is! String ||
+        info['payload'] != 'backup_payload.bin') {
+      throw StateError('This protected backup uses an unsupported format.');
+    }
+    try {
+      final salt = base64Decode(info['salt'] as String);
+      final nonce = base64Decode(info['nonce'] as String);
+      final payload = await payloadFile.readAsBytes();
+      if (salt.length != 16 || nonce.length != 12 || payload.length <= 16) {
+        throw const FormatException();
+      }
+      final key = await _deriveKey(password, salt);
+      final clearBytes = await AesGcm.with256bits().decrypt(
+        SecretBox(
+          payload.sublist(0, payload.length - 16),
+          nonce: nonce,
+          mac: Mac(payload.sublist(payload.length - 16)),
+        ),
+        secretKey: key,
+      );
+      final decrypted = File(p.join(tempDir.path, 'decrypted_backup.zip'));
+      await decrypted.writeAsBytes(clearBytes, flush: true);
+      return await _extractAndValidate(decrypted, tempDir);
+    } on SecretBoxAuthenticationError {
+      throw StateError('Incorrect backup password or a damaged backup file.');
+    } on FormatException {
+      throw StateError('This protected backup is damaged.');
+    }
+  }
+
+  Future<SecretKey> _deriveKey(String password, List<int> salt) {
+    return Pbkdf2(
+      macAlgorithm: Hmac.sha256(),
+      iterations: _kdfIterations,
+      bits: 256,
+    ).deriveKey(
+      secretKey: SecretKey(utf8.encode(password)),
+      nonce: salt,
+    );
   }
 
   /// Returns the automatic safety snapshots created immediately before an
@@ -587,9 +733,36 @@ class LocalDataArchiveService {
           'Select the extracted archive’s root folder containing MANIFEST.json and database/.');
     }
     final manifest = jsonDecode(await manifestFile.readAsString());
-    if (manifest is! Map ||
-        manifest['format'] != 'SmartLoad local audit archive') {
-      throw StateError('The selected folder is not a SmartLoad audit archive.');
+    if (manifest is! Map) {
+      throw StateError('The selected folder is not a SmartLoad backup.');
+    }
+    final isProtectedFormat =
+        manifest['format'] == 'SmartLoad protected local backup' &&
+            manifest['formatVersion'] == 3;
+    final isLegacyFormat =
+        manifest['format'] == 'SmartLoad local audit archive' &&
+            manifest['formatVersion'] == 2;
+    if ((!isProtectedFormat && !isLegacyFormat) || manifest['files'] is! List) {
+      throw StateError(
+          'This archive is from an unsupported format. Create a new protected backup from the source device.');
+    }
+    for (final entry in manifest['files'] as List) {
+      if (entry is! Map ||
+          entry['path'] is! String ||
+          entry['sha256'] is! String) {
+        throw StateError('The archive integrity manifest is invalid.');
+      }
+      final relativePath = entry['path'] as String;
+      if (relativePath.startsWith('/') ||
+          p.posix.split(relativePath).any((segment) => segment == '..')) {
+        throw StateError(
+            'The archive integrity manifest contains an unsafe path.');
+      }
+      final file =
+          File(p.joinAll([folder.path, ...p.posix.split(relativePath)]));
+      if (!await file.exists() || await _sha256File(file) != entry['sha256']) {
+        throw StateError('The archive integrity check failed.');
+      }
     }
     return folder;
   }
@@ -663,22 +836,27 @@ Future<void> _writeArchive({
       final source = File(file['source']!);
       final destination = file['archivePath']!.replaceAll(p.separator, '/');
       await encoder.addFile(source, destination);
-      inventory.add({'path': destination, 'sizeBytes': await source.length()});
+      inventory.add({
+        'path': destination,
+        'sizeBytes': await source.length(),
+        'sha256': file['sha256']!,
+      });
     }
     encoder.addArchiveFile(ArchiveFile.string(
       'MANIFEST.json',
       jsonEncode({
-        'format': 'SmartLoad local audit archive',
+        'format': 'SmartLoad protected local backup',
+        'formatVersion': 3,
         'createdAtUtc': DateTime.now().toUtc().toIso8601String(),
         'database': 'database/smartload_offline.sqlite',
         'includes': [
-          'SQLite operational data, audit logs, and sync queue',
+          'SQLite operational data and audit logs',
           'saved images, backups, and locally generated reports/exports',
         ],
         'excludes': [
           'platform-secure login tokens and cached password hashes',
           'temporary processing/cache files',
-          'previous full-data audit ZIP archives',
+          'previous full-data backup ZIP archives',
         ],
         'files': inventory,
       }),
@@ -689,3 +867,6 @@ Future<void> _writeArchive({
     rethrow;
   }
 }
+
+Future<String> _sha256File(File file) async =>
+    (await sha256.bind(file.openRead()).first).toString();

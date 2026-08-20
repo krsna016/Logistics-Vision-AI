@@ -83,54 +83,52 @@ class RegisterDetailsScreen extends ConsumerWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header Section
-            RegisterHeader(register: register),
-            const SizedBox(height: 16),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Section
+              RegisterHeader(register: register),
+              const SizedBox(height: 16),
 
+              // Summary Section
+              SummarySection(register: register),
+              const SizedBox(height: 16),
 
+              RegisterReconciliationCard(register: register),
+              const SizedBox(height: 16),
 
-            // Summary Section
-            SummarySection(register: register),
-            const SizedBox(height: 16),
+              // Truck Table
+              TruckTable(
+                trucks: register.trucks,
+                layersByTruck: register.layersByTruck,
+                onTruckTap: (truck) async {
+                  await context.push(
+                    '/trucks/${truck.id}',
+                    extra: <String, dynamic>{
+                      'truck': truck,
+                      'isRegisterView': true,
+                      'allowArchivedEditing': canModify,
+                    },
+                  );
+                  if (context.mounted) {
+                    await ref.read(registerListProvider.notifier).refresh();
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
 
-            RegisterReconciliationCard(register: register),
-            const SizedBox(height: 16),
-
-            // Truck Table
-            TruckTable(
-              trucks: register.trucks,
-              layersByTruck: register.layersByTruck,
-              onTruckTap: (truck) async {
-                await context.push(
-                  '/trucks/${truck.id}',
-                  extra: <String, dynamic>{
-                    'truck': truck,
-                    'isRegisterView': true,
-                    'allowArchivedEditing': canModify,
-                  },
-                );
-                if (context.mounted) {
-                  await ref.read(registerListProvider.notifier).refresh();
-                }
-              },
-            ),
-            const SizedBox(height: 16),
-
-            // Remarks Section
-            RemarkCard(
-              remarks: register.remarks,
-              onEdit: canModify
-                  ? () => _showEditRemarksDialog(
-                      context, register.id, register.remarks, notifier)
-                  : null,
-            ),
-            const SizedBox(height: 16),
-            const SizedBox(height: 40),
-          ],
+              // Remarks Section
+              RemarkCard(
+                remarks: register.remarks,
+                onEdit: canModify
+                    ? () => _showEditRemarksDialog(
+                        context, register.id, register.remarks, notifier)
+                    : null,
+              ),
+              const SizedBox(height: 16),
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -214,9 +212,8 @@ class RegisterDetailsScreen extends ConsumerWidget {
         subjectId: wagonId,
         file: file,
       );
-      await ref
-          .read(shareServiceProvider)
-          .shareFile(file, subject: 'Digital Register Report ($type)');
+      await ref.read(shareServiceProvider).shareFile(file,
+          subject: 'SmartLoad Digital Register Report ($type)');
     } catch (e) {
       await logGeneratedReport(
         ref,
@@ -280,4 +277,3 @@ class RegisterDetailsScreen extends ConsumerWidget {
     );
   }
 }
-

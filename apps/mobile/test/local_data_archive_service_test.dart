@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:archive/archive_io.dart';
+import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,6 +10,7 @@ import 'package:mobile/core/database/app_database.dart';
 import 'package:mobile/core/storage/local_data_archive_service.dart';
 
 void main() {
+  const backupPassword = 'Safe backup password 2026';
   late Directory documents;
   late AppDatabase database;
 
@@ -76,36 +78,61 @@ void main() {
     expect(polygon.last, [0.1, 0.8]);
   }
 
+  Future<File> createLegacyArchive() async {
+    await database.customStatement('PRAGMA wal_checkpoint(TRUNCATE)');
+    final legacy = File('${documents.parent.path}/legacy_smartload_backup.zip');
+    final files = <(File, String)>[
+      (
+        File('${documents.path}/smartload_offline.sqlite'),
+        'database/smartload_offline.sqlite',
+      ),
+      (
+        File('${documents.path}/smartload_images/layer.jpg'),
+        'documents/smartload_images/layer.jpg',
+      ),
+    ];
+    final inventory = <Map<String, Object>>[];
+    final encoder = ZipFileEncoder();
+    encoder.create(legacy.path);
+    for (final entry in files) {
+      final file = entry.$1;
+      final path = entry.$2;
+      await encoder.addFile(file, path);
+      inventory.add({
+        'path': path,
+        'sizeBytes': await file.length(),
+        'sha256': (await sha256.bind(file.openRead()).first).toString(),
+      });
+    }
+    encoder.addArchiveFile(ArchiveFile.string(
+      'MANIFEST.json',
+      jsonEncode({
+        'format': 'SmartLoad local audit archive',
+        'formatVersion': 2,
+        'database': 'database/smartload_offline.sqlite',
+        'files': inventory,
+      }),
+    ));
+    await encoder.close();
+    return legacy;
+  }
+
   test('archives database and every local document with an inventory',
       () async {
     final archiveFile = await LocalDataArchiveService(
       database,
       documentsDirectory: () async => documents,
-    ).createArchive();
+    ).createArchive(password: backupPassword);
 
     final archive = ZipDecoder().decodeBytes(await archiveFile.readAsBytes());
-    expect(archive.findFile('database/smartload_offline.sqlite'), isNotNull);
-    expect(archive.findFile('documents/smartload_images/layer.jpg'), isNotNull);
-    expect(
-      archive.findFile('documents/backups/backup_manual.sqlite.bak'),
-      isNotNull,
-    );
-
-    final manifest = archive.findFile('MANIFEST.json');
-    expect(manifest, isNotNull);
-    final data = jsonDecode(utf8.decode(manifest!.content as List<int>));
-    expect(data['database'], 'database/smartload_offline.sqlite');
-    final archivedPaths = (data['files'] as List<dynamic>)
-        .map((entry) => (entry as Map<String, dynamic>)['path'])
-        .toSet();
-    expect(
-      archivedPaths,
-      containsAll(<String>{
-        'database/smartload_offline.sqlite',
-        'documents/smartload_images/layer.jpg',
-        'documents/backups/backup_manual.sqlite.bak',
-      }),
-    );
+    expect(archive.findFile('database/smartload_offline.sqlite'), isNull);
+    expect(archive.findFile('documents/smartload_images/layer.jpg'), isNull);
+    expect(archive.findFile('backup_payload.bin'), isNotNull);
+    final info = archive.findFile('BACKUP_INFO.json');
+    expect(info, isNotNull);
+    final data = jsonDecode(utf8.decode(info!.content as List<int>));
+    expect(data['encryption'], 'AES-256-GCM');
+    expect(data['kdf'], 'PBKDF2-HMAC-SHA256');
   });
 
   test('imports a ZIP and restores operational rows and document files',
@@ -115,7 +142,7 @@ void main() {
       database,
       documentsDirectory: () async => documents,
     );
-    final archiveFile = await service.createArchive();
+    final archiveFile = await service.createArchive(password: backupPassword);
     final portableArchive = File('${documents.parent.path}/portable_audit.zip');
     await archiveFile.copy(portableArchive.path);
     addTearDown(() async {
@@ -129,7 +156,10 @@ void main() {
     await File('${documents.path}/smartload_images/layer.jpg')
         .writeAsString('changed after export');
 
-    final summary = await service.importArchive(portableArchive);
+    final summary = await service.importArchive(
+      portableArchive,
+      password: backupPassword,
+    );
 
     expect(summary.importedTables, greaterThanOrEqualTo(9));
     expect(summary.copiedFiles, greaterThan(0));
@@ -141,49 +171,58 @@ void main() {
     await expectLayerMasksRestored();
   });
 
-  test('imports a selected wrapper folder containing an extracted archive',
+  test('imports a legacy unprotected SmartLoad ZIP without a password',
       () async {
+    final service = LocalDataArchiveService(
+      database,
+      documentsDirectory: () async => documents,
+    );
+    final legacyArchive = await createLegacyArchive();
+    addTearDown(() async {
+      if (await legacyArchive.exists()) await legacyArchive.delete();
+    });
+
+    await database.delete(database.warehouses).go();
+    await File('${documents.path}/smartload_images/layer.jpg')
+        .writeAsString('changed after export');
+
+    final summary = await service.importArchive(legacyArchive);
+
+    expect(summary.importedTables, greaterThanOrEqualTo(9));
+    expect(await database.select(database.warehouses).get(), hasLength(1));
+    expect(
+      await File('${documents.path}/smartload_images/layer.jpg').readAsString(),
+      'image evidence',
+    );
+  });
+
+  test('rejects an incorrect backup password without importing data', () async {
     await seedLayerWithMasks();
     final service = LocalDataArchiveService(
       database,
       documentsDirectory: () async => documents,
     );
-    final archiveFile = await service.createArchive();
-    final selectedFolder =
-        await Directory.systemTemp.createTemp('smartload_selected_folder_');
-    addTearDown(() async {
-      if (await selectedFolder.exists()) {
-        await selectedFolder.delete(recursive: true);
-      }
-    });
-    final archiveRoot =
-        await Directory('${selectedFolder.path}/SmartLoad archive')
-            .create(recursive: true);
-    final archive = ZipDecoder().decodeBytes(await archiveFile.readAsBytes());
-    for (final entry in archive) {
-      if (!entry.isFile) continue;
-      final output = File('${archiveRoot.path}/${entry.name}');
-      await output.parent.create(recursive: true);
-      await output.writeAsBytes(entry.content as List<int>);
-    }
+    final archiveFile = await service.createArchive(password: backupPassword);
 
     await database.delete(database.warehouses).go();
     await (database.update(database.layers)
           ..where((layer) => layer.id.equals('layer-with-masks')))
         .write(const LayersCompanion(detectionsJson: Value('[]')));
-    final summary = await service.importFolder(selectedFolder);
-
-    expect(summary.importedTables, greaterThanOrEqualTo(9));
-    expect(await database.select(database.warehouses).get(), hasLength(1));
-    await expectLayerMasksRestored();
+    await expectLater(
+      () => service.importArchive(archiveFile, password: 'Wrong password 2026'),
+      throwsA(isA<StateError>()),
+    );
+    expect(await database.select(database.warehouses).get(), isEmpty);
   });
 
-  test('imports a ZIP that contains an outer wrapper folder', () async {
+  test('rejects a ZIP wrapper that does not preserve the protected format',
+      () async {
     final service = LocalDataArchiveService(
       database,
       documentsDirectory: () async => documents,
     );
-    final originalArchive = await service.createArchive();
+    final originalArchive =
+        await service.createArchive(password: backupPassword);
     final wrapper =
         await Directory.systemTemp.createTemp('smartload_zip_wrapper_');
     final archiveRoot = await Directory('${wrapper.path}/Shared backup')
@@ -207,10 +246,11 @@ void main() {
     await encoder.close();
 
     await database.delete(database.warehouses).go();
-    final summary = await service.importArchive(wrappedZip);
-
-    expect(summary.importedTables, greaterThanOrEqualTo(9));
-    expect(await database.select(database.warehouses).get(), hasLength(1));
+    await expectLater(
+      () => service.importArchive(wrappedZip, password: backupPassword),
+      throwsA(isA<StateError>()),
+    );
+    expect(await database.select(database.warehouses).get(), isEmpty);
   });
 
   test('lists automatic safety backups newest first', () async {

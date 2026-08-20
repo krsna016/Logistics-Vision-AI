@@ -241,7 +241,8 @@ class DeviceSessions extends Table with SyncMetadata {
   TextColumn get deviceName => text()();
   TextColumn get deviceModel => text()();
   TextColumn get osVersion => text()();
-  DateTimeColumn get lastSync => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get lastActiveAt =>
+      dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
 }
 
@@ -252,7 +253,6 @@ class Users extends Table with SyncMetadata {
   TextColumn get name => text()();
   TextColumn get role => text()();
   TextColumn get warehouseId => text().nullable()();
-  TextColumn get token => text().nullable()(); // Future auth
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
   IntColumn get failedLoginAttempts =>
       integer().withDefault(const Constant(0))();

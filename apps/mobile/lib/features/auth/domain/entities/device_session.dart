@@ -3,7 +3,7 @@ class DeviceSession {
   final String deviceName;
   final String deviceModel;
   final String osVersion;
-  final DateTime lastSync;
+  final DateTime lastActiveAt;
   final bool isActive;
 
   const DeviceSession({
@@ -11,7 +11,7 @@ class DeviceSession {
     required this.deviceName,
     required this.deviceModel,
     required this.osVersion,
-    required this.lastSync,
+    required this.lastActiveAt,
     this.isActive = true,
   });
 }

@@ -531,6 +531,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
         .trucks
         .where((entry) => entry.id == widget.truckId);
     final truck = matchingTrucks.isEmpty ? null : matchingTrucks.first;
+    final truckNumber = truck?.truckNumber.trim();
     final matchingWagons = truck?.wagonId == null
         ? const <Wagon>[]
         : ref
@@ -565,7 +566,7 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
               const Text('Review Layer Scan',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               Text(
-                  'Layer #$currentLayerNum  •  Truck ${widget.truckId.substring(0, 6)}…',
+                  'Layer #$currentLayerNum  •  Truck ${truckNumber?.isNotEmpty == true ? truckNumber : 'Unknown'}',
                   style: const TextStyle(
                       fontSize: 10, color: AppTheme.textSecondary)),
             ],
