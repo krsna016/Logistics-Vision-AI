@@ -3,14 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import {
   Check, CheckCircle2, ChevronDown, Copy, Filter, LayoutGrid, List,
   LogOut, Plus, RefreshCcw, Search, ShieldAlert, ShieldCheck, Trash2, UserCheck,
-  Users, UserX, X, MapPin
+  Users, UserX, X
 } from 'lucide-react';
 import api from '../api';
-import LiveLocationMap from '../components/LiveLocationMap';
 
 const roleOptions = ['All', 'Administrator', 'Supervisor'];
 const dashboardRefreshMs = 60_000;
-const activityPageSize = 50;
 const pageIsVisible = () => document.visibilityState === 'visible';
 
 function AppShell({ children, onLogout, active = 'users' }) {
@@ -83,12 +81,6 @@ export default function Dashboard() {
   const [confirmAction, setConfirmAction] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [copied, setCopied] = useState('');
-  const [liveLocations, setLiveLocations] = useState([]);
-  const [activityRecords, setActivityRecords] = useState([]);
-  const [activityCursor, setActivityCursor] = useState(null);
-  const [hasMoreActivity, setHasMoreActivity] = useState(false);
-  const [activityLoading, setActivityLoading] = useState(false);
-  const [locationConnection, setLocationConnection] = useState('connecting');
   const navigate = useNavigate();
 
   const fetchUsers = useCallback(async (silent = false, { skipWhenHidden = false } = {}) => {
@@ -105,29 +97,9 @@ export default function Dashboard() {
     } finally { setLoading(false); setRefreshing(false); }
   }, [navigate]);
 
-  const fetchActivity = useCallback(async ({ append = false, cursor = null, skipWhenHidden = false } = {}) => {
-    if (skipWhenHidden && !pageIsVisible()) return;
-    setActivityLoading(true);
-    try {
-      const response = await api.get('/sync/history', {
-        params: { limit: activityPageSize, ...(cursor ? { cursor } : {}) },
-      });
-      const payload = response.data;
-      const records = Array.isArray(payload) ? payload : payload.records;
-      setActivityRecords(current => append ? [...current, ...(records || [])] : (records || []));
-      setActivityCursor(Array.isArray(payload) ? null : payload.next_cursor);
-      setHasMoreActivity(Array.isArray(payload) ? false : Boolean(payload.has_more));
-    } catch {
-      // Older backend deployments may not expose the audit history endpoint.
-    } finally {
-      setActivityLoading(false);
-    }
-  }, []);
-
   useEffect(() => {
     const refreshVisibleData = () => {
       fetchUsers(true, { skipWhenHidden: true });
-      fetchActivity({ skipWhenHidden: true });
     };
     refreshVisibleData();
     const onVisibilityChange = () => {
@@ -139,47 +111,8 @@ export default function Dashboard() {
       document.removeEventListener('visibilitychange', onVisibilityChange);
       window.clearInterval(timer);
     };
-  }, [fetchActivity, fetchUsers]);
+  }, [fetchUsers]);
   useEffect(() => { if (!notice) return; const timer = window.setTimeout(() => setNotice(''), 4500); return () => window.clearTimeout(timer); }, [notice]);
-  useEffect(() => {
-    let cancelled = false;
-    const fetchLocations = async () => {
-      try {
-        const response = await api.get('/locations/live');
-        if (!cancelled) setLiveLocations(Array.isArray(response.data) ? response.data : []);
-      } catch (err) {
-        if (err.response?.status === 401 && !cancelled) navigate('/login');
-      }
-    };
-    fetchLocations();
-    let reconnectTimer;
-    let socket;
-    const connect = () => {
-      if (cancelled) return;
-      setLocationConnection('connecting');
-      const apiBase = import.meta.env.VITE_API_BASE_URL || 'https://logistics-vision-ai.onrender.com/api';
-      const websocketBase = apiBase.replace(/^http/, 'ws').replace(/\/$/, '');
-      const token = sessionStorage.getItem('token');
-      if (!token) return;
-      // Keep credentials out of URLs, reverse-proxy logs, analytics, and
-      // browser history. The server selects the named auth subprotocol.
-      socket = new WebSocket(`${websocketBase}/locations/stream`, ['smartload-auth', token]);
-      socket.onopen = () => { setLocationConnection('connected'); fetchLocations(); };
-      socket.onmessage = event => {
-        const location = JSON.parse(event.data);
-        if (location.type === 'offline') {
-          setLiveLocations(current => current.filter(item => item.employee_id !== location.employee_id));
-          return;
-        }
-        if (!location.employee_id) return;
-        setLiveLocations(current => [...current.filter(item => item.employee_id !== location.employee_id), location]);
-      };
-      socket.onerror = () => { setLocationConnection('reconnecting'); };
-      socket.onclose = () => { setLocationConnection('reconnecting'); if (!cancelled) reconnectTimer = window.setTimeout(connect, 3000); };
-    };
-    connect();
-    return () => { cancelled = true; window.clearTimeout(reconnectTimer); socket?.close(); };
-  }, [navigate]);
 
   const metrics = useMemo(() => {
     const active = users.filter(user => user.is_active);
@@ -245,20 +178,6 @@ export default function Dashboard() {
         <div className="directory-footer"><span><span className="online-dot" /> Refreshes every minute while this tab is open</span><span>Last checked {formatTime(lastUpdated)}</span></div>
       </section>
 
-      <section className="directory-panel location-panel">
-        <div className="directory-heading">
-          <div><div className="section-kicker">ADMIN ONLY</div><h2>Live employee locations <span>{liveLocations.length}</span></h2><p>Push updates from authenticated devices. <span className={`location-stream-status ${locationConnection}`}><span className="status-dot" /> {locationConnection === 'connected' ? 'Live' : 'Reconnecting'}</span></p></div>
-          <MapPin size={22} aria-hidden="true" />
-        </div>
-        <LiveLocationMap locations={liveLocations} />
-        {liveLocations.length === 0 ? <div className="empty-state"><div className="empty-icon"><MapPin size={22} /></div><h3>No active locations</h3><p>No connected employee device has sent a location yet.</p></div> : <div className="table-wrap"><table className="user-table"><thead><tr><th>Employee</th><th>Last update</th><th>Accuracy</th><th>Coordinates</th></tr></thead><tbody>{liveLocations.map(location => <tr key={location.employee_id}><td><div className="user-cell"><div className="avatar">{location.employee_name?.charAt(0).toUpperCase()}</div><div><strong>{location.employee_name}</strong><span className="id-copy">{location.employee_id} · {location.role}</span></div></div></td><td>{new Date(location.recorded_at).toLocaleString()}</td><td>{location.accuracy_meters == null ? '—' : `${Math.round(location.accuracy_meters)} m`}</td><td><a href={`https://www.google.com/maps?q=${location.latitude},${location.longitude}`} target="_blank" rel="noreferrer">{location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}</a></td></tr>)}</tbody></table></div>}
-      </section>
-
-      <section className="directory-panel">
-        <div className="directory-heading"><div><div className="section-kicker">CENTRAL SYNC</div><h2>Recent workforce activity <span>{activityRecords.length}</span></h2><p>Every change uploaded from employee devices, including offline corrections.</p></div><Users size={22} aria-hidden="true" /></div>
-        {activityRecords.length === 0 ? <div className="empty-state"><div className="empty-icon"><Users size={22} /></div><h3>No synced loading activity yet</h3><p>Records appear here after a phone reconnects and uploads its offline queue.</p></div> : <div className="table-wrap"><table className="user-table"><thead><tr><th>Record</th><th>Employee</th><th>Action</th><th>Status</th><th>Version</th><th>Recorded</th></tr></thead><tbody>{activityRecords.map(record => <tr key={record.operation_id}><td><strong>{record.entity_type}</strong><span className="id-copy">{record.entity_id}</span></td><td>{record.employee_id}</td><td>{record.operation}</td><td>{record.status}</td><td>{record.version}</td><td>{record.recorded_at ? new Date(record.recorded_at).toLocaleString() : '—'}</td></tr>)}</tbody></table></div>}
-        {hasMoreActivity && <div className="directory-footer"><button className="button button-secondary button-small" onClick={() => fetchActivity({ append: true, cursor: activityCursor })} disabled={activityLoading}>{activityLoading ? 'Loading…' : 'Load older activity'}</button></div>}
-      </section>
     </main>
     <ConfirmDialog action={confirmAction} onCancel={() => !actionLoading && setConfirmAction(null)} onConfirm={runAction} loading={actionLoading} />
   </AppShell>;

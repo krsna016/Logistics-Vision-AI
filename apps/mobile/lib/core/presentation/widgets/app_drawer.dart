@@ -107,7 +107,7 @@ class AppDrawer extends ConsumerWidget {
               ),
             ),
           ),
-          
+
           // Sticky Footer
           Container(
             color: const Color(0xFF1E2126), // Slightly lighter than background
@@ -123,7 +123,8 @@ class AppDrawer extends ConsumerWidget {
                 context.push('/legal');
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 4.0),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 28.0, vertical: 4.0),
                 child: Row(
                   children: [
                     const Icon(
@@ -383,7 +384,8 @@ class AppDrawer extends ConsumerWidget {
             onPressed: () => Navigator.pop(dialogContext, 'demo'),
             child: const ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.bug_report_rounded, color: Colors.orangeAccent),
+              leading:
+                  Icon(Icons.bug_report_rounded, color: Colors.orangeAccent),
               title: Text('Load Demo Data'),
               subtitle: Text('Replace local records with test data'),
             ),
@@ -392,9 +394,11 @@ class AppDrawer extends ConsumerWidget {
             onPressed: () => Navigator.pop(dialogContext, 'clear'),
             child: const ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.delete_forever_rounded, color: Colors.redAccent),
+              leading:
+                  Icon(Icons.delete_forever_rounded, color: Colors.redAccent),
               title: Text('Clear Screen / Wipe Data'),
-              subtitle: Text('Wipe all local operational records (clean slate)'),
+              subtitle:
+                  Text('Wipe all local operational records (clean slate)'),
             ),
           ),
         ],
@@ -422,7 +426,7 @@ class AppDrawer extends ConsumerWidget {
       builder: (_) => ActionWarningDialog(
         title: 'Clear Screen / Wipe Data?',
         content:
-            'This completely deletes all operational records: wagons, trucks, layers, sessions, registers, reports, sync entries, and audit history. User accounts and app settings remain safe. This gives you a completely clean, fresh app state.',
+            'This completely deletes all operational records: wagons, trucks, layers, sessions, registers, reports, and audit history. User accounts and app settings remain safe. This gives you a completely clean, fresh app state.',
         actionLabel: 'Wipe All Data',
         actionColor: Colors.redAccent,
         icon: Icons.delete_forever_rounded,
@@ -452,7 +456,6 @@ class AppDrawer extends ConsumerWidget {
               await database.delete(database.loadingSessions).go();
               await database.delete(database.digitalRegisters).go();
               await database.delete(database.auditLogs).go();
-              await database.delete(database.syncQueues).go();
               await database.delete(database.reportExports).go();
             });
             await layerRepo.clearAllData();
@@ -462,7 +465,8 @@ class AppDrawer extends ConsumerWidget {
             wagonNotifier.refresh();
             truckNotifier.refresh();
             if (rootContext.mounted) {
-              Navigator.of(rootContext, rootNavigator: true).pop(); // remove spinner
+              Navigator.of(rootContext, rootNavigator: true)
+                  .pop(); // remove spinner
               ScaffoldMessenger.of(rootContext).showSnackBar(const SnackBar(
                 content: Text('Screen cleared. App state is now empty.'),
               ));
@@ -497,7 +501,7 @@ class AppDrawer extends ConsumerWidget {
       builder: (_) => ActionWarningDialog(
         title: 'Load Demo Data?',
         content:
-            'This replaces all operational records with a fresh enterprise demo dataset: wagons, trucks, layers, sessions, registers, reports, sync entries and audit history. User accounts, login and app settings remain safe.',
+            'This replaces all operational records with a fresh enterprise demo dataset: wagons, trucks, layers, sessions, registers, reports, and audit history. User accounts, login and app settings remain safe.',
         actionLabel: 'Load Demo Data',
         actionColor: Colors.redAccent,
         icon: Icons.bug_report_rounded,
@@ -511,7 +515,6 @@ class AppDrawer extends ConsumerWidget {
             await database.delete(database.loadingSessions).go();
             await database.delete(database.digitalRegisters).go();
             await database.delete(database.auditLogs).go();
-            await database.delete(database.syncQueues).go();
             await database.delete(database.reportExports).go();
           });
 
@@ -620,7 +623,7 @@ class AppDrawer extends ConsumerWidget {
       builder: (ctx) => ActionWarningDialog(
         title: 'Share Local Audit Archive?',
         content:
-            'This creates one ZIP containing all local operational data: the database, audit and sync records, saved images, backups, and locally generated exports. Login tokens and password hashes are excluded. Share it only through an approved secure channel.',
+            'This creates one ZIP containing all local operational data: the database, audit records, saved images, backups, and locally generated exports. Login tokens and password hashes are excluded. Share it only through an approved secure channel.',
         actionLabel: 'Create & Share ZIP',
         actionColor: AppTheme.primaryColor,
         icon: Icons.inventory_2_outlined,
@@ -740,11 +743,14 @@ class AppDrawer extends ConsumerWidget {
       builder: (_) => ActionWarningDialog(
         title: 'Import Audit Archive?',
         content:
-            'This will replace operational records (wagons, trucks, layers, reports, audit history and sync data) with the selected archive. Your account, login, secure credentials and app settings will stay on this phone. A backup of the current database will be created first.',
+            'This will replace operational records (wagons, trucks, layers, reports, and audit history) with the selected archive. Your account, login, secure credentials and app settings will stay on this phone. A backup of the current database will be created first.',
         actionLabel: 'Import and Replace',
         actionColor: AppTheme.primaryColor,
         icon: Icons.file_download_outlined,
-        onConfirm: () async { confirmed = true; return null; },
+        onConfirm: () async {
+          confirmed = true;
+          return null;
+        },
       ),
     );
     if (!confirmed || !rootContext.mounted) {
@@ -787,8 +793,9 @@ class AppDrawer extends ConsumerWidget {
       providerContainer.invalidate(wagonListProvider);
       providerContainer.invalidate(truckListProvider);
       providerContainer.invalidate(layerListProvider);
-      
-      AppLogger.info('ADMIN IMPORT: Imported ${summary.copiedFiles} files from archive.');
+
+      AppLogger.info(
+          'ADMIN IMPORT: Imported ${summary.copiedFiles} files from archive.');
 
       if (!rootContext.mounted) return;
       Navigator.of(rootContext, rootNavigator: true).pop();
@@ -882,7 +889,10 @@ class AppDrawer extends ConsumerWidget {
         actionLabel: 'Restore Backup',
         actionColor: AppTheme.primaryColor,
         icon: Icons.restore_rounded,
-        onConfirm: () async { confirmed = true; return null; },
+        onConfirm: () async {
+          confirmed = true;
+          return null;
+        },
       ),
     );
     if (!confirmed || !rootContext.mounted) return;

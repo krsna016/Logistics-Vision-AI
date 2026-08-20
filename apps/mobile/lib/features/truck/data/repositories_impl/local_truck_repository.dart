@@ -28,8 +28,6 @@ class LocalTruckRepository implements TruckRepository {
       totalCartons: data.totalCartons,
       totalDefects: data.totalDefects,
       notes: data.notes,
-      syncStatus: SyncStatus.values.firstWhere((e) => e.name == data.syncStatus,
-          orElse: () => SyncStatus.pending),
       isDeleted: data.isDeleted,
       isArchived: data.isArchived,
     );
@@ -81,14 +79,6 @@ class LocalTruckRepository implements TruckRepository {
             createdAt: drift.Value(truck.createdDate),
             updatedAt: drift.Value(truck.updatedDate),
           ));
-
-      await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_t_insert_${truck.id}_1',
-            entityId: truck.id,
-            entityType: 'Truck',
-            operation: 'INSERT',
-            payloadData: '{}',
-          ));
     });
     AppLogger.info('Created new truck record locally: ${truck.truckNumber}');
   }
@@ -118,28 +108,26 @@ class LocalTruckRepository implements TruckRepository {
         totalDefects: drift.Value(truck.totalDefects),
         isArchived: drift.Value(truck.isArchived),
         version: drift.Value(nextVersion),
-        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(DateTime.now()),
       ));
 
-      await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_t_update_${truck.id}_$nextVersion',
-            entityId: truck.id,
-            entityType: 'Truck',
-            operation: 'UPDATE',
-            payloadData: '{}',
-            version: drift.Value(nextVersion),
-          ));
-
       final changes = <String>[];
-      if (existing.truckNumber != truck.truckNumber) changes.add('Number: ${existing.truckNumber} -> ${truck.truckNumber}');
-      if (existing.driverName != truck.driverName) changes.add('Driver: ${existing.driverName} -> ${truck.driverName}');
-      if (existing.driverMobile != truck.driverMobile) changes.add('Mobile: ${existing.driverMobile} -> ${truck.driverMobile}');
-      if (existing.status != truck.status.name) changes.add('Status: ${existing.status} -> ${truck.status.name}');
-      if (existing.notes != truck.notes) changes.add('Notes: ${existing.notes} -> ${truck.notes}');
+      if (existing.truckNumber != truck.truckNumber)
+        changes.add('Number: ${existing.truckNumber} -> ${truck.truckNumber}');
+      if (existing.driverName != truck.driverName)
+        changes.add('Driver: ${existing.driverName} -> ${truck.driverName}');
+      if (existing.driverMobile != truck.driverMobile)
+        changes
+            .add('Mobile: ${existing.driverMobile} -> ${truck.driverMobile}');
+      if (existing.status != truck.status.name)
+        changes.add('Status: ${existing.status} -> ${truck.status.name}');
+      if (existing.notes != truck.notes)
+        changes.add('Notes: ${existing.notes} -> ${truck.notes}');
 
-      final changeStr = changes.isEmpty ? 'No values changed' : changes.join(', ');
-      AppLogger.info('Updated truck record: ${truck.truckNumber} | Changes: $changeStr');
+      final changeStr =
+          changes.isEmpty ? 'No values changed' : changes.join(', ');
+      AppLogger.info(
+          'Updated truck record: ${truck.truckNumber} | Changes: $changeStr');
     });
   }
 
@@ -165,7 +153,6 @@ class LocalTruckRepository implements TruckRepository {
           .write(db.TrucksCompanion(
         isDeleted: const drift.Value(true),
         version: drift.Value(truckVersion),
-        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(DateTime.now()),
       ));
       for (final layer in layers) {
@@ -173,7 +160,6 @@ class LocalTruckRepository implements TruckRepository {
             .write(db.LayersCompanion(
           isDeleted: const drift.Value(true),
           version: drift.Value(layer.version + 1),
-          syncStatus: const drift.Value('pending'),
           updatedAt: drift.Value(DateTime.now()),
         ));
       }
@@ -193,7 +179,6 @@ class LocalTruckRepository implements TruckRepository {
           status: const drift.Value('cancelled'),
           endTime: drift.Value(DateTime.now()),
           version: drift.Value(session.version + 1),
-          syncStatus: const drift.Value('pending'),
           updatedAt: drift.Value(DateTime.now()),
         ));
       }
@@ -207,35 +192,6 @@ class LocalTruckRepository implements TruckRepository {
             details: drift.Value(
                 'Voided truck ${truck.truckNumber} and ${layers.length} child layers.'),
           ));
-
-      await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_t_delete_${truck.id}_$truckVersion',
-            entityId: id,
-            entityType: 'Truck',
-            operation: 'DELETE',
-            payloadData: '{}',
-            version: drift.Value(truckVersion),
-          ));
-      for (final layer in layers) {
-        await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-              id: 'sync_l_delete_${layer.id}_${layer.version + 1}',
-              entityId: layer.id,
-              entityType: 'Layer',
-              operation: 'DELETE',
-              payloadData: '{}',
-              version: drift.Value(layer.version + 1),
-            ));
-      }
-      for (final session in sessions) {
-        await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-              id: 'sync_s_delete_${session.id}_${session.version + 1}',
-              entityId: session.id,
-              entityType: 'LoadingSession',
-              operation: 'DELETE',
-              payloadData: '{}',
-              version: drift.Value(session.version + 1),
-            ));
-      }
     });
     AppLogger.info('Soft deleted truck: $id');
   }
@@ -252,18 +208,8 @@ class LocalTruckRepository implements TruckRepository {
           .write(db.TrucksCompanion(
         isArchived: const drift.Value(true),
         version: drift.Value(nextVersion),
-        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(DateTime.now()),
       ));
-
-      await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: 'sync_t_archive_${existing.id}_$nextVersion',
-            entityId: id,
-            entityType: 'Truck',
-            operation: 'UPDATE',
-            payloadData: '{"isArchived": true}',
-            version: drift.Value(nextVersion),
-          ));
     });
     AppLogger.info('Archived truck: $id');
   }

@@ -8,8 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .core.config import settings
 from .db.database import Base, engine, get_db
-from .models import sync as sync_model  # noqa: F401 - register table metadata
-from .routers import auth, inference, locations, sync, users
+from .routers import auth, inference, users
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -45,10 +44,6 @@ async def startup_event():
                 await conn.execute(text("ALTER TABLE users ADD COLUMN failed_login_attempts INTEGER NOT NULL DEFAULT 0"))
             if "locked_until" not in existing:
                 await conn.execute(text("ALTER TABLE users ADD COLUMN locked_until DATETIME"))
-            await conn.execute(text(
-                "CREATE INDEX IF NOT EXISTS ix_location_pings_recorded_at "
-                "ON location_pings (recorded_at)"
-            ))
         else:
             # The original production PostgreSQL table predates the login
             # lockout fields. Keep startup self-healing until migrations are
@@ -59,10 +54,6 @@ async def startup_event():
             ))
             await conn.execute(text(
                 "ALTER TABLE users ADD COLUMN IF NOT EXISTS locked_until TIMESTAMP WITH TIME ZONE"
-            ))
-            await conn.execute(text(
-                "CREATE INDEX IF NOT EXISTS ix_location_pings_recorded_at "
-                "ON location_pings (recorded_at)"
             ))
 
         # Canonicalize legacy role names before any authenticated request.
@@ -106,8 +97,6 @@ async def startup_event():
 
 app.include_router(auth.router, prefix=f"{settings.API_V1_STR}/auth", tags=["Authentication"])
 app.include_router(users.router, prefix=f"{settings.API_V1_STR}/users", tags=["Users"])
-app.include_router(locations.router, prefix=f"{settings.API_V1_STR}/locations", tags=["Locations"])
-app.include_router(sync.router, prefix=f"{settings.API_V1_STR}/sync", tags=["Synchronization"])
 app.include_router(inference.router, prefix=f"{settings.API_V1_STR}/inference", tags=["Inference"])
 
 @app.get("/")

@@ -1,6 +1,6 @@
 # System Architecture - Logistics Vision AI
 
-This document details the clean, multi-layered architecture designed for Logistics Vision AI. The architecture separates concerns, supports offline-first operations, ensures smooth local AI execution, and secures data synchronization to the cloud.
+This document details the clean, multi-layered architecture designed for Logistics Vision AI. The architecture separates concerns, supports local-first operations, and ensures smooth on-device AI execution. Operational records never synchronize to the cloud.
 
 ---
 
@@ -79,7 +79,7 @@ This document details the clean, multi-layered architecture designed for Logisti
 *   **Technologies**: SQLite Transaction-backed Outbox Queue, `WorkManager` (Android) / `BackgroundFetch` (iOS).
 *   **Design**: Monitors connectivity. When online, pops the oldest outbox entry, posts it to the FastAPI Gateway, and marks it as synced in the local database upon a `200 OK` response.
 
-### Cloud Layer
+### Identity and administration layer
 *   **Purpose**: Centralized storage, user authentication, and data consolidation.
 *   **Technologies**: Supabase, PostgreSQL, FastAPI (Python), AWS S3 / Supabase Storage.
 *   **Design**: Supabase handles Row-Level Security (RLS) for reports and user login. FastAPI provides high-throughput integration endpoints and reporting utilities.

@@ -106,10 +106,6 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
         totalCartons: row.totalCartons,
         totalDefects: row.totalDefects,
         notes: row.notes,
-        syncStatus: SyncStatus.values.firstWhere(
-          (status) => status.name == row.syncStatus,
-          orElse: () => SyncStatus.pending,
-        ),
         isDeleted: row.isDeleted,
         isArchived: row.isArchived,
       );
@@ -127,10 +123,6 @@ class LocalAnalyticsRepository implements AnalyticsRepository {
         itemName: row.itemName,
         modelVersion: row.modelVersion ?? 'N/A',
         averageConfidence: row.averageConfidence,
-        syncStatus: SyncStatus.values.firstWhere(
-          (status) => status.name == row.syncStatus,
-          orElse: () => SyncStatus.pending,
-        ),
         createdAt: row.createdAt,
         updatedAt: row.updatedAt,
         isDeleted: row.isDeleted,

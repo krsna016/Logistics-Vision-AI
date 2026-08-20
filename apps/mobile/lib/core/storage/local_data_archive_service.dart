@@ -339,7 +339,6 @@ class LocalDataArchiveService {
     'digital_registers',
     'loading_sessions',
     'audit_logs',
-    'sync_queues',
     'dataset_images',
     'image_metadata',
     'image_quality',
@@ -358,7 +357,6 @@ class LocalDataArchiveService {
     'digital_registers',
     'loading_sessions',
     'audit_logs',
-    'sync_queues',
   };
 
   static String _sqlQuote(String value) => value.replaceAll("'", "''");
@@ -438,7 +436,8 @@ class LocalDataArchiveService {
           final List<Map<String, dynamic>> updatedItems = [];
           for (var item in parsed) {
             if (item is Map<String, dynamic>) {
-              item['name'] = FieldNormalizer.title(item['name']?.toString() ?? '');
+              item['name'] =
+                  FieldNormalizer.title(item['name']?.toString() ?? '');
               updatedItems.add(item);
             }
           }
@@ -447,28 +446,28 @@ class LocalDataArchiveService {
       } catch (_) {}
 
       await _database.update(_database.wagons).replace(
-        w.copyWith(
-          wagonNumber: FieldNormalizer.code(w.wagonNumber),
-          origin: Value(FieldNormalizer.title(w.origin ?? '')),
-          destination: Value(FieldNormalizer.title(w.destination ?? '')),
-          remarks: Value(FieldNormalizer.text(w.remarks)),
-          itemManifestJson: jsonStr,
-        ),
-      );
+            w.copyWith(
+              wagonNumber: FieldNormalizer.code(w.wagonNumber),
+              origin: Value(FieldNormalizer.title(w.origin ?? '')),
+              destination: Value(FieldNormalizer.title(w.destination ?? '')),
+              remarks: Value(FieldNormalizer.text(w.remarks)),
+              itemManifestJson: jsonStr,
+            ),
+          );
     }
 
     final trucks = await _database.select(_database.trucks).get();
     for (final t in trucks) {
       await _database.update(_database.trucks).replace(
-        t.copyWith(
-          truckNumber: FieldNormalizer.code(t.truckNumber),
-          vehicleNumber: FieldNormalizer.code(t.vehicleNumber),
-          driverName: FieldNormalizer.title(t.driverName),
-          company: FieldNormalizer.title(t.company),
-          warehouse: Value(FieldNormalizer.title(t.warehouse ?? '')),
-          notes: Value(FieldNormalizer.text(t.notes)),
-        ),
-      );
+            t.copyWith(
+              truckNumber: FieldNormalizer.code(t.truckNumber),
+              vehicleNumber: FieldNormalizer.code(t.vehicleNumber),
+              driverName: FieldNormalizer.title(t.driverName),
+              company: FieldNormalizer.title(t.company),
+              warehouse: Value(FieldNormalizer.title(t.warehouse ?? '')),
+              notes: Value(FieldNormalizer.text(t.notes)),
+            ),
+          );
     }
 
     final layers = await _database.select(_database.layers).get();
@@ -480,7 +479,8 @@ class LocalDataArchiveService {
           final List<Map<String, dynamic>> updatedAllocations = [];
           for (var alloc in parsed) {
             if (alloc is Map<String, dynamic>) {
-              alloc['itemName'] = FieldNormalizer.title(alloc['itemName']?.toString() ?? '');
+              alloc['itemName'] =
+                  FieldNormalizer.title(alloc['itemName']?.toString() ?? '');
               updatedAllocations.add(alloc);
             }
           }
@@ -489,12 +489,14 @@ class LocalDataArchiveService {
       } catch (_) {}
 
       await _database.update(_database.layers).replace(
-        l.copyWith(
-          itemName: Value(l.itemName != null ? FieldNormalizer.title(l.itemName!) : null),
-          itemAllocationsJson: jsonStr,
-          notes: Value(FieldNormalizer.text(l.notes)),
-        ),
-      );
+            l.copyWith(
+              itemName: Value(l.itemName != null
+                  ? FieldNormalizer.title(l.itemName!)
+                  : null),
+              itemAllocationsJson: jsonStr,
+              notes: Value(FieldNormalizer.text(l.notes)),
+            ),
+          );
     }
   }
 

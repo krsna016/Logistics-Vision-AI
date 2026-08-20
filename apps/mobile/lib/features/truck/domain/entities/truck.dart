@@ -17,12 +17,6 @@ enum TruckStatus {
   }
 }
 
-enum SyncStatus {
-  pending,
-  synced,
-  failed,
-}
-
 @immutable
 class Truck {
   final String id;
@@ -41,7 +35,6 @@ class Truck {
   final int totalDefects;
   final String? notes;
   final String? wagonId;
-  final SyncStatus syncStatus;
   final bool isDeleted;
   final bool isArchived;
 
@@ -62,7 +55,6 @@ class Truck {
     this.totalCartons = 0,
     this.totalDefects = 0,
     this.notes,
-    this.syncStatus = SyncStatus.pending,
     this.isDeleted = false,
     this.isArchived = false,
   });
@@ -84,7 +76,6 @@ class Truck {
     int? totalCartons,
     int? totalDefects,
     String? notes,
-    SyncStatus? syncStatus,
     bool? isDeleted,
     bool? isArchived,
   }) {
@@ -105,7 +96,6 @@ class Truck {
       totalCartons: totalCartons ?? this.totalCartons,
       totalDefects: totalDefects ?? this.totalDefects,
       notes: notes ?? this.notes,
-      syncStatus: syncStatus ?? this.syncStatus,
       isDeleted: isDeleted ?? this.isDeleted,
       isArchived: isArchived ?? this.isArchived,
     );

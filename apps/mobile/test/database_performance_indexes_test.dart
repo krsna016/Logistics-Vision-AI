@@ -19,7 +19,6 @@ void main() {
           'idx_layers_truck_active_time',
           'idx_detections_layer_active',
           'idx_loading_sessions_truck_active',
-          'idx_sync_queues_retry',
           'idx_audit_logs_time_entity',
           'idx_layers_unique_active_number',
         }));

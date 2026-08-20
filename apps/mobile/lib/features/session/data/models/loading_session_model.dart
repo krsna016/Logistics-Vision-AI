@@ -1,5 +1,4 @@
 import '../../domain/entities/loading_session.dart';
-import '../../../truck/domain/entities/truck.dart';
 
 class LoadingSessionModel {
   static LoadingSession fromJson(Map<String, dynamic> json) {
@@ -23,10 +22,6 @@ class LoadingSessionModel {
       modelVersion:
           json['modelVersion'] as String? ?? 'yolo11n_carton_seg_v1_3',
       notes: json['notes'] as String?,
-      syncStatus: SyncStatus.values.firstWhere(
-        (e) => e.name == (json['syncStatus'] as String? ?? 'pending'),
-        orElse: () => SyncStatus.pending,
-      ),
       metadata: json['metadata'] as Map<String, dynamic>? ?? const {},
     );
   }
@@ -46,7 +41,6 @@ class LoadingSessionModel {
       'averageConfidence': session.averageConfidence,
       'modelVersion': session.modelVersion,
       'notes': session.notes,
-      'syncStatus': session.syncStatus.name,
       'metadata': session.metadata,
     };
   }

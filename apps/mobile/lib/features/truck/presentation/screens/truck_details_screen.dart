@@ -49,7 +49,7 @@ class TruckDetailsScreen extends ConsumerStatefulWidget {
 
 class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
   final ScrollController _scrollController = ScrollController();
-  
+
   @override
   void dispose() {
     _scrollController.dispose();
@@ -62,10 +62,12 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
     final fallbackTruck = widget.fallbackTruck;
     final allowArchivedEditing = widget.allowArchivedEditing;
     final isRegisterView = widget.isRegisterView;
-    
+
     // Automatically scroll to bottom if query param says so
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && GoRouterState.of(context).uri.queryParameters['scrollToBottom'] == 'true') {
+      if (mounted &&
+          GoRouterState.of(context).uri.queryParameters['scrollToBottom'] ==
+              'true') {
         if (_scrollController.hasClients) {
           _scrollController.animateTo(
             _scrollController.position.maxScrollExtent,
@@ -115,7 +117,7 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
 
     final archivedSafeWagon = truck.wagonId == null
         ? null
-        : ref.watch(wagonByIdProvider(truck.wagonId!)).valueOrNull;
+        : ref.watch(wagonByIdProvider(truck.wagonId!)).value;
     final wagon = truck.wagonId == null
         ? null
         : wagonState.wagons.cast<Wagon?>().firstWhere(
@@ -211,126 +213,127 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
 
       body: SafeArea(
           child: RefreshIndicator(
-            onRefresh: () async {
-              await ref.read(truckListProvider.notifier).refresh();
-              await ref.read(layerListProvider(truckId).notifier).refresh();
-            },
-            child: CustomScrollView(
-              controller: _scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.all(16),
-            sliver: SliverList(
-              delegate: SliverChildListDelegate([
-                // ── 1. Header Card ─────────────────────────────────────────
-                TruckHeader(truck: truck),
-                if (wagon != null && wagon.items.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  SwipableInventoryCards(
-                    wagon: wagon,
-                    globalLoadedByItem: inventory?.valueOrNull ?? const {},
-                    isLoading: inventory?.isLoading ?? false,
-                    truckLayers: layerState.layers,
+              onRefresh: () async {
+                await ref.read(truckListProvider.notifier).refresh();
+                await ref.read(layerListProvider(truckId).notifier).refresh();
+              },
+              child: CustomScrollView(
+                controller: _scrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                slivers: [
+                  SliverPadding(
+                    padding: const EdgeInsets.all(16),
+                    sliver: SliverList(
+                      delegate: SliverChildListDelegate([
+                        // ── 1. Header Card ─────────────────────────────────────────
+                        TruckHeader(truck: truck),
+                        if (wagon != null && wagon.items.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          SwipableInventoryCards(
+                            wagon: wagon,
+                            globalLoadedByItem: inventory?.value ?? const {},
+                            isLoading: inventory?.isLoading ?? false,
+                            truckLayers: layerState.layers,
+                          ),
+                        ],
+                        const SizedBox(height: 20),
+
+                        Row(
+                          children: [
+                            SummaryStatCard(
+                              label: 'Layers',
+                              value: truck.totalLayers,
+                              icon: Icons.layers_outlined,
+                              color: AppTheme.primaryColor,
+                            ),
+                            const SizedBox(width: 10),
+                            SummaryStatCard(
+                              label: 'Cartons',
+                              value: truck.totalCartons,
+                              icon: Icons.inventory_2_outlined,
+                              color: AppTheme.warningColor,
+                            ),
+                            const SizedBox(width: 10),
+                            SummaryStatCard(
+                              label: 'Defects',
+                              value: truck.totalDefects,
+                              icon: Icons.warning_amber_outlined,
+                              color: AppTheme.errorColor,
+                              isAlert: true,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
+                        // ── 2. Layer Timeline ───────────────────────────────────────
+                        _SectionHeader(
+                          icon: Icons.history_outlined,
+                          title: 'Layer History',
+                          trailing: '${layerState.layers.length} records',
+                        ),
+                        const SizedBox(height: 12),
+
+                        if (layerState.isLoading && layerState.layers.isEmpty)
+                          const Center(child: CircularProgressIndicator())
+                        else if (layerState.layers.isEmpty)
+                          const _EmptyLayersState()
+                        else
+                          LayerTimeline(
+                            layers: layerState.layers,
+                            isReadOnly: isLayerReadOnly,
+                            onEditNotes: (layer) => _editLayerDialog(
+                              context,
+                              layerNotifier,
+                              layer,
+                              wagon: wagon,
+                              loadedByItem: inventory?.value ?? const {},
+                              requireCorrectionReason: isRegisterView,
+                            ),
+                            onDeleteLayer: (layer) {
+                              showDialog<void>(
+                                context: context,
+                                builder: (ctx) => StrictActionWarningDialog(
+                                  title: 'Remove Layer ${layer.layerNumber}?',
+                                  content:
+                                      'This voids the layer, removes it from reports, and recalculates the truck and session totals.',
+                                  expectedConfirmationText:
+                                      layer.layerNumber.toString(),
+                                  actionLabel: 'Remove Layer',
+                                  actionColor: Colors.redAccent,
+                                  onConfirm: () async {
+                                    await layerNotifier.deleteLayer(layer.id);
+                                  },
+                                ),
+                              );
+                            },
+                            onSaveDetections: (layer, detections,
+                                    {cartonCountOverride, notesOverride}) =>
+                                layerNotifier.updateLayerDetections(
+                              layer.id,
+                              detections,
+                              cartonCountOverride: cartonCountOverride,
+                              notesOverride: notesOverride,
+                            ),
+                            onRequestCorrection: (layer, [previewWarning]) {
+                              _editLayerDialog(
+                                context,
+                                layerNotifier,
+                                layer,
+                                previewWarning: previewWarning,
+                                wagon: wagon,
+                                loadedByItem: inventory?.value ?? const {},
+                                requireCorrectionReason: isRegisterView,
+                              );
+                            },
+                          ),
+
+                        // bottom padding for sticky bar
+                        const SizedBox(height: 100),
+                      ]),
+                    ),
                   ),
                 ],
-                const SizedBox(height: 20),
-
-                Row(
-                  children: [
-                    SummaryStatCard(
-                      label: 'Layers',
-                      value: truck.totalLayers,
-                      icon: Icons.layers_outlined,
-                      color: AppTheme.primaryColor,
-                    ),
-                    const SizedBox(width: 10),
-                    SummaryStatCard(
-                      label: 'Cartons',
-                      value: truck.totalCartons,
-                      icon: Icons.inventory_2_outlined,
-                      color: AppTheme.warningColor,
-                    ),
-                    const SizedBox(width: 10),
-                    SummaryStatCard(
-                      label: 'Defects',
-                      value: truck.totalDefects,
-                      icon: Icons.warning_amber_outlined,
-                      color: AppTheme.errorColor,
-                      isAlert: true,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // ── 2. Layer Timeline ───────────────────────────────────────
-                _SectionHeader(
-                  icon: Icons.history_outlined,
-                  title: 'Layer History',
-                  trailing: '${layerState.layers.length} records',
-                ),
-                const SizedBox(height: 12),
-
-                if (layerState.isLoading && layerState.layers.isEmpty)
-                  const Center(child: CircularProgressIndicator())
-                else if (layerState.layers.isEmpty)
-                  const _EmptyLayersState()
-                else
-                  LayerTimeline(
-                    layers: layerState.layers,
-                    isReadOnly: isLayerReadOnly,
-                    onEditNotes: (layer) => _editLayerDialog(
-                      context,
-                      layerNotifier,
-                      layer,
-                      wagon: wagon,
-                      loadedByItem: inventory?.valueOrNull ?? const {},
-                      requireCorrectionReason: isRegisterView,
-                    ),
-                    onDeleteLayer: (layer) {
-                      showDialog<void>(
-                        context: context,
-                        builder: (ctx) => StrictActionWarningDialog(
-                          title: 'Remove Layer ${layer.layerNumber}?',
-                          content:
-                              'This voids the layer, removes it from reports, and recalculates the truck and session totals.',
-                          expectedConfirmationText:
-                              layer.layerNumber.toString(),
-                          actionLabel: 'Remove Layer',
-                          actionColor: Colors.redAccent,
-                          onConfirm: () async {
-                            await layerNotifier.deleteLayer(layer.id);
-                          },
-                        ),
-                      );
-                    },
-                    onSaveDetections: (layer, detections, {cartonCountOverride, notesOverride}) =>
-                        layerNotifier.updateLayerDetections(
-                      layer.id,
-                      detections,
-                      cartonCountOverride: cartonCountOverride,
-                      notesOverride: notesOverride,
-                    ),
-                    onRequestCorrection: (layer, [previewWarning]) {
-                      _editLayerDialog(
-                        context,
-                        layerNotifier,
-                        layer,
-                        previewWarning: previewWarning,
-                        wagon: wagon,
-                        loadedByItem: inventory?.valueOrNull ?? const {},
-                        requireCorrectionReason: isRegisterView,
-                      );
-                    },
-                  ),
-
-                // bottom padding for sticky bar
-                const SizedBox(height: 100),
-              ]),
-            ),
-          ),
-        ],
-      ))),
+              ))),
 
       // ── 6. Sticky Bottom Action Bar ─────────────────────────────────────
       // Digital Register is a history workspace, not an operational workflow.
@@ -344,7 +347,8 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                 final error = await sessionNotifier.startSession(
                     truckId: truckId, warehouseId: truck.warehouse);
                 if (error != null && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+                  ScaffoldMessenger.of(context)
+                      .showSnackBar(SnackBar(content: Text(error)));
                 }
               },
               onCapture: isWorkflowReadOnly
@@ -668,11 +672,14 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                         decoration: BoxDecoration(
                           color: AppTheme.errorColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
+                          border: Border.all(
+                              color:
+                                  AppTheme.errorColor.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 20),
+                            const Icon(Icons.error_outline,
+                                color: AppTheme.errorColor, size: 20),
                             const SizedBox(width: 8),
                             Expanded(
                               child: Text(
@@ -695,7 +702,8 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                           color: AppTheme.warningColor.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                              color: AppTheme.warningColor.withValues(alpha: 0.4)),
+                              color:
+                                  AppTheme.warningColor.withValues(alpha: 0.4)),
                         ),
                         child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -786,7 +794,8 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                             ),
                             onPressed: () async {
                               if (layer.splitData != null) {
-                                setDialogState(() => errorMessage = 'Split Layers cannot be replaced with a single photo. Please delete this layer and recapture it.');
+                                setDialogState(() => errorMessage =
+                                    'Split Layers cannot be replaced with a single photo. Please delete this layer and recapture it.');
                                 return;
                               }
                               final source =
@@ -817,7 +826,8 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                                 ),
                               );
                               if (source == null) return;
-                              AppLogger.info('OPERATOR ACTION: Adding Audit Photo from ${source.name}');
+                              AppLogger.info(
+                                  'OPERATOR ACTION: Adding Audit Photo from ${source.name}');
                               final picked = await ImagePicker().pickImage(
                                 source: source,
                                 imageQuality: 88,
@@ -1049,13 +1059,15 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                                   next.quantity);
                           final reason = reasonController.text.trim();
                           if (cartons == null || defects == null) {
-                            setDialogState(() => errorMessage = 'Enter valid carton and defect counts.');
+                            setDialogState(() => errorMessage =
+                                'Enter valid carton and defect counts.');
                             return;
                           }
                           if (wagon != null &&
                               wagon.items.isNotEmpty &&
                               allocated != cartons) {
-                            setDialogState(() => errorMessage = 'Item quantities must total exactly $cartons cartons.');
+                            setDialogState(() => errorMessage =
+                                'Item quantities must total exactly $cartons cartons.');
                             return;
                           }
                           if ((requireCorrectionReason ||
@@ -1063,7 +1075,8 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                                   allocationsChanged ||
                                   photoChanged) &&
                               reason.isEmpty) {
-                            setDialogState(() => errorMessage = 'Enter a reason for this correction.');
+                            setDialogState(() => errorMessage =
+                                'Enter a reason for this correction.');
                             return;
                           }
                           if (!countChanged &&
@@ -1091,7 +1104,8 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                                 if (context.mounted) {
                                   setDialogState(
                                       () => isSavingCorrection = false);
-                                  setDialogState(() => errorMessage = 'Could not save layer photo.');
+                                  setDialogState(() => errorMessage =
+                                      'Could not save layer photo.');
                                 }
                                 return;
                               }

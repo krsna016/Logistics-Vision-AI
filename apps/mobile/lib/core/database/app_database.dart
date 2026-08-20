@@ -18,7 +18,6 @@ part 'app_database.g.dart';
   DigitalRegisters,
   LoadingSessions,
   AuditLogs,
-  SyncQueues,
   DatasetImages,
   ImageMetadata,
   ImageQuality,
@@ -35,7 +34,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 11;
+  int get schemaVersion => 13;
 
   @override
   MigrationStrategy get migration {
@@ -50,13 +49,6 @@ class AppDatabase extends _$AppDatabase {
         // additive fields. Keep this migration data-preserving for installs
         // created by versions 1-3.
         if (from < 4) {
-          await m.addColumn(syncQueues, syncQueues.version);
-          await m.addColumn(syncQueues, syncQueues.priority);
-          await m.addColumn(syncQueues, syncQueues.createdAt);
-          await m.addColumn(syncQueues, syncQueues.updatedAt);
-          await m.database.customStatement(
-              "UPDATE sync_queues SET status = 'queued' WHERE status = 'pending'");
-
           await m.addColumn(datasetImages, datasetImages.wagonId);
           await m.addColumn(datasetImages, datasetImages.layerNumber);
           await m.addColumn(datasetImages, datasetImages.approvalStatus);
@@ -80,6 +72,36 @@ class AppDatabase extends _$AppDatabase {
           await m.createTable(modelHistory);
           await m.createTable(deviceSessions);
           await m.createTable(reportExports);
+        }
+
+        // Version 12 retires the unused local sync outbox. It has never been
+        // read or transmitted by the app, so removing it cannot affect
+        // operational records.
+        if (from < 12) {
+          await m.database.customStatement('DROP TABLE IF EXISTS sync_queues');
+        }
+        // Version 13 removes the unused sync marker from every local record
+        // table. The migration changes only that obsolete column; SQLite keeps
+        // all operational rows and their remaining fields intact.
+        if (from < 13) {
+          const tablesWithLegacySyncStatus = <String>[
+            'warehouses',
+            'wagons',
+            'trucks',
+            'layers',
+            'detections',
+            'digital_registers',
+            'loading_sessions',
+            'dataset_images',
+            'annotations',
+            'device_sessions',
+            'users',
+            'report_exports',
+          ];
+          for (final table in tablesWithLegacySyncStatus) {
+            await m.database
+                .customStatement('ALTER TABLE $table DROP COLUMN sync_status');
+          }
         }
         if (from < 5) {
           await m.addColumn(wagons, wagons.itemManifestJson);
@@ -171,15 +193,14 @@ Future<void> _createIntegrityIndexes(Migrator migrator) async {
 }
 
 /// Foreign-key columns are not indexed automatically by SQLite. These cover
-/// the filters and joins used by operational lists, analytics and the sync
-/// retry queue as local data grows.
+/// the filters and joins used by operational lists and analytics as local data
+/// grows.
 Future<void> _createPerformanceIndexes(Migrator migrator) async {
   const statements = <String>[
     'CREATE INDEX IF NOT EXISTS idx_trucks_wagon_active ON trucks (wagon_id, is_deleted, is_archived)',
     'CREATE INDEX IF NOT EXISTS idx_layers_truck_active_time ON layers (truck_id, is_deleted, timestamp)',
     'CREATE INDEX IF NOT EXISTS idx_detections_layer_active ON detections (layer_id, is_deleted)',
     'CREATE INDEX IF NOT EXISTS idx_loading_sessions_truck_active ON loading_sessions (truck_id, is_deleted)',
-    'CREATE INDEX IF NOT EXISTS idx_sync_queues_retry ON sync_queues (status, retry_count, priority, queued_at)',
     'CREATE INDEX IF NOT EXISTS idx_audit_logs_time_entity ON audit_logs (timestamp, entity_id)',
   ];
   for (final statement in statements) {

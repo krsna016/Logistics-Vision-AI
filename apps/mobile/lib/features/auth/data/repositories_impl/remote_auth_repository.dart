@@ -65,6 +65,26 @@ class RemoteAuthRepository implements AuthRepository {
     );
   }
 
+  /// Older sign-in servers return only the signed access token. Its required
+  /// subject and role claims are enough to establish the local session without
+  /// issuing a second profile request.
+  User? _userFromToken(String token) {
+    try {
+      final claims = JwtDecoder.decode(token);
+      final employeeId = claims['sub'];
+      if (employeeId is! String || employeeId.trim().isEmpty) return null;
+      return User(
+        id: employeeId,
+        employeeId: employeeId,
+        name: employeeId,
+        role: parseRole(claims['role'] as String?),
+        warehouse: 'warehouse_1',
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<bool> hasValidToken() async {
     final token = await _storage.read(key: StorageService.keyJwtToken);
     return token != null && token.isNotEmpty && _isTokenUsable(token);
@@ -102,17 +122,16 @@ class RemoteAuthRepository implements AuthRepository {
         await _storage.write(key: StorageService.keyJwtToken, value: token);
         _activeEmployeeId = employeeId;
         _locked = false;
-        // Newer servers return the authenticated profile with the token,
-        // avoiding a second network round trip. Keep the fallback so a mobile
-        // release can still sign in while an older backend is being replaced.
-        final responseUser = _userFromResponse(responseData['user']);
-        final user = responseUser ?? await getCurrentUser();
-        if (responseUser != null) _cachedUser = responseUser;
-        if (user == null) {
+        // Newer servers include a profile. Older compatible servers return
+        // only the token, whose signed claims establish the local profile.
+        final responseUser =
+            _userFromResponse(responseData['user']) ?? _userFromToken(token);
+        if (responseUser == null) {
           _lastLoginErrorMessage ??=
-              'Credentials were accepted, but the server rejected the new session. Contact an administrator.';
+              'The sign-in server did not return an account profile.';
         }
-        return user;
+        _cachedUser = responseUser;
+        return responseUser;
       }
       _lastLoginErrorMessage =
           'The server response did not contain a sign-in token.';

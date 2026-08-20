@@ -52,15 +52,14 @@ class WagonDetailsScreen extends ConsumerWidget {
     );
 
     // Filter trucks belonging to this wagon (including archived)
-    final allWagonTrucks = [
-      ...truckState.trucks,
-      ...wagonState.archivedTrucks
-    ].where((t) => t.wagonId == wagonId && !t.isDeleted).toList();
+    final allWagonTrucks = [...truckState.trucks, ...wagonState.archivedTrucks]
+        .where((t) => t.wagonId == wagonId && !t.isDeleted)
+        .toList();
 
     final activeWagonTrucks = truckState.trucks
         .where((t) => t.wagonId == wagonId && !t.isDeleted)
         .toList();
-        
+
     final archivedWagonTrucks = wagonState.archivedTrucks
         .where((t) => t.wagonId == wagonId && !t.isDeleted)
         .toList();
@@ -71,7 +70,7 @@ class WagonDetailsScreen extends ConsumerWidget {
 
     final inventory = ref.watch(wagonInventoryProvider(wagonId));
     final manifestReconciled = wagon.isManifestReconciled(
-      inventory.valueOrNull ?? const <String, int>{},
+      inventory.value ?? const <String, int>{},
     );
 
     return Scaffold(
@@ -152,173 +151,179 @@ class WagonDetailsScreen extends ConsumerWidget {
           physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Wagon Header Detail Card
-            Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: AppCard(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
+            children: [
+              // Wagon Header Detail Card
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: AppCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            wagon.wagonNumber,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 22,
+                                letterSpacing: 0.5),
+                          ),
+                          StatusChip(
+                            type: wagon.status == WagonStatus.loading
+                                ? CustomStatusType.active
+                                : (wagon.status == WagonStatus.completed
+                                    ? CustomStatusType.completed
+                                    : CustomStatusType.closed),
+                            label: wagon.status.displayName,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'Origin: ${wagon.origin}',
+                        style: const TextStyle(
+                            color: Color(0xFFBDBDBD), fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Destination: ${wagon.destination}',
+                        style: const TextStyle(
+                            color: Color(0xFFBDBDBD), fontSize: 14),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Loading Date: ${_formatDate(wagon.loadingDate)}',
+                        style: const TextStyle(
+                            color: Color(0xFFBDBDBD), fontSize: 14),
+                      ),
+                      if (wagon.remarks != null) ...[
+                        const SizedBox(height: 8),
                         Text(
-                          wagon.wagonNumber,
+                          'Remarks: ${wagon.remarks}',
                           style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 22,
-                              letterSpacing: 0.5),
-                        ),
-                        StatusChip(
-                          type: wagon.status == WagonStatus.loading
-                              ? CustomStatusType.active
-                              : (wagon.status == WagonStatus.completed
-                                  ? CustomStatusType.completed
-                                  : CustomStatusType.closed),
-                          label: wagon.status.displayName,
+                              color: Color(0xFFBDBDBD),
+                              fontSize: 12,
+                              fontStyle: FontStyle.italic),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      'Origin: ${wagon.origin}',
-                      style: const TextStyle(
-                          color: Color(0xFFBDBDBD), fontSize: 14),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Destination: ${wagon.destination}',
-                      style: const TextStyle(
-                          color: Color(0xFFBDBDBD), fontSize: 14),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Loading Date: ${_formatDate(wagon.loadingDate)}',
-                      style: const TextStyle(
-                          color: Color(0xFFBDBDBD), fontSize: 14),
-                    ),
-                    if (wagon.remarks != null) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        'Remarks: ${wagon.remarks}',
-                        style: const TextStyle(
-                            color: Color(0xFFBDBDBD),
-                            fontSize: 12,
-                            fontStyle: FontStyle.italic),
-                      ),
                     ],
+                  ),
+                ),
+              ),
+
+              if (wagon.items.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                  child: WagonInventoryCard(
+                    wagon: wagon,
+                    loadedByItem: inventory.value ?? const {},
+                    isLoading: inventory.isLoading,
+                  ),
+                ),
+
+              // Statistics Row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Row(
+                  children: [
+                    StatsCard(
+                      icon: Icons.local_shipping_outlined,
+                      value: '${allWagonTrucks.length}',
+                      title: 'Trucks Loaded',
+                    ),
+                    const SizedBox(width: 12),
+                    StatsCard(
+                      icon: Icons.inventory_2_outlined,
+                      value: '$cartons',
+                      title: 'Total Cartons',
+                    ),
+                    const SizedBox(width: 12),
+                    StatsCard(
+                      icon: Icons.warning_amber_outlined,
+                      value: '$defects',
+                      title: 'Total Defects',
+                    ),
                   ],
                 ),
               ),
-            ),
 
-            if (wagon.items.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                child: WagonInventoryCard(
-                  wagon: wagon,
-                  loadedByItem: inventory.valueOrNull ?? const {},
-                  isLoading: inventory.isLoading,
-                ),
-              ),
-
-            // Statistics Row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                children: [
-                  StatsCard(
-                    icon: Icons.local_shipping_outlined,
-                    value: '${allWagonTrucks.length}',
-                    title: 'Trucks Loaded',
-                  ),
-                  const SizedBox(width: 12),
-                  StatsCard(
-                    icon: Icons.inventory_2_outlined,
-                    value: '$cartons',
-                    title: 'Total Cartons',
-                  ),
-                  const SizedBox(width: 12),
-                  StatsCard(
-                    icon: Icons.warning_amber_outlined,
-                    value: '$defects',
-                    title: 'Total Defects',
-                  ),
-                ],
-              ),
-            ),
-
-            // List Title
-            const Padding(
-              padding: EdgeInsets.only(
-                  left: 16.0, right: 16.0, top: 24.0, bottom: 8.0),
-              child: Text(
-                'Registered Trucks',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-
-            // Archived Trucks Warning Banner
-            if (archivedWagonTrucks.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Icon(Icons.info_outline, color: Colors.orange, size: 20),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Archived: ${archivedWagonTrucks.map((t) => t.truckNumber).join(', ')}\nThese trucks are hidden from the active view but their cartons are included in the totals above. View full details in the Digital Register.',
-                          style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-            // Associated Trucks List or Empty State
-            if (activeWagonTrucks.isEmpty)
+              // List Title
               const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                child: AppCard(
-                  child: Column(
-                    children: [
-                      EmptyStateWidget(
-                        title: 'No Trucks Added',
-                        subtitle: 'Register your first truck for this wagon.',
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            else
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                child: Column(
-                  children: activeWagonTrucks.map((truck) {
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 12.0),
-                      child: _buildTruckRowCard(context, truck),
-                    );
-                  }).toList(),
+                padding: EdgeInsets.only(
+                    left: 16.0, right: 16.0, top: 24.0, bottom: 8.0),
+                child: Text(
+                  'Registered Trucks',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
               ),
 
-            const SizedBox(height: 100),
-          ],
+              // Archived Trucks Warning Banner
+              if (archivedWagonTrucks.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16.0, vertical: 8.0),
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: Colors.orange.withValues(alpha: 0.3)),
+                    ),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline,
+                            color: Colors.orange, size: 20),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            'Archived: ${archivedWagonTrucks.map((t) => t.truckNumber).join(', ')}\nThese trucks are hidden from the active view but their cartons are included in the totals above. View full details in the Digital Register.',
+                            style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 13,
+                                height: 1.4),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+              // Associated Trucks List or Empty State
+              if (activeWagonTrucks.isEmpty)
+                const Padding(
+                  padding:
+                      EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                  child: AppCard(
+                    child: Column(
+                      children: [
+                        EmptyStateWidget(
+                          title: 'No Trucks Added',
+                          subtitle: 'Register your first truck for this wagon.',
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Column(
+                    children: activeWagonTrucks.map((truck) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: _buildTruckRowCard(context, truck),
+                      );
+                    }).toList(),
+                  ),
+                ),
+
+              const SizedBox(height: 100),
+            ],
+          ),
         ),
-      ),
       ),
       bottomNavigationBar: _WagonBottomBar(
         isArchived: wagon.status == WagonStatus.archived,
@@ -446,7 +451,6 @@ class WagonDetailsScreen extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-
                           Text(
                             'Generate Report',
                             style: TextStyle(
@@ -587,7 +591,8 @@ class WagonDetailsScreen extends ConsumerWidget {
         actionColor: AppTheme.textSecondary,
         icon: Icons.archive_outlined,
         onConfirm: () async {
-          final error = await notifier.updateWagonStatus(wagon.id, WagonStatus.archived);
+          final error =
+              await notifier.updateWagonStatus(wagon.id, WagonStatus.archived);
           if (error != null) return error;
           if (context.mounted) context.go('/wagons');
           return null;
@@ -605,12 +610,11 @@ class WagonDetailsScreen extends ConsumerWidget {
     int completedCount,
   ) {
     showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        String? errorMessage;
-        bool isSaving = false;
-        return StatefulBuilder(
-          builder: (context, setState) {
+        context: context,
+        builder: (ctx) {
+          String? errorMessage;
+          bool isSaving = false;
+          return StatefulBuilder(builder: (context, setState) {
             return AlertDialog(
               title: const Text('Complete Wagon Session?'),
               content: Column(
@@ -624,11 +628,13 @@ class WagonDetailsScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: AppTheme.errorColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
+                        border: Border.all(
+                            color: AppTheme.errorColor.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 20),
+                          const Icon(Icons.error_outline,
+                              color: AppTheme.errorColor, size: 20),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
@@ -654,38 +660,43 @@ class WagonDetailsScreen extends ConsumerWidget {
               ),
               actions: [
                 TextButton(
-                    onPressed: isSaving ? null : () => Navigator.pop(ctx), child: const Text('Cancel')),
+                    onPressed: isSaving ? null : () => Navigator.pop(ctx),
+                    child: const Text('Cancel')),
                 ElevatedButton(
-                  onPressed: isSaving ? null : () async {
-                    setState(() {
-                      isSaving = true;
-                      errorMessage = null;
-                    });
-                    final error = await notifier.updateWagonStatus(
-                        wagon.id, WagonStatus.completed);
-                    if (ctx.mounted) {
-                      if (error != null) {
-                        setState(() {
-                          errorMessage = error;
-                          isSaving = false;
-                        });
-                      } else {
-                        Navigator.pop(ctx);
-                      }
-                    }
-                  },
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          setState(() {
+                            isSaving = true;
+                            errorMessage = null;
+                          });
+                          final error = await notifier.updateWagonStatus(
+                              wagon.id, WagonStatus.completed);
+                          if (ctx.mounted) {
+                            if (error != null) {
+                              setState(() {
+                                errorMessage = error;
+                                isSaving = false;
+                              });
+                            } else {
+                              Navigator.pop(ctx);
+                            }
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                       backgroundColor: AppTheme.successColor),
-                  child: isSaving 
-                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
                       : const Text('Complete'),
                 ),
               ],
             );
-          }
-        );
-      }
-    );
+          });
+        });
   }
 
   Widget _buildTruckRowCard(BuildContext context, Truck truck) {
@@ -697,26 +708,28 @@ class WagonDetailsScreen extends ConsumerWidget {
         children: [
           ValueListenableBuilder<bool>(
             valueListenable: AiCameraSettings.showDatabaseIds,
-            builder: (context, showId, _) => showId ? Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: Row(
-                children: [
-                  const Icon(Icons.fingerprint_outlined,
-                      size: 13, color: Color(0xFF7E8A99)),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      'ID: ${truck.id}',
-                      style: const TextStyle(
-                          color: Color(0xFF7E8A99),
-                          fontSize: 10,
-                          fontFamily: 'monospace'),
-                      overflow: TextOverflow.ellipsis,
+            builder: (context, showId, _) => showId
+                ? Padding(
+                    padding: const EdgeInsets.only(bottom: 12.0),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.fingerprint_outlined,
+                            size: 13, color: Color(0xFF7E8A99)),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            'ID: ${truck.id}',
+                            style: const TextStyle(
+                                color: Color(0xFF7E8A99),
+                                fontSize: 10,
+                                fontFamily: 'monospace'),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ) : const SizedBox.shrink(),
+                  )
+                : const SizedBox.shrink(),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -739,7 +752,6 @@ class WagonDetailsScreen extends ConsumerWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 4),
           Text(
             'Driver: ${truck.driverName}${truck.driverMobile != null && truck.driverMobile!.isNotEmpty ? ' (${truck.driverMobile})' : ''}',

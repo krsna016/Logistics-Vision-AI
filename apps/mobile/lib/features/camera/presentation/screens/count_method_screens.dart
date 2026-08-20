@@ -341,11 +341,20 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
       _error = null;
     });
     try {
-      final matchingTrucks = ref.read(truckListProvider).trucks.where((t) => t.id == widget.truckId);
+      final matchingTrucks = ref
+          .read(truckListProvider)
+          .trucks
+          .where((t) => t.id == widget.truckId);
       final truck = matchingTrucks.isEmpty ? null : matchingTrucks.first;
-      final matchingWagons = truck?.wagonId == null ? <Wagon>[] : ref.read(wagonListProvider).wagons.where((w) => w.id == truck!.wagonId).toList();
+      final matchingWagons = truck?.wagonId == null
+          ? <Wagon>[]
+          : ref
+              .read(wagonListProvider)
+              .wagons
+              .where((w) => w.id == truck!.wagonId)
+              .toList();
       final wagon = matchingWagons.isEmpty ? null : matchingWagons.first;
-      
+
       Map<String, int> finalAllocations = Map.from(_itemAllocations);
       if (wagon != null && wagon.items.length == 1) {
         finalAllocations = {wagon.items.first.name: count};
@@ -376,7 +385,8 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
       }
       AppLogger.info('Manual layer saved: $count cartons.');
       // Navigate based on where the capture was initiated from.
-      if (GoRouterState.of(context).uri.queryParameters['from'] == 'controlCenter') {
+      if (GoRouterState.of(context).uri.queryParameters['from'] ==
+          'controlCenter') {
         context.go('/wagons');
       } else {
         context.go('/trucks/${widget.truckId}?scrollToBottom=true');
@@ -417,7 +427,7 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
     final wagon = matchingWagons.isEmpty ? null : matchingWagons.first;
     final inventory = wagon == null
         ? null
-        : ref.watch(wagonInventoryProvider(wagon.id)).valueOrNull;
+        : ref.watch(wagonInventoryProvider(wagon.id)).value;
     final cartonTotal = int.tryParse(_countController.text.trim()) ?? 0;
     final allocatedTotal =
         _itemAllocations.values.fold<int>(0, (sum, quantity) => sum + quantity);
@@ -493,15 +503,18 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
             ] else if (wagon != null && wagon.items.length == 1) ...[
               const SizedBox(height: 14),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                 decoration: BoxDecoration(
                   color: AppTheme.successColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppTheme.successColor.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: AppTheme.successColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle_outline, color: AppTheme.successColor, size: 20),
+                    const Icon(Icons.check_circle_outline,
+                        color: AppTheme.successColor, size: 20),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(

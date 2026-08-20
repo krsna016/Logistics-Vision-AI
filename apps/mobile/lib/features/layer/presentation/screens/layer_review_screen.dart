@@ -422,7 +422,8 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
             });
             return;
           }
-          final loaded = await ref.read(wagonInventoryProvider(wagon.id).future);
+          final loaded =
+              await ref.read(wagonInventoryProvider(wagon.id).future);
           for (final entry in _itemAllocations.entries) {
             final manifestItem =
                 wagon.items.firstWhere((item) => item.name == entry.key);
@@ -646,8 +647,8 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
                 allocations: _itemAllocations,
                 onEditItems: wagon == null
                     ? null
-                    : () => _editItemBreakdown(
-                        wagon, inventory?.valueOrNull ?? const {}),
+                    : () =>
+                        _editItemBreakdown(wagon, inventory?.value ?? const {}),
                 onConfirm: _onSave,
               ),
             ),
@@ -1529,11 +1530,13 @@ class _ReviewBottomBar extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppTheme.successColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppTheme.successColor.withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: AppTheme.successColor.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.check_circle_outline, color: AppTheme.successColor, size: 20),
+                  const Icon(Icons.check_circle_outline,
+                      color: AppTheme.successColor, size: 20),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(

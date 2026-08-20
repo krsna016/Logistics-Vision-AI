@@ -134,7 +134,7 @@ It combines:
 - Supervisor-controlled historical corrections
 - Multi-page operational registers
 - PDF and Excel exports
-- Offline-first local operations with structured sync-ready records
+- Offline-first local operations with records stored on this device
 
 ### Designed for real logistics conditions
 
@@ -336,7 +336,7 @@ Because SmartLoad operates completely offline, it does not rely on simple number
 
 This provides two massive advantages:
 1. **Name Duplication is Safe:** You can create two wagons named "Train Express A", or two trucks with the same license plate. Because their hidden UUIDs are completely different, the system will never confuse their layers, photos, or inventory.
-2. **Offline Safety:** Two operators working offline in different warehouses will never accidentally generate the same ID. When their data is eventually synchronized or backed up, there are zero data collisions. Every Wagon, Truck, Layer, Photo, and Audit Log has its own guaranteed unique ID.
+2. **Offline Safety:** Every Wagon, Truck, Layer, Photo, and Audit Log has its own guaranteed unique ID, so local records remain internally consistent and can be safely backed up or restored.
 
 ---
 
@@ -1022,7 +1022,7 @@ SmartLoad केवल कार्टन गिनने वाला ऐप �
 - सुपरवाइजर नियंत्रित ऐतिहासिक सुधार
 - कई पेज वाला संचालन रजिस्टर
 - PDF और Excel export
-- Offline-first लोकल संचालन और sync-ready structured records
+- Offline-first लोकल संचालन और इस डिवाइस पर संग्रहित रिकॉर्ड
 
 ### वास्तविक लॉजिस्टिक्स परिस्थितियों के लिए
 

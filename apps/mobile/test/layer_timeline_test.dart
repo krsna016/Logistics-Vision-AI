@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/layer/domain/entities/layer.dart';
-import 'package:mobile/features/truck/domain/entities/truck.dart';
 import 'package:mobile/features/truck/presentation/widgets/layer_timeline.dart';
 
 void main() {
@@ -29,7 +28,6 @@ void main() {
       ],
       modelVersion: 'manual',
       averageConfidence: 1,
-      syncStatus: SyncStatus.pending,
       createdAt: timestamp,
       updatedAt: timestamp,
     );

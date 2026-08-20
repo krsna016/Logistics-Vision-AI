@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import '../../../truck/domain/entities/truck.dart';
 
 enum SessionStatus {
   created,
@@ -42,7 +41,6 @@ class LoadingSession {
   final double averageConfidence;
   final String modelVersion;
   final String? notes;
-  final SyncStatus syncStatus;
   final Map<String, dynamic> metadata;
 
   const LoadingSession({
@@ -59,7 +57,6 @@ class LoadingSession {
     this.averageConfidence = 0.0,
     required this.modelVersion,
     this.notes,
-    this.syncStatus = SyncStatus.pending,
     this.metadata = const {},
   });
 
@@ -82,7 +79,6 @@ class LoadingSession {
     double? averageConfidence,
     String? modelVersion,
     String? notes,
-    SyncStatus? syncStatus,
     Map<String, dynamic>? metadata,
   }) {
     return LoadingSession(
@@ -99,7 +95,6 @@ class LoadingSession {
       averageConfidence: averageConfidence ?? this.averageConfidence,
       modelVersion: modelVersion ?? this.modelVersion,
       notes: notes ?? this.notes,
-      syncStatus: syncStatus ?? this.syncStatus,
       metadata: metadata ?? this.metadata,
     );
   }

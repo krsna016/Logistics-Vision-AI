@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -29,14 +30,21 @@ class _ResizableCountingRegionState extends State<ResizableCountingRegion> {
   bool _hasAdjusted = false;
   bool _showHint = true;
   Offset? _lastPointerPosition;
+  Timer? _hintTimer;
 
   @override
   void initState() {
     super.initState();
     _draftRegion = widget.region;
-    Future.delayed(const Duration(seconds: 2), () {
+    _hintTimer = Timer(const Duration(seconds: 2), () {
       if (mounted) setState(() => _showHint = false);
     });
+  }
+
+  @override
+  void dispose() {
+    _hintTimer?.cancel();
+    super.dispose();
   }
 
   @override

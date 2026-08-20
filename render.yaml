@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: logistics-vision-ai-api
+    runtime: docker
+    rootDir: apps/backend
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false
+      - key: BOOTSTRAP_ADMIN_PASSWORD
+        sync: false
+      - key: ROBOFLOW_API_KEY
+        sync: false

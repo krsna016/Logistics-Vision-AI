@@ -3,8 +3,9 @@
 
 import asyncio
 from datetime import datetime, timedelta, timezone
+from time import monotonic
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -21,12 +22,33 @@ router = APIRouter()
 # Run the same deliberately expensive password check for unknown IDs so the
 # response time does not reveal which employee IDs exist.
 _DUMMY_PASSWORD_HASH = "$2b$12$d4D1Xr2mlv7Ji8Yb8QpB6uT6Nbj4CqZpkP5pX6GImQdFq5BAp/.mK"
+_LOGIN_WINDOW_SECONDS = 60
+_LOGIN_ATTEMPT_LIMIT = 10
+_login_attempts: dict[str, list[float]] = {}
+
+
+def _check_login_rate_limit(client_host: str) -> None:
+    """Bound password work per client before bcrypt is invoked.
+
+    A reverse proxy should enforce the same policy for multi-instance
+    deployments; this process-local guard still protects each worker.
+    """
+    now = monotonic()
+    attempts = [at for at in _login_attempts.get(client_host, []) if now - at < _LOGIN_WINDOW_SECONDS]
+    if len(attempts) >= _LOGIN_ATTEMPT_LIMIT:
+        _login_attempts[client_host] = attempts
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many login attempts")
+    attempts.append(now)
+    _login_attempts[client_host] = attempts
 
 
 @router.post("/login", response_model=Token)
 async def login_for_access_token(
-    form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
 ):
+    _check_login_rate_limit(request.client.host if request.client else "unknown")
     # form_data.username will actually be the employee_id from our mobile app
     normalized_employee_id = form_data.username.strip().upper()
     result = await db.execute(

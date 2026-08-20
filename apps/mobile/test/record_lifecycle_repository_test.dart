@@ -167,14 +167,11 @@ void main() {
 
     final truck = await database.select(database.trucks).getSingle();
     final session = await database.select(database.loadingSessions).getSingle();
-    final queued = await database.select(database.syncQueues).get();
     expect((truck.totalLayers, truck.totalCartons, truck.totalDefects),
         (3, 35, 4));
     expect((session.totalLayers, session.totalCartons, session.totalDefects),
         (3, 35, 4));
     expect(session.averageConfidence, closeTo((0.8 + 0.6 + 0.9) / 3, 0.0001));
-    expect(queued.map((item) => item.entityType).toSet(),
-        containsAll(<String>{'Layer', 'Truck', 'LoadingSession'}));
     final savedLayer =
         (await LocalLayerRepository(database).getLayersByTruck('truck-1'))
             .firstWhere((layer) => layer.id == 'layer-3');
@@ -257,11 +254,6 @@ void main() {
     expect(layers.every((layer) => layer.isDeleted), isTrue);
     expect(session.isDeleted, isTrue);
     expect(session.status, 'cancelled');
-    final deletes = await (database.select(database.syncQueues)
-          ..where((row) => row.operation.equals('DELETE')))
-        .get();
-    expect(deletes.map((row) => row.entityType).toSet(),
-        containsAll(<String>{'Truck', 'Layer', 'LoadingSession'}));
   });
 
   test('removing a wagon cascades through archived trucks too', () async {
@@ -280,11 +272,6 @@ void main() {
     expect(
         (await database.select(database.loadingSessions).getSingle()).isDeleted,
         isTrue);
-    final deletes = await (database.select(database.syncQueues)
-          ..where((row) => row.operation.equals('DELETE')))
-        .get();
-    expect(deletes.map((row) => row.entityType).toSet(),
-        containsAll(<String>{'Wagon', 'Truck', 'Layer', 'LoadingSession'}));
   });
 
   test('wagon inventory totals are grouped by layer item', () async {

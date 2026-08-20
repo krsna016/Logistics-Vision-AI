@@ -76,7 +76,7 @@ graph TD
 
 ### FR-5: Offline First Capabilities
 *   All data writes, image captures, and AI counts must execute entirely locally.
-*   Local database changes must enter a **Synchronization Queue** to sync when internet connectivity is detected.
+*   Local database changes remain on the device. There is no operational-data synchronization queue.
 
 ### FR-6: Manager Dashboard & Report Export
 *   Export loading reports in CSV, PDF, and JSON formats locally or send via email/SMS.

@@ -4,7 +4,6 @@ import '../../domain/entities/layer.dart';
 import '../models/layer_model.dart';
 import '../../domain/repositories/layer_repository.dart';
 import '../../../camera/domain/entities/detection.dart';
-import '../../../truck/domain/entities/truck.dart';
 import '../../../../core/database/app_database.dart' hide Detection;
 import '../../../../core/storage/image_storage_service.dart';
 import '../../../../utils/logger.dart';
@@ -63,8 +62,6 @@ class LocalLayerRepository implements LayerRepository {
       itemAllocations: allocations,
       modelVersion: data.modelVersion ?? '',
       averageConfidence: data.averageConfidence,
-      syncStatus: SyncStatus.values.firstWhere((e) => e.name == data.syncStatus,
-          orElse: () => SyncStatus.pending),
       createdAt: data.createdAt,
       updatedAt: data.updatedAt,
       isDeleted: data.isDeleted,
@@ -145,17 +142,8 @@ class LocalLayerRepository implements LayerRepository {
           totalCartons: drift.Value(totalCartons),
           totalDefects: drift.Value(totalDefects),
           version: drift.Value(nextTruckVersion),
-          syncStatus: const drift.Value('pending'),
           updatedAt: drift.Value(now),
         ));
-        await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-              id: 'sync_t_${now.microsecondsSinceEpoch}_${layer.id}',
-              entityId: layer.truckId,
-              entityType: 'Truck',
-              operation: 'UPDATE',
-              payloadData: '{}',
-              version: drift.Value(nextTruckVersion),
-            ));
       }
 
       final sessions = await (_db.select(_db.loadingSessions)
@@ -173,27 +161,9 @@ class LocalLayerRepository implements LayerRepository {
           totalDefects: drift.Value(totalDefects),
           averageConfidence: drift.Value(averageConfidence),
           version: drift.Value(nextSessionVersion),
-          syncStatus: const drift.Value('pending'),
           updatedAt: drift.Value(now),
         ));
-        await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-              id: 'sync_s_${now.microsecondsSinceEpoch}_${session.id}',
-              entityId: session.id,
-              entityType: 'LoadingSession',
-              operation: 'UPDATE',
-              payloadData: '{}',
-              version: drift.Value(nextSessionVersion),
-            ));
       }
-
-      await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-            id: 'sync_l_${now.microsecondsSinceEpoch}_${layer.id}',
-            entityId: layer.id,
-            entityType: 'Layer',
-            operation: 'INSERT',
-            payloadData: '{}',
-            version: const drift.Value(1),
-          ));
     });
     AppLogger.info(
         'Saved layer number ${layer.layerNumber} for truck ${layer.truckId}');
@@ -239,7 +209,6 @@ class LocalLayerRepository implements LayerRepository {
         operatorId: drift.Value(layer.operatorId),
         modelVersion: drift.Value(layer.modelVersion),
         version: drift.Value(nextLayerVersion),
-        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(DateTime.now()),
       ));
 
@@ -257,13 +226,12 @@ class LocalLayerRepository implements LayerRepository {
           : activeLayers.fold<double>(
                   0, (sum, item) => sum + item.averageConfidence) /
               activeLayers.length;
-      await _updateParentAggregatesAndQueue(
+      await _updateParentAggregates(
         truckId: layer.truckId,
         totalLayers: activeLayers.length,
         totalCartons: totalCartons,
         totalDefects: totalDefects,
         averageConfidence: averageConfidence,
-        operationKey: '${layer.id}_update',
       );
 
       final countChanged = existing.cartonCount != effectiveCartons ||
@@ -271,7 +239,7 @@ class LocalLayerRepository implements LayerRepository {
           existing.itemAllocationsJson != nextAllocationsJson;
       final detectionsChanged = existing.detectionsJson != nextDetectionsJson;
       final photoChanged = existing.photoPath != layer.photoPath;
-      
+
       changeSummary = 'Layer ${layer.layerNumber}: cartons '
           '${existing.cartonCount} -> $effectiveCartons, defects '
           '${existing.defectCount} -> ${layer.defectCount}. Reason: '
@@ -290,23 +258,13 @@ class LocalLayerRepository implements LayerRepository {
               details: drift.Value(changeSummary),
             ));
       }
-
-      await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-            id: 'sync_l_update_${layer.id}_$nextLayerVersion',
-            entityId: layer.id,
-            entityType: 'Layer',
-            operation: 'UPDATE',
-            payloadData: correctionReason?.trim().isNotEmpty == true
-                ? '{"correctionReason":"${correctionReason!.trim().replaceAll('"', '\\"')}"}'
-                : '{}',
-            version: drift.Value(nextLayerVersion),
-          ));
     });
     if (existing.photoPath != null && existing.photoPath != layer.photoPath) {
       await _imageStorage.deleteImage(existing.photoPath!);
     }
-    
-    AppLogger.info('Updated layer record: ${layer.id} | Changes: $changeSummary');
+
+    AppLogger.info(
+        'Updated layer record: ${layer.id} | Changes: $changeSummary');
   }
 
   int _savedDetectionCount(String raw) {
@@ -321,17 +279,17 @@ class LocalLayerRepository implements LayerRepository {
     try {
       final oldItems = jsonDecode(oldJson) as List;
       final newItems = jsonDecode(newJson) as List;
-      
+
       final oldMap = <String, int>{};
       for (final i in oldItems) {
         oldMap[i['itemName'].toString()] = (i['quantity'] as num).toInt();
       }
-      
+
       final newMap = <String, int>{};
       for (final i in newItems) {
         newMap[i['itemName'].toString()] = (i['quantity'] as num).toInt();
       }
-      
+
       final changes = <String>[];
       final allKeys = {...oldMap.keys, ...newMap.keys};
       for (final key in allKeys) {
@@ -360,7 +318,6 @@ class LocalLayerRepository implements LayerRepository {
           .write(LayersCompanion(
         isDeleted: const drift.Value(true),
         version: drift.Value(nextLayerVersion),
-        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(DateTime.now()),
       ));
       await (_db.update(_db.detections)
@@ -385,13 +342,12 @@ class LocalLayerRepository implements LayerRepository {
                   0, (sum, layer) => sum + layer.averageConfidence) /
               activeLayers.length;
 
-      await _updateParentAggregatesAndQueue(
+      await _updateParentAggregates(
         truckId: existing.truckId,
         totalLayers: activeLayers.length,
         totalCartons: totalCartons,
         totalDefects: totalDefects,
         averageConfidence: averageConfidence,
-        operationKey: '${existing.id}_delete',
       );
 
       await _db.into(_db.auditLogs).insert(AuditLogsCompanion.insert(
@@ -404,14 +360,6 @@ class LocalLayerRepository implements LayerRepository {
               'Voided layer ${existing.layerNumber}; removed '
               '${existing.cartonCount} cartons and ${existing.defectCount} defects.',
             ),
-          ));
-      await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-            id: 'sync_l_delete_${existing.id}_$nextLayerVersion',
-            entityId: id,
-            entityType: 'Layer',
-            operation: 'DELETE',
-            payloadData: '{"cascadeTotals":true}',
-            version: drift.Value(nextLayerVersion),
           ));
     });
     if (existing.photoPath != null) {
@@ -434,9 +382,7 @@ class LocalLayerRepository implements LayerRepository {
   @override
   Future<int> getMaxLayerNumber(String truckId) async {
     final query = _db.select(_db.layers)
-      ..where((t) =>
-          t.truckId.equals(truckId) &
-          t.isDeleted.equals(false))
+      ..where((t) => t.truckId.equals(truckId) & t.isDeleted.equals(false))
       ..orderBy([(t) => drift.OrderingTerm.desc(t.layerNumber)])
       ..limit(1);
     final rows = await query.get();
@@ -444,13 +390,12 @@ class LocalLayerRepository implements LayerRepository {
     return rows.first.layerNumber;
   }
 
-  Future<void> _updateParentAggregatesAndQueue({
+  Future<void> _updateParentAggregates({
     required String truckId,
     required int totalLayers,
     required int totalCartons,
     required int totalDefects,
     required double averageConfidence,
-    required String operationKey,
   }) async {
     final now = DateTime.now();
     final truck = await (_db.select(_db.trucks)
@@ -464,17 +409,8 @@ class LocalLayerRepository implements LayerRepository {
         totalCartons: drift.Value(totalCartons),
         totalDefects: drift.Value(totalDefects),
         version: drift.Value(nextVersion),
-        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(now),
       ));
-      await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-            id: 'sync_t_${now.microsecondsSinceEpoch}_$operationKey',
-            entityId: truckId,
-            entityType: 'Truck',
-            operation: 'UPDATE',
-            payloadData: '{}',
-            version: drift.Value(nextVersion),
-          ));
     }
 
     final sessions = await (_db.select(_db.loadingSessions)
@@ -491,17 +427,8 @@ class LocalLayerRepository implements LayerRepository {
         totalDefects: drift.Value(totalDefects),
         averageConfidence: drift.Value(averageConfidence),
         version: drift.Value(nextVersion),
-        syncStatus: const drift.Value('pending'),
         updatedAt: drift.Value(now),
       ));
-      await _db.into(_db.syncQueues).insert(SyncQueuesCompanion.insert(
-            id: 'sync_s_${now.microsecondsSinceEpoch}_${session.id}_$operationKey',
-            entityId: session.id,
-            entityType: 'LoadingSession',
-            operation: 'UPDATE',
-            payloadData: '{}',
-            version: drift.Value(nextVersion),
-          ));
     }
   }
 

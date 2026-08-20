@@ -14,7 +14,6 @@ from app.core.security import create_access_token
 from app.models.user import User
 from app.routers import auth
 from app.routers.inference import _has_supported_image_signature
-from app.schemas.sync import SyncBatchIn
 from app.schemas.user import Token, UserCreate
 
 
@@ -79,30 +78,6 @@ def test_user_creation_accepts_only_the_two_supported_roles():
         )
 
 
-def test_sync_batch_rejects_unbounded_or_invalid_records():
-    with pytest.raises(ValueError):
-        SyncBatchIn(
-            records=[
-                {
-                    "operation_id": "op-1",
-                    "entity_type": "Layer",
-                    "entity_id": "layer-1",
-                    "operation": "UPSERT",
-                    "version": 1,
-                }
-            ]
-        )
-    valid_record = {
-        "operation_id": "op-valid",
-        "entity_type": "Layer",
-        "entity_id": "layer-1",
-        "operation": "INSERT",
-        "version": 1,
-    }
-    with pytest.raises(ValueError):
-        SyncBatchIn(records=[valid_record] * 101)
-
-
 def test_inference_upload_signature_validation():
     assert _has_supported_image_signature(b"\xff\xd8\xffjpeg")
     assert _has_supported_image_signature(b"\x89PNG\r\n\x1a\nbytes")
@@ -135,6 +110,7 @@ async def test_login_returns_profile_without_redundant_success_commit(monkeypatc
     monkeypatch.setattr(auth, "create_access_token", lambda **_: "test-token")
 
     response = await auth.login_for_access_token(
+        SimpleNamespace(client=SimpleNamespace(host="127.0.0.1")),
         SimpleNamespace(username=" op-105 ", password="correct-password"),
         db,
     )

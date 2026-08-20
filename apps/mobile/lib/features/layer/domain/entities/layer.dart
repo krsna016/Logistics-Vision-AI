@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../../../camera/domain/entities/detection.dart';
-import '../../../truck/domain/entities/truck.dart';
 
 @immutable
 class LayerItemAllocation {
@@ -119,7 +118,6 @@ class LayerRecord {
   final List<LayerItemAllocation> itemAllocations;
   final String modelVersion;
   final double averageConfidence;
-  final SyncStatus syncStatus;
   final DateTime createdAt;
   final DateTime updatedAt;
   final bool isDeleted;
@@ -141,7 +139,6 @@ class LayerRecord {
     this.itemAllocations = const [],
     required this.modelVersion,
     required this.averageConfidence,
-    this.syncStatus = SyncStatus.pending,
     required this.createdAt,
     required this.updatedAt,
     this.isDeleted = false,
@@ -161,14 +158,18 @@ class LayerRecord {
         }
       }
     }
-    
+
     // Clean up any previously saved duplicate warnings
-    baseNote = baseNote.replaceAll('-- This layer contains two merged images (Split Mode) --', '').trim();
+    baseNote = baseNote
+        .replaceAll(
+            '-- This layer contains two merged images (Split Mode) --', '')
+        .trim();
     baseNote = baseNote.replaceAll('SPLIT MODE LAYER', '').trim();
-    
+
     // Clean up floating pipes or newlines left behind
-    while (baseNote.endsWith('|')) baseNote = baseNote.substring(0, baseNote.length - 1).trim();
-    
+    while (baseNote.endsWith('|'))
+      baseNote = baseNote.substring(0, baseNote.length - 1).trim();
+
     if (splitData != null) {
       final splitWarning = 'SPLIT MODE LAYER';
       return baseNote.isEmpty ? splitWarning : '$baseNote\n\n$splitWarning';
@@ -180,7 +181,8 @@ class LayerRecord {
   Map<String, dynamic>? get splitData {
     if (notes == null || !notes!.contains('[SPLIT_DATA]:')) return null;
     try {
-      final jsonStr = notes!.substring(notes!.indexOf('[SPLIT_DATA]:') + '[SPLIT_DATA]:'.length);
+      final jsonStr = notes!
+          .substring(notes!.indexOf('[SPLIT_DATA]:') + '[SPLIT_DATA]:'.length);
       return jsonDecode(jsonStr) as Map<String, dynamic>;
     } catch (_) {
       return null;
@@ -204,7 +206,6 @@ class LayerRecord {
     List<LayerItemAllocation>? itemAllocations,
     String? modelVersion,
     double? averageConfidence,
-    SyncStatus? syncStatus,
     DateTime? createdAt,
     DateTime? updatedAt,
     bool? isDeleted,
@@ -226,7 +227,6 @@ class LayerRecord {
       itemAllocations: itemAllocations ?? this.itemAllocations,
       modelVersion: modelVersion ?? this.modelVersion,
       averageConfidence: averageConfidence ?? this.averageConfidence,
-      syncStatus: syncStatus ?? this.syncStatus,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       isDeleted: isDeleted ?? this.isDeleted,

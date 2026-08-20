@@ -21,11 +21,10 @@ Future<void> _fileLoggerInit() async {
 void main() async {
   // Ensure widget bindings are loaded before background async initializes.
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   try {
     await _fileLoggerInit();
   } catch (_) {}
-
 
   await SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   // SmartLoad's operational camera, review, forms and register workflows are
@@ -90,8 +89,7 @@ class _LogisticsVisionAppState extends ConsumerState<LogisticsVisionApp> {
   @override
   void initState() {
     super.initState();
-    // Keep the offline queue engine alive for the whole app session. It must
-    // not depend on the user opening the backup screen first.
+    // Load locally stored AI settings without requiring any network activity.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(aiCameraSettingsLoaderProvider);
     });

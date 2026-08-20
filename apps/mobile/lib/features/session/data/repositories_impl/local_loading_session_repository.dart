@@ -4,7 +4,6 @@ import '../../domain/entities/loading_session.dart';
 import '../../domain/repositories/loading_session_repository.dart';
 import '../../../../core/database/app_database.dart' as db;
 import '../../../../utils/logger.dart';
-import '../../../truck/domain/entities/truck.dart';
 
 class LocalLoadingSessionRepository implements LoadingSessionRepository {
   final db.AppDatabase _db;
@@ -27,8 +26,6 @@ class LocalLoadingSessionRepository implements LoadingSessionRepository {
       averageConfidence: data.averageConfidence,
       modelVersion: data.modelVersion ?? '',
       notes: data.notes,
-      syncStatus: SyncStatus.values.firstWhere((e) => e.name == data.syncStatus,
-          orElse: () => SyncStatus.pending),
       metadata: data.metadata != null
           ? jsonDecode(data.metadata!) as Map<String, dynamic>
           : const {},
@@ -56,7 +53,6 @@ class LocalLoadingSessionRepository implements LoadingSessionRepository {
           notes: drift.Value(session.notes),
           metadata: drift.Value(jsonEncode(session.metadata)),
           version: drift.Value(nextVersion),
-          syncStatus: const drift.Value('pending'),
           updatedAt: drift.Value(DateTime.now()),
         ));
       } else {
@@ -94,17 +90,6 @@ class LocalLoadingSessionRepository implements LoadingSessionRepository {
               updatedAt: drift.Value(DateTime.now()),
             ));
       }
-
-      await _db.into(_db.syncQueues).insert(db.SyncQueuesCompanion.insert(
-            id: exists == null
-                ? 'sync_s_insert_${session.id}_1'
-                : 'sync_s_update_${session.id}_${exists.version + 1}',
-            entityId: session.id,
-            entityType: 'LoadingSession',
-            operation: exists != null ? 'UPDATE' : 'INSERT',
-            payloadData: '{}',
-            version: drift.Value(exists == null ? 1 : exists.version + 1),
-          ));
     });
     AppLogger.info(
         'Saved loading session: ${session.id} status=${session.status.name}');

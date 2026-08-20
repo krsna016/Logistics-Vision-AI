@@ -24,10 +24,6 @@ class TruckModel {
       totalDefects: json['totalDefects'] as int? ?? 0,
       notes: json['notes'] as String?,
       wagonId: json['wagonId'] as String?,
-      syncStatus: SyncStatus.values.firstWhere(
-        (e) => e.name == (json['syncStatus'] as String? ?? 'pending'),
-        orElse: () => SyncStatus.pending,
-      ),
       isDeleted: json['isDeleted'] as bool? ?? false,
       isArchived: json['isArchived'] as bool? ?? false,
     );
@@ -51,7 +47,6 @@ class TruckModel {
       'totalDefects': truck.totalDefects,
       'notes': truck.notes,
       'wagonId': truck.wagonId,
-      'syncStatus': truck.syncStatus.name,
       'isDeleted': truck.isDeleted,
       'isArchived': truck.isArchived,
     };

@@ -642,8 +642,13 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
             'Warning: You visually removed $removedCount boxes in the preview. Please update the numbers below to match.';
       }
 
-      widget.onRequestCorrection
-          ?.call(widget.layer, warning.isEmpty ? null : warning);
+      widget.onRequestCorrection?.call(
+        widget.layer.copyWith(
+          cartonCount: _visibleDetections.length,
+          detections: _visibleDetections,
+        ),
+        warning.isEmpty ? null : warning,
+      );
     }
   }
 
@@ -711,15 +716,32 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                     ),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        '${widget.titlePrefixOverride ?? 'Layer ${widget.layer.layerNumber}'} • $_displayCartonCount Cartons'
-                        '${widget.layer.defectCount > 0 ? ' • ${widget.layer.defectCount} Defective' : ''}',
-                        key: const ValueKey('layer-photo-carton-count'),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 13,
-                        ),
+                      child: Row(
+                        children: [
+                          Text(
+                            widget.titlePrefixOverride ??
+                                'L${widget.layer.layerNumber}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13,
+                            ),
+                          ),
+                          const Text(' • ', style: TextStyle(color: Colors.white70)),
+                          Expanded(
+                            child: Text(
+                              '$_displayCartonCount cartons'
+                              '${widget.layer.defectCount > 0 ? ' • ${widget.layer.defectCount} Defective' : ''}',
+                              key: const ValueKey('layer-photo-carton-count'),
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     if (widget.extraHeaderWidget != null)
@@ -771,8 +793,7 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.medium,
                         ),
-                        if ((_showMasks || _showNumbers || widget.canEdit) &&
-                            _isPhotoSizeLoaded)
+                        if (_showMasks || _showNumbers || widget.canEdit)
                           Positioned.fill(
                             child: DetectionOverlayWidget(
                               key: const ValueKey('layer-mask-overlay'),

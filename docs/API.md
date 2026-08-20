@@ -51,49 +51,10 @@ Lists active or completed trucks for warehouse loading assignments.
 
 ---
 
-## 3. Sync & Layer Management
+## 3. Local operational data
 
-### POST `/api/v1/sync/batch`
-Synchronizes offline data outbox payloads. Accepts batch writes of layers and defects.
-*   **Request Body**:
-    ```json
-    {
-      "layers": [
-        {
-          "id": "b1b2b3b4-c5c6-d7d8-e9e0-f1f2f3f4f5f6",
-          "truck_id": "e0e37bc9-56b0-466d-a9a7-47bdfd92f9d1",
-          "layer_number": 3,
-          "carton_count": 24,
-          "operator_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-          "timestamp": "2026-07-25T11:20:00Z",
-          "notes": "Slight carton slip corrected manually"
-        }
-      ],
-      "defects": [
-        {
-          "id": "d1d2d3d4-e5e6-f7f8-a9a0-b1b2b3b4f5f6",
-          "layer_id": "b1b2b3b4-c5c6-d7d8-e9e0-f1f2f3f4f5f6",
-          "defect_type": "crushed",
-          "bounding_box": {
-            "x_min": 0.12,
-            "y_min": 0.34,
-            "x_max": 0.45,
-            "y_max": 0.67
-          },
-          "severity": "medium",
-          "confirmed_by_operator": true
-        }
-      ]
-    }
-    ```
-*   **Response (200 OK)**:
-    ```json
-    {
-      "synced_layer_ids": ["b1b2b3b4-c5c6-d7d8-e9e0-f1f2f3f4f5f6"],
-      "synced_defect_ids": ["d1d2d3d4-e5e6-f7f8-a9a0-b1b2b3b4f5f6"],
-      "status": "success"
-    }
-    ```
+Truck, wagon, layer, defect, photo, report, and audit data are stored on the
+device. There is no operational-data upload or synchronization API.
 
 ---
 

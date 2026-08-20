@@ -1,13 +1,12 @@
 import 'package:drift/drift.dart';
 
-// Base Sync Fields Mixin/Interface
+// Common local record metadata.
 mixin SyncMetadata on Table {
   TextColumn get id => text()();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
   BoolColumn get isDeleted => boolean().withDefault(const Constant(false))();
   IntColumn get version => integer().withDefault(const Constant(1))();
-  TextColumn get syncStatus => text().withDefault(const Constant('pending'))();
 }
 
 class Warehouses extends Table with SyncMetadata {
@@ -133,26 +132,8 @@ class AuditLogs extends Table {
   TextColumn get details => text().nullable()();
 }
 
-class SyncQueues extends Table {
-  @override
-  Set<Column> get primaryKey => {id};
-  TextColumn get id => text()();
-  TextColumn get entityId => text()();
-  TextColumn get entityType => text()(); // Wagon, Truck, Layer, etc.
-  TextColumn get operation => text()(); // INSERT, UPDATE, DELETE
-  TextColumn get payloadData => text()(); // JSON string
-  IntColumn get version => integer().withDefault(const Constant(1))();
-  IntColumn get priority =>
-      integer().withDefault(const Constant(0))(); // Higher is more important
-  DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
-  DateTimeColumn get updatedAt => dateTime().withDefault(currentDateAndTime)();
-  DateTimeColumn get queuedAt => dateTime().withDefault(currentDateAndTime)();
-  IntColumn get retryCount => integer().withDefault(const Constant(0))();
-  TextColumn get status => text().withDefault(const Constant(
-      'queued'))(); // queued, syncing, completed, failed, cancelled, conflict
-  TextColumn get errorMessage => text().nullable()();
-}
-
+// Retained only so existing local databases open without a destructive schema
+// migration. No repository writes to or reads from this legacy table.
 class DatasetImages extends Table with SyncMetadata {
   @override
   Set<Column> get primaryKey => {id};

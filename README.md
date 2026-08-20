@@ -1,6 +1,6 @@
 # Logistics Vision AI - Project Foundation
 
-Welcome to the foundation of **Logistics Vision AI**, an enterprise-grade, offline-first mobile application designed for warehouse truck-loading operations. Using camera-based AI, the app automates carton counting, synchronizing offline work to a secure cloud backend if available.
+Welcome to the foundation of **Logistics Vision AI**, an enterprise-grade local-first mobile application designed for warehouse truck-loading operations. Using on-device camera AI, the app automates carton counting and stores operational work only on the device. The backend is used for account sign-in and administration, not operational-data synchronization.
 
 This repository is organized as a monorepo to separate frontend, backend, AI pipeline code, and shared packages.
 
@@ -64,7 +64,7 @@ Logistics Vision AI/
 ## 2. Technical Decisions & Foundation
 
 ### Domain-Driven Design (DDD)
-*   The business logic is organized into bounded contexts and aggregate roots to ensure data consistency in offline environments. Read the domain documentation registry under `docs/` before implementing any models or database sync operations.
+*   The business logic is organized into bounded contexts and aggregate roots to ensure data consistency in offline environments. Read the domain documentation registry under `docs/` before implementing persistence changes.
 
 ### State Management & Dependency Injection: Riverpod
 *   **Riverpod** handles both UI reactive states and dependency injection.

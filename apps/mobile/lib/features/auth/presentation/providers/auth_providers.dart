@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/legacy.dart';
 
 import '../../domain/entities/user.dart';
 import '../../domain/entities/session.dart';
@@ -16,8 +17,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/providers/database_provider.dart';
 import '../../../../services/storage_service.dart';
-import '../../../../services/network_service.dart';
-import '../../../../services/location_tracking_service.dart';
 import '../../../../utils/logger.dart';
 import '../../data/services/password_hasher_impl.dart';
 import '../../data/services/secure_credential_storage.dart';
@@ -75,12 +74,6 @@ final secureStorageProvider = Provider((ref) {
   return const FlutterSecureStorage();
 });
 
-final locationTrackingServiceProvider = Provider((ref) {
-  return LocationTrackingService(NetworkService(
-    secureStorage: ref.watch(secureStorageProvider),
-  ));
-});
-
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final dio = ref.watch(dioProvider);
   final storage = ref.watch(secureStorageProvider);
@@ -93,7 +86,6 @@ final authProvider = StateNotifierProvider<AuthNotifier, User?>((ref) {
     ref.watch(authRepositoryProvider),
     ref.watch(offlineAuthProvider),
     ref.watch(secureStorageProvider),
-    ref.watch(locationTrackingServiceProvider),
   );
 });
 
@@ -101,14 +93,12 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   final AuthRepository _repository;
   final OfflineAuthenticationImpl _offlineAuth;
   final FlutterSecureStorage _storage;
-  final LocationTrackingService _locationTracking;
   static const _cachedUserKey = 'cached_authenticated_user';
 
   static const _offlineAccessPrefix = 'offline_access_valid_until_';
   static const _offlineAccessWindow = Duration(hours: 24);
 
-  AuthNotifier(this._repository, this._offlineAuth, this._storage,
-      this._locationTracking)
+  AuthNotifier(this._repository, this._offlineAuth, this._storage)
       : super(null) {
     WidgetsBinding.instance.addObserver(this);
     _init();
@@ -116,26 +106,11 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
 
   Future<void> _init() async {
     final cachedUser = await _restoreCachedUser();
-    if (cachedUser != null && state == null) state = cachedUser;
-    final remoteUser = await _repository.getCurrentUser();
-    if (_sessionWasRevoked) {
-      await logout();
-      return;
-    }
-    // Prevent overriding a demo login if it happened while we were fetching
-    if (state != null) return;
-
-    if (remoteUser == null && cachedUser == null) {
-      // Location tracking is intentionally opt-in. Starting GPS before a
-      // successful login wastes battery and creates an unnecessary request.
-      return;
-    }
-
-    final user = remoteUser ?? cachedUser!;
-    if (!user.isActive) {
-      await logout(); // Kill switch triggered, clear token
-    } else {
-      state = user;
+    // Local operations must not trigger background network validation. A
+    // cached account is restored immediately; the server is contacted only by
+    // an explicit sign-in attempt.
+    if (cachedUser != null && cachedUser.isActive && state == null) {
+      state = cachedUser;
     }
   }
 
@@ -263,15 +238,6 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
     );
   }
 
-  /// Explicit employee opt-in. It deliberately does not run on login or app
-  /// launch and is stopped when the authenticated session ends.
-  Future<bool> startLiveTracking() async {
-    if (state == null) return false;
-    return _locationTracking.start();
-  }
-
-  Future<void> stopLiveTracking() => _locationTracking.stop();
-
   @override
   // ignore: avoid_renaming_method_parameters
   void didChangeAppLifecycleState(AppLifecycleState lifecycleState) {
@@ -284,7 +250,6 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   }
 
   Future<void> logout() async {
-    await _locationTracking.stop();
     await _repository.logout();
     await _storage.delete(key: _cachedUserKey);
     state = null;
@@ -293,7 +258,6 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    unawaited(_locationTracking.stop());
     super.dispose();
   }
 }

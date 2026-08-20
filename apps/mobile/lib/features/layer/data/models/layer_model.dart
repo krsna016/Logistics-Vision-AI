@@ -1,6 +1,5 @@
 import '../../domain/entities/layer.dart';
 import '../../../camera/domain/entities/detection.dart';
-import '../../../truck/domain/entities/truck.dart';
 
 class LayerModel {
   static LayerRecord fromJson(Map<String, dynamic> json) {
@@ -31,10 +30,6 @@ class LayerModel {
       modelVersion:
           json['modelVersion'] as String? ?? 'yolo11n_carton_seg_v1_3',
       averageConfidence: (json['averageConfidence'] as num? ?? 0.0).toDouble(),
-      syncStatus: SyncStatus.values.firstWhere(
-        (e) => e.name == (json['syncStatus'] as String? ?? 'pending'),
-        orElse: () => SyncStatus.pending,
-      ),
       createdAt: DateTime.parse(json['createdAt'] as String),
       updatedAt: DateTime.parse(json['updatedAt'] as String),
       isDeleted: json['isDeleted'] as bool? ?? false,
@@ -61,7 +56,6 @@ class LayerModel {
           .toList(),
       'modelVersion': record.modelVersion,
       'averageConfidence': record.averageConfidence,
-      'syncStatus': record.syncStatus.name,
       'createdAt': record.createdAt.toIso8601String(),
       'updatedAt': record.updatedAt.toIso8601String(),
       'isDeleted': record.isDeleted,
