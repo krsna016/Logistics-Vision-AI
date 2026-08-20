@@ -331,7 +331,9 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
       final truck =
           await _ref.read(truckRepositoryProvider).getTruckById(_truckId);
       if (truck?.wagonId != null) {
-        _ref.invalidate(wagonInventoryProvider(truck!.wagonId!));
+        final wagonId = truck!.wagonId!;
+        _ref.invalidate(wagonInventoryProvider(wagonId));
+        await _ref.read(wagonInventoryProvider(wagonId).future);
       }
       return null;
     } catch (error) {
@@ -454,7 +456,9 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
       await _ref.read(truckListProvider.notifier).refresh();
       await refresh();
       if (truck?.wagonId != null) {
-        _ref.invalidate(wagonInventoryProvider(truck!.wagonId!));
+        final wagonId = truck!.wagonId!;
+        _ref.invalidate(wagonInventoryProvider(wagonId));
+        await _ref.read(wagonInventoryProvider(wagonId).future);
       }
       return null;
     } catch (error) {

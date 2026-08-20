@@ -59,6 +59,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   double _minimumZoom = 1;
   double _maximumZoom = 1;
   bool _isFinalizingCapture = false;
+  bool _isLeavingForReview = false;
   bool _torchOn = false;
   bool _aiStarted = false;
   bool _showCropBox = false;
@@ -93,6 +94,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       if (!mounted) return;
       if (image != null) {
         AppLogger.info('Native camera photo selected for review: ${image.path}');
+        setState(() => _isLeavingForReview = true);
         ref.read(countingDecisionProvider.notifier).resetAnalyzer();
         final truckId = GoRouterState.of(context).pathParameters['id'] ?? '';
         
@@ -132,6 +134,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       if (!mounted) return;
       if (image != null) {
         AppLogger.info('Gallery photo selected for review: ${image.path}');
+        setState(() => _isLeavingForReview = true);
         ref.read(countingDecisionProvider.notifier).resetAnalyzer();
         final truckId = GoRouterState.of(context).pathParameters['id'] ?? '';
 
@@ -469,6 +472,10 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                   color: Colors.transparent,
                 ),
               ),
+            if (_isLeavingForReview)
+              const Positioned.fill(
+                child: ColoredBox(color: Colors.black),
+              ),
           ],
         ),
       ),
@@ -482,6 +489,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       CountingRegion? countingRegion,
       int? capturedCount,
       Future<AIResult> Function()? finalResultLoader}) async {
+    if (mounted) setState(() => _isLeavingForReview = true);
     final aiResult = AIResult(
       detections: inferenceState.detections,
       count: capturedCount ??
@@ -517,6 +525,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         'navigateToControlCenter': GoRouterState.of(context).uri.queryParameters['from'] == 'controlCenter',
       });
     } finally {
+      if (mounted) setState(() => _isLeavingForReview = false);
       if (mounted && widget.isActive && _pickedImagePath == null) {
         await cameraAdapter?.resumePreview();
       }
@@ -531,6 +540,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     AppLogger.info('Split Flow: Opening Native Camera for Part 1');
     final leftImage = await picker.pickImage(source: ImageSource.camera);
     if (leftImage == null || !mounted) return; // User cancelled, stay on camera screen
+    setState(() => _isLeavingForReview = true);
     
     final leftSavedPath = await imageStorage.saveImage(File(leftImage.path), 'split_part1_$truckId');
     
@@ -560,6 +570,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         'finalResultLoader': finalResultLoaderLeft,
       },
     );
+    if (mounted) setState(() => _isLeavingForReview = false);
     
     if (reviewDataLeft == null || !mounted) return; // Cancelled review
 
@@ -567,6 +578,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     AppLogger.info('Split Flow: Opening Native Camera for Part 2');
     final rightImage = await picker.pickImage(source: ImageSource.camera);
     if (rightImage == null || !mounted) return; // Cancelled
+    setState(() => _isLeavingForReview = true);
     
     final rightSavedPath = await imageStorage.saveImage(File(rightImage.path), 'split_part2_$truckId');
     
@@ -591,6 +603,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         'finalResultLoader': finalResultLoaderRight,
       },
     );
+    if (mounted) setState(() => _isLeavingForReview = false);
     
     if (reviewDataRight == null || !mounted) return;
 
@@ -721,6 +734,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       Future<AIResult> finalResultLoader() =>
           _finalizeCapturedResultBytes(cropBytes);
       handedToReview = true;
+      if (mounted) setState(() => _isLeavingForReview = true);
       await _navigateToReview(
         context,
         truckId,

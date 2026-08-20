@@ -143,6 +143,10 @@ class WagonDetailsScreen extends ConsumerWidget {
           ref.invalidate(wagonByIdProvider(wagonId));
           await ref.read(wagonListProvider.notifier).refresh();
           await ref.read(truckListProvider.notifier).refresh();
+          // Inventory is a cached FutureProvider. Explicitly invalidate and
+          // await it so deleted trucks/layers are reflected immediately.
+          ref.invalidate(wagonInventoryProvider(wagonId));
+          await ref.read(wagonInventoryProvider(wagonId).future);
         },
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),

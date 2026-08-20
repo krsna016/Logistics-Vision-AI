@@ -207,7 +207,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'review',
             name: 'layer_review',
-            builder: (context, state) {
+            pageBuilder: (context, state) {
               final truckId = state.pathParameters['id'] ?? '';
               final extra = state.extra as Map<String, dynamic>? ?? {};
               final aiResult = extra['aiResult'] as AIResult? ??
@@ -229,16 +229,18 @@ final routerProvider = Provider<GoRouter>((ref) {
               final returnResultOnly = extra['returnResultOnly'] as bool? ?? false;
               final navigateToControlCenter = extra['navigateToControlCenter'] as bool? ?? false;
 
-              return LayerReviewScreen(
-                truckId: truckId,
-                aiResult: aiResult,
-                photoPath: photoPath,
-                auditPhotoPath: auditPhotoPath,
-                countingRegion: countingRegion,
-                initialNotes: initialNotes,
-                finalResultLoader: finalResultLoader,
-                returnResultOnly: returnResultOnly,
-                navigateToControlCenter: navigateToControlCenter,
+              return NoTransitionPage(
+                child: LayerReviewScreen(
+                  truckId: truckId,
+                  aiResult: aiResult,
+                  photoPath: photoPath,
+                  auditPhotoPath: auditPhotoPath,
+                  countingRegion: countingRegion,
+                  initialNotes: initialNotes,
+                  finalResultLoader: finalResultLoader,
+                  returnResultOnly: returnResultOnly,
+                  navigateToControlCenter: navigateToControlCenter,
+                ),
               );
             },
           ),

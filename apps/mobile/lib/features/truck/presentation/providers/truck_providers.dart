@@ -6,6 +6,7 @@ import '../../domain/repositories/truck_repository.dart';
 import '../../data/repositories_impl/local_truck_repository.dart';
 
 import '../../../../core/providers/database_provider.dart';
+import '../../../wagon/presentation/providers/wagon_providers.dart';
 
 final truckRepositoryProvider = Provider<TruckRepository>((ref) {
   final db = ref.watch(databaseProvider);
@@ -85,8 +86,9 @@ class TruckListState {
 
 class TruckListNotifier extends StateNotifier<TruckListState> {
   final TruckRepository _repository;
+  final Ref _ref;
 
-  TruckListNotifier(this._repository) : super(const TruckListState()) {
+  TruckListNotifier(this._repository, this._ref) : super(const TruckListState()) {
     refresh();
   }
 
@@ -162,8 +164,18 @@ class TruckListNotifier extends StateNotifier<TruckListState> {
   }
 
   Future<void> deleteTruck(String id) async {
+    // Capture the wagon before deletion. Once the truck is soft-deleted it is
+    // no longer possible to resolve its parent from the active truck list.
+    final truck = await _repository.getTruckById(id);
+    final wagonId = truck?.wagonId;
     await _repository.softDeleteTruck(id);
     await refresh();
+    if (wagonId != null) {
+      // FutureProvider caches inventory totals, so invalidating alone can
+      // leave Wagon Details showing the old value until a later rebuild.
+      _ref.invalidate(wagonInventoryProvider(wagonId));
+      await _ref.read(wagonInventoryProvider(wagonId).future);
+    }
   }
 
   void updateSearchQuery(String query) {
@@ -186,7 +198,7 @@ class TruckListNotifier extends StateNotifier<TruckListState> {
 final truckListProvider =
     StateNotifierProvider.autoDispose<TruckListNotifier, TruckListState>((ref) {
   final repo = ref.watch(truckRepositoryProvider);
-  return TruckListNotifier(repo);
+  return TruckListNotifier(repo, ref);
 });
 
 // Provider to watch statistics across the active trucks
