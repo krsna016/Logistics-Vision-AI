@@ -57,10 +57,12 @@ android {
                 )
             }
             signingConfig = signingConfigs.getByName("release")
-            // ML Kit's current dependency graph is not safe to shrink with R8.
-            // Keep release builds functional until the ML Kit package is upgraded.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
         }
     }
 }

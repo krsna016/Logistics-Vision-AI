@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../theme/app_theme.dart';
@@ -190,7 +192,7 @@ class UserManagementScreen extends ConsumerWidget {
                   controller: pwdCtrl,
                   obscureText: true,
                   style: const TextStyle(color: Colors.white),
-                  decoration: _dialogFieldDecoration('Temporary Password'),
+                  decoration: _dialogFieldDecoration('Initial Password'),
                 ),
                 const SizedBox(height: 16),
                 DropdownButtonFormField<Role>(
@@ -226,10 +228,9 @@ class UserManagementScreen extends ConsumerWidget {
               }
 
               final password = pwdCtrl.text;
-              if (password.length < 12) {
+              if (password.length < 12 || utf8.encode(password).length > 72) {
                 ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
-                  content: Text(
-                      'Temporary password must be at least 12 characters.'),
+                  content: Text('Initial password must be 12–72 UTF-8 bytes.'),
                   backgroundColor: AppTheme.errorColor,
                 ));
                 return;

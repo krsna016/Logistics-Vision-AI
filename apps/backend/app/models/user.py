@@ -19,3 +19,16 @@ class User(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     failed_login_attempts = Column(Integer, nullable=False, default=0)
     locked_until = Column(DateTime(timezone=True), nullable=True)
+
+
+class AdminAuditEvent(Base):
+    __tablename__ = "admin_audit_events"
+
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    actor_employee_id = Column(String, nullable=False, index=True)
+    target_employee_id = Column(String, nullable=False, index=True)
+    action = Column(String, nullable=False)
+    details = Column(String, nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(), index=True
+    )

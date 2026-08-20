@@ -31,7 +31,7 @@ class AppLogger {
     _logger.w(message, error: error, stackTrace: stackTrace);
     try {
       import_file_logger.FileLogger.log(
-          'WARNING: $message ${error != null ? "- $error" : ""}');
+          'WARNING: $message ${error != null ? "[${error.runtimeType}]" : ""}');
     } catch (_) {}
   }
 
@@ -39,7 +39,7 @@ class AppLogger {
     _logger.e(message, error: error, stackTrace: stackTrace);
     try {
       import_file_logger.FileLogger.log(
-          'ERROR: $message ${error != null ? "- $error" : ""}');
+          'ERROR: $message ${error != null ? "[${error.runtimeType}]" : ""}');
     } catch (_) {}
   }
 
@@ -47,7 +47,7 @@ class AppLogger {
     _logger.f(message, error: error, stackTrace: stackTrace);
     try {
       import_file_logger.FileLogger.log(
-          'FATAL: $message ${error != null ? "- $error" : ""}');
+          'FATAL: $message ${error != null ? "[${error.runtimeType}]" : ""}');
     } catch (_) {}
   }
 }

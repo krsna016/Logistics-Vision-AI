@@ -16,9 +16,8 @@ SUPPORTED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 
 def _has_supported_image_signature(content: bytes) -> bool:
-    return (
-        content.startswith((b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n"))
-        or (len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP")
+    return content.startswith((b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n")) or (
+        len(content) >= 12 and content[:4] == b"RIFF" and content[8:12] == b"WEBP"
     )
 
 
@@ -39,7 +38,9 @@ async def detect_cardboxes(
         )
 
     if image.content_type not in SUPPORTED_IMAGE_TYPES:
-        raise HTTPException(status_code=415, detail="Only JPEG, PNG, or WebP images are supported")
+        raise HTTPException(
+            status_code=415, detail="Only JPEG, PNG, or WebP images are supported"
+        )
 
     # Bound the read itself. Checking size only after an unbounded read lets a
     # malicious upload consume arbitrary worker memory before being rejected.
@@ -49,7 +50,9 @@ async def detect_cardboxes(
     if len(content) > MAX_IMAGE_BYTES:
         raise HTTPException(status_code=413, detail="Image is too large")
     if not _has_supported_image_signature(content):
-        raise HTTPException(status_code=415, detail="Uploaded data is not a supported image")
+        raise HTTPException(
+            status_code=415, detail="Uploaded data is not a supported image"
+        )
 
     url = (
         f"{settings.ROBOFLOW_API_URL.rstrip('/')}/"
@@ -70,15 +73,23 @@ async def detect_cardboxes(
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, json=payload)
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail="Roboflow inference unavailable") from exc
+        raise HTTPException(
+            status_code=502, detail="Roboflow inference unavailable"
+        ) from exc
 
     if response.is_error:
         raise HTTPException(status_code=502, detail="Roboflow inference failed")
     try:
         result = response.json()
     except ValueError as exc:
-        raise HTTPException(status_code=502, detail="Roboflow returned an invalid response") from exc
-    return {"predictions": _find_predictions(result), "image": {"width": 0, "height": 0}, "workflow": settings.ROBOFLOW_WORKFLOW_ID}
+        raise HTTPException(
+            status_code=502, detail="Roboflow returned an invalid response"
+        ) from exc
+    return {
+        "predictions": _find_predictions(result),
+        "image": {"width": 0, "height": 0},
+        "workflow": settings.ROBOFLOW_WORKFLOW_ID,
+    }
 
 
 def _find_predictions(value):

@@ -135,7 +135,6 @@ export default function Dashboard() {
       setConfirmAction(null);
       setNotice(confirmAction.type === 'delete' ? 'User permanently deleted.' : confirmAction.active ? 'Access revoked. Mobile sessions will be signed out on their next check.' : 'User access restored.');
       await fetchUsers(true);
-      await fetchActivity();
     } catch (err) {
       setError(err.response?.data?.detail || `Action failed (${err.response?.status || 'network error'}).`);
     } finally { setActionLoading(false); }

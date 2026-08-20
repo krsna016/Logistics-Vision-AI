@@ -156,6 +156,9 @@ class RemoteAuthRepository implements AuthRepository {
         if (responseUser == null) {
           _lastLoginErrorMessage ??=
               'The sign-in server did not return an account profile.';
+          await _storage.delete(key: StorageService.keyJwtToken);
+          _activeEmployeeId = null;
+          return null;
         }
         _cachedUser = responseUser;
         return responseUser;
@@ -207,8 +210,7 @@ class RemoteAuthRepository implements AuthRepository {
             ? null
             : 'The server-issued session token is unusable: $failure.';
       }
-      _sessionWasRevoked =
-          token != null && !_tokenValidationFailure(token)!.contains('expired');
+      _sessionWasRevoked = token != null;
       await _storage.delete(key: StorageService.keyJwtToken);
       _cachedUser = null;
       return null;
@@ -218,7 +220,7 @@ class RemoteAuthRepository implements AuthRepository {
     final employeeId = decoded['sub'];
     if (employeeId is! String) return null;
     return Session(
-      sessionId: 'sess_$token',
+      sessionId: 'sess_${decoded['jti'] ?? employeeId}',
       userId: employeeId,
       deviceName: 'device',
       loginTime: DateTime.now(),
@@ -232,8 +234,7 @@ class RemoteAuthRepository implements AuthRepository {
     _sessionWasRevoked = false;
     final token = await _storage.read(key: StorageService.keyJwtToken);
     if (token == null || !_isTokenUsable(token)) {
-      _sessionWasRevoked =
-          token != null && !_tokenValidationFailure(token)!.contains('expired');
+      _sessionWasRevoked = token != null;
       await _storage.delete(key: StorageService.keyJwtToken);
       _cachedUser = null;
       return null;
@@ -244,8 +245,9 @@ class RemoteAuthRepository implements AuthRepository {
     if (employeeId is! String) return null;
 
     try {
-      final response =
-          await _dio.get<Map<String, dynamic>>('/users/$employeeId');
+      final response = await _dio.get<Map<String, dynamic>>(
+        '/users/${Uri.encodeComponent(employeeId)}',
+      );
       final data = response.data as Map<String, dynamic>;
 
       final user = User(
@@ -367,8 +369,12 @@ class RemoteAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<List<DeviceSession>> getRegisteredDevices() async => [];
+  Future<List<DeviceSession>> getRegisteredDevices() => throw UnsupportedError(
+        'Central device registration is not enabled for this release.',
+      );
 
   @override
-  Future<void> revokeDevice(String deviceId) async {}
+  Future<void> revokeDevice(String deviceId) => throw UnsupportedError(
+        'Central device revocation is not enabled for this release.',
+      );
 }

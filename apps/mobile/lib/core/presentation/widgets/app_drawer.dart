@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 import '../../../theme/app_theme.dart';
 import '../../../features/wagon/presentation/providers/wagon_providers.dart';
 import '../../../features/truck/presentation/providers/truck_providers.dart';
@@ -14,6 +16,7 @@ import '../../../features/auth/domain/entities/role.dart';
 import '../../../features/reports/presentation/providers/report_providers.dart'
     hide databaseProvider;
 import '../../providers/database_provider.dart';
+import '../../database/app_database.dart' hide User;
 import '../../storage/local_data_archive_service.dart';
 import 'action_warning_dialog.dart';
 import '../../../utils/logger.dart';
@@ -399,9 +402,6 @@ class AppDrawer extends ConsumerWidget {
   }
 
   void _confirmClearData(BuildContext context, WidgetRef ref) {
-    final wagonRepo = ref.read(wagonRepositoryProvider);
-    final truckRepo = ref.read(truckRepositoryProvider);
-    final layerRepo = ref.read(layerRepositoryProvider);
     final database = ref.read(databaseProvider);
     final wagonNotifier = ref.read(wagonListProvider.notifier);
     final truckNotifier = ref.read(truckListProvider.notifier);
@@ -438,15 +438,9 @@ class AppDrawer extends ConsumerWidget {
 
           try {
             await database.transaction(() async {
-              await database.delete(database.detections).go();
-              await database.delete(database.loadingSessions).go();
-              await database.delete(database.digitalRegisters).go();
-              await database.delete(database.auditLogs).go();
-              await database.delete(database.reportExports).go();
+              await _clearOperationalTables(database);
             });
-            await layerRepo.clearAllData();
-            await truckRepo.clearAllData();
-            await wagonRepo.clearAllData();
+            await _deleteOperationalFiles();
 
             wagonNotifier.refresh();
             truckNotifier.refresh();
@@ -458,10 +452,12 @@ class AppDrawer extends ConsumerWidget {
               ));
             }
           } catch (e) {
+            AppLogger.error('Failed to wipe local operational data', e);
             if (rootContext.mounted) {
               Navigator.of(rootContext, rootNavigator: true).pop();
-              ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
-                content: Text('Failed to clear data: $e'),
+              ScaffoldMessenger.of(rootContext).showSnackBar(const SnackBar(
+                content:
+                    Text('Data could not be fully cleared. Please try again.'),
                 backgroundColor: AppTheme.errorColor,
               ));
             }
@@ -495,90 +491,82 @@ class AppDrawer extends ConsumerWidget {
         onConfirm: () async {
           Navigator.of(context).pop(); // close drawer
 
-          // Clear operational data only. Accounts, device sessions, warehouses,
-          // and settings are intentionally preserved.
           await database.transaction(() async {
-            await database.delete(database.detections).go();
-            await database.delete(database.loadingSessions).go();
-            await database.delete(database.digitalRegisters).go();
-            await database.delete(database.auditLogs).go();
-            await database.delete(database.reportExports).go();
-          });
+            await _clearOperationalTables(database);
 
-          // Delete children before parents to satisfy foreign keys.
-          await layerRepo.clearAllData();
-          await truckRepo.clearAllData();
-          await wagonRepo.clearAllData();
+            // Load parents before children inside the same transaction. Any
+            // validation failure restores the complete prior dataset.
+            await wagonRepo.loadDemoData(operatorName: operatorName);
+            await truckRepo.loadDemoData(operatorName: operatorName);
+            await layerRepo.loadDemoData(operatorName: operatorName);
 
-          // Load data (must insert parents before children)
-          await wagonRepo.loadDemoData(operatorName: operatorName);
-          await truckRepo.loadDemoData(operatorName: operatorName);
-          await layerRepo.loadDemoData(operatorName: operatorName);
-
-          final activeLayers = (await database.select(database.layers).get())
-              .where((layer) => !layer.isDeleted)
-              .toList();
-          final activeTrucks = (await database.select(database.trucks).get())
-              .where((truck) => !truck.isDeleted)
-              .toList();
-          if (operatorName != null && operatorName.isNotEmpty) {
-            if (activeLayers.any((layer) => layer.operatorId != operatorName) ||
-                (await database.select(database.auditLogs).get())
-                    .any((audit) => audit.userId != operatorName)) {
-              throw StateError('Demo operator identity failed validation.');
-            }
-          }
-          for (final truck in activeTrucks) {
-            final truckLayers = activeLayers
-                .where((layer) => layer.truckId == truck.id)
+            final activeLayers = (await database.select(database.layers).get())
+                .where((layer) => !layer.isDeleted)
                 .toList();
-            final cartons = truckLayers.fold<int>(
-                0, (sum, layer) => sum + layer.cartonCount);
-            final defects = truckLayers.fold<int>(
-                0, (sum, layer) => sum + layer.defectCount);
-            if (truck.totalLayers != truckLayers.length ||
-                truck.totalCartons != cartons ||
-                truck.totalDefects != defects) {
-              throw StateError('Demo truck totals failed validation.');
+            final activeTrucks = (await database.select(database.trucks).get())
+                .where((truck) => !truck.isDeleted)
+                .toList();
+            if (operatorName != null && operatorName.isNotEmpty) {
+              if (activeLayers
+                      .any((layer) => layer.operatorId != operatorName) ||
+                  (await database.select(database.auditLogs).get())
+                      .any((audit) => audit.userId != operatorName)) {
+                throw StateError('Demo operator identity failed validation.');
+              }
             }
-          }
-          final wagons = (await database.select(database.wagons).get())
-              .where((wagon) => !wagon.isDeleted);
-          for (final wagon in wagons) {
-            final manifest = <String, int>{};
-            for (final item
-                in (jsonDecode(wagon.itemManifestJson) as List<dynamic>)) {
-              final value = item as Map<String, dynamic>;
-              manifest[value['name'] as String] = value['quantity'] as int;
+            for (final truck in activeTrucks) {
+              final truckLayers = activeLayers
+                  .where((layer) => layer.truckId == truck.id)
+                  .toList();
+              final cartons = truckLayers.fold<int>(
+                  0, (sum, layer) => sum + layer.cartonCount);
+              final defects = truckLayers.fold<int>(
+                  0, (sum, layer) => sum + layer.defectCount);
+              if (truck.totalLayers != truckLayers.length ||
+                  truck.totalCartons != cartons ||
+                  truck.totalDefects != defects) {
+                throw StateError('Demo truck totals failed validation.');
+              }
             }
-            final wagonTruckIds = activeTrucks
-                .where((truck) => truck.wagonId == wagon.id)
-                .map((truck) => truck.id)
-                .toSet();
-            final loaded = <String, int>{};
-            for (final layer in activeLayers
-                .where((layer) => wagonTruckIds.contains(layer.truckId))) {
-              final allocations =
-                  jsonDecode(layer.itemAllocationsJson) as List<dynamic>;
-              var allocated = 0;
-              for (final item in allocations) {
+            final wagons = (await database.select(database.wagons).get())
+                .where((wagon) => !wagon.isDeleted);
+            for (final wagon in wagons) {
+              final manifest = <String, int>{};
+              for (final item
+                  in (jsonDecode(wagon.itemManifestJson) as List<dynamic>)) {
                 final value = item as Map<String, dynamic>;
-                final name = value['itemName'] as String;
-                final quantity = value['quantity'] as int;
-                allocated += quantity;
-                loaded[name] = (loaded[name] ?? 0) + quantity;
+                manifest[value['name'] as String] = value['quantity'] as int;
               }
-              if (allocations.isNotEmpty && allocated != layer.cartonCount) {
-                throw StateError('Demo layer item totals failed validation.');
+              final wagonTruckIds = activeTrucks
+                  .where((truck) => truck.wagonId == wagon.id)
+                  .map((truck) => truck.id)
+                  .toSet();
+              final loaded = <String, int>{};
+              for (final layer in activeLayers
+                  .where((layer) => wagonTruckIds.contains(layer.truckId))) {
+                final allocations =
+                    jsonDecode(layer.itemAllocationsJson) as List<dynamic>;
+                var allocated = 0;
+                for (final item in allocations) {
+                  final value = item as Map<String, dynamic>;
+                  final name = value['itemName'] as String;
+                  final quantity = value['quantity'] as int;
+                  allocated += quantity;
+                  loaded[name] = (loaded[name] ?? 0) + quantity;
+                }
+                if (allocations.isNotEmpty && allocated != layer.cartonCount) {
+                  throw StateError('Demo layer item totals failed validation.');
+                }
+              }
+              for (final entry in loaded.entries) {
+                if (!manifest.containsKey(entry.key) ||
+                    entry.value > manifest[entry.key]!) {
+                  throw StateError('Demo wagon inventory failed validation.');
+                }
               }
             }
-            for (final entry in loaded.entries) {
-              if (!manifest.containsKey(entry.key) ||
-                  entry.value > manifest[entry.key]!) {
-                throw StateError('Demo wagon inventory failed validation.');
-              }
-            }
-          }
+          });
+          await _deleteOperationalFiles();
 
           wagonNotifier.refresh();
           truckNotifier.refresh();
@@ -602,6 +590,55 @@ class AppDrawer extends ConsumerWidget {
     );
   }
 
+  Future<void> _clearOperationalTables(AppDatabase database) async {
+    // Delete children before their parents so foreign-key checking remains on.
+    await database.delete(database.detections).go();
+    await database.delete(database.annotations).go();
+    await database.delete(database.imageMetadata).go();
+    await database.delete(database.imageQuality).go();
+    await database.delete(database.layers).go();
+    await database.delete(database.loadingSessions).go();
+    await database.delete(database.digitalRegisters).go();
+    await database.delete(database.datasetExports).go();
+    await database.delete(database.datasetImages).go();
+    await database.delete(database.modelHistory).go();
+    await database.delete(database.reportExports).go();
+    await database.delete(database.auditLogs).go();
+    await database.delete(database.trucks).go();
+    await database.delete(database.wagons).go();
+    await database.delete(database.warehouses).go();
+  }
+
+  Future<void> _deleteOperationalFiles() async {
+    final documents = await getApplicationDocumentsDirectory();
+    const directories = <String>[
+      'smartload_images',
+      'activity_logs',
+      'backups',
+    ];
+    for (final name in directories) {
+      final directory = Directory(p.join(documents.path, name));
+      if (await directory.exists()) await directory.delete(recursive: true);
+    }
+    await for (final entity in documents.list(followLinks: false)) {
+      final name = p.basename(entity.path);
+      if (entity is Directory &&
+          (name.startsWith('smartload_import_') ||
+              name.startsWith('smartload_restore_'))) {
+        await entity.delete(recursive: true);
+        continue;
+      }
+      if (entity is! File || !name.startsWith('SmartLoad_')) continue;
+      final lower = name.toLowerCase();
+      if (lower.endsWith('.pdf') ||
+          lower.endsWith('.xlsx') ||
+          lower.endsWith('.csv') ||
+          lower.endsWith('.zip')) {
+        await entity.delete();
+      }
+    }
+  }
+
   Future<void> _confirmLocalDataArchive(
       BuildContext context, WidgetRef ref) async {
     final database = ref.read(databaseProvider);
@@ -619,7 +656,7 @@ class AppDrawer extends ConsumerWidget {
       builder: (ctx) => ActionWarningDialog(
         title: 'Share Protected Backup?',
         content:
-            'This creates one AES-256 encrypted ZIP containing all local operational data: the database, audit records, saved images, backups, and locally generated exports. Login tokens and password hashes are excluded. The receiving device will need the password to restore it.',
+            'This creates one AES-256 encrypted ZIP containing local operational data: the database, audit records, saved images, activity logs, and generated exports. Login tokens, password hashes, and earlier backups are excluded. The receiving device will need the password to restore it.',
         actionLabel: 'Create & Share Protected ZIP',
         actionColor: AppTheme.primaryColor,
         icon: Icons.inventory_2_outlined,

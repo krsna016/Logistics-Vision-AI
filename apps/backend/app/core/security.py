@@ -29,14 +29,19 @@ def decode_access_token(token: str) -> dict[str, Any]:
         options={"require": ["sub", "exp", "iat", "iss", "aud", "jti"]},
     )
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     plain_bytes = plain_password.encode("utf-8")
+    if len(plain_bytes) > 72:
+        return False
     hashed_bytes = hashed_password.encode("utf-8")
     return bcrypt.checkpw(plain_bytes, hashed_bytes)
 
 
 def get_password_hash(password: str) -> str:
     password_bytes = password.encode("utf-8")
+    if len(password_bytes) > 72:
+        raise ValueError("Password must be at most 72 UTF-8 bytes")
     return bcrypt.hashpw(password_bytes, bcrypt.gensalt()).decode("utf-8")
 
 
@@ -46,7 +51,9 @@ def create_access_token(
     expires_delta: timedelta | None = None,
 ) -> str:
     now = datetime.now(timezone.utc)
-    expire = now + (expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = now + (
+        expires_delta or timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     to_encode = {
         "sub": str(subject),
         "role": role,
@@ -59,27 +66,38 @@ def create_access_token(
     encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
     return encoded_jwt
 
+
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
     if credentials is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required"
+        )
     try:
         payload = decode_access_token(credentials.credentials)
         employee_id = payload.get("sub")
         if not employee_id:
             raise ValueError("missing subject")
     except (jwt.InvalidTokenError, ValueError):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired token"
+        )
 
     result = await db.execute(select(User).where(User.employee_id == employee_id))
     user = result.scalars().first()
     if user is None or not user.is_active:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive or unknown user")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Inactive or unknown user"
+        )
     return user
+
 
 async def require_admin(current_user: User = Depends(get_current_user)) -> User:
     if current_user.role != "Administrator":
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator access required")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator access required",
+        )
     return current_user

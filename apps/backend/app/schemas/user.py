@@ -23,6 +23,13 @@ class UserBase(BaseModel):
 class UserCreate(UserBase):
     password: str = Field(min_length=12, max_length=72)
 
+    @field_validator("password")
+    @classmethod
+    def validate_bcrypt_password_size(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be at most 72 UTF-8 bytes")
+        return value
+
 
 class UserUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)

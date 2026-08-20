@@ -5,7 +5,9 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.Bundle
 import android.provider.DocumentsContract
+import android.view.WindowManager
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.plugin.common.MethodChannel
@@ -15,9 +17,9 @@ import java.util.concurrent.Executors
 private const val IMPORT_CHANNEL = "com.vinayak.smartload/import"
 private const val PICK_ZIP_REQUEST = 8101
 private const val PICK_FOLDER_REQUEST = 8102
-private const val MAX_IMPORT_FILES = 100_000
-private const val MAX_IMPORT_BYTES = 2L * 1024 * 1024 * 1024
-private const val MAX_FOLDER_DEPTH = 64
+private const val MAX_IMPORT_FILES = 20_000
+private const val MAX_IMPORT_BYTES = 1024L * 1024 * 1024
+private const val MAX_FOLDER_DEPTH = 32
 
 private data class CopyBudget(var files: Int = 0, var bytes: Long = 0)
 
@@ -32,6 +34,16 @@ class MainActivity : FlutterActivity() {
     private var pendingRequest = 0
     private val importExecutor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // Operational images and employee details must not appear in Android
+        // screenshots, screen recordings, or the recent-apps thumbnail.
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        )
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

@@ -1,3 +1,29 @@
+import 'dart:io';
+
+const generatedReportRetention = Duration(days: 90);
+
+Future<void> pruneExpiredGeneratedReports(
+  Directory directory, {
+  DateTime? now,
+}) async {
+  if (!await directory.exists()) return;
+  final cutoff = (now ?? DateTime.now()).subtract(generatedReportRetention);
+  await for (final entity in directory.list(followLinks: false)) {
+    if (entity is! File) continue;
+    final name = entity.uri.pathSegments.last;
+    final lower = name.toLowerCase();
+    if (!name.startsWith('SmartLoad_') ||
+        !(lower.endsWith('.pdf') ||
+            lower.endsWith('.xlsx') ||
+            lower.endsWith('.csv'))) {
+      continue;
+    }
+    if ((await entity.stat()).modified.isBefore(cutoff)) {
+      await entity.delete();
+    }
+  }
+}
+
 String buildReportFileName({
   required String reportName,
   String? subject,

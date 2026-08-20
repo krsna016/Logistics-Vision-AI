@@ -25,21 +25,40 @@ _DUMMY_PASSWORD_HASH = "$2b$12$d4D1Xr2mlv7Ji8Yb8QpB6uT6Nbj4CqZpkP5pX6GImQdFq5BAp
 _LOGIN_WINDOW_SECONDS = 60
 _LOGIN_ATTEMPT_LIMIT = 10
 _login_attempts: dict[str, list[float]] = {}
+_login_attempts_lock = asyncio.Lock()
 
 
-def _check_login_rate_limit(client_host: str) -> None:
+async def _check_login_rate_limit(client_host: str) -> None:
     """Bound password work per client before bcrypt is invoked.
 
     A reverse proxy should enforce the same policy for multi-instance
     deployments; this process-local guard still protects each worker.
     """
-    now = monotonic()
-    attempts = [at for at in _login_attempts.get(client_host, []) if now - at < _LOGIN_WINDOW_SECONDS]
-    if len(attempts) >= _LOGIN_ATTEMPT_LIMIT:
+    async with _login_attempts_lock:
+        now = monotonic()
+        attempts = [
+            at
+            for at in _login_attempts.get(client_host, [])
+            if now - at < _LOGIN_WINDOW_SECONDS
+        ]
+        if len(attempts) >= _LOGIN_ATTEMPT_LIMIT:
+            _login_attempts[client_host] = attempts
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="Too many login attempts",
+            )
+        attempts.append(now)
         _login_attempts[client_host] = attempts
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many login attempts")
-    attempts.append(now)
-    _login_attempts[client_host] = attempts
+        # Bound memory even when an attacker rotates source addresses. The
+        # database account lock below remains the cross-worker control.
+        if len(_login_attempts) > 10_000:
+            stale = [
+                host
+                for host, values in _login_attempts.items()
+                if not values or now - values[-1] >= _LOGIN_WINDOW_SECONDS
+            ]
+            for host in stale:
+                _login_attempts.pop(host, None)
 
 
 @router.post("/login", response_model=Token)
@@ -48,11 +67,11 @@ async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: AsyncSession = Depends(get_db),
 ):
-    _check_login_rate_limit(request.client.host if request.client else "unknown")
+    await _check_login_rate_limit(request.client.host if request.client else "unknown")
     # form_data.username will actually be the employee_id from our mobile app
     normalized_employee_id = form_data.username.strip().upper()
     result = await db.execute(
-        select(User).where(User.employee_id == normalized_employee_id)
+        select(User).where(User.employee_id == normalized_employee_id).with_for_update()
     )
     user = result.scalars().first()
     if user is None:
@@ -60,7 +79,9 @@ async def login_for_access_token(
         # the indexed equality lookup above; this slower fallback runs only
         # for legacy or unknown IDs.
         legacy_result = await db.execute(
-            select(User).where(func.upper(User.employee_id) == normalized_employee_id)
+            select(User)
+            .where(func.upper(User.employee_id) == normalized_employee_id)
+            .with_for_update()
         )
         user = legacy_result.scalars().first()
 

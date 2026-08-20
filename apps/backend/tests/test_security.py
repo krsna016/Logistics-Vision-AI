@@ -6,13 +6,14 @@ from unittest.mock import AsyncMock, Mock
 
 import jwt
 import pytest
+from fastapi import HTTPException
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.core.config import settings
-from app.core.security import create_access_token
+from app.core.security import create_access_token, get_password_hash, verify_password
 from app.models.user import User
-from app.routers import auth
+from app.routers import auth, users
 from app.routers.inference import _has_supported_image_signature
 from app.schemas.user import Token, UserCreate
 
@@ -96,6 +97,37 @@ def test_user_creation_accepts_only_the_two_supported_roles():
         UserCreate(
             employee_id="EMP-1", name="User", role="Supervisor", password="too-short"
         )
+    with pytest.raises(ValueError, match="72 UTF-8 bytes"):
+        UserCreate(
+            employee_id="EMP-1",
+            name="User",
+            role="Supervisor",
+            password="€" * 25,
+        )
+
+
+def test_bcrypt_helpers_reject_oversized_utf8_passwords_without_crashing():
+    stored = get_password_hash("a-secure-passphrase")
+    assert verify_password("a-secure-passphrase", stored)
+    assert not verify_password("€" * 25, stored)
+    with pytest.raises(ValueError, match="72 UTF-8 bytes"):
+        get_password_hash("€" * 25)
+
+
+def test_last_active_administrator_cannot_be_removed():
+    administrator = User(
+        id="admin-1",
+        employee_id="ADMIN",
+        name="Administrator",
+        role="Administrator",
+        hashed_password="unused",
+        is_active=True,
+    )
+    with pytest.raises(HTTPException) as error:
+        users._reject_last_admin_change(administrator, {"admin-1"})
+    assert error.value.status_code == 409
+
+    users._reject_last_admin_change(administrator, {"admin-1", "admin-2"})
 
 
 def test_inference_upload_signature_validation():

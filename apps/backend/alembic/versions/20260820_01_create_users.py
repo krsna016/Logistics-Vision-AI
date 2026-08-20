@@ -26,7 +26,9 @@ def upgrade() -> None:
         sa.Column("is_active", sa.Boolean(), nullable=True, server_default=sa.true()),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("failed_login_attempts", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "failed_login_attempts", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.Column("locked_until", sa.DateTime(timezone=True), nullable=True),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("employee_id"),

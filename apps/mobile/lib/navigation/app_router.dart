@@ -29,8 +29,6 @@ import '../features/auth/presentation/screens/profile_screen.dart';
 import '../features/auth/presentation/screens/admin_security_screen.dart';
 import '../features/auth/presentation/screens/user_management_screen.dart';
 import '../features/auth/presentation/screens/role_policies_screen.dart';
-import '../features/auth/presentation/screens/device_management_screen.dart';
-import '../features/auth/presentation/screens/global_audit_screen.dart';
 
 import '../core/presentation/widgets/root_back_guard.dart';
 import '../utils/file_logger.dart';
@@ -294,22 +292,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RootBackGuard(
           fallbackLocation: '/admin/security',
           child: RolePoliciesScreen(),
-        ),
-      ),
-      GoRoute(
-        path: '/admin/security/devices',
-        name: 'admin_devices',
-        builder: (context, state) => const RootBackGuard(
-          fallbackLocation: '/admin/security',
-          child: DeviceManagementScreen(),
-        ),
-      ),
-      GoRoute(
-        path: '/admin/security/audit',
-        name: 'admin_audit',
-        builder: (context, state) => const RootBackGuard(
-          fallbackLocation: '/admin/security',
-          child: GlobalAuditScreen(),
         ),
       ),
     ],

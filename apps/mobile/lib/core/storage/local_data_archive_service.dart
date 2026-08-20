@@ -12,6 +12,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../database/app_database.dart';
 import '../utils/field_normalizer.dart';
+import 'database_encryption.dart';
 
 /// Creates a shareable, point-in-time archive of the app's local audit data.
 ///
@@ -21,12 +22,19 @@ class LocalDataArchiveService {
   LocalDataArchiveService(
     this._database, {
     Future<Directory> Function()? documentsDirectory,
-  }) : _documentsDirectory =
-            documentsDirectory ?? getApplicationDocumentsDirectory;
+    Future<String?> Function()? databaseEncryptionKey,
+  })  : _documentsDirectory =
+            documentsDirectory ?? getApplicationDocumentsDirectory,
+        _databaseEncryptionKey =
+            databaseEncryptionKey ?? readDatabaseEncryptionKey;
 
   final AppDatabase _database;
   final Future<Directory> Function() _documentsDirectory;
+  final Future<String?> Function() _databaseEncryptionKey;
   static const _kdfIterations = 600000;
+  static const _maxArchiveBytes = 1024 * 1024 * 1024;
+  static const _maxBackupSourceBytes = 900 * 1024 * 1024;
+  static const _encryptionChunkBytes = 8 * 1024 * 1024;
 
   static void validateBackupPassword(String password) {
     if (password.isEmpty) {
@@ -99,27 +107,45 @@ class LocalDataArchiveService {
           continue;
         }
         final relativePath = p.relative(entity.path, from: documents.path);
+        final normalizedRelative = relativePath.replaceAll(p.separator, '/');
+        if (!_isBackedUpDocumentPath(normalizedRelative)) continue;
         files.add({
           'source': entity.path,
-          'archivePath': 'documents/$relativePath',
+          'archivePath': 'documents/$normalizedRelative',
         });
       }
 
       // Compression and file reads are CPU intensive. Isolate.run keeps the
       // Flutter UI responsive, including the progress animation.
+      if (files.length > 20000) {
+        throw StateError('There are too many local files to back up safely.');
+      }
       final filesWithIntegrity = <Map<String, String>>[];
+      var totalSourceBytes = 0;
       for (final file in files) {
         final source = File(file['source']!);
+        final sourceBytes = await source.length();
+        final isDatabase =
+            file['archivePath'] == 'database/smartload_offline.sqlite';
+        if (sourceBytes > (isDatabase ? 768 : 256) * 1024 * 1024) {
+          throw StateError('A local file is too large to back up safely.');
+        }
+        totalSourceBytes += sourceBytes;
+        if (totalSourceBytes > _maxBackupSourceBytes) {
+          throw StateError('Local data is too large to back up safely.');
+        }
         filesWithIntegrity.add({
           ...file,
           'sha256': await _sha256File(source),
         });
       }
 
+      final databaseEncryptionKey = await _databaseEncryptionKey();
       await Isolate.run(
         () => _writeArchive(
           archivePath: unencryptedArchive.path,
           files: filesWithIntegrity,
+          databaseEncryptionKey: databaseEncryptionKey,
         ),
       );
       await _encryptArchive(unencryptedArchive, archiveFile, password);
@@ -129,6 +155,10 @@ class LocalDataArchiveService {
       rethrow;
     } finally {
       if (await unencryptedArchive.exists()) await unencryptedArchive.delete();
+      final chunkDirectory = Directory('${archiveFile.path}.chunks');
+      if (await chunkDirectory.exists()) {
+        await chunkDirectory.delete(recursive: true);
+      }
     }
   }
 
@@ -141,6 +171,9 @@ class LocalDataArchiveService {
   }) async {
     if (!await archiveFile.exists()) {
       throw StateError('The selected archive file was not found.');
+    }
+    if (await archiveFile.length() > _maxArchiveBytes) {
+      throw StateError('The selected backup is too large to import safely.');
     }
 
     final documents = await _documentsDirectory();
@@ -181,37 +214,81 @@ class LocalDataArchiveService {
   ) async {
     final random = Random.secure();
     final salt = List<int>.generate(16, (_) => random.nextInt(256));
-    final nonce = List<int>.generate(12, (_) => random.nextInt(256));
+    final noncePrefix = List<int>.generate(8, (_) => random.nextInt(256));
     final key = await _deriveKey(password, salt);
-    final box = await AesGcm.with256bits().encrypt(
-      await unencryptedArchive.readAsBytes(),
+    final algorithm = AesGcm.with256bits();
+    final chunkDirectory = await Directory('${encryptedArchive.path}.chunks')
+        .create(recursive: true);
+    final chunkNames = <String>[];
+    final input = await unencryptedArchive.open();
+    try {
+      var chunkIndex = 0;
+      while (true) {
+        final clear = await input.read(_encryptionChunkBytes);
+        if (clear.isEmpty) break;
+        final name = 'chunks/${chunkIndex.toString().padLeft(6, '0')}.bin';
+        final box = await algorithm.encrypt(
+          clear,
+          secretKey: key,
+          nonce: _chunkNonce(noncePrefix, chunkIndex),
+          aad: utf8.encode('SmartLoad-backup-v2:$chunkIndex'),
+        );
+        await File(p.join(chunkDirectory.path, p.basename(name))).writeAsBytes(
+          <int>[...box.cipherText, ...box.mac.bytes],
+          flush: true,
+        );
+        chunkNames.add(name);
+        chunkIndex++;
+      }
+    } finally {
+      await input.close();
+    }
+
+    final metadata = jsonEncode({
+      'format': 'SmartLoad encrypted local backup',
+      'formatVersion': 2,
+      'encryption': 'AES-256-GCM chunked',
+      'kdf': 'PBKDF2-HMAC-SHA256',
+      'iterations': _kdfIterations,
+      'salt': base64Encode(salt),
+      'noncePrefix': base64Encode(noncePrefix),
+      'chunkSizeBytes': _encryptionChunkBytes,
+      'plainSizeBytes': await unencryptedArchive.length(),
+      'archiveSha256': await _sha256File(unencryptedArchive),
+      'chunks': chunkNames,
+    });
+    final metadataBox = await algorithm.encrypt(
+      const <int>[],
       secretKey: key,
-      nonce: nonce,
+      nonce: _chunkNonce(noncePrefix, 0xffffffff),
+      aad: utf8.encode(metadata),
     );
-    final payload = <int>[...box.cipherText, ...box.mac.bytes];
+
     final encoder = ZipFileEncoder();
     encoder.create(encryptedArchive.path);
     try {
       encoder.addArchiveFile(ArchiveFile.string(
         'BACKUP_INFO.json',
         jsonEncode({
-          'format': 'SmartLoad encrypted local backup',
-          'formatVersion': 1,
-          'encryption': 'AES-256-GCM',
-          'kdf': 'PBKDF2-HMAC-SHA256',
-          'iterations': _kdfIterations,
-          'salt': base64Encode(salt),
-          'nonce': base64Encode(nonce),
-          'payload': 'backup_payload.bin',
+          'metadata': metadata,
+          'metadataMac': base64Encode(metadataBox.mac.bytes),
         }),
       ));
-      encoder.addArchiveFile(
-        ArchiveFile('backup_payload.bin', payload.length, payload),
-      );
+      for (final name in chunkNames) {
+        await encoder.addFile(
+          File(p.join(chunkDirectory.path, p.basename(name))),
+          name,
+          ArchiveFile.STORE,
+        );
+      }
       await encoder.close();
     } catch (_) {
       await encoder.close();
       rethrow;
+    } finally {
+      if (await chunkDirectory.exists()) {
+        await chunkDirectory.delete(recursive: true);
+      }
     }
   }
 
@@ -233,10 +310,19 @@ class LocalDataArchiveService {
       final legacyRoot = await _findArchiveRoot(outer);
       return _validateExtractedDirectory(legacyRoot);
     }
-    if (!await infoFile.exists() || !await payloadFile.exists()) {
+    if (!await infoFile.exists()) {
       throw StateError('This protected backup is incomplete.');
     }
+    if (await infoFile.length() > 2 * 1024 * 1024) {
+      throw StateError('This protected backup is damaged.');
+    }
     final info = jsonDecode(await infoFile.readAsString());
+    if (info is Map && info['metadata'] is String) {
+      return _decryptChunkedArchive(info, outer, tempDir, password);
+    }
+    if (!await payloadFile.exists()) {
+      throw StateError('This protected backup is incomplete.');
+    }
     if (info is! Map ||
         info['format'] != 'SmartLoad encrypted local backup' ||
         info['formatVersion'] != 1 ||
@@ -251,6 +337,10 @@ class LocalDataArchiveService {
     try {
       final salt = base64Decode(info['salt'] as String);
       final nonce = base64Decode(info['nonce'] as String);
+      if (await payloadFile.length() > 256 * 1024 * 1024) {
+        throw StateError(
+            'This legacy backup is too large to decrypt safely. Create a new backup on the source device.');
+      }
       final payload = await payloadFile.readAsBytes();
       if (salt.length != 16 || nonce.length != 12 || payload.length <= 16) {
         throw const FormatException();
@@ -266,10 +356,136 @@ class LocalDataArchiveService {
       );
       final decrypted = File(p.join(tempDir.path, 'decrypted_backup.zip'));
       await decrypted.writeAsBytes(clearBytes, flush: true);
-      return await _extractAndValidate(decrypted, tempDir);
+      final decryptedRoot = await Directory(
+        p.join(tempDir.path, 'decrypted_contents'),
+      ).create(recursive: true);
+      return await _extractAndValidate(decrypted, decryptedRoot);
     } on SecretBoxAuthenticationError {
       throw StateError('Incorrect backup password or a damaged backup file.');
     } on FormatException {
+      throw StateError('This protected backup is damaged.');
+    } on TypeError {
+      throw StateError('This protected backup is damaged.');
+    }
+  }
+
+  Future<Directory> _decryptChunkedArchive(
+    Map<dynamic, dynamic> outerInfo,
+    Directory outer,
+    Directory tempDir,
+    String password,
+  ) async {
+    try {
+      final metadataJson = outerInfo['metadata'];
+      final metadataMacValue = outerInfo['metadataMac'];
+      if (metadataJson is! String || metadataMacValue is! String) {
+        throw const FormatException();
+      }
+      final metadata = jsonDecode(metadataJson);
+      if (metadata is! Map ||
+          metadata['format'] != 'SmartLoad encrypted local backup' ||
+          metadata['formatVersion'] != 2 ||
+          metadata['encryption'] != 'AES-256-GCM chunked' ||
+          metadata['kdf'] != 'PBKDF2-HMAC-SHA256' ||
+          metadata['iterations'] != _kdfIterations ||
+          metadata['chunkSizeBytes'] != _encryptionChunkBytes ||
+          metadata['salt'] is! String ||
+          metadata['noncePrefix'] is! String ||
+          metadata['plainSizeBytes'] is! num ||
+          metadata['archiveSha256'] is! String ||
+          metadata['chunks'] is! List) {
+        throw const FormatException();
+      }
+      final salt = base64Decode(metadata['salt'] as String);
+      final noncePrefix = base64Decode(metadata['noncePrefix'] as String);
+      final plainSize = (metadata['plainSizeBytes'] as num).toInt();
+      final chunks = (metadata['chunks'] as List).cast<String>();
+      if (salt.length != 16 ||
+          noncePrefix.length != 8 ||
+          plainSize <= 0 ||
+          plainSize > _maxArchiveBytes ||
+          chunks.isEmpty ||
+          chunks.length > 20000) {
+        throw const FormatException();
+      }
+      for (var index = 0; index < chunks.length; index++) {
+        if (chunks[index] != 'chunks/${index.toString().padLeft(6, '0')}.bin') {
+          throw const FormatException();
+        }
+      }
+
+      final actualOuterPaths = <String>{};
+      await for (final entity
+          in outer.list(recursive: true, followLinks: false)) {
+        if (entity is File) {
+          actualOuterPaths.add(
+            p
+                .relative(entity.path, from: outer.path)
+                .replaceAll(p.separator, '/'),
+          );
+        }
+      }
+      final expectedOuterPaths = <String>{'BACKUP_INFO.json', ...chunks};
+      if (actualOuterPaths.length != expectedOuterPaths.length ||
+          !actualOuterPaths.containsAll(expectedOuterPaths)) {
+        throw const FormatException();
+      }
+
+      final key = await _deriveKey(password, salt);
+      final algorithm = AesGcm.with256bits();
+      await algorithm.decrypt(
+        SecretBox(
+          const <int>[],
+          nonce: _chunkNonce(noncePrefix, 0xffffffff),
+          mac: Mac(base64Decode(metadataMacValue)),
+        ),
+        secretKey: key,
+        aad: utf8.encode(metadataJson),
+      );
+
+      final decrypted = File(p.join(tempDir.path, 'decrypted_backup.zip'));
+      final output = await decrypted.open(mode: FileMode.write);
+      var written = 0;
+      try {
+        for (var index = 0; index < chunks.length; index++) {
+          final chunkFile = File(p.joinAll([
+            outer.path,
+            ...p.posix.split(chunks[index]),
+          ]));
+          final encryptedLength = await chunkFile.length();
+          if (encryptedLength <= 16 ||
+              encryptedLength > _encryptionChunkBytes + 16) {
+            throw const FormatException();
+          }
+          final encrypted = await chunkFile.readAsBytes();
+          final clear = await algorithm.decrypt(
+            SecretBox(
+              encrypted.sublist(0, encrypted.length - 16),
+              nonce: _chunkNonce(noncePrefix, index),
+              mac: Mac(encrypted.sublist(encrypted.length - 16)),
+            ),
+            secretKey: key,
+            aad: utf8.encode('SmartLoad-backup-v2:$index'),
+          );
+          await output.writeFrom(clear);
+          written += clear.length;
+        }
+      } finally {
+        await output.close();
+      }
+      if (written != plainSize ||
+          await _sha256File(decrypted) != metadata['archiveSha256']) {
+        throw const FormatException();
+      }
+      final decryptedRoot = await Directory(
+        p.join(tempDir.path, 'decrypted_contents'),
+      ).create(recursive: true);
+      return await _extractAndValidate(decrypted, decryptedRoot);
+    } on SecretBoxAuthenticationError {
+      throw StateError('Incorrect backup password or a damaged backup file.');
+    } on FormatException {
+      throw StateError('This protected backup is damaged.');
+    } on TypeError {
       throw StateError('This protected backup is damaged.');
     }
   }
@@ -394,6 +610,7 @@ class LocalDataArchiveService {
     if (await importedDatabase.length() == 0) {
       throw StateError('The imported SmartLoad database is empty.');
     }
+    final importedDatabaseKey = await _importedDatabaseKey(extracted);
 
     final currentDatabase =
         File(p.join(documents.path, 'smartload_offline.sqlite'));
@@ -412,11 +629,25 @@ class LocalDataArchiveService {
     final staging = File(p.join(documents.path,
         'smartload_import_staging_${DateTime.now().microsecondsSinceEpoch}.sqlite'));
     await importedDatabase.copy(staging.path);
+    final documentRollback = await Directory(p.join(
+      extracted.path,
+      '.smartload_document_rollback',
+    )).create(recursive: true);
+    final importedDocuments = await _prepareImportedDocuments(
+      extracted,
+      documents,
+      documentRollback,
+    );
     late List<String> availableTables;
     try {
       await _database.customStatement(
           "ATTACH DATABASE '${_sqlQuote(staging.path)}' AS imported_archive");
       try {
+        if (importedDatabaseKey != null) {
+          await _database.customStatement(
+            "PRAGMA imported_archive.key = '${_sqlQuote(importedDatabaseKey)}'",
+          );
+        }
         await _validateImportedDatabase();
         availableTables = await _availableImportedTables();
         final importColumns = <String, List<String>>{};
@@ -449,31 +680,110 @@ class LocalDataArchiveService {
             throw StateError(
                 'The archive contains records with missing parent data.');
           }
+          await _replaceImportedDocuments(importedDocuments);
         });
       } finally {
         await _database.customStatement('DETACH DATABASE imported_archive');
       }
+    } catch (_) {
+      await _restoreImportedDocuments(importedDocuments);
+      rethrow;
     } finally {
       if (await staging.exists()) await staging.delete();
-    }
-
-    var copiedFiles = 0;
-    final importedDocuments = Directory(p.join(extracted.path, 'documents'));
-    if (await importedDocuments.exists()) {
-      await for (final entity
-          in importedDocuments.list(recursive: true, followLinks: false)) {
-        if (entity is! File) continue;
-        final relative = p.relative(entity.path, from: importedDocuments.path);
-        final destination = File(p.join(documents.path, relative));
-        await destination.parent.create(recursive: true);
-        await entity.copy(destination.path);
-        copiedFiles++;
+      if (await documentRollback.exists()) {
+        await documentRollback.delete(recursive: true);
       }
     }
     return ArchiveImportSummary(
       importedTables: availableTables.length,
-      copiedFiles: copiedFiles,
+      copiedFiles: importedDocuments.length,
     );
+  }
+
+  Future<String?> _importedDatabaseKey(Directory extracted) async {
+    final manifest = File(p.join(extracted.path, 'MANIFEST.json'));
+    if (await manifest.exists()) {
+      final decoded = jsonDecode(await manifest.readAsString());
+      if (decoded is Map && decoded['databaseEncryptionKey'] is String) {
+        return decoded['databaseEncryptionKey'] as String;
+      }
+      // Portable backups created before database encryption are plaintext.
+      return null;
+    }
+    // Automatic safety snapshots never leave this device and use its key.
+    return _databaseEncryptionKey();
+  }
+
+  Future<List<_ImportedDocument>> _prepareImportedDocuments(
+    Directory extracted,
+    Directory documents,
+    Directory rollback,
+  ) async {
+    final sourceRoot = Directory(p.join(extracted.path, 'documents'));
+    if (!await sourceRoot.exists()) return const [];
+    final result = <_ImportedDocument>[];
+    await for (final entity in sourceRoot.list(
+      recursive: true,
+      followLinks: false,
+    )) {
+      if (entity is! File) continue;
+      final relative = p
+          .relative(entity.path, from: sourceRoot.path)
+          .replaceAll(p.separator, '/');
+      if (!_isBackedUpDocumentPath(relative)) {
+        throw StateError('The backup contains an unsupported document path.');
+      }
+      final destination = File(p.joinAll([
+        documents.path,
+        ...p.posix.split(relative),
+      ]));
+      File? original;
+      if (await destination.exists()) {
+        original = File(p.joinAll([
+          rollback.path,
+          ...p.posix.split(relative),
+        ]));
+        await original.parent.create(recursive: true);
+        await destination.copy(original.path);
+      }
+      result.add(_ImportedDocument(
+        source: entity,
+        destination: destination,
+        original: original,
+      ));
+    }
+    return result;
+  }
+
+  Future<void> _replaceImportedDocuments(
+      List<_ImportedDocument> documents) async {
+    for (final document in documents) {
+      await document.destination.parent.create(recursive: true);
+      final temporary = File(
+          '${document.destination.path}.smartload-importing-${DateTime.now().microsecondsSinceEpoch}');
+      try {
+        await document.source.copy(temporary.path);
+        if (await document.destination.exists()) {
+          await document.destination.delete();
+        }
+        await temporary.rename(document.destination.path);
+      } finally {
+        if (await temporary.exists()) await temporary.delete();
+      }
+    }
+  }
+
+  Future<void> _restoreImportedDocuments(
+      List<_ImportedDocument> documents) async {
+    for (final document in documents.reversed) {
+      if (await document.destination.exists()) {
+        await document.destination.delete();
+      }
+      if (document.original case final original?) {
+        await document.destination.parent.create(recursive: true);
+        await original.copy(document.destination.path);
+      }
+    }
   }
 
   static const _operationalTables = <String>[
@@ -732,6 +1042,9 @@ class LocalDataArchiveService {
       throw StateError(
           'Select the extracted archive’s root folder containing MANIFEST.json and database/.');
     }
+    if (await manifestFile.length() > 8 * 1024 * 1024) {
+      throw StateError('The archive integrity manifest is too large.');
+    }
     final manifest = jsonDecode(await manifestFile.readAsString());
     if (manifest is! Map) {
       throw StateError('The selected folder is not a SmartLoad backup.');
@@ -746,6 +1059,7 @@ class LocalDataArchiveService {
       throw StateError(
           'This archive is from an unsupported format. Create a new protected backup from the source device.');
     }
+    final listedPaths = <String>{};
     for (final entry in manifest['files'] as List) {
       if (entry is! Map || entry['path'] is! String) {
         throw StateError('The archive integrity manifest is invalid.');
@@ -761,10 +1075,18 @@ class LocalDataArchiveService {
         throw StateError('The archive integrity manifest is invalid.');
       }
       final relativePath = entry['path'] as String;
+      final segments = p.posix.split(relativePath);
       if (relativePath.startsWith('/') ||
-          p.posix.split(relativePath).any((segment) => segment == '..')) {
+          relativePath.contains('\\') ||
+          segments.any((segment) => segment == '..' || segment.isEmpty) ||
+          !listedPaths.add(relativePath)) {
         throw StateError(
             'The archive integrity manifest contains an unsafe path.');
+      }
+      if (relativePath.startsWith('documents/') &&
+          !_isAllowedImportedDocumentPath(relativePath)) {
+        throw StateError(
+            'The archive contains a document type that SmartLoad cannot safely restore.');
       }
       final file =
           File(p.joinAll([folder.path, ...p.posix.split(relativePath)]));
@@ -779,7 +1101,46 @@ class LocalDataArchiveService {
         throw StateError('The archive integrity check failed.');
       }
     }
+    if (!listedPaths.contains('database/smartload_offline.sqlite')) {
+      throw StateError('The archive integrity manifest omits its database.');
+    }
+
+    final extractedPaths = <String>{'MANIFEST.json'};
+    await for (final entity
+        in folder.list(recursive: true, followLinks: false)) {
+      if (entity is! File) continue;
+      extractedPaths.add(
+        p.relative(entity.path, from: folder.path).replaceAll(p.separator, '/'),
+      );
+    }
+    final expectedPaths = <String>{'MANIFEST.json', ...listedPaths};
+    if (extractedPaths.length != expectedPaths.length ||
+        !extractedPaths.containsAll(expectedPaths)) {
+      throw StateError(
+          'The archive contains files that are not authenticated by its integrity manifest.');
+    }
     return folder;
+  }
+
+  static bool _isBackedUpDocumentPath(String relativePath) {
+    final normalized = relativePath.replaceAll('\\', '/');
+    if (normalized.startsWith('smartload_images/') ||
+        normalized.startsWith('activity_logs/')) {
+      return true;
+    }
+    if (normalized.contains('/')) return false;
+    final lower = normalized.toLowerCase();
+    return normalized.startsWith('SmartLoad_') &&
+        (lower.endsWith('.pdf') ||
+            lower.endsWith('.xlsx') ||
+            lower.endsWith('.csv') ||
+            lower.endsWith('.zip'));
+  }
+
+  static bool _isAllowedImportedDocumentPath(String archivePath) {
+    const prefix = 'documents/';
+    if (!archivePath.startsWith(prefix)) return false;
+    return _isBackedUpDocumentPath(archivePath.substring(prefix.length));
   }
 }
 
@@ -805,24 +1166,45 @@ class ArchiveImportSummary {
   final int copiedFiles;
 }
 
+class _ImportedDocument {
+  const _ImportedDocument({
+    required this.source,
+    required this.destination,
+    required this.original,
+  });
+
+  final File source;
+  final File destination;
+  final File? original;
+}
+
 void _extractArchiveSync(String archivePath, String targetPath) {
   final input = InputFileStream(archivePath);
   try {
     final archive = ZipDecoder().decodeBuffer(input);
     var totalBytes = 0;
     var fileCount = 0;
+    final names = <String>{};
     for (final entry in archive) {
       final name = entry.name.replaceAll('\\', '/');
       final segments = p.posix.split(name);
       if (name.isEmpty ||
           name.startsWith('/') ||
-          segments.any((segment) => segment == '..')) {
+          segments.any((segment) => segment == '..' || segment.isEmpty)) {
         throw StateError('The archive contains an unsafe file path.');
       }
       if (!entry.isFile) continue;
+      if (!names.add(name)) {
+        throw StateError('The archive contains duplicate file paths.');
+      }
       fileCount++;
       totalBytes += entry.size;
-      if (fileCount > 100000 || totalBytes > 2 * 1024 * 1024 * 1024) {
+      final maxEntryBytes = name.endsWith('database/smartload_offline.sqlite')
+          ? 768 * 1024 * 1024
+          : 256 * 1024 * 1024;
+      if (entry.size > maxEntryBytes ||
+          fileCount > 20000 ||
+          totalBytes > 1024 * 1024 * 1024) {
         throw StateError('The archive is too large to import safely.');
       }
       final output = File(p.joinAll([targetPath, ...segments]));
@@ -842,6 +1224,7 @@ void _extractArchiveSync(String archivePath, String targetPath) {
 Future<void> _writeArchive({
   required String archivePath,
   required List<Map<String, String>> files,
+  required String? databaseEncryptionKey,
 }) async {
   final encoder = ZipFileEncoder();
   final inventory = <Map<String, Object>>[];
@@ -864,6 +1247,8 @@ Future<void> _writeArchive({
         'formatVersion': 3,
         'createdAtUtc': DateTime.now().toUtc().toIso8601String(),
         'database': 'database/smartload_offline.sqlite',
+        if (databaseEncryptionKey != null)
+          'databaseEncryptionKey': databaseEncryptionKey,
         'includes': [
           'SQLite operational data and audit logs',
           'saved images, backups, and locally generated reports/exports',
@@ -885,3 +1270,11 @@ Future<void> _writeArchive({
 
 Future<String> _sha256File(File file) async =>
     (await sha256.bind(file.openRead()).first).toString();
+
+List<int> _chunkNonce(List<int> prefix, int index) => <int>[
+      ...prefix,
+      (index >> 24) & 0xff,
+      (index >> 16) & 0xff,
+      (index >> 8) & 0xff,
+      index & 0xff,
+    ];

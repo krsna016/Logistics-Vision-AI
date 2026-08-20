@@ -15,6 +15,7 @@ class CsvExportServiceImpl implements CsvExportService {
     String? subject,
   }) async {
     final dir = await getApplicationDocumentsDirectory();
+    await pruneExpiredGeneratedReports(dir);
     return File('${dir.path}/${buildReportFileName(
       reportName: reportName,
       subject: subject,

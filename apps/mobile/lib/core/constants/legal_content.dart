@@ -14,7 +14,7 @@ class LegalContent {
 
 SmartLoad was built with one fundamental rule in mind: **Your business data belongs entirely to you.** 
 
-Unlike other modern applications that force you to create online accounts and constantly upload your information to the cloud, Vinayak SmartLoad is a **100% "Local-First" application**. This means that everything you do inside this app stays exactly where it should—right on your own phone or tablet. 
+Vinayak SmartLoad is a **local-first operational application**. Warehouse records, photos, AI results, and reports stay on the phone or tablet unless an authorized user deliberately exports or backs them up. Employee sign-in and account administration use our authentication service.
 
 We do not track your location, we do not read your warehouse data, and we do not use your information to show you advertisements. We respect your privacy and your business secrets.
 
@@ -22,14 +22,15 @@ We do not track your location, we do not read your warehouse data, and we do not
 
 ## 1. What Information Stays on Your Device?
 
-Because the app is local-first, the following information is saved securely on your device's internal storage and nowhere else:
+The following operational information is saved in the app's private storage on your device:
 
-*   **Account Details:** Your name, employee ID, and passwords (which are securely encrypted and hidden).
 *   **Warehouse Operations:** Your wagon numbers, truck details, carrier names, driver names, and phone numbers.
 *   **Counting Records:** Every carton loaded, every layer saved, and all the daily reports you generate.
 *   **Camera & AI Data:** The pictures you capture of the cartons, the colored boxes the AI draws over them, and the final counting numbers.
 
-*No one on the internet can see this information unless you manually export it and share it.*
+The authentication service stores your employee ID, name, role, active status, a one-way password hash, login-security counters, and administrator account-change audit events. The device stores a time-limited sign-in token in platform-protected secure storage. We do not store your plain-text password.
+
+Operational data is not synchronized to the authentication service. It can leave the device when an authorized user shares a report, activity-log export, or password-protected backup. Generated PDF, Excel, and CSV files are removed from app storage after 90 days when a new report is created; database records and copies already shared remain until an authorized user or your organization removes them.
 
 ---
 
@@ -47,9 +48,9 @@ Normally, AI requires a fast internet connection to send your photos to a superc
 
 ## 3. Who Actually Sees Your Data?
 
-We do not share your data with anyone, simply because **we do not have your data!** 
+We do not sell personal information or use it for advertising. Account records are available to authorized company administrators and service operators who need them to run and secure sign-in. Operational data is visible to authorized users of the device and to recipients selected when a user exports or shares it.
 
-Only you (and your company's administrators who hold the device) have the power to view the data. You have the ability to export this data into PDF reports or Excel spreadsheets to share with your team via email or messaging apps. 
+Ask your company administrator to correct, disable, or delete an account. Deletion may be limited where security audit records must be retained. For privacy questions, use the contact above.
 
 **Your Responsibility:** Once you export a PDF or Excel file out of the SmartLoad app, keeping that file safe from unauthorized access becomes the responsibility of you and your organization.
 ''';
@@ -69,7 +70,7 @@ Only you (and your company's administrators who hold the device) have the power 
 
 SmartLoad को एक बहुत ही महत्वपूर्ण नियम के साथ बनाया गया है: **आपके व्यवसाय का डेटा पूरी तरह से आपका है।**
 
-आजकल के कई ऐप आपको ऑनलाइन अकाउंट बनाने के लिए मजबूर करते हैं और आपका डेटा इंटरनेट पर भेजते हैं। लेकिन विनायक स्मार्टलोड एक **100% "लोकल-फर्स्ट"** ऐप है। इसका मतलब है कि आप ऐप में जो भी करते हैं, वह सब सुरक्षित रूप से आपके फोन या टैबलेट के अंदर ही रहता है।
+विनायक स्मार्टलोड एक **लोकल-फर्स्ट ऑपरेशनल ऐप** है। वेयरहाउस रिकॉर्ड, फोटो, AI परिणाम और रिपोर्ट डिवाइस पर रहते हैं, जब तक कोई अधिकृत उपयोगकर्ता उन्हें एक्सपोर्ट या बैकअप न करे। कर्मचारी साइन-इन और अकाउंट प्रबंधन के लिए हमारी ऑथेंटिकेशन सेवा का उपयोग होता है।
 
 हम आपकी लोकेशन को ट्रैक नहीं करते हैं, हम आपके वेयरहाउस का डेटा नहीं पढ़ते हैं, और हम विज्ञापनों के लिए आपकी जानकारी का उपयोग नहीं करते हैं। हम आपकी निजता (Privacy) का पूरा सम्मान करते हैं।
 
@@ -77,14 +78,13 @@ SmartLoad को एक बहुत ही महत्वपूर्ण न�
 
 ## 1. आपके डिवाइस पर क्या जानकारी रहती है?
 
-चूंकि ऐप लोकल-फर्स्ट है, इसलिए निम्नलिखित जानकारी केवल आपके फोन की मेमोरी में सुरक्षित रहती है, इंटरनेट पर नहीं:
+निम्न ऑपरेशनल जानकारी आपके फोन के निजी ऐप स्टोरेज में रहती है:
 
-*   **खाता विवरण:** आपका नाम, कर्मचारी ID, और पासवर्ड (जिन्हें सुरक्षित रूप से लॉक करके रखा जाता है)।
 *   **काम का रिकॉर्ड:** आपके वैगन नंबर, ट्रक का विवरण, ट्रांसपोर्टर का नाम, ड्राइवर का नाम और फोन नंबर।
 *   **गिनती का डेटा:** हर लोड किया गया कार्टन, हर लेयर, और आपकी सभी दैनिक रिपोर्ट।
 *   **कैमरा और AI डेटा:** कार्टन की जो तस्वीरें आप लेते हैं, AI द्वारा बनाए गए रंगीन बॉक्स, और अंतिम गिनती।
 
-*इंटरनेट पर कोई भी इस जानकारी को तब तक नहीं देख सकता, जब तक आप खुद इसे शेयर न करें।*
+ऑथेंटिकेशन सेवा कर्मचारी ID, नाम, भूमिका, सक्रिय स्थिति, पासवर्ड का एकतरफा हैश, लॉगिन-सुरक्षा काउंटर और एडमिन द्वारा किए गए अकाउंट बदलावों का ऑडिट रिकॉर्ड रखती है। साफ टेक्स्ट वाला पासवर्ड संग्रहीत नहीं किया जाता। ऑपरेशनल डेटा इस सेवा से सिंक नहीं होता। नई रिपोर्ट बनाते समय ऐप स्टोरेज में 90 दिन से पुरानी PDF, Excel और CSV फाइलें हटा दी जाती हैं; डेटाबेस रिकॉर्ड और पहले शेयर की गई कॉपी तब तक रहती हैं जब तक अधिकृत उपयोगकर्ता या संगठन उन्हें न हटाए।
 
 ---
 
@@ -102,9 +102,7 @@ SmartLoad को एक बहुत ही महत्वपूर्ण न�
 
 ## 3. आपका डेटा वास्तव में कौन देखता है?
 
-हम आपका डेटा किसी के साथ साझा नहीं करते हैं, क्योंकि **हमारे पास आपका डेटा आता ही नहीं है!**
-
-केवल आप (और डिवाइस का उपयोग करने वाले आपके एडमिन) ही इस डेटा को देख सकते हैं। आप इस डेटा से PDF या Excel फाइल बनाकर अपनी टीम को भेज सकते हैं।
+हम व्यक्तिगत जानकारी बेचते नहीं हैं और विज्ञापन के लिए उपयोग नहीं करते। अधिकृत कंपनी एडमिन अकाउंट रिकॉर्ड देख सकते हैं। डिवाइस के अधिकृत उपयोगकर्ता ऑपरेशनल डेटा देख सकते हैं, और एक्सपोर्ट या बैकअप शेयर करने पर चुने गए प्राप्तकर्ता भी उसे देख सकते हैं। अकाउंट सुधारने, बंद करने या हटाने के लिए अपने कंपनी एडमिन से संपर्क करें; सुरक्षा ऑडिट रिकॉर्ड के लिए कुछ जानकारी रखना आवश्यक हो सकता है।
 
 **आपकी जिम्मेदारी:** एक बार जब आप ऐप से PDF या Excel फाइल बाहर निकाल लेते हैं, तो उस फाइल को गलत लोगों से सुरक्षित रखना आपकी और आपके संगठन की जिम्मेदारी होती है।
 ''';
@@ -134,7 +132,7 @@ The AI camera is incredibly smart. It has been trained on vast datasets and can 
 
 ## 3. Keeping Your Data Safe
 
-Because Vinayak SmartLoad does not force you to use cloud servers, everything you do is saved directly onto your physical device hardware. 
+Vinayak SmartLoad keeps operational work on your device. Its online service is limited to employee sign-in and account administration; it does not synchronize warehouse operations.
 
 *   **Total Ownership:** You own the data completely.
 *   **Hardware Risks:** This also means if you drop your phone, lose it, or experience hardware failure, your data could be lost forever.

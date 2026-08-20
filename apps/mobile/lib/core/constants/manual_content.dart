@@ -251,7 +251,7 @@ The consolidated historical view of one wagon, all its vehicles, all layers, ite
 ### Roles and permissions
 
 - **Supervisor:** all normal loading, counting, correction, completion, analytics and report-export actions. Historical Digital Register records are read-only.
-- **Administrator:** all Supervisor actions, plus user, security, device and backup management and every historical Digital Register correction.
+- **Administrator:** all Supervisor actions, plus user and security administration, backup management, and every historical Digital Register correction. Central device revocation is not enabled in this release.
 
 Only use the access level assigned to you. If an action is unavailable, ask the supervisor or administrator instead of using another person's login.
 
@@ -328,7 +328,7 @@ When a wagon is actively loading, a persistent selector bar appears at the botto
 - Load Demo/Clear Screen (administrators only): allows loading enterprise training data or completely wiping all local operational data for a fresh start.
 - Logout: ends the current user session.
 
-Administrators also have **Backup & Restore** for creating and sharing a local archive containing the database, photos, audit records and exports, importing a SmartLoad ZIP or extracted folder, and restoring an earlier local backup. Treat imports and restores as controlled data operations and verify the selected archive before confirming.
+Administrators also have **Backup & Restore** for creating a password-protected, integrity-checked ZIP containing the database, photos, activity logs, audit records and exports; importing a SmartLoad ZIP; and restoring an earlier local safety snapshot. Extracted-folder import is disabled so protected backups remain encrypted. Treat imports and restores as controlled data operations and verify the selected archive before confirming.
 
 ### Offline Unique ID System (UUIDs)
 
@@ -778,7 +778,7 @@ Saving, correcting or removing a layer recalculates:
 
 ### Backup, import and restore
 
-Use Backup & Restore before moving data to another device or recovering from an accidental local change. A shared archive can contain operational records, photos, audit history and generated exports. Importing a ZIP or extracted folder validates the archive before replacing local data. Restoring a previous local backup is also a replacement operation; confirm the chosen date and keep a current backup before proceeding.
+Use Backup & Restore before moving data to another device or recovering from an accidental local change. A shared archive can contain operational records, photos, activity logs, audit history and generated exports. The archive is encrypted with the password you choose, and the password cannot be recovered. ZIP import authenticates the inventory before replacing database records and documents together; unlisted or unsafe files are rejected. Restoring a previous local backup is also a replacement operation. Generated PDF, Excel and CSV files in app storage are retained for 90 days and pruned when a new report is created; copies already shared are not controlled by the app.
 
 ---
 
@@ -806,7 +806,7 @@ Wait for preview recovery, return and reopen capture, or use Retry Camera. Use M
 
 ### A permission is needed
 
-SmartLoad runs entirely locally and offline, and does not track your location. The only permission requested is Camera access, which is strictly used for capturing carton photos and reading QR/Barcode data. If denied, you must open device settings to enable it before using capture features.
+SmartLoad keeps operational records and AI processing on this device and does not track your location. Internet access is used only for employee sign-in and administrator-managed account status; operational records and photos are not synchronized to that service. Camera access is requested for carton photos and text recognition. If camera access is denied, open device settings to enable it before using capture features.
 
 ### AI count is wrong
 
@@ -995,7 +995,7 @@ SmartLoad लॉजिस्टिक्स टीम को एक सरल �
 ### हर stakeholder के लिए लाभ
 
 - **सुपरवाइजर:** आसान guided workflow, live inventory, controlled correction, completion checks और स्पष्ट जिम्मेदारी।
-- **एडमिनिस्ट्रेटर:** user, security, device, backup और historical Digital Register की पूरी निगरानी।
+- **एडमिनिस्ट्रेटर:** user, security, backup और historical Digital Register की पूरी निगरानी। इस release में central device revocation उपलब्ध नहीं है।
 - **Operations leadership:** अलग टीम और location में समान प्रक्रिया तथा review के लिए structured information।
 - **Audit और compliance team:** Timestamp, photo, correction reason और exportable evidence।
 - **Finance और claims team:** shortage, damage या quantity dispute की जांच के लिए मजबूत supporting record।
@@ -1139,7 +1139,7 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 ### रोल और अनुमति
 
 - **Supervisor:** सभी सामान्य लोडिंग, गिनती, सुधार, पूरा करने, analytics और report-export कार्य कर सकता है। पुराने Digital Register रिकॉर्ड केवल देख सकता है।
-- **Administrator:** Supervisor के सभी काम, साथ में user, security, device, backup और पुराने Digital Register सुधार संभाल सकता है।
+- **Administrator:** Supervisor के सभी काम, साथ में user, security, backup और पुराने Digital Register सुधार संभाल सकता है। इस release में central device revocation उपलब्ध नहीं है।
 
 केवल अपनी दी गई अनुमति का उपयोग करें। कोई काम उपलब्ध न हो तो दूसरे व्यक्ति का login उपयोग करने के बजाय Supervisor या Administrator से कहें।
 
@@ -1212,7 +1212,7 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 - Load Demo/Clear Screen: केवल Administrator के लिए; यह आपको प्रशिक्षण डेटा लोड करने या सभी वर्तमान लोकल डेटा को पूरी तरह से मिटाने (Clear Screen) की सुविधा देता है।
 - Logout: वर्तमान उपयोगकर्ता सेशन बंद करता है।
 
-Administrator को **Backup & Restore** भी मिलता है। इससे database, photos, audit records और exports का local archive बनाकर share किया जा सकता है, SmartLoad ZIP या extracted folder import किया जा सकता है और पुराना local backup restore किया जा सकता है। Import या restore से पहले archive और तारीख ध्यान से जांचें।
+Administrator को **Backup & Restore** भी मिलता है। इससे database, photos, activity logs, audit records और exports का password-protected ZIP बनाया जा सकता है, SmartLoad ZIP import किया जा सकता है और पुराना local safety backup restore किया जा सकता है। Protected backup encrypted रखने के लिए extracted-folder import बंद है। Import या restore से पहले archive और तारीख ध्यान से जांचें।
 
 ---
 
@@ -1609,7 +1609,7 @@ Strict confirmation गलती से हटाने से बचाता �
 
 ### Backup, import और restore
 
-दूसरे फोन पर डेटा ले जाने या गलती से बदला local data वापस पाने से पहले Backup & Restore उपयोग करें। Archive में records, photos, audit history और generated exports हो सकते हैं। ZIP या extracted folder import करने से पहले archive validate होता है, लेकिन import और restore local data को replace करने वाली कार्रवाई हैं। पहले current backup सुरक्षित रखें और चुनी गई तारीख की पुष्टि करें।
+दूसरे फोन पर डेटा ले जाने या गलती से बदला local data वापस पाने से पहले Backup & Restore उपयोग करें। Archive में records, photos, activity logs, audit history और generated exports हो सकते हैं। Archive आपके चुने password से encrypted होता है और password recover नहीं किया जा सकता। ZIP import authenticated inventory की जांच करता है और unlisted या unsafe files को reject करता है। Import और restore local data को replace करते हैं। App storage की PDF, Excel और CSV files 90 दिन तक रखी जाती हैं और नई report बनाते समय पुरानी files हटती हैं; पहले share की गई copies app के नियंत्रण में नहीं रहतीं।
 
 ---
 

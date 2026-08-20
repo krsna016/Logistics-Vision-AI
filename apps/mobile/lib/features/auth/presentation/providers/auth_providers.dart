@@ -107,10 +107,19 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
 
   Future<void> _init() async {
     final cachedUser = await _restoreTrustedUser();
-    if (cachedUser != null && state == null) {
-      state = cachedUser;
-      unawaited(_validateCachedAccount(cachedUser));
+    if (cachedUser == null || state != null) return;
+
+    if (_repository case final RemoteAuthRepository remoteRepository) {
+      // A cached profile is display data, not authentication. Only restore it
+      // while the independently stored, signed session token is still valid.
+      if (!await remoteRepository.hasValidToken()) {
+        await _storage.delete(key: _cachedUserKey);
+        return;
+      }
     }
+
+    state = cachedUser;
+    unawaited(_validateCachedAccount(cachedUser));
   }
 
   Future<void> _cacheTrustedUser(User user) => _storage.write(
@@ -181,6 +190,11 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   Future<void> _validateCachedAccount(User cachedUser) async {
     if (_repository is! RemoteAuthRepository) return;
     final remoteRepository = _repository;
+    if (!await remoteRepository.hasValidToken()) {
+      if (state?.employeeId == cachedUser.employeeId) state = null;
+      await _storage.delete(key: _cachedUserKey);
+      return;
+    }
     final validatedUser = await remoteRepository.getCurrentUser();
     if (validatedUser != null) {
       await _cacheTrustedUser(validatedUser);

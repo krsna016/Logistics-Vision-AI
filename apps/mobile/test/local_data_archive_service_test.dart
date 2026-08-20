@@ -5,6 +5,7 @@ import 'package:archive/archive_io.dart';
 import 'package:crypto/crypto.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/core/database/app_database.dart';
 import 'package:mobile/core/storage/local_data_archive_service.dart';
@@ -15,6 +16,7 @@ void main() {
   late AppDatabase database;
 
   setUp(() async {
+    FlutterSecureStorage.setMockInitialValues({});
     documents =
         await Directory.systemTemp.createTemp('smartload_archive_test_');
     database = AppDatabase.forTesting(
@@ -148,7 +150,7 @@ void main() {
     return legacy;
   }
 
-  test('archives database and every local document with an inventory',
+  test('archives operational documents in a chunked encrypted envelope',
       () async {
     final archiveFile = await LocalDataArchiveService(
       database,
@@ -158,12 +160,16 @@ void main() {
     final archive = ZipDecoder().decodeBytes(await archiveFile.readAsBytes());
     expect(archive.findFile('database/smartload_offline.sqlite'), isNull);
     expect(archive.findFile('documents/smartload_images/layer.jpg'), isNull);
-    expect(archive.findFile('backup_payload.bin'), isNotNull);
+    expect(archive.findFile('backup_payload.bin'), isNull);
     final info = archive.findFile('BACKUP_INFO.json');
     expect(info, isNotNull);
     final data = jsonDecode(utf8.decode(info!.content as List<int>));
-    expect(data['encryption'], 'AES-256-GCM');
-    expect(data['kdf'], 'PBKDF2-HMAC-SHA256');
+    final metadata = jsonDecode(data['metadata'] as String);
+    expect(metadata['encryption'], 'AES-256-GCM chunked');
+    expect(metadata['kdf'], 'PBKDF2-HMAC-SHA256');
+    expect(metadata['formatVersion'], 2);
+    expect(metadata['chunks'], isNotEmpty);
+    expect(data['metadataMac'], isNotEmpty);
   });
 
   test('imports a ZIP and restores operational rows and document files',
@@ -249,6 +255,36 @@ void main() {
     expect(
       await File('${documents.path}/smartload_images/layer.jpg').readAsString(),
       'image evidence',
+    );
+  });
+
+  test('rejects files omitted from the authenticated manifest', () async {
+    final service = LocalDataArchiveService(
+      database,
+      documentsDirectory: () async => documents,
+    );
+    final legacyArchive = await createLegacyArchive();
+    final decoded = ZipDecoder().decodeBytes(await legacyArchive.readAsBytes());
+    final tampered = File('${documents.parent.path}/tampered_backup.zip');
+    final encoder = ZipFileEncoder()..create(tampered.path);
+    for (final entry in decoded) {
+      if (entry.isFile) encoder.addArchiveFile(entry);
+    }
+    encoder.addArchiveFile(
+      ArchiveFile.string(
+        'documents/smartload_offline.sqlite',
+        'unlisted replacement database',
+      ),
+    );
+    await encoder.close();
+    addTearDown(() async {
+      if (await legacyArchive.exists()) await legacyArchive.delete();
+      if (await tampered.exists()) await tampered.delete();
+    });
+
+    await expectLater(
+      () => service.importArchive(tampered),
+      throwsA(isA<StateError>()),
     );
   });
 

@@ -3,8 +3,8 @@ import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
-import 'package:sqlite3_flutter_libs/sqlite3_flutter_libs.dart';
 import 'package:sqlite3/sqlite3.dart';
+import '../storage/database_encryption.dart';
 import 'tables.dart';
 
 part 'app_database.g.dart';
@@ -225,14 +225,105 @@ LazyDatabase _openConnection() {
   return LazyDatabase(() async {
     final dbFolder = await getApplicationDocumentsDirectory();
     final file = File(p.join(dbFolder.path, 'smartload_offline.sqlite'));
+    final key = await loadOrCreateDatabaseEncryptionKey();
 
-    if (Platform.isAndroid) {
-      await applyWorkaroundToOpenSqlite3OnOldAndroidVersions();
-    }
+    await _migratePlaintextDatabase(file, key);
 
     final cachebase = (await getTemporaryDirectory()).path;
     sqlite3.tempDirectory = cachebase;
 
-    return NativeDatabase.createInBackground(file);
+    return NativeDatabase.createInBackground(
+      file,
+      setup: (rawDatabase) {
+        if (rawDatabase.select('PRAGMA cipher').isEmpty) {
+          throw StateError('The encrypted SQLite engine is unavailable.');
+        }
+        rawDatabase.execute("PRAGMA key = '$key'");
+        rawDatabase.select('SELECT count(*) FROM sqlite_master');
+      },
+    );
   });
 }
+
+Future<void> _migratePlaintextDatabase(File databaseFile, String key) async {
+  final backup = File('${databaseFile.path}.plaintext-migration-backup');
+  final encrypted = File('${databaseFile.path}.encrypted-migration');
+
+  if (!await databaseFile.exists() && await backup.exists()) {
+    await backup.rename(databaseFile.path);
+  }
+  if (!await databaseFile.exists()) return;
+
+  final header = await databaseFile.openRead(0, 16).fold<List<int>>(
+    <int>[],
+    (bytes, chunk) => bytes..addAll(chunk),
+  );
+  const sqliteHeader = <int>[
+    0x53,
+    0x51,
+    0x4c,
+    0x69,
+    0x74,
+    0x65,
+    0x20,
+    0x66,
+    0x6f,
+    0x72,
+    0x6d,
+    0x61,
+    0x74,
+    0x20,
+    0x33,
+    0x00,
+  ];
+  final isPlaintext = header.length == sqliteHeader.length &&
+      List.generate(
+              header.length, (index) => header[index] == sqliteHeader[index])
+          .every((matches) => matches);
+  if (!isPlaintext) {
+    if (await backup.exists()) await backup.delete();
+    return;
+  }
+
+  if (await encrypted.exists()) await encrypted.delete();
+  final source = sqlite3.open(databaseFile.path);
+  try {
+    source.execute("VACUUM INTO '${_escapeSql(encrypted.path)}'");
+  } finally {
+    source.close();
+  }
+  final target = sqlite3.open(encrypted.path);
+  try {
+    if (target.select('PRAGMA cipher').isEmpty) {
+      throw StateError('The encrypted SQLite engine is unavailable.');
+    }
+    target.execute("PRAGMA rekey = '$key'");
+  } finally {
+    target.close();
+  }
+  final verification = sqlite3.open(encrypted.path);
+  try {
+    verification.execute("PRAGMA key = '$key'");
+    verification.select('SELECT count(*) FROM sqlite_master');
+  } finally {
+    verification.close();
+  }
+
+  if (await backup.exists()) await backup.delete();
+  await databaseFile.rename(backup.path);
+  try {
+    await encrypted.rename(databaseFile.path);
+  } catch (_) {
+    if (!await databaseFile.exists() && await backup.exists()) {
+      await backup.rename(databaseFile.path);
+    }
+    rethrow;
+  }
+  if (await backup.exists()) await backup.delete();
+  for (final suffix in ['-wal', '-shm']) {
+    final companion = File('${databaseFile.path}$suffix');
+    if (await companion.exists()) await companion.delete();
+  }
+}
+
+String _escapeSql(String value) => value.replaceAll("'", "''");

@@ -66,6 +66,7 @@ class ExcelReportServiceImpl implements ExcelReportService {
     String? subject,
   }) async {
     final dir = await getApplicationDocumentsDirectory();
+    await pruneExpiredGeneratedReports(dir);
     final file = File('${dir.path}/${buildReportFileName(
       reportName: reportName,
       subject: subject,
