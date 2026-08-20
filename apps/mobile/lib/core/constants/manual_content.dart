@@ -267,7 +267,7 @@ Only use the access level assigned to you. If an action is unavailable, ask the 
 4. Tap Login.
 5. The Wagon Control Center opens as soon as authentication succeeds.
 
-The app runs fully locally and offline. The AI counting engine is initialized instantly on startup without requiring any network connection.
+Operational records and carton counting run on this device. Sign-in, account administration, and account-status checks use the sign-in service and may need a network connection. Once signed in, warehouse records are not synchronized to that service. An offline device cannot receive an immediate account-disable instruction.
 
 In non-production builds, **Demo Entry** opens a temporary Demo Operator session without credentials. This control is unavailable in production builds.
 
@@ -328,15 +328,14 @@ When a wagon is actively loading, a persistent selector bar appears at the botto
 - Load Demo/Clear Screen (administrators only): allows loading enterprise training data or completely wiping all local operational data for a fresh start.
 - Logout: ends the current user session.
 
-Administrators also have **Backup & Restore** for creating a password-protected, integrity-checked ZIP containing the database, photos, activity logs, audit records and exports; importing a SmartLoad ZIP; and restoring an earlier local safety snapshot. Extracted-folder import is disabled so protected backups remain encrypted. Treat imports and restores as controlled data operations and verify the selected archive before confirming.
+Administrators also have **Backup & Restore** for creating a password-protected encrypted ZIP containing the database, photos, activity logs, audit records and exports; importing a SmartLoad ZIP; and restoring an earlier local safety snapshot. New backups are encrypted; older unprotected SmartLoad ZIPs are supported only for recovery from a trusted source. Import and restore replace local data, so verify the archive, password, and safety snapshot before confirming.
 
-### Offline Unique ID System (UUIDs)
+### Local record IDs (UUIDs)
 
-Because SmartLoad operates completely offline, it does not rely on simple numbers (like Wagon #1, Wagon #2) to identify records. Instead, it generates a mathematically unique 36-character UUID (Universally Unique Identifier) the exact millisecond a record is created.
+SmartLoad assigns each operational record a locally generated UUID (Universally Unique Identifier), rather than relying only on display numbers such as Wagon #1 or Wagon #2. It is an internal audit identifier, not an operational number or a promise of cross-device synchronization.
 
-This provides two massive advantages:
-1. **Name Duplication is Safe:** You can create two wagons named "Train Express A", or two trucks with the same license plate. Because their hidden UUIDs are completely different, the system will never confuse their layers, photos, or inventory.
-2. **Offline Safety:** Every Wagon, Truck, Layer, Photo, and Audit Log has its own guaranteed unique ID, so local records remain internally consistent and can be safely backed up or restored.
+1. **Duplicate names remain distinct:** Records with different IDs remain separate in local storage. Use the wagon or vehicle number shown in the interface when communicating with operations.
+2. **Backup relationships are retained:** Record relationships are carried in local backups and restores. Verify an imported backup before relying on the restored data.
 
 ---
 
@@ -778,7 +777,7 @@ Saving, correcting or removing a layer recalculates:
 
 ### Backup, import and restore
 
-Use Backup & Restore before moving data to another device or recovering from an accidental local change. A shared archive can contain operational records, photos, activity logs, audit history and generated exports. The archive is encrypted with the password you choose, and the password cannot be recovered. ZIP import authenticates the inventory before replacing database records and documents together; unlisted or unsafe files are rejected. Restoring a previous local backup is also a replacement operation. Generated PDF, Excel and CSV files in app storage are retained for 90 days and pruned when a new report is created; copies already shared are not controlled by the app.
+Use Backup & Restore before moving data to another device or recovering from an accidental local change. A shared archive can contain operational records, photos, activity logs, audit history and generated exports. New backups are encrypted with the password you choose, and that password cannot be recovered. Older unprotected SmartLoad ZIPs can be imported only for trusted compatibility recovery. Import and restore replace local data. Generated PDF, Excel and CSV files in app storage are retained for 90 days and pruned when a new report is created; copies already shared are not controlled by the app.
 
 ---
 
@@ -1155,7 +1154,7 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 4. Login दबाएं।
 5. Authentication सफल होते ही Wagon Control Center खुल जाता है।
 
-ऐप पूरी तरह से लोकल और ऑफलाइन काम करता है। ऐप शुरू होते ही AI इंजन तुरंत तैयार हो जाता है, इसके लिए किसी नेटवर्क की जरूरत नहीं होती।
+ऑपरेशनल रिकॉर्ड और कार्टन गिनती इस डिवाइस पर काम करते हैं। साइन-इन, अकाउंट प्रबंधन और अकाउंट-स्थिति जांच साइन-इन सेवा का उपयोग करते हैं और इनके लिए नेटवर्क कनेक्शन आवश्यक हो सकता है। साइन-इन के बाद वेयरहाउस रिकॉर्ड उस सेवा से सिंक्रनाइज़ नहीं होते। ऑफलाइन डिवाइस को अकाउंट-disable निर्देश तुरंत नहीं मिल सकता।
 
 लॉगिन किए हुए उपयोगकर्ता का नाम नई लेयर में ऑपरेटर और रिपोर्ट में सुपरवाइजर के रूप में उपयोग होता है। इसलिए एक ही लॉगिन से किए काम में उसी व्यक्ति का नाम होना चाहिए।
 
@@ -1460,13 +1459,12 @@ Layer History card के सबसे दाईं ओर circular delete butto
 
 गलती छिपाने के लिए सही लेयर न हटाएं। उसे कारण के साथ सुधारें।
 
-### Offline Unique ID System (UUIDs)
+### Local record IDs (UUIDs)
 
-चूंकि SmartLoad पूरी तरह से ऑफ़लाइन काम करता है, इसलिए यह रिकॉर्ड की पहचान करने के लिए सरल नंबरों (जैसे Wagon #1, Wagon #2) पर निर्भर नहीं करता है। इसके बजाय, यह हर रिकॉर्ड के लिए 36-अक्षरों का एक जटिल और पूरी तरह से अद्वितीय UUID (Universally Unique Identifier) जनरेट करता है।
+SmartLoad हर ऑपरेशनल रिकॉर्ड को locally generated UUID (Universally Unique Identifier) देता है, केवल Wagon #1 या Wagon #2 जैसे display number पर निर्भर नहीं रहता। यह internal audit identifier है; यह operational number या cross-device synchronization का वादा नहीं है।
 
-इसके दो बहुत बड़े फायदे हैं:
-1. **एक ही नाम सुरक्षित है (Name Duplication is Safe):** आप "Train Express A" नाम से दो वैगन या एक ही नंबर प्लेट वाले दो ट्रक बना सकते हैं। चूँकि उनके छिपे हुए UUID पूरी तरह से अलग होंगे, सिस्टम कभी भी उनके लेयर, फोटो या इन्वेंट्री को आपस में नहीं मिलाएगा।
-2. **ऑफ़लाइन सुरक्षा (Offline Safety):** बिना इंटरनेट वाले दो अलग-अलग गोदामों में काम कर रहे दो ऑपरेटर कभी भी गलती से एक ही ID जनरेट नहीं कर सकते। जब उनका डेटा बैकअप के ज़रिए एक जगह लाया जाता है, तो कोई डेटा आपस में नहीं टकराता। हर वैगन, ट्रक, लेयर, फोटो और ऑडिट लॉग की अपनी एक 100% यूनिक ID होती है।
+1. **एक जैसे नाम अलग रहते हैं:** अलग ID वाले रिकॉर्ड local storage में अलग रहते हैं। ऑपरेशन में बात करते समय interface में दिख रहा wagon या vehicle number उपयोग करें।
+2. **Backup संबंध सुरक्षित रहते हैं:** Local backup और restore में रिकॉर्ड के संबंध साथ रहते हैं। Import किए गए backup पर निर्भर करने से पहले उसकी जांच करें।
 
 ---
 
@@ -1609,7 +1607,7 @@ Strict confirmation गलती से हटाने से बचाता �
 
 ### Backup, import और restore
 
-दूसरे फोन पर डेटा ले जाने या गलती से बदला local data वापस पाने से पहले Backup & Restore उपयोग करें। Archive में records, photos, activity logs, audit history और generated exports हो सकते हैं। Archive आपके चुने password से encrypted होता है और password recover नहीं किया जा सकता। ZIP import authenticated inventory की जांच करता है और unlisted या unsafe files को reject करता है। Import और restore local data को replace करते हैं। App storage की PDF, Excel और CSV files 90 दिन तक रखी जाती हैं और नई report बनाते समय पुरानी files हटती हैं; पहले share की गई copies app के नियंत्रण में नहीं रहतीं।
+दूसरे फोन पर डेटा ले जाने या गलती से बदला local data वापस पाने से पहले Backup & Restore उपयोग करें। Archive में records, photos, activity logs, audit history और generated exports हो सकते हैं। नए backup आपके चुने password से encrypted होते हैं और password recover नहीं किया जा सकता। पुराने unprotected SmartLoad ZIP केवल trusted compatibility recovery के लिए import करें। Import और restore local data को replace करते हैं। App storage की PDF, Excel और CSV files 90 दिन तक रखी जाती हैं और नई report बनाते समय पुरानी files हटती हैं; पहले share की गई copies app के नियंत्रण में नहीं रहतीं।
 
 ---
 
@@ -1637,7 +1635,7 @@ Preview आने दें, Capture स्क्रीन दोबारा �
 
 ### किसी permission की जरूरत है
 
-SmartLoad पूरी तरह से लोकल और ऑफलाइन काम करता है और आपकी लोकेशन ट्रैक नहीं करता। केवल Camera एक्सेस की अनुमति मांगी जाती है, जिसका उपयोग केवल कार्टन की फोटो खींचने और QR/Barcode पढ़ने के लिए किया जाता है। यदि अनुमति नहीं दी गई है, तो आपको कैप्चर फीचर का उपयोग करने से पहले डिवाइस सेटिंग्स से इसे चालू करना होगा।
+SmartLoad ऑपरेशनल रिकॉर्ड और कार्टन गिनती इस डिवाइस पर करता है और आपकी लोकेशन ट्रैक नहीं करता। साइन-इन और अकाउंट-स्थिति जांच के लिए नेटवर्क आवश्यक हो सकता है। केवल Camera एक्सेस की अनुमति मांगी जाती है, जिसका उपयोग केवल कार्टन की फोटो खींचने और QR/Barcode पढ़ने के लिए किया जाता है। यदि अनुमति नहीं दी गई है, तो आपको कैप्चर फीचर का उपयोग करने से पहले डिवाइस सेटिंग्स से इसे चालू करना होगा।
 
 ### AI गिनती गलत
 

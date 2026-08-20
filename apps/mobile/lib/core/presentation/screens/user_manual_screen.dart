@@ -123,11 +123,13 @@ class _UserManualScreenState extends State<UserManualScreen> {
           padding: const EdgeInsets.fromLTRB(18, 20, 22, 96),
           physics: const ClampingScrollPhysics(),
           itemCount: sections.length,
-          itemBuilder: (context, index) => MarkdownBody(
-            data: sections[index],
-            selectable: false,
-            styleSheet: _manualStyleSheet(),
-          ),
+          itemBuilder: (context, index) {
+            return MarkdownBody(
+              data: sections[index],
+              selectable: false,
+              styleSheet: _manualStyleSheet(),
+            );
+          },
         ),
       ),
     );

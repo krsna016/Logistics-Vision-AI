@@ -138,6 +138,9 @@ class _LegalPrivacyScreenState extends State<LegalPrivacyScreen> {
                 ),
                 const SizedBox(height: 24),
 
+                const _OpenFrontierLabsCredit(),
+                const SizedBox(height: 24),
+
                 // Content
                 MarkdownBody(
                   data: _currentContent,
@@ -202,6 +205,42 @@ class _LegalPrivacyScreenState extends State<LegalPrivacyScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _OpenFrontierLabsCredit extends StatelessWidget {
+  const _OpenFrontierLabsCredit();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Image.asset(
+            'assets/images/openfrontier_labs_logo.jpg',
+            width: 150,
+            height: 56,
+            fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Text(
+              'OpenFrontier Labs\nExpanding the Possible — ambitious without sounding exaggerated',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

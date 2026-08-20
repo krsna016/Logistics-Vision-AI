@@ -9,7 +9,8 @@ class StorageService {
   Future<void> init() async {
     // Database initialization, key extraction, and connection bootstrap.
     // Authentication/session secrets are stored in platform secure storage.
-    // The Drift database itself is currently app-private plain SQLite.
+    // The Drift database is encrypted with a device-held key; session secrets
+    // are separately stored in platform secure storage.
   }
 
   // Secure Storage keys

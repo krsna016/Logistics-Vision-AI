@@ -5,7 +5,6 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import 'package:mobile/features/reports/data/services/report_template_service_impl.dart';
-import 'package:mobile/features/reports/data/services/pdf_report_service_impl.dart';
 
 void main() {
   test('every report page uses the shared SmartLoad footer', () async {
@@ -24,7 +23,7 @@ void main() {
 
   test('shared footer numbers mixed landscape and portrait pages globally',
       () async {
-    final pdf = await createReportPdfDocument();
+    final pdf = pw.Document();
     List<pw.Widget> auditRows(String section) => List.generate(
           95,
           (index) => pw.Padding(

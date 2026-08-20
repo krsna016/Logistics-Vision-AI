@@ -45,7 +45,7 @@ class TruckListScreen extends ConsumerWidget {
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
             Text(
-              'Powered by Vinayak Logistics',
+              'Powered by OpenFrontier Labs',
               style: TextStyle(
                   fontSize: 10,
                   color: Color(0xFFBDBDBD),

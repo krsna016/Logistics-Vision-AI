@@ -131,7 +131,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
 
                 // Subtitle
                 Text(
-                  'Powered by Vinayak Logistics',
+                  'Powered by OpenFrontier Labs',
                   style: TextStyle(
                     fontSize: 14,
                     color: Colors.white70,

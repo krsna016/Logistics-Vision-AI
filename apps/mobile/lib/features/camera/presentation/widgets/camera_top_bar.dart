@@ -52,7 +52,7 @@ class CameraTopBar extends StatelessWidget {
                               fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          'Powered by Vinayak Logistics',
+                          'Powered by OpenFrontier Labs',
                           style: TextStyle(color: Colors.grey, fontSize: 10),
                         ),
                       ],

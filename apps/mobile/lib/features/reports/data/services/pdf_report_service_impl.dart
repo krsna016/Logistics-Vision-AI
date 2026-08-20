@@ -13,37 +13,6 @@ import 'report_template_service_impl.dart';
 import 'package:drift/drift.dart' as drift;
 import '../../../wagon/domain/entities/wagon.dart';
 
-Future<pw.Document> createReportPdfDocument() async {
-  const candidates = <String>[
-    '/system/fonts/NotoSans-Regular.ttf',
-    '/system/fonts/NotoSansDevanagari-Regular.ttf',
-    '/system/fonts/NotoSansDevanagari-VF.ttf',
-    '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
-    '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-  ];
-  final fonts = <pw.Font>[];
-  for (final path in candidates) {
-    final file = File(path);
-    if (!await file.exists()) continue;
-    try {
-      fonts.add(pw.Font.ttf(ByteData.sublistView(await file.readAsBytes())));
-    } catch (_) {
-      // Font availability differs by OS version. Continue to the next known
-      // Unicode system font and retain the PDF package fallback if none load.
-    }
-  }
-  if (fonts.isEmpty) return pw.Document();
-  return pw.Document(
-    theme: pw.ThemeData.withFont(
-      base: fonts.first,
-      bold: fonts.first,
-      italic: fonts.first,
-      boldItalic: fonts.first,
-      fontFallback: fonts.skip(1).toList(growable: false),
-    ),
-  );
-}
-
 List<WagonItem> _decodeWagonItems(String raw) {
   try {
     return (jsonDecode(raw) as List<dynamic>)
@@ -945,7 +914,7 @@ Future<Uint8List> _buildWagonPdfBytes(
   final logo = logoBytes == null ? null : pw.MemoryImage(logoBytes);
   final wagonNumber = report['wagonNumber']! as String;
   final loadingDate = report['loadingDate']! as String;
-  final pdf = await createReportPdfDocument();
+  final pdf = pw.Document();
 
   pdf.addPage(
     pw.MultiPage(
@@ -1191,7 +1160,7 @@ Future<Uint8List> _buildTruckPdfBytes(
   final layers = _reportMaps(report['layers']);
   final corrections = _reportMaps(report['corrections']);
   final itemSummary = _reportMaps(report['itemSummary']);
-  final pdf = await createReportPdfDocument();
+  final pdf = pw.Document();
   pdf.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
@@ -1425,7 +1394,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytes(
     ]);
   }
 
-  final pdf = await createReportPdfDocument();
+  final pdf = pw.Document();
   final logo = logoBytes == null ? null : pw.MemoryImage(logoBytes);
   final registerId = report['registerId'];
   pdf.addPage(
@@ -1535,7 +1504,7 @@ Future<Uint8List> _buildDigitalRegisterPdfBytesV2(
   final trucks = _reportMaps(report['trucks']);
   final items = _reportMaps(report['items']);
   final corrections = _reportMaps(report['corrections']);
-  final pdf = await createReportPdfDocument();
+  final pdf = pw.Document();
   final rowCount = report['rowCount'] as int? ?? 0;
   final totalLayers = trucks.fold<int>(
     0,
@@ -1985,7 +1954,7 @@ Future<Uint8List> _buildAnalyticsPdfBytes(
 ) async {
   final trucks = _reportMaps(report['trucks']);
   final averageConfidence = report['averageConfidence']! as double;
-  final pdf = await createReportPdfDocument();
+  final pdf = pw.Document();
   pdf.addPage(
     pw.MultiPage(
       pageFormat: PdfPageFormat.a4,
