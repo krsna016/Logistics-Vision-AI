@@ -112,17 +112,22 @@ class LocalTruckRepository implements TruckRepository {
       ));
 
       final changes = <String>[];
-      if (existing.truckNumber != truck.truckNumber)
+      if (existing.truckNumber != truck.truckNumber) {
         changes.add('Number: ${existing.truckNumber} -> ${truck.truckNumber}');
-      if (existing.driverName != truck.driverName)
+      }
+      if (existing.driverName != truck.driverName) {
         changes.add('Driver: ${existing.driverName} -> ${truck.driverName}');
-      if (existing.driverMobile != truck.driverMobile)
+      }
+      if (existing.driverMobile != truck.driverMobile) {
         changes
             .add('Mobile: ${existing.driverMobile} -> ${truck.driverMobile}');
-      if (existing.status != truck.status.name)
+      }
+      if (existing.status != truck.status.name) {
         changes.add('Status: ${existing.status} -> ${truck.status.name}');
-      if (existing.notes != truck.notes)
+      }
+      if (existing.notes != truck.notes) {
         changes.add('Notes: ${existing.notes} -> ${truck.notes}');
+      }
 
       final changeStr =
           changes.isEmpty ? 'No values changed' : changes.join(', ');

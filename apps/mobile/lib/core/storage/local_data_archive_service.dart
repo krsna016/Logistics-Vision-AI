@@ -739,17 +739,25 @@ class LocalDataArchiveService {
     final isProtectedFormat =
         manifest['format'] == 'SmartLoad protected local backup' &&
             manifest['formatVersion'] == 3;
-    final isLegacyFormat =
-        manifest['format'] == 'SmartLoad local audit archive' &&
-            manifest['formatVersion'] == 2;
+    final isLegacyFormat = manifest['format'] ==
+            'SmartLoad local audit archive' &&
+        (manifest['formatVersion'] == null || manifest['formatVersion'] == 2);
     if ((!isProtectedFormat && !isLegacyFormat) || manifest['files'] is! List) {
       throw StateError(
           'This archive is from an unsupported format. Create a new protected backup from the source device.');
     }
     for (final entry in manifest['files'] as List) {
-      if (entry is! Map ||
-          entry['path'] is! String ||
-          entry['sha256'] is! String) {
+      if (entry is! Map || entry['path'] is! String) {
+        throw StateError('The archive integrity manifest is invalid.');
+      }
+      final hasDigest = entry['sha256'] is String;
+      // The first local-only release recorded file sizes but not hashes. Keep
+      // this narrowly scoped compatibility path so those genuine SmartLoad
+      // backups remain restorable; every newer archive still requires SHA-256.
+      final isOriginalLegacyManifest =
+          isLegacyFormat && manifest['formatVersion'] == null;
+      if (!hasDigest &&
+          (!isOriginalLegacyManifest || entry['sizeBytes'] is! num)) {
         throw StateError('The archive integrity manifest is invalid.');
       }
       final relativePath = entry['path'] as String;
@@ -760,7 +768,14 @@ class LocalDataArchiveService {
       }
       final file =
           File(p.joinAll([folder.path, ...p.posix.split(relativePath)]));
-      if (!await file.exists() || await _sha256File(file) != entry['sha256']) {
+      if (!await file.exists()) {
+        throw StateError('The archive integrity check failed.');
+      }
+      if (hasDigest && await _sha256File(file) != entry['sha256']) {
+        throw StateError('The archive integrity check failed.');
+      }
+      if (!hasDigest &&
+          await file.length() != (entry['sizeBytes'] as num).toInt()) {
         throw StateError('The archive integrity check failed.');
       }
     }

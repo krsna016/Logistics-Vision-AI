@@ -4,7 +4,6 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
-import 'package:image/image.dart' as img;
 import '../../../../theme/app_theme.dart';
 import '../../../../utils/logger.dart';
 import '../../../camera/presentation/widgets/detection_overlay_widget.dart';
@@ -12,7 +11,6 @@ import '../../../camera/domain/entities/detection.dart';
 import '../../../layer/domain/entities/layer.dart';
 import '../../../../core/ai_engine/ai_camera_settings.dart';
 import '../../../layer/data/models/layer_model.dart';
-import '../../domain/entities/truck.dart';
 
 /// Vertical timeline showing layer capture history.
 class LayerTimeline extends StatelessWidget {
@@ -386,8 +384,6 @@ class _LayerPhotoThumbnail extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!File(path).existsSync()) return const SizedBox.shrink();
 
-    final split = layer.splitData;
-
     return InkWell(
       onTap: () => _openPhoto(context),
       borderRadius: BorderRadius.circular(10),
@@ -469,7 +465,6 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
 
 class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
   Size _photoSize = const Size(720, 1280);
-  bool _isPhotoSizeLoaded = false;
   bool _showMasks = false;
   bool _showNumbers = false;
   int _editRevision = 0;
@@ -642,7 +637,6 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
           frame.image.width.toDouble(),
           frame.image.height.toDouble(),
         );
-        _isPhotoSizeLoaded = true;
       });
       frame.image.dispose();
       codec.dispose();
@@ -970,8 +964,8 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
         parts.add('removed $_rightRemoved on the right');
       }
 
-      warning += parts.join(' and ') +
-          ' in the preview. Please update the numbers below to match.';
+      warning +=
+          '${parts.join(' and ')} in the preview. Please update the numbers below to match.';
     }
 
     widget.onRequestCorrection?.call(layer, warning.isEmpty ? null : warning);

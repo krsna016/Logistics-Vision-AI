@@ -9,11 +9,9 @@ import 'package:mobile/features/layer/data/models/layer_model.dart';
 import 'package:mobile/core/storage/image_storage_service.dart';
 import 'package:mobile/features/layer/presentation/providers/layer_providers.dart';
 import 'package:mobile/features/layer/domain/entities/layer.dart';
-import 'dart:io';
 import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image/image.dart' as img;
 import 'package:image_picker/image_picker.dart';
 
 import '../providers/camera_notifier.dart';
@@ -26,9 +24,7 @@ import '../../domain/entities/detection.dart';
 import '../widgets/detection_overlay_widget.dart';
 import '../widgets/resizable_counting_region.dart';
 import '../../../layer/domain/entities/ai_result.dart';
-import '../../../layer/domain/entities/layer.dart';
 import '../../../../theme/app_theme.dart';
-import '../../../../core/storage/image_storage_service.dart';
 import '../../../../core/ai_engine/models/ai_model.dart';
 import '../../../../utils/logger.dart';
 import '../../../../services/permission_settings_service.dart';
@@ -93,12 +89,14 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       }
       if (!mounted) return;
       if (image != null) {
-        AppLogger.info('Native camera photo selected for review: ${image.path}');
+        AppLogger.info(
+            'Native camera photo selected for review: ${image.path}');
         setState(() => _isLeavingForReview = true);
         ref.read(countingDecisionProvider.notifier).resetAnalyzer();
         final truckId = GoRouterState.of(context).pathParameters['id'] ?? '';
-        
-        Future<AIResult> finalResultLoader() => _finalizeCapturedResult(image!.path);
+
+        Future<AIResult> finalResultLoader() =>
+            _finalizeCapturedResult(image!.path);
         await _navigateToReview(
           context,
           truckId,
@@ -113,7 +111,8 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       AppLogger.error('Failed to launch native camera', e, stack);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open the native camera app.')),
+          const SnackBar(
+              content: Text('Could not open the native camera app.')),
         );
       }
     }
@@ -426,12 +425,16 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                   onToggleUltraWide: isGallery || !previewReady
                       ? null
                       : () => cameraNotifier.toggleUltraWide(),
-                  onToggleCropBox: () => setState(() => _showCropBox = !_showCropBox),
+                  onToggleCropBox: () =>
+                      setState(() => _showCropBox = !_showCropBox),
                   onToggleTorch: isGallery || !previewReady
                       ? null
                       : () => _toggleTorch(cameraState.controller),
                   onGallery: () => _openGallery(cameraState.controller),
-                  onNativeCamera: () { if (_torchOn) _toggleTorch(cameraState.controller); _launchNativeCamera(); },
+                  onNativeCamera: () {
+                    if (_torchOn) _toggleTorch(cameraState.controller);
+                    _launchNativeCamera();
+                  },
                   onFlipCamera: !previewReady && !isGallery
                       ? () {}
                       : () {
@@ -522,7 +525,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         'auditPhotoPath': auditPhotoPath ?? photoPath ?? _pickedImagePath,
         'countingRegion': countingRegion,
         'finalResultLoader': finalResultLoader,
-        'navigateToControlCenter': GoRouterState.of(context).uri.queryParameters['from'] == 'controlCenter',
+        'navigateToControlCenter':
+            GoRouterState.of(context).uri.queryParameters['from'] ==
+                'controlCenter',
       });
     } finally {
       if (mounted) setState(() => _isLeavingForReview = false);
@@ -535,33 +540,47 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   Future<void> _launchSplitModeNativeFlow(String truckId) async {
     final picker = ImagePicker();
     final imageStorage = ImageStorageService();
-    
+
     // PART 1
     AppLogger.info('Split Flow: Opening Native Camera for Part 1');
     final leftImage = await picker.pickImage(source: ImageSource.camera);
-    if (leftImage == null || !mounted) return; // User cancelled, stay on camera screen
+    if (leftImage == null || !mounted) {
+      return; // User cancelled, stay on camera screen
+    }
     setState(() => _isLeavingForReview = true);
-    
-    final leftSavedPath = await imageStorage.saveImage(File(leftImage.path), 'split_part1_$truckId');
-    
+
+    final leftSavedPath = await imageStorage.saveImage(
+        File(leftImage.path), 'split_part1_$truckId');
+
     Future<AIResult> finalResultLoaderLeft() async {
       final leftBytes = await File(leftSavedPath).readAsBytes();
-      final detections = await ref.read(inferenceNotifierProvider.notifier).finalizeCapturedImageBytes(leftBytes);
+      final detections = await ref
+          .read(inferenceNotifierProvider.notifier)
+          .finalizeCapturedImageBytes(leftBytes);
       return AIResult(
-        detections: detections, count: detections.length, averageConfidence: 0.9,
-        processingTimeMs: 0, modelVersion: AIModel.activeVersion,
-        inferenceTimestamp: DateTime.now(), frameSize: const Size(720, 1280),
+        detections: detections,
+        count: detections.length,
+        averageConfidence: 0.9,
+        processingTimeMs: 0,
+        modelVersion: AIModel.activeVersion,
+        inferenceTimestamp: DateTime.now(),
+        frameSize: const Size(720, 1280),
       );
     }
 
     final dummyResult = AIResult(
-      detections: const [], count: 0, averageConfidence: 0.9, processingTimeMs: 0,
-      modelVersion: AIModel.activeVersion, inferenceTimestamp: DateTime.now(), frameSize: const Size(720, 1280),
+      detections: const [],
+      count: 0,
+      averageConfidence: 0.9,
+      processingTimeMs: 0,
+      modelVersion: AIModel.activeVersion,
+      inferenceTimestamp: DateTime.now(),
+      frameSize: const Size(720, 1280),
     );
 
     if (!mounted) return;
     final reviewDataLeft = await context.push<Map<String, dynamic>>(
-      '/trucks/$truckId/review', 
+      '/trucks/$truckId/review',
       extra: {
         'aiResult': dummyResult,
         'photoPath': leftSavedPath,
@@ -571,7 +590,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       },
     );
     if (mounted) setState(() => _isLeavingForReview = false);
-    
+
     if (reviewDataLeft == null || !mounted) return; // Cancelled review
 
     // PART 2
@@ -579,22 +598,29 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     final rightImage = await picker.pickImage(source: ImageSource.camera);
     if (rightImage == null || !mounted) return; // Cancelled
     setState(() => _isLeavingForReview = true);
-    
-    final rightSavedPath = await imageStorage.saveImage(File(rightImage.path), 'split_part2_$truckId');
-    
+
+    final rightSavedPath = await imageStorage.saveImage(
+        File(rightImage.path), 'split_part2_$truckId');
+
     Future<AIResult> finalResultLoaderRight() async {
       final rightBytes = await File(rightSavedPath).readAsBytes();
-      final detections = await ref.read(inferenceNotifierProvider.notifier).finalizeCapturedImageBytes(rightBytes);
+      final detections = await ref
+          .read(inferenceNotifierProvider.notifier)
+          .finalizeCapturedImageBytes(rightBytes);
       return AIResult(
-        detections: detections, count: detections.length, averageConfidence: 0.9,
-        processingTimeMs: 0, modelVersion: AIModel.activeVersion,
-        inferenceTimestamp: DateTime.now(), frameSize: const Size(720, 1280),
+        detections: detections,
+        count: detections.length,
+        averageConfidence: 0.9,
+        processingTimeMs: 0,
+        modelVersion: AIModel.activeVersion,
+        inferenceTimestamp: DateTime.now(),
+        frameSize: const Size(720, 1280),
       );
     }
 
     if (!mounted) return;
     final reviewDataRight = await context.push<Map<String, dynamic>>(
-      '/trucks/$truckId/review', 
+      '/trucks/$truckId/review',
       extra: {
         'aiResult': dummyResult,
         'photoPath': rightSavedPath,
@@ -604,63 +630,74 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
       },
     );
     if (mounted) setState(() => _isLeavingForReview = false);
-    
+
     if (reviewDataRight == null || !mounted) return;
 
     // MERGE & SAVE
     final leftCount = reviewDataLeft['count'] as int;
     final leftDefects = reviewDataLeft['defectCount'] as int;
     final leftItems = reviewDataLeft['allocations'] as Map<String, int>? ?? {};
-    
+
     final rightCount = reviewDataRight['count'] as int;
     final rightDefects = reviewDataRight['defectCount'] as int;
-    final rightItems = reviewDataRight['allocations'] as Map<String, int>? ?? {};
+    final rightItems =
+        reviewDataRight['allocations'] as Map<String, int>? ?? {};
 
     final totalCount = leftCount + rightCount;
     final totalDefects = leftDefects + rightDefects;
-    
-    final Map<String, int> totalItems = Map.from(leftItems);
-    rightItems.forEach((key, val) => totalItems[key] = (totalItems[key] ?? 0) + val);
 
-    final leftDetections = (reviewDataLeft['detections'] as List<Detection>?) ?? [];
-    final rightDetections = (reviewDataRight['detections'] as List<Detection>?) ?? [];
-    
+    final Map<String, int> totalItems = Map.from(leftItems);
+    rightItems
+        .forEach((key, val) => totalItems[key] = (totalItems[key] ?? 0) + val);
+
+    final leftDetections =
+        (reviewDataLeft['detections'] as List<Detection>?) ?? [];
+    final rightDetections =
+        (reviewDataRight['detections'] as List<Detection>?) ?? [];
+
     final leftNotes = reviewDataLeft['notes'] as String?;
     final rightNotes = reviewDataRight['notes'] as String?;
-    final combinedNotesList = [leftNotes, rightNotes].where((n) => n != null && n.trim().isNotEmpty).toList();
+    final combinedNotesList = [leftNotes, rightNotes]
+        .where((n) => n != null && n.trim().isNotEmpty)
+        .toList();
     final combinedNotesString = combinedNotesList.join(' | ');
 
     final splitJson = jsonEncode({
       'isSplit': true,
       'part1Path': leftSavedPath,
       'part1Count': leftCount,
-      'part1Detections': leftDetections.map(LayerModel.detectionToJson).toList(),
+      'part1Detections':
+          leftDetections.map(LayerModel.detectionToJson).toList(),
       'part2Path': rightSavedPath,
       'part2Count': rightCount,
-      'part2Detections': rightDetections.map(LayerModel.detectionToJson).toList(),
+      'part2Detections':
+          rightDetections.map(LayerModel.detectionToJson).toList(),
     });
 
     final error = await ref.read(layerListProvider(truckId).notifier).saveLayer(
-      cartonCount: totalCount,
-      defectCount: totalDefects,
-      confidence: 0,
-      notes: combinedNotesString.isEmpty 
-          ? '[SPLIT_DATA]:$splitJson' 
-          : '$combinedNotesString | [SPLIT_DATA]:$splitJson',
-      photoPath: leftSavedPath, 
-      itemAllocations: totalItems.entries
-          .map((e) => LayerItemAllocation(itemName: e.key, quantity: e.value))
-          .toList(growable: false),
-    );
-    
+          cartonCount: totalCount,
+          defectCount: totalDefects,
+          confidence: 0,
+          notes: combinedNotesString.isEmpty
+              ? '[SPLIT_DATA]:$splitJson'
+              : '$combinedNotesString | [SPLIT_DATA]:$splitJson',
+          photoPath: leftSavedPath,
+          itemAllocations: totalItems.entries
+              .map((e) =>
+                  LayerItemAllocation(itemName: e.key, quantity: e.value))
+              .toList(growable: false),
+        );
+
     if (error == null && mounted) {
-      if (GoRouterState.of(context).uri.queryParameters['from'] == 'controlCenter') {
+      if (GoRouterState.of(context).uri.queryParameters['from'] ==
+          'controlCenter') {
         context.go('/wagons');
       } else {
         context.go('/trucks/$truckId?scrollToBottom=true');
       }
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save split layer: $error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to save split layer: $error')));
     }
   }
 
@@ -769,7 +806,9 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     BuildContext context, {
     required CameraState cameraState,
   }) {
-    final regionToMap = _showCropBox ? _countingRegion : CountingRegion.rectangle(left: 0, top: 0, right: 1, bottom: 1);
+    final regionToMap = _showCropBox
+        ? _countingRegion
+        : CountingRegion.rectangle(left: 0, top: 0, right: 1, bottom: 1);
     final preview = cameraState.controller?.value.previewSize;
     if (preview == null) return regionToMap;
     final sourceSize = preview.width > preview.height
@@ -930,7 +969,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
 
 class _SimpleCameraHeader extends StatelessWidget {
   final VoidCallback onManualSelected;
-  final Function(String) onSplitModeSelected;
+  final void Function(String) onSplitModeSelected;
 
   const _SimpleCameraHeader({
     required this.onManualSelected,
@@ -967,7 +1006,8 @@ class _SimpleCameraHeader extends StatelessWidget {
               constraints: const BoxConstraints(minWidth: 48),
               tooltip: 'Split Layer Mode',
               onPressed: () {
-                final truckId = GoRouterState.of(context).pathParameters['id'] ?? '';
+                final truckId =
+                    GoRouterState.of(context).pathParameters['id'] ?? '';
                 onSplitModeSelected(truckId);
               },
             ),
@@ -1748,12 +1788,12 @@ class _CameraOverlayControlsState extends State<_CameraOverlayControls>
                     color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.camera, color: Colors.white, size: 16),
-                      const SizedBox(width: 8),
-                      const Text(
+                      Icon(Icons.camera, color: Colors.white, size: 16),
+                      SizedBox(width: 8),
+                      Text(
                         'Use Native Camera (Wide)',
                         style: TextStyle(
                           color: Colors.white,
@@ -1765,7 +1805,8 @@ class _CameraOverlayControlsState extends State<_CameraOverlayControls>
                   ),
                 ),
               ),
-            ] else const SizedBox(height: 60),
+            ] else
+              const SizedBox(height: 60),
             Semantics(
               button: true,
               label: widget.isGallery ? 'Review count' : 'Capture layer',
@@ -1809,7 +1850,9 @@ class _CameraOverlayControlsState extends State<_CameraOverlayControls>
               _menuOption(
                 index: 2,
                 icon: widget.showCropBox ? Icons.crop_free : Icons.crop,
-                tooltip: widget.showCropBox ? 'Capture Full Screen' : 'Enable Crop Box',
+                tooltip: widget.showCropBox
+                    ? 'Capture Full Screen'
+                    : 'Enable Crop Box',
                 onTap: widget.onToggleCropBox,
               ),
               _menuOption(
@@ -1961,7 +2004,6 @@ class _GalleryPreview extends StatefulWidget {
 
 class _GalleryPreviewState extends State<_GalleryPreview> {
   Size _imageSize = const Size(640, 640);
-  bool _isPhotoSizeLoaded = false;
 
   @override
   void initState() {
@@ -1975,15 +2017,14 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
       final codec = await ui.instantiateImageCodec(bytes);
       final frame = await codec.getNextFrame();
       if (!mounted) return;
-      
+
       setState(() {
         _imageSize = Size(
           frame.image.width.toDouble(),
           frame.image.height.toDouble(),
         );
-        _isPhotoSizeLoaded = true;
       });
-      
+
       frame.image.dispose();
       codec.dispose();
     } catch (_) {

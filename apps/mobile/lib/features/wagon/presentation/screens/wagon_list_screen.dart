@@ -351,9 +351,11 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
                     setState(() => _selectedWagonId = wagon.id),
                 onTruckSelected: (truck) async {
                   if (_aiMode) {
-                    await context.push('/trucks/${truck.id}/camera?from=controlCenter');
+                    await context
+                        .push('/trucks/${truck.id}/camera?from=controlCenter');
                   } else {
-                    await context.push('/trucks/${truck.id}/manual-count?from=controlCenter');
+                    await context.push(
+                        '/trucks/${truck.id}/manual-count?from=controlCenter');
                   }
                   if (mounted) {
                     await ref.read(truckListProvider.notifier).refresh();
@@ -367,7 +369,7 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
               context: context,
               isScrollControlled: true,
               isDismissible: false,
-              enableDrag: false,
+              enableDrag: true,
               shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
               ),
@@ -456,6 +458,14 @@ class _LoadingSelectorBar extends StatelessWidget {
         ),
         child: GestureDetector(
           onTap: onToggle,
+          onVerticalDragEnd: (details) {
+            final velocity = details.velocity.pixelsPerSecond.dy;
+            if (velocity < -100) {
+              if (!expanded) onToggle();
+            } else if (velocity > 100) {
+              if (expanded) onToggle();
+            }
+          },
           behavior: HitTestBehavior.deferToChild,
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 8),
@@ -502,7 +512,8 @@ class _LoadingSelectorBar extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     'TRUCKS IN WAGON: ${selectedWagon.wagonNumber}',
@@ -519,7 +530,10 @@ class _LoadingSelectorBar extends StatelessWidget {
                                       Text(
                                         aiMode ? 'AI MODE' : 'MANUAL',
                                         style: TextStyle(
-                                          color: aiMode ? const Color(0xFF64B5F6) : colors.onSurface.withOpacity(0.7),
+                                          color: aiMode
+                                              ? const Color(0xFF64B5F6)
+                                              : colors.onSurface
+                                                  .withValues(alpha: 0.7),
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                         ),

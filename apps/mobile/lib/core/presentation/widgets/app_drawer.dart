@@ -122,18 +122,17 @@ class AppDrawer extends ConsumerWidget {
                 Navigator.pop(context);
                 context.push('/legal');
               },
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 28.0, vertical: 4.0),
+              child: const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 28.0, vertical: 4.0),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.verified_user_outlined,
                       color: Colors.blueAccent,
                       size: 22,
                     ),
-                    const SizedBox(width: 14),
-                    const Text(
+                    SizedBox(width: 14),
+                    Text(
                       'Legal & Privacy',
                       style: TextStyle(
                         color: Colors.white,
@@ -467,6 +466,7 @@ class AppDrawer extends ConsumerWidget {
               ));
             }
           }
+          return null;
         },
       ),
     );
@@ -596,6 +596,7 @@ class AppDrawer extends ConsumerWidget {
               ),
             ));
           }
+          return null;
         },
       ),
     );
@@ -667,6 +668,7 @@ class AppDrawer extends ConsumerWidget {
               backgroundColor: AppTheme.errorColor,
             ));
           }
+          return null;
         },
       ),
     );
@@ -807,7 +809,9 @@ class AppDrawer extends ConsumerWidget {
       if (!rootContext.mounted) return;
       Navigator.of(rootContext, rootNavigator: true).pop();
       ScaffoldMessenger.of(rootContext).showSnackBar(SnackBar(
-        content: Text('Could not import archive: $error'),
+        content: Text(
+          'Could not import archive: ${error.toString().replaceFirst('Bad state: ', '')}',
+        ),
         backgroundColor: AppTheme.errorColor,
         duration: const Duration(seconds: 12),
       ));

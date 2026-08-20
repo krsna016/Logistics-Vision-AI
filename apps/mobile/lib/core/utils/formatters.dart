@@ -8,7 +8,8 @@ class UpperCaseNoSpaceTextFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    final String formattedText = newValue.text.toUpperCase().replaceAll(' ', '');
+    final String formattedText =
+        newValue.text.toUpperCase().replaceAll(' ', '');
     return newValue.copyWith(
       text: formattedText,
       selection: newValue.selection.copyWith(
@@ -58,7 +59,8 @@ class SentenceCaseTextFormatter extends TextInputFormatter {
       return newValue;
     }
 
-    final String formattedText = newValue.text[0].toUpperCase() + newValue.text.substring(1);
+    final String formattedText =
+        newValue.text[0].toUpperCase() + newValue.text.substring(1);
 
     return newValue.copyWith(
       text: formattedText,
@@ -83,7 +85,7 @@ extension StringFormattingExtension on String {
     if (isEmpty) return this;
     return this[0].toUpperCase() + substring(1);
   }
-  
+
   String toIdentifierFormat() {
     if (isEmpty) return this;
     return toUpperCase().replaceAll(' ', '');

@@ -20,7 +20,9 @@ class _LegalPrivacyScreenState extends State<LegalPrivacyScreen> {
   String get _currentContent {
     switch (_selectedTabIndex) {
       case 0:
-        return _isHindi ? LegalContent.privacyPolicyHi : LegalContent.privacyPolicyEn;
+        return _isHindi
+            ? LegalContent.privacyPolicyHi
+            : LegalContent.privacyPolicyEn;
       case 1:
         return _isHindi ? LegalContent.termsOfUseHi : LegalContent.termsOfUseEn;
       case 2:
@@ -66,7 +68,9 @@ class _LegalPrivacyScreenState extends State<LegalPrivacyScreen> {
                   const BoxConstraints(minHeight: 36.0, minWidth: 48.0),
               children: const [
                 Text('EN', style: TextStyle(fontWeight: FontWeight.bold)),
-                Text('HI', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('HI',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ],
             ),
           ),
@@ -79,21 +83,25 @@ class _LegalPrivacyScreenState extends State<LegalPrivacyScreen> {
           // Tabs
           Container(
             color: AppTheme.surfaceColor,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 12.0),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
-                  _buildTab(0, _isHindi ? 'गोपनीयता नीति' : 'Privacy Policy', Icons.privacy_tip_outlined),
+                  _buildTab(0, _isHindi ? 'गोपनीयता नीति' : 'Privacy Policy',
+                      Icons.privacy_tip_outlined),
                   const SizedBox(width: 8),
-                  _buildTab(1, _isHindi ? 'उपयोग की शर्तें' : 'Terms of Use', Icons.gavel_outlined),
+                  _buildTab(1, _isHindi ? 'उपयोग की शर्तें' : 'Terms of Use',
+                      Icons.gavel_outlined),
                   const SizedBox(width: 8),
-                  _buildTab(2, _isHindi ? 'अस्वीकरण' : 'Disclaimer', Icons.verified_user_outlined),
+                  _buildTab(2, _isHindi ? 'अस्वीकरण' : 'Disclaimer',
+                      Icons.verified_user_outlined),
                 ],
               ),
             ),
           ),
-          
+
           Expanded(
             child: ListView(
               padding: EdgeInsets.symmetric(
@@ -110,7 +118,8 @@ class _LegalPrivacyScreenState extends State<LegalPrivacyScreen> {
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.security_rounded, color: AppTheme.primaryColor),
+                      const Icon(Icons.security_rounded,
+                          color: AppTheme.primaryColor),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -128,7 +137,7 @@ class _LegalPrivacyScreenState extends State<LegalPrivacyScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Content
                 MarkdownBody(
                   data: _currentContent,
@@ -149,9 +158,7 @@ class _LegalPrivacyScreenState extends State<LegalPrivacyScreen> {
                         fontWeight: FontWeight.bold,
                         height: 1.4),
                     p: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 14,
-                        height: 1.6),
+                        color: Colors.white70, fontSize: 14, height: 1.6),
                     strong: const TextStyle(
                         color: Colors.white, fontWeight: FontWeight.bold),
                     listBullet: const TextStyle(color: Colors.white70),

@@ -266,7 +266,7 @@ class TruckListScreen extends ConsumerWidget {
             context: context,
             isScrollControlled: true,
             isDismissible: false,
-            enableDrag: false,
+            enableDrag: true,
             shape: const RoundedRectangleBorder(
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),

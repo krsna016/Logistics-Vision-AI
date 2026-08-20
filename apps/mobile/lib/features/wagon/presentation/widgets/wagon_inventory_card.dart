@@ -147,8 +147,6 @@ class _PercentageBadge extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppTheme.primaryColor.withValues(alpha: 0.14),
           borderRadius: BorderRadius.circular(20),
-          border:
-              Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.25)),
         ),
         child: Text('${value.toStringAsFixed(0)}% loaded',
             style: const TextStyle(

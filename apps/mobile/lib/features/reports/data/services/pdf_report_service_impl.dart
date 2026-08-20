@@ -433,8 +433,9 @@ class PdfReportServiceImpl implements PdfReportService {
     final splitIdx = cleaned.indexOf('[SPLIT_DATA]:');
     if (splitIdx >= 0) {
       cleaned = cleaned.substring(0, splitIdx).trim();
-      if (cleaned.endsWith('|'))
+      if (cleaned.endsWith('|')) {
         cleaned = cleaned.substring(0, cleaned.length - 1).trim();
+      }
     }
     if (cleaned.isEmpty) return 'No notes';
     final operatorNotes = cleaned

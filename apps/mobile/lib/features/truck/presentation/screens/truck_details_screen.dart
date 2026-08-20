@@ -166,7 +166,7 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                   context: context,
                   isScrollControlled: true,
                   isDismissible: false,
-                  enableDrag: false,
+                  enableDrag: true,
                   shape: const RoundedRectangleBorder(
                     borderRadius:
                         BorderRadius.vertical(top: Radius.circular(20)),
@@ -638,7 +638,7 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                             _CorrectionSummaryChip(
                               icon: Icons.inventory_2_outlined,
                               label: '${layer.cartonCount} cartons',
-                              color: AppTheme.primaryColor,
+                              color: AppTheme.textSecondary,
                             ),
                             _CorrectionSummaryChip(
                               icon: Icons.warning_amber_outlined,
@@ -735,12 +735,6 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                                 : AppTheme.successColor)
                             .withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: (selectedPhotoPath == null
-                                  ? AppTheme.warningColor
-                                  : AppTheme.successColor)
-                              .withValues(alpha: 0.25),
-                        ),
                       ),
                       child: Row(
                         children: [
@@ -869,7 +863,9 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                               isDense: true,
                               prefixIcon:
                                   Icon(Icons.inventory_2_outlined, size: 18),
-                              border: OutlineInputBorder(),
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide.none,
+                              ),
                             ),
                           ),
                         ),
@@ -884,7 +880,9 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                               isDense: true,
                               prefixIcon:
                                   Icon(Icons.warning_amber_outlined, size: 18),
-                              border: OutlineInputBorder(),
+                              border: OutlineInputBorder(
+                                borderSide: BorderSide.none,
+                              ),
                             ),
                           ),
                         ),
@@ -965,7 +963,9 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                                     errorText: entered > available
                                         ? 'Max $available'
                                         : null,
-                                    border: const OutlineInputBorder(),
+                                    border: const OutlineInputBorder(
+                                      borderSide: BorderSide.none,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -996,7 +996,9 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                       decoration: const InputDecoration(
                         labelText: 'Operator notes',
                         isDense: true,
-                        border: OutlineInputBorder(),
+                        border: OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -1008,7 +1010,9 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
                         labelText: requireCorrectionReason
                             ? 'Correction reason (required)'
                             : 'Correction reason',
-                        border: const OutlineInputBorder(),
+                        border: const OutlineInputBorder(
+                          borderSide: BorderSide.none,
+                        ),
                       ),
                     ),
                     if (photoChanged) ...[

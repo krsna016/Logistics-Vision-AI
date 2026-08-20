@@ -167,11 +167,12 @@ class LayerRecord {
     baseNote = baseNote.replaceAll('SPLIT MODE LAYER', '').trim();
 
     // Clean up floating pipes or newlines left behind
-    while (baseNote.endsWith('|'))
+    while (baseNote.endsWith('|')) {
       baseNote = baseNote.substring(0, baseNote.length - 1).trim();
+    }
 
     if (splitData != null) {
-      final splitWarning = 'SPLIT MODE LAYER';
+      const splitWarning = 'SPLIT MODE LAYER';
       return baseNote.isEmpty ? splitWarning : '$baseNote\n\n$splitWarning';
     }
     return baseNote.isEmpty ? null : baseNote;

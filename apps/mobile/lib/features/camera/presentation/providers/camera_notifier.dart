@@ -273,59 +273,56 @@ class CameraNotifier extends StateNotifier<CameraState>
     if (controller == null || !controller.value.isInitialized) return;
 
     final wantUltraWide = !state.isUltraWide;
-    
+
     try {
       if (wantUltraWide) {
-        double minZoom = 1.0;
         try {
-          minZoom = await controller.getMinZoomLevel();
-        } catch (_) {}
-        
-        try {
-           // On many devices, setZoomLevel(0.6) works even if getMinZoomLevel says 1.0
-           await controller.setZoomLevel(0.5);
-           state = state.copyWith(isUltraWide: true);
-           return;
+          // On many devices, setZoomLevel(0.6) works even if getMinZoomLevel says 1.0
+          await controller.setZoomLevel(0.5);
+          state = state.copyWith(isUltraWide: true);
+          return;
         } catch (e) {
-           try {
-              await controller.setZoomLevel(0.6);
-              state = state.copyWith(isUltraWide: true);
-              return;
-           } catch (e2) {}
+          try {
+            await controller.setZoomLevel(0.6);
+            state = state.copyWith(isUltraWide: true);
+            return;
+          } catch (_) {
+            // This camera exposes no usable ultra-wide zoom level.
+          }
         }
 
         final backCameras = state.availableCameras
             .where((c) => c.lensDirection == CameraLensDirection.back)
             .toList();
-        
+
         if (backCameras.length > 1) {
-           // On Xiaomi, camera index 2 is often ultrawide.
-           // 0 is main, 1 is front, 2 is ultrawide, 3 is macro.
-           CameraDescription? ultraWideDesc;
-           if (backCameras.length >= 2) {
-              ultraWideDesc = backCameras[1]; // Usually the second back camera
-           }
-           if (ultraWideDesc != null) {
-              await _switchToCamera(ultraWideDesc, true);
-              return;
-           }
+          // On Xiaomi, camera index 2 is often ultrawide.
+          // 0 is main, 1 is front, 2 is ultrawide, 3 is macro.
+          CameraDescription? ultraWideDesc;
+          if (backCameras.length >= 2) {
+            ultraWideDesc = backCameras[1]; // Usually the second back camera
+          }
+          if (ultraWideDesc != null) {
+            await _switchToCamera(ultraWideDesc, true);
+            return;
+          }
         }
-        
+
         // Fallback
         state = state.copyWith(isUltraWide: true);
       } else {
         try {
           await controller.setZoomLevel(1.0);
         } catch (_) {}
-        
+
         // Switch back to primary back camera
-        final primaryBack = state.availableCameras
-            .firstWhere((c) => c.lensDirection == CameraLensDirection.back, 
-                orElse: () => state.availableCameras.first);
+        final primaryBack = state.availableCameras.firstWhere(
+            (c) => c.lensDirection == CameraLensDirection.back,
+            orElse: () => state.availableCameras.first);
         if (controller.description.name != primaryBack.name) {
-           await _switchToCamera(primaryBack, false);
+          await _switchToCamera(primaryBack, false);
         } else {
-           state = state.copyWith(isUltraWide: false);
+          state = state.copyWith(isUltraWide: false);
         }
       }
     } catch (e, stack) {

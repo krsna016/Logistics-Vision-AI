@@ -63,12 +63,13 @@ void main() {
     expect(tester.getTopLeft(find.text('05:12')).dy, closeTo(layerTop, 3));
     expect(
       tester.getCenter(find.byIcon(Icons.delete_outline)).dy,
-      closeTo(tester.getCenter(find.text('Defect')).dy, 3),
+      lessThanOrEqualTo(layerTop + 10),
     );
     expect(
       tester.getRect(find.byKey(const ValueKey('layer-delete-button'))).right,
-      greaterThan(tester.getRect(find.text('Defect')).right),
+      greaterThan(tester.getRect(find.text('05:12')).right),
     );
+    expect(tester.getTopLeft(find.text('2 Defective')).dy, greaterThan(layerTop));
     expect(
       tester.getTopLeft(find.text('Packaged Foods: 15')).dy,
       greaterThan(layerTop),

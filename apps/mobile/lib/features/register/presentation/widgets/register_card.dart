@@ -34,29 +34,31 @@ class RegisterCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-          ValueListenableBuilder<bool>(
-            valueListenable: AiCameraSettings.showDatabaseIds,
-            builder: (context, showId, _) => showId ? Padding(
-              padding: const EdgeInsets.only(bottom: 12.0),
-              child: Row(
-                children: [
-                  const Icon(Icons.fingerprint_outlined,
-                      size: 13, color: Color(0xFF7E8A99)),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      'ID: ${register.id}',
-                      style: const TextStyle(
-                          color: Color(0xFF7E8A99),
-                          fontSize: 10,
-                          fontFamily: 'monospace'),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ],
+              ValueListenableBuilder<bool>(
+                valueListenable: AiCameraSettings.showDatabaseIds,
+                builder: (context, showId, _) => showId
+                    ? Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.fingerprint_outlined,
+                                size: 13, color: Color(0xFF7E8A99)),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                'ID: ${register.id}',
+                                style: const TextStyle(
+                                    color: Color(0xFF7E8A99),
+                                    fontSize: 10,
+                                    fontFamily: 'monospace'),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
-            ) : const SizedBox.shrink(),
-          ),
               // Top Row: Wagon Number & Status Chip
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -170,7 +172,6 @@ class RegisterCard extends StatelessWidget {
                   ],
                 ),
               ),
-
             ],
           ),
         ),

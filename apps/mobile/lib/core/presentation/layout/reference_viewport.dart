@@ -27,7 +27,7 @@ class SmartLoadReferenceViewport extends StatelessWidget {
     final media = MediaQuery.of(context);
     final isLargeOrSegmented = media.size.shortestSide >= tabletShortestSide ||
         media.displayFeatures.isNotEmpty;
-        
+
     final workspaceWidth = isLargeOrSegmented
         ? math.min(maximumWorkspaceWidth, media.size.width)
         : media.size.width;
@@ -54,7 +54,7 @@ class SmartLoadReferenceViewport extends StatelessWidget {
         ),
       );
     }
-    
+
     return normalizedChild;
   }
 }

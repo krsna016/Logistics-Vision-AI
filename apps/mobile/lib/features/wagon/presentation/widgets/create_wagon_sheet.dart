@@ -39,14 +39,18 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
   void initState() {
     super.initState();
     final wagon = widget.existingWagon;
-    _numberCtrl = TextEditingController(text: wagon?.wagonNumber.toIdentifierFormat());
-    _originCtrl = TextEditingController(text: wagon?.origin.toTitleCase() ?? '');
-    _destinationCtrl = TextEditingController(text: wagon?.destination?.toTitleCase());
-    _remarksCtrl = TextEditingController(text: wagon?.remarks?.toSentenceCase());
+    _numberCtrl =
+        TextEditingController(text: wagon?.wagonNumber.toIdentifierFormat());
+    _originCtrl =
+        TextEditingController(text: wagon?.origin.toTitleCase() ?? '');
+    _destinationCtrl =
+        TextEditingController(text: wagon?.destination.toTitleCase());
+    _remarksCtrl =
+        TextEditingController(text: wagon?.remarks?.toSentenceCase());
     _selectedDate = wagon?.loadingDate ?? DateTime.now();
     _items.addAll((wagon?.items ?? const <WagonItem>[]).map(
-      (item) => _ItemControllers(item.name.toTitleCase(), item.quantity.toString()),
-
+      (item) =>
+          _ItemControllers(item.name.toTitleCase(), item.quantity.toString()),
     ));
     if (_items.isEmpty) _items.add(_ItemControllers('', ''));
     for (final controller in [
@@ -74,7 +78,9 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
   Future<void> _fetchLoaded() async {
     try {
-      final map = await ref.read(wagonRepositoryProvider).getLoadedItemQuantities(widget.existingWagon!.id);
+      final map = await ref
+          .read(wagonRepositoryProvider)
+          .getLoadedItemQuantities(widget.existingWagon!.id);
       if (mounted) setState(() => _loadedByItem = map);
     } catch (_) {}
   }
@@ -134,16 +140,27 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
 
     final notifier = ref.read(wagonListProvider.notifier);
 
-    final error = widget.existingWagon == null
-        ? await notifier.createWagon(
-            wagonNumber: _numberCtrl.text.toIdentifierFormat(),
-            origin: _originCtrl.text.trim().isEmpty ? 'NIL' : _originCtrl.text.trim().toTitleCase(),
-            destination: _destinationCtrl.text.trim().isEmpty ? 'NIL' : _destinationCtrl.text.trim().toTitleCase(),
-            loadingDate: _selectedDate,
-            remarks: _remarksCtrl.text.isEmpty ? 'NIL' : _remarksCtrl.text.trim().toSentenceCase(),
-            items: manifest,
-          )
-        : await _updateExistingWagon(notifier, manifest);
+    String? error;
+    try {
+      error = widget.existingWagon == null
+          ? await notifier.createWagon(
+              wagonNumber: _numberCtrl.text.toIdentifierFormat(),
+              origin: _originCtrl.text.trim().isEmpty
+                  ? 'NIL'
+                  : _originCtrl.text.trim().toTitleCase(),
+              destination: _destinationCtrl.text.trim().isEmpty
+                  ? 'NIL'
+                  : _destinationCtrl.text.trim().toTitleCase(),
+              loadingDate: _selectedDate,
+              remarks: _remarksCtrl.text.isEmpty
+                  ? 'NIL'
+                  : _remarksCtrl.text.trim().toSentenceCase(),
+              items: manifest,
+            )
+          : await _updateExistingWagon(notifier, manifest);
+    } catch (_) {
+      error = 'Could not save the wagon. Please try again.';
+    }
 
     if (mounted) {
       setState(() {
@@ -179,21 +196,31 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
     for (final controller in _items) {
       final oldName = controller.originalName.trim();
       final newName = controller.name.text.trim();
-      if (oldName.isNotEmpty && newName.isNotEmpty && oldName.toLowerCase() != newName.toLowerCase()) {
+      if (oldName.isNotEmpty &&
+          newName.isNotEmpty &&
+          oldName.toLowerCase() != newName.toLowerCase()) {
         renames[oldName] = newName;
       }
     }
-    
-    final result = await notifier.updateWagon(current.copyWith(
-      wagonNumber: _numberCtrl.text.toIdentifierFormat(),
-      origin: _originCtrl.text.trim().isEmpty ? 'NIL' : _originCtrl.text.trim().toTitleCase(),
-      destination: _destinationCtrl.text.trim().isEmpty ? 'NIL' : _destinationCtrl.text.trim().toTitleCase(),
-      loadingDate: _selectedDate,
-      expectedTruckCount: 0,
-      remarks: _remarksCtrl.text.trim().isEmpty ? 'NIL' : _remarksCtrl.text.trim().toSentenceCase(),
-      items: items,
-    ), renames: renames);
-    
+
+    final result = await notifier.updateWagon(
+        current.copyWith(
+          wagonNumber: _numberCtrl.text.toIdentifierFormat(),
+          origin: _originCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _originCtrl.text.trim().toTitleCase(),
+          destination: _destinationCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _destinationCtrl.text.trim().toTitleCase(),
+          loadingDate: _selectedDate,
+          expectedTruckCount: 0,
+          remarks: _remarksCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _remarksCtrl.text.trim().toSentenceCase(),
+          items: items,
+        ),
+        renames: renames);
+
     if (result == null && renames.isNotEmpty) {
       ref.invalidate(wagonInventoryProvider(current.id));
     }
@@ -249,42 +276,33 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
           ),
           child: Theme(
             data: Theme.of(context).copyWith(
-              inputDecorationTheme: Theme.of(context)
-                  .inputDecorationTheme
-                  .copyWith(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          const BorderSide(color: AppTheme.dividerColor),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          const BorderSide(color: AppTheme.dividerColor),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                        color: AppTheme.primaryColor,
-                        width: 1.5,
+              inputDecorationTheme:
+                  Theme.of(context).inputDecorationTheme.copyWith(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AppTheme.errorColor),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                        color: AppTheme.errorColor,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
             ),
             child: SingleChildScrollView(
               child: Form(
@@ -332,7 +350,6 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                       inputFormatters: [UpperCaseNoSpaceTextFormatter()],
                       decoration: InputDecoration(
                         labelText: 'Wagon Number*',
-                        hintText: 'e.g. BCNAHSM131142324907',
                         suffixIcon: IconButton(
                           onPressed: _isSaving ? null : _scanWagonNumber,
                           icon: const Icon(Icons.document_scanner_outlined),
@@ -351,8 +368,7 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                       textCapitalization: TextCapitalization.words,
                       inputFormatters: [TitleCaseTextFormatter()],
                       decoration: const InputDecoration(
-                          labelText: 'Origin Facility (Optional)',
-                          hintText: 'e.g. Austin Fulfillment South'),
+                          labelText: 'Origin Facility (Optional)'),
                     ),
                     const SizedBox(height: 12),
 
@@ -362,7 +378,6 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                       inputFormatters: [TitleCaseTextFormatter()],
                       decoration: const InputDecoration(
                         labelText: 'Destination Depot (Optional)',
-                        hintText: 'e.g. Chicago Logistics Terminal',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -370,7 +385,9 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                     OutlinedButton.icon(
                       onPressed: () => _selectDate(context),
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: AppTheme.dividerColor),
+                        side: BorderSide.none,
+                        backgroundColor: AppTheme.backgroundColor,
+                        foregroundColor: Colors.white,
                         minimumSize: const Size(0, 52),
                         padding: const EdgeInsets.symmetric(horizontal: 8),
                         shape: RoundedRectangleBorder(
@@ -432,7 +449,6 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                                 inputFormatters: [TitleCaseTextFormatter()],
                                 decoration: InputDecoration(
                                   labelText: 'Item ${index + 1}',
-                                  hintText: 'e.g. Item A',
                                 ),
                                 validator: (value) {
                                   final quantityEntered =
@@ -453,7 +469,6 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                                 keyboardType: TextInputType.number,
                                 decoration: const InputDecoration(
                                   labelText: 'Cartons',
-                                  hintText: '0',
                                 ),
                                 validator: (value) {
                                   final nameEntered =
@@ -471,19 +486,24 @@ class _CreateWagonSheetState extends ConsumerState<CreateWagonSheet> {
                                 },
                               ),
                             ),
-                            Builder(
-                              builder: (context) {
-                                final titleName = FieldNormalizer.title(row.originalName);
-                                final loaded = _loadedByItem?[titleName] ?? 0;
-                                final canDelete = loaded == 0;
-                                return IconButton(
-                                  onPressed: (_isSaving || !canDelete) ? null : () => _removeItem(index),
-                                  icon: Icon(Icons.remove_circle_outline,
-                                      color: canDelete ? AppTheme.errorColor : Colors.white24),
-                                  tooltip: canDelete ? 'Remove item' : 'Cannot remove (cartons loaded)',
-                                );
-                              }
-                            ),
+                            Builder(builder: (context) {
+                              final titleName =
+                                  FieldNormalizer.title(row.originalName);
+                              final loaded = _loadedByItem?[titleName] ?? 0;
+                              final canDelete = loaded == 0;
+                              return IconButton(
+                                onPressed: (_isSaving || !canDelete)
+                                    ? null
+                                    : () => _removeItem(index),
+                                icon: Icon(Icons.remove_circle_outline,
+                                    color: canDelete
+                                        ? AppTheme.errorColor
+                                        : Colors.white24),
+                                tooltip: canDelete
+                                    ? 'Remove item'
+                                    : 'Cannot remove (cartons loaded)',
+                              );
+                            }),
                           ],
                         ),
                       );

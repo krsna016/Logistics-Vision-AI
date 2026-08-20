@@ -39,7 +39,8 @@ class AppRouteObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     if (route.settings.name != null) {
-      FileLogger.log('NAVIGATED TO: ${route.settings.name} (${route.settings.arguments ?? ""})');
+      FileLogger.log(
+          'NAVIGATED TO: ${route.settings.name} (${route.settings.arguments ?? ""})');
     }
   }
 
@@ -203,7 +204,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               initialMode: CountMode.manual,
             ),
           ),
-
           GoRoute(
             path: 'review',
             name: 'layer_review',
@@ -224,10 +224,12 @@ final routerProvider = Provider<GoRouter>((ref) {
               final auditPhotoPath = extra['auditPhotoPath'] as String?;
               final countingRegion = extra['countingRegion'] as CountingRegion?;
               final initialNotes = extra['initialNotes'] as String?;
-              final finalResultLoader = extra['finalResultLoader']
-                  as Future<AIResult> Function()?;
-              final returnResultOnly = extra['returnResultOnly'] as bool? ?? false;
-              final navigateToControlCenter = extra['navigateToControlCenter'] as bool? ?? false;
+              final finalResultLoader =
+                  extra['finalResultLoader'] as Future<AIResult> Function()?;
+              final returnResultOnly =
+                  extra['returnResultOnly'] as bool? ?? false;
+              final navigateToControlCenter =
+                  extra['navigateToControlCenter'] as bool? ?? false;
 
               return NoTransitionPage(
                 child: LayerReviewScreen(
@@ -310,7 +312,6 @@ final routerProvider = Provider<GoRouter>((ref) {
           child: GlobalAuditScreen(),
         ),
       ),
-
     ],
     errorBuilder: (context, state) => RootBackGuard(
       fallbackLocation: '/wagons',

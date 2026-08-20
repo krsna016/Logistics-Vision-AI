@@ -182,7 +182,7 @@ class LocalAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> createUser(User user) async {
+  Future<void> createUser(User user, {required String password}) async {
     await _db.into(_db.users).insert(
           UsersCompanion.insert(
             id: user.id,
@@ -205,13 +205,14 @@ class LocalAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> toggleUserStatus(String userId, bool isActive) async {
-    await (_db.update(_db.users)..where((t) => t.id.equals(userId))).write(
+  Future<void> toggleUserStatus(String employeeId, bool isActive) async {
+    await (_db.update(_db.users)..where((t) => t.employeeId.equals(employeeId)))
+        .write(
       UsersCompanion(isActive: Value(isActive)),
     );
     final currentUser = await getCurrentUser();
     await logAction(isActive ? 'Enabled User' : 'Disabled User',
-        details: 'User ID: $userId',
+        details: 'Employee ID: $employeeId',
         userId: currentUser?.id,
         userName: currentUser?.name,
         userRole: currentUser?.role);

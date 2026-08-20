@@ -27,7 +27,6 @@ class _ResizableCountingRegionState extends State<ResizableCountingRegion> {
   static const _minimumArea = 0.002;
   late CountingRegion _draftRegion;
   bool _isDragging = false;
-  bool _hasAdjusted = false;
   bool _showHint = true;
   Offset? _lastPointerPosition;
   Timer? _hintTimer;
@@ -122,7 +121,6 @@ class _ResizableCountingRegionState extends State<ResizableCountingRegion> {
     setState(() {
       _isDragging = false;
       _lastPointerPosition = null;
-      _hasAdjusted = true;
     });
     widget.onChanged(_draftRegion);
   }

@@ -1,7 +1,5 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'dart:ui' as ui;
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -688,7 +686,6 @@ class _ImagePreviewSection extends StatefulWidget {
 class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
   late final TransformationController _zoomController;
   Size _photoSize = const Size(720, 1280);
-  bool _isPhotoSizeLoaded = false;
   bool _useDarkPalette = false;
 
   @override
@@ -1684,11 +1681,11 @@ class _BottomCounter extends StatelessWidget {
                 hintText: '0',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: color),
+                  borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: color, width: 2),
+                  borderSide: BorderSide.none,
                 ),
               ),
               onChanged: (text) {

@@ -30,7 +30,7 @@ class FileLogger {
 
       final dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
       _currentLogFile = File(p.join(logsDir.path, 'activity_$dateStr.log'));
-      
+
       // Keep only last 30 days
       final files = await logsDir.list().toList();
       final cutoff = DateTime.now().subtract(const Duration(days: 30));
@@ -49,7 +49,7 @@ class FileLogger {
 
   static Future<void> log(String message) async {
     // 1. FILTER SPAMMY DEVELOPER LOGS
-    if (message.contains('NAVIGATED TO:') || 
+    if (message.contains('NAVIGATED TO:') ||
         message.contains('RETURNED TO:') ||
         message.contains('Loaded ONNX model') ||
         message.contains('Unloaded AI model') ||
@@ -63,36 +63,43 @@ class FileLogger {
 
     // 2. BEAUTIFY THE MESSAGE FOR ADMINS
     String cleanMessage = message;
-    if (cleanMessage.startsWith('INFO: ')) cleanMessage = cleanMessage.substring(6);
-    else if (cleanMessage.startsWith('WARNING: ')) cleanMessage = cleanMessage.substring(9);
-    else if (cleanMessage.startsWith('ERROR: ')) cleanMessage = cleanMessage.substring(7);
-    else if (cleanMessage.startsWith('FATAL: ')) cleanMessage = cleanMessage.substring(7);
+    if (cleanMessage.startsWith('INFO: ')) {
+      cleanMessage = cleanMessage.substring(6);
+    } else if (cleanMessage.startsWith('WARNING: ')) {
+      cleanMessage = cleanMessage.substring(9);
+    } else if (cleanMessage.startsWith('ERROR: ')) {
+      cleanMessage = cleanMessage.substring(7);
+    } else if (cleanMessage.startsWith('FATAL: ')) {
+      cleanMessage = cleanMessage.substring(7);
+    }
 
     if (cleanMessage.contains('ADMIN ACTION:')) {
       cleanMessage = cleanMessage.replaceFirst('ADMIN ACTION:', '🛠️ [ADMIN]');
     } else if (cleanMessage.contains('ADMIN IMPORT:')) {
       cleanMessage = cleanMessage.replaceFirst('ADMIN IMPORT:', '📦 [BACKUP]');
     } else if (cleanMessage.contains('Updated wagon')) {
-      cleanMessage = '🚂 ' + cleanMessage;
+      cleanMessage = '🚂 $cleanMessage';
     } else if (cleanMessage.contains('Updated truck')) {
-      cleanMessage = '🚛 ' + cleanMessage;
+      cleanMessage = '🚛 $cleanMessage';
     } else if (cleanMessage.contains('Updated layer')) {
-      cleanMessage = '📦 ' + cleanMessage;
-    } else if (cleanMessage.contains('Soft deleted') || cleanMessage.contains('Archived') || cleanMessage.contains('Deleted')) {
-      cleanMessage = '🗑️ ' + cleanMessage;
+      cleanMessage = '📦 $cleanMessage';
+    } else if (cleanMessage.contains('Soft deleted') ||
+        cleanMessage.contains('Archived') ||
+        cleanMessage.contains('Deleted')) {
+      cleanMessage = '🗑️ $cleanMessage';
     } else if (cleanMessage.contains('Created new')) {
-      cleanMessage = '✨ ' + cleanMessage;
+      cleanMessage = '✨ $cleanMessage';
     } else if (cleanMessage.contains('export')) {
-      cleanMessage = '📤 ' + cleanMessage;
+      cleanMessage = '📤 $cleanMessage';
     } else {
-      cleanMessage = '📝 ' + cleanMessage;
+      cleanMessage = '📝 $cleanMessage';
     }
 
     final now = DateTime.now();
     final timeStr = DateFormat('hh:mm a').format(now); // Human readable time
     final userStr = _currentUserId != null ? '[$_currentUserId]' : '[LOCAL]';
     final logLine = '[$timeStr] $userStr $cleanMessage\n';
-    
+
     // 3. QUEUE SYSTEM TO PREVENT CORRUPTED HALF-SENTENCES
     _writeQueue.add(logLine);
     _processQueue();
@@ -105,7 +112,8 @@ class FileLogger {
     try {
       while (_writeQueue.isNotEmpty) {
         final line = _writeQueue.removeAt(0);
-        await _currentLogFile!.writeAsString(line, mode: FileMode.append, flush: true);
+        await _currentLogFile!
+            .writeAsString(line, mode: FileMode.append, flush: true);
       }
     } catch (e) {
       // ignore
@@ -122,11 +130,12 @@ class FileLogger {
       if (!await logsDir.exists()) return;
 
       final tempDir = await getTemporaryDirectory();
-      final zipPath = p.join(tempDir.path, 'SmartLoad_Activity_Logs_${DateTime.now().millisecondsSinceEpoch}.zip');
-      
+      final zipPath = p.join(tempDir.path,
+          'SmartLoad_Activity_Logs_${DateTime.now().millisecondsSinceEpoch}.zip');
+
       final encoder = ZipFileEncoder();
       encoder.create(zipPath);
-      
+
       final files = await logsDir.list().toList();
       bool hasFiles = false;
       for (final file in files) {
@@ -138,7 +147,12 @@ class FileLogger {
       encoder.close();
 
       if (hasFiles) {
-        await Share.shareXFiles([XFile(zipPath)], text: 'SmartLoad Internal Activity Logs');
+        await SharePlus.instance.share(
+          ShareParams(
+            files: [XFile(zipPath)],
+            text: 'SmartLoad Internal Activity Logs',
+          ),
+        );
       }
     } catch (e) {
       // ignore

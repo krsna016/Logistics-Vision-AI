@@ -551,16 +551,11 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: AppTheme.dividerColor.withValues(alpha: 0.7),
-                  ),
+                  borderSide: BorderSide.none,
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
-                  borderSide: const BorderSide(
-                    color: AppTheme.primaryColor,
-                    width: 1.5,
-                  ),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
@@ -984,18 +979,15 @@ class _ManualNumberField extends StatelessWidget {
                   fillColor: AppTheme.cardColor,
                   border: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(10)),
-                    borderSide: BorderSide(color: AppTheme.dividerColor),
+                    borderSide: BorderSide.none,
                   ),
                   enabledBorder: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(10)),
-                    borderSide: BorderSide(color: AppTheme.dividerColor),
+                    borderSide: BorderSide.none,
                   ),
                   focusedBorder: const OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(10)),
-                    borderSide: BorderSide(
-                      color: AppTheme.primaryColor,
-                      width: 1.5,
-                    ),
+                    borderSide: BorderSide.none,
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14,

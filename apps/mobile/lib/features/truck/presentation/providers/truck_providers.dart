@@ -89,7 +89,8 @@ class TruckListNotifier extends StateNotifier<TruckListState> {
   final TruckRepository _repository;
   final Ref _ref;
 
-  TruckListNotifier(this._repository, this._ref) : super(const TruckListState()) {
+  TruckListNotifier(this._repository, this._ref)
+      : super(const TruckListState()) {
     refresh();
   }
 

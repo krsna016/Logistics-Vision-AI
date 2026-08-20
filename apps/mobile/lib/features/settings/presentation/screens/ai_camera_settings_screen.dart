@@ -38,7 +38,9 @@ class _AiCameraSettingsScreenState
 
   Future<void> _load() async {
     try {
-      await ref.read(aiCameraSettingsLoaderProvider.future);
+      await ref
+          .read(aiCameraSettingsLoaderProvider.future)
+          .timeout(const Duration(seconds: 10));
       if (!mounted) return;
       setState(() {
         _confidence = AiCameraSettings.confidence.value;
@@ -149,8 +151,10 @@ class _AiCameraSettingsScreenState
           const SizedBox(height: 8),
           AppCard(
             child: SwitchListTile.adaptive(
-              title: const Text('Show Database IDs', style: TextStyle(fontWeight: FontWeight.w700)),
-              subtitle: const Text('Display fingerprint IDs across all cards for debugging or manual lookups.'),
+              title: const Text('Show Database IDs',
+                  style: TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: const Text(
+                  'Display fingerprint IDs across all cards for debugging or manual lookups.'),
               value: _showId,
               onChanged: (val) => setState(() => _showId = val),
               contentPadding: EdgeInsets.zero,

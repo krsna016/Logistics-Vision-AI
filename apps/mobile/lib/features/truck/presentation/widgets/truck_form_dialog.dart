@@ -44,11 +44,14 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
     super.initState();
     final t = widget.existingTruck;
 
-    _vehicleNumberCtrl = TextEditingController(text: t?.vehicleNumber.toIdentifierFormat() ?? '');
-    _driverNameCtrl = TextEditingController(text: t?.driverName.toTitleCase() ?? '');
+    _vehicleNumberCtrl = TextEditingController(
+        text: t?.vehicleNumber.toIdentifierFormat() ?? '');
+    _driverNameCtrl =
+        TextEditingController(text: t?.driverName.toTitleCase() ?? '');
     _driverMobileCtrl = TextEditingController(text: t?.driverMobile ?? '');
     _companyCtrl = TextEditingController(text: t?.company.toTitleCase() ?? '');
-    _warehouseCtrl = TextEditingController(text: t?.warehouse.toTitleCase() ?? '');
+    _warehouseCtrl =
+        TextEditingController(text: t?.warehouse.toTitleCase() ?? '');
     _notesCtrl = TextEditingController(text: t?.notes?.toSentenceCase() ?? '');
     for (final controller in [
       _vehicleNumberCtrl,
@@ -96,31 +99,55 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
     String? error;
     final notifier = ref.read(truckListProvider.notifier);
 
-    if (widget.existingTruck == null) {
-      error = await notifier.createTruck(
-        truckNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
-        vehicleNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
-        driverName: _driverNameCtrl.text.trim().isEmpty ? 'NIL' : _driverNameCtrl.text.trim().toTitleCase(),
-        driverMobile: _driverMobileCtrl.text.trim().isEmpty ? 'NIL' : _driverMobileCtrl.text.trim(),
-        company: _companyCtrl.text.trim().isEmpty ? 'NIL' : _companyCtrl.text.trim().toTitleCase(),
-        warehouse: _warehouseCtrl.text.trim().isEmpty ? 'NIL' : _warehouseCtrl.text.trim().toTitleCase(),
-        notes: _notesCtrl.text.isEmpty ? 'NIL' : _notesCtrl.text.trim().toSentenceCase(),
-        wagonId: widget.wagonId,
-      );
-    } else {
-      final updated = widget.existingTruck!.copyWith(
-        truckNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
-        vehicleNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
-        driverName: _driverNameCtrl.text.trim().isEmpty ? 'NIL' : _driverNameCtrl.text.trim().toTitleCase(),
-        driverMobile: _driverMobileCtrl.text.trim().isEmpty ? 'NIL' : _driverMobileCtrl.text.trim(),
-        company: _companyCtrl.text.trim().isEmpty ? 'NIL' : _companyCtrl.text.trim().toTitleCase(),
-        warehouse: _warehouseCtrl.text.trim().isEmpty ? 'NIL' : _warehouseCtrl.text.trim().toTitleCase(),
-        notes: _notesCtrl.text.isEmpty ? 'NIL' : _notesCtrl.text.trim().toSentenceCase(),
-      );
-      error = await notifier.editTruck(
-        updated,
-        allowArchived: widget.allowArchivedEdit,
-      );
+    try {
+      if (widget.existingTruck == null) {
+        error = await notifier.createTruck(
+          truckNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
+          vehicleNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
+          driverName: _driverNameCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _driverNameCtrl.text.trim().toTitleCase(),
+          driverMobile: _driverMobileCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _driverMobileCtrl.text.trim(),
+          company: _companyCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _companyCtrl.text.trim().toTitleCase(),
+          warehouse: _warehouseCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _warehouseCtrl.text.trim().toTitleCase(),
+          notes: _notesCtrl.text.isEmpty
+              ? 'NIL'
+              : _notesCtrl.text.trim().toSentenceCase(),
+          wagonId: widget.wagonId,
+        );
+      } else {
+        final updated = widget.existingTruck!.copyWith(
+          truckNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
+          vehicleNumber: _vehicleNumberCtrl.text.toIdentifierFormat(),
+          driverName: _driverNameCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _driverNameCtrl.text.trim().toTitleCase(),
+          driverMobile: _driverMobileCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _driverMobileCtrl.text.trim(),
+          company: _companyCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _companyCtrl.text.trim().toTitleCase(),
+          warehouse: _warehouseCtrl.text.trim().isEmpty
+              ? 'NIL'
+              : _warehouseCtrl.text.trim().toTitleCase(),
+          notes: _notesCtrl.text.isEmpty
+              ? 'NIL'
+              : _notesCtrl.text.trim().toSentenceCase(),
+        );
+        error = await notifier.editTruck(
+          updated,
+          allowArchived: widget.allowArchivedEdit,
+        );
+      }
+    } catch (_) {
+      error = 'Could not save the truck. Please try again.';
     }
 
     if (mounted) {
@@ -172,42 +199,33 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
           ),
           child: Theme(
             data: Theme.of(context).copyWith(
-              inputDecorationTheme: Theme.of(context)
-                  .inputDecorationTheme
-                  .copyWith(
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 14,
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          const BorderSide(color: AppTheme.dividerColor),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide:
-                          const BorderSide(color: AppTheme.dividerColor),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                        color: AppTheme.primaryColor,
-                        width: 1.5,
+              inputDecorationTheme:
+                  Theme.of(context).inputDecorationTheme.copyWith(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        errorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
+                        focusedErrorBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
+                        ),
                       ),
-                    ),
-                    errorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: AppTheme.errorColor),
-                    ),
-                    focusedErrorBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                        color: AppTheme.errorColor,
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
             ),
             child: SingleChildScrollView(
               child: Form(
@@ -253,7 +271,6 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                       inputFormatters: [UpperCaseNoSpaceTextFormatter()],
                       decoration: InputDecoration(
                         labelText: 'Vehicle Number*',
-                        hintText: 'e.g. MH12AB1234',
                         suffixIcon: IconButton(
                           onPressed: _isSaving ? null : _scanVehicleNumber,
                           icon: const Icon(Icons.document_scanner_outlined),
@@ -271,15 +288,13 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                       textCapitalization: TextCapitalization.words,
                       inputFormatters: [TitleCaseTextFormatter()],
                       decoration: const InputDecoration(
-                          labelText: 'Driver Name (Optional)',
-                          hintText: 'Full name'),
+                          labelText: 'Driver Name (Optional)'),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _driverMobileCtrl,
                       decoration: const InputDecoration(
-                          labelText: 'Driver Mobile Number',
-                          hintText: 'e.g. +91 9876543210'),
+                          labelText: 'Driver Mobile Number'),
                       keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 12),
@@ -288,8 +303,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                       textCapitalization: TextCapitalization.words,
                       inputFormatters: [TitleCaseTextFormatter()],
                       decoration: const InputDecoration(
-                          labelText: 'Carrier Company (Optional)',
-                          hintText: 'e.g. Swift Carriers'),
+                          labelText: 'Carrier Company (Optional)'),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(
@@ -297,8 +311,7 @@ class _TruckFormDialogState extends ConsumerState<TruckFormDialog> {
                       textCapitalization: TextCapitalization.words,
                       inputFormatters: [TitleCaseTextFormatter()],
                       decoration: const InputDecoration(
-                          labelText: 'Warehouse Facility (Optional)',
-                          hintText: 'e.g. Austin Fulfillment South'),
+                          labelText: 'Warehouse Facility (Optional)'),
                     ),
                     const SizedBox(height: 12),
                     TextFormField(

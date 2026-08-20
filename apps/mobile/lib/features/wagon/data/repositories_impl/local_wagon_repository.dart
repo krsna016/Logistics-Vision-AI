@@ -111,16 +111,21 @@ class LocalWagonRepository implements WagonRepository {
       ));
 
       final changes = <String>[];
-      if (existing.wagonNumber != wagon.wagonNumber)
+      if (existing.wagonNumber != wagon.wagonNumber) {
         changes.add('Number: ${existing.wagonNumber} -> ${wagon.wagonNumber}');
-      if (existing.status != wagon.status.name)
+      }
+      if (existing.status != wagon.status.name) {
         changes.add('Status: ${existing.status} -> ${wagon.status.name}');
-      if (existing.origin != wagon.origin)
+      }
+      if (existing.origin != wagon.origin) {
         changes.add('Origin: ${existing.origin} -> ${wagon.origin}');
-      if (existing.destination != wagon.destination)
+      }
+      if (existing.destination != wagon.destination) {
         changes.add('Dest: ${existing.destination} -> ${wagon.destination}');
-      if (existing.remarks != wagon.remarks)
+      }
+      if (existing.remarks != wagon.remarks) {
         changes.add('Remarks: ${existing.remarks} -> ${wagon.remarks}');
+      }
 
       final changeStr =
           changes.isEmpty ? 'No values changed' : changes.join(', ');

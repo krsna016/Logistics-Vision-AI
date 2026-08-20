@@ -264,9 +264,10 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     }
   }
 
-
   String? _preserveSplitData(String? newNotes, String? oldNotes) {
-    if (oldNotes == null || !oldNotes.contains('[SPLIT_DATA]:')) return newNotes;
+    if (oldNotes == null || !oldNotes.contains('[SPLIT_DATA]:')) {
+      return newNotes;
+    }
     final splitData = oldNotes.substring(oldNotes.indexOf('[SPLIT_DATA]:'));
     if (newNotes == null || newNotes.trim().isEmpty) return splitData;
     return '${newNotes.trim()} | $splitData';

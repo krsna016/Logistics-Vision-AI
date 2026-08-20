@@ -22,8 +22,9 @@ class ExcelReportServiceImpl implements ExcelReportService {
     final splitIdx = notes.indexOf('[SPLIT_DATA]:');
     if (splitIdx < 0) return notes.trim();
     var cleaned = notes.substring(0, splitIdx).trim();
-    if (cleaned.endsWith('|'))
+    if (cleaned.endsWith('|')) {
       cleaned = cleaned.substring(0, cleaned.length - 1).trim();
+    }
     return cleaned.isEmpty ? 'No notes' : cleaned;
   }
 

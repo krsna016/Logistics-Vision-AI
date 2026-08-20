@@ -32,6 +32,16 @@ class RemoteAuthRepository implements AuthRepository {
     return null;
   }
 
+  Never _throwRequestFailure(
+    DioException error, {
+    required String fallback,
+  }) {
+    final status = error.response?.statusCode;
+    final detail = _responseDetail(error.response);
+    throw StateError(
+        detail ?? '$fallback${status == null ? '' : ' (HTTP $status)'}');
+  }
+
   String? _tokenValidationFailure(String token) {
     try {
       final claims = JwtDecoder.decode(token);
@@ -306,13 +316,55 @@ class RemoteAuthRepository implements AuthRepository {
   Future<List<AuditLog>> getAuditLogs() async => [];
 
   @override
-  Future<List<User>> getAllUsers() async => [];
+  Future<List<User>> getAllUsers() async {
+    try {
+      final response = await _dio.get<List<dynamic>>('/users/');
+      final payload = response.data ?? const <dynamic>[];
+      return payload
+          .map(_userFromResponse)
+          .whereType<User>()
+          .toList(growable: false);
+    } on DioException catch (error) {
+      _throwRequestFailure(error, fallback: 'Could not load user accounts');
+    }
+  }
 
   @override
-  Future<void> createUser(User user) async {}
+  Future<void> createUser(User user, {required String password}) async {
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        '/users/',
+        data: {
+          'employee_id': user.employeeId.trim().toUpperCase(),
+          'name': user.name.trim(),
+          'role': user.role.displayName,
+          'password': password,
+        },
+      );
+    } on DioException catch (error) {
+      _throwRequestFailure(error,
+          fallback: 'Could not create the user account');
+    }
+  }
 
   @override
-  Future<void> toggleUserStatus(String userId, bool isActive) async {}
+  Future<void> toggleUserStatus(String employeeId, bool isActive) async {
+    final encodedId = Uri.encodeComponent(employeeId.trim().toUpperCase());
+    try {
+      if (isActive) {
+        await _dio.post<Map<String, dynamic>>('/users/$encodedId/activate');
+      } else {
+        await _dio.delete<Map<String, dynamic>>('/users/$encodedId');
+      }
+    } on DioException catch (error) {
+      _throwRequestFailure(
+        error,
+        fallback: isActive
+            ? 'Could not enable the user account'
+            : 'Could not disable the user account',
+      );
+    }
+  }
 
   @override
   Future<List<DeviceSession>> getRegisteredDevices() async => [];

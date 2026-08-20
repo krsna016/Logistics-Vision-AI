@@ -51,16 +51,7 @@ class _LoginCardState extends ConsumerState<LoginCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.warning_amber_rounded,
-                    color: Colors.white, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(errorMessage),
-                ),
-              ],
-            ),
+            content: Text(errorMessage),
             backgroundColor: AppTheme.errorColor,
           ),
         );
@@ -158,18 +149,15 @@ class _LoginCardState extends ConsumerState<LoginCard> {
                   const Icon(Icons.badge, color: AppTheme.textSecondary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.dividerColor),
+                borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.dividerColor),
+                borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(
-                  color: AppTheme.primaryColor,
-                  width: 1.5,
-                ),
+                borderSide: BorderSide.none,
               ),
               filled: true,
               fillColor: AppTheme.backgroundColor,
@@ -185,18 +173,15 @@ class _LoginCardState extends ConsumerState<LoginCard> {
               prefixIcon: const Icon(Icons.lock, color: AppTheme.textSecondary),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.dividerColor),
+                borderSide: BorderSide.none,
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppTheme.dividerColor),
+                borderSide: BorderSide.none,
               ),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(
-                  color: AppTheme.primaryColor,
-                  width: 1.5,
-                ),
+                borderSide: BorderSide.none,
               ),
               filled: true,
               fillColor: AppTheme.backgroundColor,
@@ -227,12 +212,6 @@ class _LoginCardState extends ConsumerState<LoginCard> {
                           color: Colors.white)),
             ),
           ),
-          const SizedBox(height: 8),
-          const Text(
-            'Your approved account stays signed in on this device.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
-          ),
           if (Environment.current != Environment.production) ...[
             const SizedBox(height: 12),
             SizedBox(
@@ -253,12 +232,6 @@ class _LoginCardState extends ConsumerState<LoginCard> {
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              'For local testing only — no credentials required',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             ),
           ],
         ],

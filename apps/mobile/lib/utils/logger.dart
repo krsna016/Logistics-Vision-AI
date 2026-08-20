@@ -30,21 +30,24 @@ class AppLogger {
   static void warning(String message, [dynamic error, StackTrace? stackTrace]) {
     _logger.w(message, error: error, stackTrace: stackTrace);
     try {
-      import_file_logger.FileLogger.log('WARNING: $message ${error != null ? "- $error" : ""}');
+      import_file_logger.FileLogger.log(
+          'WARNING: $message ${error != null ? "- $error" : ""}');
     } catch (_) {}
   }
 
   static void error(String message, [dynamic error, StackTrace? stackTrace]) {
     _logger.e(message, error: error, stackTrace: stackTrace);
     try {
-      import_file_logger.FileLogger.log('ERROR: $message ${error != null ? "- $error" : ""}');
+      import_file_logger.FileLogger.log(
+          'ERROR: $message ${error != null ? "- $error" : ""}');
     } catch (_) {}
   }
 
   static void fatal(String message, [dynamic error, StackTrace? stackTrace]) {
     _logger.f(message, error: error, stackTrace: stackTrace);
     try {
-      import_file_logger.FileLogger.log('FATAL: $message ${error != null ? "- $error" : ""}');
+      import_file_logger.FileLogger.log(
+          'FATAL: $message ${error != null ? "- $error" : ""}');
     } catch (_) {}
   }
 }

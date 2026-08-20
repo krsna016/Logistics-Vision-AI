@@ -29,34 +29,6 @@ class AdminSecurityScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const Text('SYSTEM ALERTS',
-              style: TextStyle(
-                  color: AppTheme.textSecondary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.2)),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppTheme.errorColor.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border:
-                  Border.all(color: AppTheme.errorColor.withValues(alpha: 0.5)),
-            ),
-            child: const Row(
-              children: [
-                Icon(Icons.shield_outlined, color: AppTheme.errorColor),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                      'Offline Sync Warning: 3 devices have not synced their security policies in 7 days.',
-                      style: TextStyle(color: Colors.white, fontSize: 13)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 32),
           const Text('USER MANAGEMENT',
               style: TextStyle(
                   color: AppTheme.textSecondary,
@@ -80,9 +52,11 @@ class AdminSecurityScreen extends ConsumerWidget {
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2)),
           const SizedBox(height: 12),
-          _buildActionTile(context, Icons.devices, 'Active Devices',
-              'View and revoke connected scanners', '/admin/security/devices'),
-
+          _buildUnavailableTile(
+            Icons.devices,
+            'Active Devices',
+            'Device-wide revocation is not available in this local-data release.',
+          ),
           const SizedBox(height: 32),
           const Text('GLOBAL AUDIT',
               style: TextStyle(
@@ -91,8 +65,11 @@ class AdminSecurityScreen extends ConsumerWidget {
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.2)),
           const SizedBox(height: 12),
-          _buildActionTile(context, Icons.history, 'System Audit Logs',
-              'View all actions performed globally', '/admin/security/audit'),
+          _buildUnavailableTile(
+            Icons.history,
+            'System Audit Logs',
+            'A central audit service is not enabled for this local-data release.',
+          ),
         ],
       ),
     );
@@ -119,6 +96,30 @@ class AdminSecurityScreen extends ConsumerWidget {
         onTap: () {
           context.push(route);
         },
+      ),
+    );
+  }
+
+  Widget _buildUnavailableTile(IconData icon, String title, String subtitle) {
+    return Opacity(
+      opacity: 0.58,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        decoration: BoxDecoration(
+          color: AppTheme.surfaceColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white10),
+        ),
+        child: ListTile(
+          leading: Icon(icon, color: AppTheme.textSecondary),
+          title: Text(title,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold)),
+          subtitle: Text(subtitle,
+              style:
+                  const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+          trailing: const Icon(Icons.info_outline, color: Colors.white24),
+        ),
       ),
     );
   }

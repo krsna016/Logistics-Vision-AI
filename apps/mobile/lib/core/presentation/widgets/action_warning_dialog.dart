@@ -55,11 +55,13 @@ class _ActionWarningDialogState extends State<ActionWarningDialog> {
                 decoration: BoxDecoration(
                   color: AppTheme.errorColor.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.errorColor.withValues(alpha: 0.3)),
+                  border: Border.all(
+                      color: AppTheme.errorColor.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: AppTheme.errorColor, size: 20),
+                    const Icon(Icons.error_outline,
+                        color: AppTheme.errorColor, size: 20),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
@@ -123,15 +125,14 @@ class _ActionWarningDialogState extends State<ActionWarningDialog> {
                               _errorMessage = null;
                             });
                             final error = await widget.onConfirm();
-                            if (mounted) {
-                              if (error != null) {
-                                setState(() {
-                                  _isLoading = false;
-                                  _errorMessage = error;
-                                });
-                              } else {
-                                Navigator.pop(context);
-                              }
+                            if (!context.mounted) return;
+                            if (error != null) {
+                              setState(() {
+                                _isLoading = false;
+                                _errorMessage = error;
+                              });
+                            } else {
+                              Navigator.pop(context);
                             }
                           },
                     style: ElevatedButton.styleFrom(
@@ -145,7 +146,8 @@ class _ActionWarningDialogState extends State<ActionWarningDialog> {
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
                           )
                         : FittedBox(
                             fit: BoxFit.scaleDown,

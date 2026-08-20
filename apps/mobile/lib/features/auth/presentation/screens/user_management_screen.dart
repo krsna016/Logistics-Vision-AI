@@ -5,22 +5,21 @@ import '../../domain/entities/user.dart';
 import '../../domain/entities/role.dart';
 import '../providers/auth_providers.dart';
 import '../widgets/role_chip.dart';
-import 'package:uuid/uuid.dart';
 
 InputDecoration _dialogFieldDecoration(String label) => InputDecoration(
       labelText: label,
       labelStyle: const TextStyle(color: Colors.white54),
       border: const OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(10)),
-        borderSide: BorderSide(color: AppTheme.dividerColor),
+        borderSide: BorderSide.none,
       ),
       enabledBorder: const OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(10)),
-        borderSide: BorderSide(color: AppTheme.dividerColor),
+        borderSide: BorderSide.none,
       ),
       focusedBorder: const OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(10)),
-        borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
+        borderSide: BorderSide.none,
       ),
     );
 
@@ -135,9 +134,19 @@ class UserManagementScreen extends ConsumerWidget {
               onTap: () async {
                 Navigator.pop(ctx);
                 final newStatus = !user.isActive;
-                await ref
-                    .read(authRepositoryProvider)
-                    .toggleUserStatus(user.id, newStatus);
+                try {
+                  await ref
+                      .read(authRepositoryProvider)
+                      .toggleUserStatus(user.employeeId, newStatus);
+                } catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content:
+                        Text(error.toString().replaceFirst('Bad state: ', '')),
+                    backgroundColor: AppTheme.errorColor,
+                  ));
+                  return;
+                }
                 if (!context.mounted) return;
                 ref.invalidate(userListProvider);
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -216,19 +225,46 @@ class UserManagementScreen extends ConsumerWidget {
                 return;
               }
 
+              final password = pwdCtrl.text;
+              if (password.length < 12) {
+                ScaffoldMessenger.of(ctx).showSnackBar(const SnackBar(
+                  content: Text(
+                      'Temporary password must be at least 12 characters.'),
+                  backgroundColor: AppTheme.errorColor,
+                ));
+                return;
+              }
+
               final newUser = User(
-                id: const Uuid().v4(),
+                id: 'server-assigned',
                 employeeId: empIdCtrl.text.trim(),
                 name: nameCtrl.text.trim(),
                 role: selectedRole,
                 warehouse: 'WH-01',
               );
 
-              final offlineAuth = ref.read(offlineAuthProvider);
-              await offlineAuth.registerUser(newUser, pwdCtrl.text);
+              try {
+                await ref
+                    .read(authRepositoryProvider)
+                    .createUser(newUser, password: password);
+              } catch (error) {
+                if (!ctx.mounted) return;
+                ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(
+                  content:
+                      Text(error.toString().replaceFirst('Bad state: ', '')),
+                  backgroundColor: AppTheme.errorColor,
+                ));
+                return;
+              }
 
               ref.invalidate(userListProvider);
-              if (context.mounted) Navigator.pop(ctx);
+              if (!ctx.mounted) return;
+              Navigator.pop(ctx);
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('User account created.'),
+                backgroundColor: AppTheme.successColor,
+              ));
             },
             child: const Text('Create'),
           ),

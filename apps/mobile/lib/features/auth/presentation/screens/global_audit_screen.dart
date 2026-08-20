@@ -92,8 +92,8 @@ class GlobalAuditScreen extends ConsumerWidget {
                 children: const [
                   SizedBox(height: 200),
                   Center(
-                    child: Text('No audit logs available.',
-                        style: TextStyle(color: AppTheme.textSecondary))),
+                      child: Text('No audit logs available.',
+                          style: TextStyle(color: AppTheme.textSecondary))),
                 ],
               ),
             );

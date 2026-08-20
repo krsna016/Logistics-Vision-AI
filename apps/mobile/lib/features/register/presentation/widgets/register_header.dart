@@ -30,11 +30,12 @@ class RegisterHeader extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: AppTheme.primaryColor.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(16)),
             ),
             child: Row(
               children: [
-                const Icon(Icons.assignment_turned_in_outlined, 
+                const Icon(Icons.assignment_turned_in_outlined,
                     color: AppTheme.primaryColor, size: 20),
                 const SizedBox(width: 8),
                 Expanded(
@@ -49,7 +50,8 @@ class RegisterHeader extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppTheme.surfaceColor,
                     borderRadius: BorderRadius.circular(6),
@@ -57,7 +59,8 @@ class RegisterHeader extends StatelessWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(Icons.calendar_today_outlined, size: 12, color: AppTheme.textSecondary),
+                      const Icon(Icons.calendar_today_outlined,
+                          size: 12, color: AppTheme.textSecondary),
                       const SizedBox(width: 6),
                       Text(
                         _formatDate(register.loadingDate),
@@ -86,8 +89,8 @@ class RegisterHeader extends StatelessWidget {
                   ),
                 ),
                 Container(
-                  width: 1, 
-                  height: 36, 
+                  width: 1,
+                  height: 36,
                   color: AppTheme.dividerColor,
                   margin: const EdgeInsets.symmetric(horizontal: 12),
                 ),
@@ -106,7 +109,8 @@ class RegisterHeader extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoItem({required IconData icon, required String label, required String value}) {
+  Widget _buildInfoItem(
+      {required IconData icon, required String label, required String value}) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -151,7 +155,20 @@ class RegisterHeader extends StatelessWidget {
   }
 
   String _formatDate(DateTime dt) {
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${dt.day} ${months[dt.month - 1]} ${dt.year}';
   }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../theme/app_theme.dart';
 import '../../../../core/presentation/widgets/strict_action_warning_dialog.dart';
 
 import '../../domain/entities/digital_register.dart';
@@ -142,7 +141,7 @@ class RegisterDetailsScreen extends ConsumerWidget {
       context: context,
       isScrollControlled: true,
       isDismissible: false,
-      enableDrag: false,
+      enableDrag: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -248,15 +247,15 @@ class RegisterDetailsScreen extends ConsumerWidget {
                 'Enter notes (e.g. Delayed due to rain, Truck changed...)',
             border: OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(10)),
-              borderSide: BorderSide(color: AppTheme.dividerColor),
+              borderSide: BorderSide.none,
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(10)),
-              borderSide: BorderSide(color: AppTheme.dividerColor),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.all(Radius.circular(10)),
-              borderSide: BorderSide(color: AppTheme.primaryColor, width: 1.5),
+              borderSide: BorderSide.none,
             ),
           ),
         ),

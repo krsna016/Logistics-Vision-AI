@@ -17,8 +17,12 @@ abstract class AuthRepository {
 
   // Admin Management Methods
   Future<List<User>> getAllUsers();
-  Future<void> createUser(User user);
-  Future<void> toggleUserStatus(String userId, bool isActive);
+
+  /// Creates an account in the authority selected for this app build.
+  /// The password is deliberately separate from [User] so it is never kept
+  /// in a domain entity or written to local operational storage.
+  Future<void> createUser(User user, {required String password});
+  Future<void> toggleUserStatus(String employeeId, bool isActive);
   Future<List<DeviceSession>> getRegisteredDevices();
   Future<void> revokeDevice(String deviceId);
 }

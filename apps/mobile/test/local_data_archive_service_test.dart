@@ -117,6 +117,37 @@ void main() {
     return legacy;
   }
 
+  Future<File> createOriginalLegacyArchive() async {
+    await database.customStatement('PRAGMA wal_checkpoint(TRUNCATE)');
+    final legacy =
+        File('${documents.parent.path}/original_legacy_smartload_backup.zip');
+    final databaseFile = File('${documents.path}/smartload_offline.sqlite');
+    final imageFile = File('${documents.path}/smartload_images/layer.jpg');
+    final encoder = ZipFileEncoder();
+    encoder.create(legacy.path);
+    await encoder.addFile(databaseFile, 'database/smartload_offline.sqlite');
+    await encoder.addFile(imageFile, 'documents/smartload_images/layer.jpg');
+    encoder.addArchiveFile(ArchiveFile.string(
+      'MANIFEST.json',
+      jsonEncode({
+        'format': 'SmartLoad local audit archive',
+        'database': 'database/smartload_offline.sqlite',
+        'files': [
+          {
+            'path': 'database/smartload_offline.sqlite',
+            'sizeBytes': await databaseFile.length(),
+          },
+          {
+            'path': 'documents/smartload_images/layer.jpg',
+            'sizeBytes': await imageFile.length(),
+          },
+        ],
+      }),
+    ));
+    await encoder.close();
+    return legacy;
+  }
+
   test('archives database and every local document with an inventory',
       () async {
     final archiveFile = await LocalDataArchiveService(
@@ -178,6 +209,31 @@ void main() {
       documentsDirectory: () async => documents,
     );
     final legacyArchive = await createLegacyArchive();
+    addTearDown(() async {
+      if (await legacyArchive.exists()) await legacyArchive.delete();
+    });
+
+    await database.delete(database.warehouses).go();
+    await File('${documents.path}/smartload_images/layer.jpg')
+        .writeAsString('changed after export');
+
+    final summary = await service.importArchive(legacyArchive);
+
+    expect(summary.importedTables, greaterThanOrEqualTo(9));
+    expect(await database.select(database.warehouses).get(), hasLength(1));
+    expect(
+      await File('${documents.path}/smartload_images/layer.jpg').readAsString(),
+      'image evidence',
+    );
+  });
+
+  test('imports the original unprotected SmartLoad ZIP manifest format',
+      () async {
+    final service = LocalDataArchiveService(
+      database,
+      documentsDirectory: () async => documents,
+    );
+    final legacyArchive = await createOriginalLegacyArchive();
     addTearDown(() async {
       if (await legacyArchive.exists()) await legacyArchive.delete();
     });

@@ -51,10 +51,7 @@ class _SearchFieldState extends State<SearchField> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),
-          borderSide: BorderSide(
-            color: Theme.of(context).primaryColor,
-            width: 1.5,
-          ),
+          borderSide: BorderSide.none,
         ),
         suffixIcon: _controller.text.isNotEmpty
             ? GestureDetector(

@@ -51,24 +51,31 @@ class TruckTable extends StatelessWidget {
                   children: [
                     ValueListenableBuilder<bool>(
                       valueListenable: AiCameraSettings.showDatabaseIds,
-                      builder: (context, showId, _) => showId ? Padding(
-                        padding: const EdgeInsets.only(bottom: 4.0),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.fingerprint_outlined, size: 13, color: Color(0xFF7E8A99)),
-                            const SizedBox(width: 4),
-                            Expanded(
-                              child: Text(
-                                'ID: ${truck.id}',
-                                style: const TextStyle(color: Color(0xFF7E8A99), fontSize: 10, fontFamily: 'monospace'),
-                                overflow: TextOverflow.ellipsis,
+                      builder: (context, showId, _) => showId
+                          ? Padding(
+                              padding: const EdgeInsets.only(bottom: 4.0),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.fingerprint_outlined,
+                                      size: 13, color: Color(0xFF7E8A99)),
+                                  const SizedBox(width: 4),
+                                  Expanded(
+                                    child: Text(
+                                      'ID: ${truck.id}',
+                                      style: const TextStyle(
+                                          color: Color(0xFF7E8A99),
+                                          fontSize: 10,
+                                          fontFamily: 'monospace'),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
-                      ) : const SizedBox.shrink(),
+                            )
+                          : const SizedBox.shrink(),
                     ),
-                    Text(truck.vehicleNumber, style: const TextStyle(fontWeight: FontWeight.w800)),
+                    Text(truck.vehicleNumber,
+                        style: const TextStyle(fontWeight: FontWeight.w800)),
                   ],
                 ),
                 subtitle: Text(
@@ -120,22 +127,28 @@ class TruckTable extends StatelessWidget {
           children: [
             ValueListenableBuilder<bool>(
               valueListenable: AiCameraSettings.showDatabaseIds,
-              builder: (context, showId, _) => showId ? Padding(
-                padding: const EdgeInsets.only(bottom: 6.0),
-                child: Row(
-                  children: [
-                    const Icon(Icons.fingerprint_outlined, size: 13, color: Color(0xFF7E8A99)),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        'ID: ${layer.id}',
-                        style: const TextStyle(color: Color(0xFF7E8A99), fontSize: 10, fontFamily: 'monospace'),
-                        overflow: TextOverflow.ellipsis,
+              builder: (context, showId, _) => showId
+                  ? Padding(
+                      padding: const EdgeInsets.only(bottom: 6.0),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.fingerprint_outlined,
+                              size: 13, color: Color(0xFF7E8A99)),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              'ID: ${layer.id}',
+                              style: const TextStyle(
+                                  color: Color(0xFF7E8A99),
+                                  fontSize: 10,
+                                  fontFamily: 'monospace'),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
-                ),
-              ) : const SizedBox.shrink(),
+                    )
+                  : const SizedBox.shrink(),
             ),
             Row(
               children: [
