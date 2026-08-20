@@ -4,6 +4,13 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:mobile/features/layer/data/models/layer_model.dart';
+import 'package:mobile/core/storage/image_storage_service.dart';
+import 'package:mobile/features/layer/presentation/providers/layer_providers.dart';
+import 'package:mobile/features/layer/domain/entities/layer.dart';
+import 'dart:io';
+import 'dart:ui' as ui;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image/image.dart' as img;
@@ -54,7 +61,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
   bool _isFinalizingCapture = false;
   bool _torchOn = false;
   bool _aiStarted = false;
-  bool _showCropBox = true;
+  bool _showCropBox = false;
   CameraController? _previewReadyController;
   CountingRegion _countingRegion = CountingRegion.rectangle(
     left: 0.09,
@@ -68,6 +75,45 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.isActive && !widget.isActive && _torchOn) {
       unawaited(_toggleTorch(_zoomController));
+    }
+  }
+
+  Future<void> _launchNativeCamera() async {
+    try {
+      if (!_aiStarted) setState(() => _aiStarted = true);
+      final cameraNotifier = ref.read(cameraNotifierProvider.notifier);
+      cameraNotifier.beginTemporaryOverlay();
+      AppLogger.info('OPERATOR ACTION: Opened Native System Camera');
+      XFile? image;
+      try {
+        image = await _picker.pickImage(source: ImageSource.camera);
+      } finally {
+        await cameraNotifier.endTemporaryOverlay();
+      }
+      if (!mounted) return;
+      if (image != null) {
+        AppLogger.info('Native camera photo selected for review: ${image.path}');
+        ref.read(countingDecisionProvider.notifier).resetAnalyzer();
+        final truckId = GoRouterState.of(context).pathParameters['id'] ?? '';
+        
+        Future<AIResult> finalResultLoader() => _finalizeCapturedResult(image!.path);
+        await _navigateToReview(
+          context,
+          truckId,
+          const InferenceState(),
+          const DecisionState(status: CountingDecisionState.collecting),
+          photoPath: image.path,
+          auditPhotoPath: image.path,
+          finalResultLoader: finalResultLoader,
+        );
+      }
+    } catch (e, stack) {
+      AppLogger.error('Failed to launch native camera', e, stack);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the native camera app.')),
+        );
+      }
     }
   }
 
@@ -283,6 +329,7 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                     () => context.pushReplacement(
                           '/trucks/$truckId/manual-count',
                         ),
+                onSplitModeSelected: _launchSplitModeNativeFlow,
               ),
             ),
 
@@ -372,11 +419,16 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
                   isGallery: isGallery,
                   torchOn: _torchOn,
                   showCropBox: _showCropBox,
+                  isUltraWide: cameraState.isUltraWide,
+                  onToggleUltraWide: isGallery || !previewReady
+                      ? null
+                      : () => cameraNotifier.toggleUltraWide(),
                   onToggleCropBox: () => setState(() => _showCropBox = !_showCropBox),
                   onToggleTorch: isGallery || !previewReady
                       ? null
                       : () => _toggleTorch(cameraState.controller),
                   onGallery: () => _openGallery(cameraState.controller),
+                  onNativeCamera: () { if (_torchOn) _toggleTorch(cameraState.controller); _launchNativeCamera(); },
                   onFlipCamera: !previewReady && !isGallery
                       ? () {}
                       : () {
@@ -462,11 +514,140 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
         'auditPhotoPath': auditPhotoPath ?? photoPath ?? _pickedImagePath,
         'countingRegion': countingRegion,
         'finalResultLoader': finalResultLoader,
+        'navigateToControlCenter': GoRouterState.of(context).uri.queryParameters['from'] == 'controlCenter',
       });
     } finally {
       if (mounted && widget.isActive && _pickedImagePath == null) {
         await cameraAdapter?.resumePreview();
       }
+    }
+  }
+
+  Future<void> _launchSplitModeNativeFlow(String truckId) async {
+    final picker = ImagePicker();
+    final imageStorage = ImageStorageService();
+    
+    // PART 1
+    AppLogger.info('Split Flow: Opening Native Camera for Part 1');
+    final leftImage = await picker.pickImage(source: ImageSource.camera);
+    if (leftImage == null || !mounted) return; // User cancelled, stay on camera screen
+    
+    final leftSavedPath = await imageStorage.saveImage(File(leftImage.path), 'split_part1_$truckId');
+    
+    Future<AIResult> finalResultLoaderLeft() async {
+      final leftBytes = await File(leftSavedPath).readAsBytes();
+      final detections = await ref.read(inferenceNotifierProvider.notifier).finalizeCapturedImageBytes(leftBytes);
+      return AIResult(
+        detections: detections, count: detections.length, averageConfidence: 0.9,
+        processingTimeMs: 0, modelVersion: AIModel.activeVersion,
+        inferenceTimestamp: DateTime.now(), frameSize: const Size(720, 1280),
+      );
+    }
+
+    final dummyResult = AIResult(
+      detections: const [], count: 0, averageConfidence: 0.9, processingTimeMs: 0,
+      modelVersion: AIModel.activeVersion, inferenceTimestamp: DateTime.now(), frameSize: const Size(720, 1280),
+    );
+
+    if (!mounted) return;
+    final reviewDataLeft = await context.push<Map<String, dynamic>>(
+      '/trucks/$truckId/review', 
+      extra: {
+        'aiResult': dummyResult,
+        'photoPath': leftSavedPath,
+        'auditPhotoPath': leftSavedPath,
+        'returnResultOnly': true,
+        'finalResultLoader': finalResultLoaderLeft,
+      },
+    );
+    
+    if (reviewDataLeft == null || !mounted) return; // Cancelled review
+
+    // PART 2
+    AppLogger.info('Split Flow: Opening Native Camera for Part 2');
+    final rightImage = await picker.pickImage(source: ImageSource.camera);
+    if (rightImage == null || !mounted) return; // Cancelled
+    
+    final rightSavedPath = await imageStorage.saveImage(File(rightImage.path), 'split_part2_$truckId');
+    
+    Future<AIResult> finalResultLoaderRight() async {
+      final rightBytes = await File(rightSavedPath).readAsBytes();
+      final detections = await ref.read(inferenceNotifierProvider.notifier).finalizeCapturedImageBytes(rightBytes);
+      return AIResult(
+        detections: detections, count: detections.length, averageConfidence: 0.9,
+        processingTimeMs: 0, modelVersion: AIModel.activeVersion,
+        inferenceTimestamp: DateTime.now(), frameSize: const Size(720, 1280),
+      );
+    }
+
+    if (!mounted) return;
+    final reviewDataRight = await context.push<Map<String, dynamic>>(
+      '/trucks/$truckId/review', 
+      extra: {
+        'aiResult': dummyResult,
+        'photoPath': rightSavedPath,
+        'auditPhotoPath': rightSavedPath,
+        'returnResultOnly': true,
+        'finalResultLoader': finalResultLoaderRight,
+      },
+    );
+    
+    if (reviewDataRight == null || !mounted) return;
+
+    // MERGE & SAVE
+    final leftCount = reviewDataLeft['count'] as int;
+    final leftDefects = reviewDataLeft['defectCount'] as int;
+    final leftItems = reviewDataLeft['allocations'] as Map<String, int>? ?? {};
+    
+    final rightCount = reviewDataRight['count'] as int;
+    final rightDefects = reviewDataRight['defectCount'] as int;
+    final rightItems = reviewDataRight['allocations'] as Map<String, int>? ?? {};
+
+    final totalCount = leftCount + rightCount;
+    final totalDefects = leftDefects + rightDefects;
+    
+    final Map<String, int> totalItems = Map.from(leftItems);
+    rightItems.forEach((key, val) => totalItems[key] = (totalItems[key] ?? 0) + val);
+
+    final leftDetections = (reviewDataLeft['detections'] as List<Detection>?) ?? [];
+    final rightDetections = (reviewDataRight['detections'] as List<Detection>?) ?? [];
+    
+    final leftNotes = reviewDataLeft['notes'] as String?;
+    final rightNotes = reviewDataRight['notes'] as String?;
+    final combinedNotesList = [leftNotes, rightNotes].where((n) => n != null && n.trim().isNotEmpty).toList();
+    final combinedNotesString = combinedNotesList.join(' | ');
+
+    final splitJson = jsonEncode({
+      'isSplit': true,
+      'part1Path': leftSavedPath,
+      'part1Count': leftCount,
+      'part1Detections': leftDetections.map(LayerModel.detectionToJson).toList(),
+      'part2Path': rightSavedPath,
+      'part2Count': rightCount,
+      'part2Detections': rightDetections.map(LayerModel.detectionToJson).toList(),
+    });
+
+    final error = await ref.read(layerListProvider(truckId).notifier).saveLayer(
+      cartonCount: totalCount,
+      defectCount: totalDefects,
+      confidence: 0,
+      notes: combinedNotesString.isEmpty 
+          ? '[SPLIT_DATA]:$splitJson' 
+          : '$combinedNotesString | [SPLIT_DATA]:$splitJson',
+      photoPath: leftSavedPath, 
+      itemAllocations: totalItems.entries
+          .map((e) => LayerItemAllocation(itemName: e.key, quantity: e.value))
+          .toList(growable: false),
+    );
+    
+    if (error == null && mounted) {
+      if (GoRouterState.of(context).uri.queryParameters['from'] == 'controlCenter') {
+        context.go('/wagons');
+      } else {
+        context.go('/trucks/$truckId?scrollToBottom=true');
+      }
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to save split layer: $error')));
     }
   }
 
@@ -735,9 +916,11 @@ class _CameraScreenState extends ConsumerState<CameraScreen> {
 
 class _SimpleCameraHeader extends StatelessWidget {
   final VoidCallback onManualSelected;
+  final Function(String) onSplitModeSelected;
 
   const _SimpleCameraHeader({
     required this.onManualSelected,
+    required this.onSplitModeSelected,
   });
 
   @override
@@ -763,7 +946,6 @@ class _SimpleCameraHeader extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.black45,
               borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: Colors.white24),
             ),
             child: IconButton(
               icon: const Icon(Icons.call_split, color: Colors.white, size: 20),
@@ -772,7 +954,7 @@ class _SimpleCameraHeader extends StatelessWidget {
               tooltip: 'Split Layer Mode',
               onPressed: () {
                 final truckId = GoRouterState.of(context).pathParameters['id'] ?? '';
-                context.pushReplacement('/trucks/$truckId/split-capture');
+                onSplitModeSelected(truckId);
               },
             ),
           ),
@@ -1418,7 +1600,10 @@ class _CameraOverlayControls extends StatefulWidget {
   final bool isGallery;
   final bool torchOn;
   final bool showCropBox;
+  final bool isUltraWide;
+  final VoidCallback? onToggleUltraWide;
   final VoidCallback? onToggleTorch;
+  final VoidCallback onNativeCamera;
   final VoidCallback onGallery;
   final VoidCallback onFlipCamera;
   final VoidCallback onToggleCropBox;
@@ -1430,7 +1615,10 @@ class _CameraOverlayControls extends StatefulWidget {
     required this.isGallery,
     required this.torchOn,
     required this.showCropBox,
+    required this.isUltraWide,
+    this.onToggleUltraWide,
     required this.onToggleTorch,
+    required this.onNativeCamera,
     required this.onGallery,
     required this.onFlipCamera,
     required this.onToggleCropBox,
@@ -1532,36 +1720,70 @@ class _CameraOverlayControlsState extends State<_CameraOverlayControls>
           tooltip: widget.torchOn ? 'Turn flash off' : 'Turn flash on',
           onTap: widget.onToggleTorch,
         ),
-        Semantics(
-          button: true,
-          label: widget.isGallery ? 'Review count' : 'Capture layer',
-          child: GestureDetector(
-            onTap: shutterAction,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 180),
-              width: 82,
-              height: 82,
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.black.withValues(alpha: 0.45),
-              ),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: shutterAction == null
-                      ? Colors.white38
-                      : (widget.isGallery
-                          ? AppTheme.successColor
-                          : Colors.white),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (!widget.isGallery) ...[
+              GestureDetector(
+                onTap: widget.onNativeCamera,
+                child: Container(
+                  height: 36,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.6),
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.camera, color: Colors.white, size: 16),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Use Native Camera (Wide)',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                child: widget.isGallery
-                    ? const Icon(Icons.arrow_forward_rounded,
-                        color: Colors.white, size: 30)
-                    : null,
+              ),
+            ] else const SizedBox(height: 60),
+            Semantics(
+              button: true,
+              label: widget.isGallery ? 'Review count' : 'Capture layer',
+              child: GestureDetector(
+                onTap: shutterAction,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 82,
+                  height: 82,
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black.withValues(alpha: 0.45),
+                  ),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: shutterAction == null
+                          ? Colors.white38
+                          : (widget.isGallery
+                              ? AppTheme.successColor
+                              : Colors.white),
+                    ),
+                    child: widget.isGallery
+                        ? const Icon(Icons.arrow_forward_rounded,
+                            color: Colors.white, size: 30)
+                        : null,
+                  ),
+                ),
               ),
             ),
-          ),
+          ],
         ),
         SizedBox(
           width: 52,
@@ -1725,6 +1947,7 @@ class _GalleryPreview extends StatefulWidget {
 
 class _GalleryPreviewState extends State<_GalleryPreview> {
   Size _imageSize = const Size(640, 640);
+  bool _isPhotoSizeLoaded = false;
 
   @override
   void initState() {
@@ -1735,15 +1958,20 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
   Future<void> _loadImageSize() async {
     try {
       final bytes = await File(widget.path).readAsBytes();
-      final decoded = img.decodeImage(bytes);
-      if (decoded != null && mounted) {
-        setState(() {
-          _imageSize = Size(
-            decoded.width.toDouble(),
-            decoded.height.toDouble(),
-          );
-        });
-      }
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      if (!mounted) return;
+      
+      setState(() {
+        _imageSize = Size(
+          frame.image.width.toDouble(),
+          frame.image.height.toDouble(),
+        );
+        _isPhotoSizeLoaded = true;
+      });
+      
+      frame.image.dispose();
+      codec.dispose();
     } catch (_) {
       // Keep the square fallback if the image dimensions are unavailable.
     }

@@ -27,12 +27,16 @@ class _ResizableCountingRegionState extends State<ResizableCountingRegion> {
   late CountingRegion _draftRegion;
   bool _isDragging = false;
   bool _hasAdjusted = false;
+  bool _showHint = true;
   Offset? _lastPointerPosition;
 
   @override
   void initState() {
     super.initState();
     _draftRegion = widget.region;
+    Future.delayed(const Duration(seconds: 2), () {
+      if (mounted) setState(() => _showHint = false);
+    });
   }
 
   @override
@@ -73,10 +77,10 @@ class _ResizableCountingRegionState extends State<ResizableCountingRegion> {
             Positioned(
               left: 20,
               right: 20,
-              bottom: 126,
+              top: 126,
               child: IgnorePointer(
                 child: AnimatedOpacity(
-                  opacity: _hasAdjusted ? 0 : 1,
+                  opacity: _showHint ? 1 : 0,
                   duration: const Duration(milliseconds: 220),
                   child: Center(
                     child: Container(

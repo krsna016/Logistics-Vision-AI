@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -34,6 +36,7 @@ class LayerReviewScreen extends ConsumerStatefulWidget {
   final String? initialNotes;
   final Future<AIResult> Function()? finalResultLoader;
   final bool returnResultOnly;
+  final bool navigateToControlCenter;
 
   const LayerReviewScreen({
     super.key,
@@ -45,6 +48,7 @@ class LayerReviewScreen extends ConsumerStatefulWidget {
     this.initialNotes,
     this.finalResultLoader,
     this.returnResultOnly = false,
+    this.navigateToControlCenter = false,
   });
 
   @override
@@ -474,9 +478,12 @@ class _LayerReviewScreenState extends ConsumerState<LayerReviewScreen>
 
         if (error == null) {
           AppLogger.info('Layer saved: $_correctedCount cartons.');
-          // Return to the loading control center so the operator can select
-          // the next wagon/truck without repeating the navigation flow.
-          context.go('/wagons');
+          // Navigate based on where the capture was initiated from.
+          if (widget.navigateToControlCenter) {
+            context.go('/wagons');
+          } else {
+            context.go('/trucks/${widget.truckId}?scrollToBottom=true');
+          }
         }
       }
     } catch (e, stack) {
@@ -679,6 +686,7 @@ class _ImagePreviewSection extends StatefulWidget {
 class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
   late final TransformationController _zoomController;
   Size _photoSize = const Size(720, 1280);
+  bool _isPhotoSizeLoaded = false;
   bool _useDarkPalette = false;
 
   @override

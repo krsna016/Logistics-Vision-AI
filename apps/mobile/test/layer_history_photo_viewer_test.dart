@@ -135,7 +135,8 @@ void main() {
           layer: layer,
           file: photo,
           canEdit: true,
-          onSaveDetections: (savedLayer, detections) async {
+          onSaveDetections: (savedLayer, detections,
+              {int? cartonCountOverride, String? notesOverride}) async {
             expect(savedLayer.id, 'layer-correct-id');
             saved.add(List<Detection>.of(detections));
             return null;

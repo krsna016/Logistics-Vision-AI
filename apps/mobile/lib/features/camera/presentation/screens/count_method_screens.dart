@@ -375,8 +375,12 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
         return;
       }
       AppLogger.info('Manual layer saved: $count cartons.');
-      // Return to the loading control center for the next wagon/truck.
-      context.go('/wagons');
+      // Navigate based on where the capture was initiated from.
+      if (GoRouterState.of(context).uri.queryParameters['from'] == 'controlCenter') {
+        context.go('/wagons');
+      } else {
+        context.go('/trucks/${widget.truckId}?scrollToBottom=true');
+      }
     } catch (error, stack) {
       AppLogger.error('Failed to save manual layer', error, stack);
       if (mounted) {

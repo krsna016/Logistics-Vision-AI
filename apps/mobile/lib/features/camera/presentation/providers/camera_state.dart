@@ -17,6 +17,7 @@ class CameraState {
   final String? errorMessage;
   final List<CameraDescription> availableCameras;
   final int selectedCameraIndex;
+  final bool isUltraWide;
 
   const CameraState({
     required this.status,
@@ -24,6 +25,7 @@ class CameraState {
     this.errorMessage,
     this.availableCameras = const [],
     this.selectedCameraIndex = 0,
+    this.isUltraWide = false,
   });
 
   CameraState copyWith({
@@ -32,6 +34,7 @@ class CameraState {
     String? errorMessage,
     List<CameraDescription>? availableCameras,
     int? selectedCameraIndex,
+    bool? isUltraWide,
   }) {
     return CameraState(
       status: status ?? this.status,
@@ -39,6 +42,7 @@ class CameraState {
       errorMessage: errorMessage ?? this.errorMessage,
       availableCameras: availableCameras ?? this.availableCameras,
       selectedCameraIndex: selectedCameraIndex ?? this.selectedCameraIndex,
+      isUltraWide: isUltraWide ?? this.isUltraWide,
     );
   }
 }

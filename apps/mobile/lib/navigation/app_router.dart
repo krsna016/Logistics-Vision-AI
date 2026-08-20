@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../features/camera/presentation/screens/count_method_screens.dart';
 import '../features/camera/presentation/screens/capture_workspace_screen.dart';
-import '../features/camera/presentation/screens/split_layer_camera_screen.dart';
+
 import '../features/truck/presentation/screens/truck_details_screen.dart';
 import '../features/truck/domain/entities/truck.dart';
 import '../features/layer/presentation/screens/layer_review_screen.dart';
@@ -203,11 +203,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               initialMode: CountMode.manual,
             ),
           ),
-          GoRoute(
-            path: 'split-capture',
-            name: 'split_capture',
-            builder: (context, state) => const SplitLayerCameraScreen(),
-          ),
+
           GoRoute(
             path: 'review',
             name: 'layer_review',
@@ -231,6 +227,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               final finalResultLoader = extra['finalResultLoader']
                   as Future<AIResult> Function()?;
               final returnResultOnly = extra['returnResultOnly'] as bool? ?? false;
+              final navigateToControlCenter = extra['navigateToControlCenter'] as bool? ?? false;
 
               return LayerReviewScreen(
                 truckId: truckId,
@@ -241,6 +238,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                 initialNotes: initialNotes,
                 finalResultLoader: finalResultLoader,
                 returnResultOnly: returnResultOnly,
+                navigateToControlCenter: navigateToControlCenter,
               );
             },
           ),

@@ -247,6 +247,91 @@ class CameraNotifier extends StateNotifier<CameraState>
     await recoverCamera();
   }
 
+  Future<void> _switchToCamera(CameraDescription desc, bool isUltraWide) async {
+    state = state.copyWith(status: CameraStatus.switching);
+    final currentController = state.controller;
+    if (currentController != null) {
+      await _repository.disposeController(currentController);
+    }
+    final nextController = await _repository.initializeCameraController(
+      description: desc,
+      resolutionPreset: ResolutionPreset.high,
+    );
+    final index = state.availableCameras.indexOf(desc);
+    state = state.copyWith(
+      status: CameraStatus.ready,
+      controller: nextController,
+      selectedCameraIndex: index == -1 ? 0 : index,
+      isUltraWide: isUltraWide,
+    );
+  }
+
+  Future<void> toggleUltraWide() async {
+    if (state.status != CameraStatus.ready) return;
+    final controller = state.controller;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    final wantUltraWide = !state.isUltraWide;
+    
+    try {
+      if (wantUltraWide) {
+        double minZoom = 1.0;
+        try {
+          minZoom = await controller.getMinZoomLevel();
+        } catch (_) {}
+        
+        try {
+           // On many devices, setZoomLevel(0.6) works even if getMinZoomLevel says 1.0
+           await controller.setZoomLevel(0.5);
+           state = state.copyWith(isUltraWide: true);
+           return;
+        } catch (e) {
+           try {
+              await controller.setZoomLevel(0.6);
+              state = state.copyWith(isUltraWide: true);
+              return;
+           } catch (e2) {}
+        }
+
+        final backCameras = state.availableCameras
+            .where((c) => c.lensDirection == CameraLensDirection.back)
+            .toList();
+        
+        if (backCameras.length > 1) {
+           // On Xiaomi, camera index 2 is often ultrawide.
+           // 0 is main, 1 is front, 2 is ultrawide, 3 is macro.
+           CameraDescription? ultraWideDesc;
+           if (backCameras.length >= 2) {
+              ultraWideDesc = backCameras[1]; // Usually the second back camera
+           }
+           if (ultraWideDesc != null) {
+              await _switchToCamera(ultraWideDesc, true);
+              return;
+           }
+        }
+        
+        // Fallback
+        state = state.copyWith(isUltraWide: true);
+      } else {
+        try {
+          await controller.setZoomLevel(1.0);
+        } catch (_) {}
+        
+        // Switch back to primary back camera
+        final primaryBack = state.availableCameras
+            .firstWhere((c) => c.lensDirection == CameraLensDirection.back, 
+                orElse: () => state.availableCameras.first);
+        if (controller.description.name != primaryBack.name) {
+           await _switchToCamera(primaryBack, false);
+        } else {
+           state = state.copyWith(isUltraWide: false);
+        }
+      }
+    } catch (e, stack) {
+      AppLogger.error('Failed to toggle ultra wide', e, stack);
+    }
+  }
+
   Future<void> disposeCamera() async {
     ++_cameraOperation;
     final controller = state.controller;

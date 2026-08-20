@@ -162,8 +162,15 @@ class LayerRecord {
       }
     }
     
+    // Clean up any previously saved duplicate warnings
+    baseNote = baseNote.replaceAll('-- This layer contains two merged images (Split Mode) --', '').trim();
+    baseNote = baseNote.replaceAll('SPLIT MODE LAYER', '').trim();
+    
+    // Clean up floating pipes or newlines left behind
+    while (baseNote.endsWith('|')) baseNote = baseNote.substring(0, baseNote.length - 1).trim();
+    
     if (splitData != null) {
-      final splitWarning = '-- This layer contains two merged images (Split Mode) --';
+      final splitWarning = 'SPLIT MODE LAYER';
       return baseNote.isEmpty ? splitWarning : '$baseNote\n\n$splitWarning';
     }
     return baseNote.isEmpty ? null : baseNote;

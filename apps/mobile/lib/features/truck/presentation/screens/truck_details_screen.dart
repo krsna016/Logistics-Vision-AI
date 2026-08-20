@@ -29,7 +29,7 @@ import '../../../wagon/presentation/providers/wagon_providers.dart';
 import '../widgets/swipable_inventory_cards.dart';
 import '../../../../core/presentation/widgets/unsaved_changes_guard.dart';
 
-class TruckDetailsScreen extends ConsumerWidget {
+class TruckDetailsScreen extends ConsumerStatefulWidget {
   final String truckId;
   final Truck? fallbackTruck;
   final bool allowArchivedEditing;
@@ -44,7 +44,38 @@ class TruckDetailsScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TruckDetailsScreen> createState() => _TruckDetailsScreenState();
+}
+
+class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
+  final ScrollController _scrollController = ScrollController();
+  
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final truckId = widget.truckId;
+    final fallbackTruck = widget.fallbackTruck;
+    final allowArchivedEditing = widget.allowArchivedEditing;
+    final isRegisterView = widget.isRegisterView;
+    
+    // Automatically scroll to bottom if query param says so
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && GoRouterState.of(context).uri.queryParameters['scrollToBottom'] == 'true') {
+        if (_scrollController.hasClients) {
+          _scrollController.animateTo(
+            _scrollController.position.maxScrollExtent,
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOut,
+          );
+        }
+      }
+    });
+
     final listState = ref.watch(truckListProvider);
     final notifier = ref.read(truckListProvider.notifier);
     final layerState = ref.watch(layerListProvider(truckId));
@@ -185,6 +216,7 @@ class TruckDetailsScreen extends ConsumerWidget {
               await ref.read(layerListProvider(truckId).notifier).refresh();
             },
             child: CustomScrollView(
+              controller: _scrollController,
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
           SliverPadding(

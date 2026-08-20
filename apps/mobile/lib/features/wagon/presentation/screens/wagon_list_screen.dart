@@ -351,9 +351,9 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
                     setState(() => _selectedWagonId = wagon.id),
                 onTruckSelected: (truck) async {
                   if (_aiMode) {
-                    await context.push('/trucks/${truck.id}/camera');
+                    await context.push('/trucks/${truck.id}/camera?from=controlCenter');
                   } else {
-                    await context.push('/trucks/${truck.id}/manual-count');
+                    await context.push('/trucks/${truck.id}/manual-count?from=controlCenter');
                   }
                   if (mounted) {
                     await ref.read(truckListProvider.notifier).refresh();

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'dart:ui' as ui;
 import 'package:image/image.dart' as img;
 import '../../../../theme/app_theme.dart';
 import '../../../../utils/logger.dart';
@@ -457,6 +458,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
   final Future<String?> Function(LayerRecord layer, List<Detection> detections, {int? cartonCountOverride, String? notesOverride})?
       onSaveDetections;
   final void Function(LayerRecord layer, [String? previewWarning])? onRequestCorrection;
+  final void Function(int addedCount, int removedCount)? onChangesUpdate;
   final bool isActive;
 
   const LayerHistoryPhotoViewer({
@@ -470,6 +472,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
     this.extraHeaderWidget,
     this.onSaveDetections,
     this.onRequestCorrection,
+    this.onChangesUpdate,
     this.isActive = true,
   });
 
@@ -480,6 +483,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
 
 class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
   Size _photoSize = const Size(720, 1280);
+  bool _isPhotoSizeLoaded = false;
   bool _showMasks = false;
   bool _showNumbers = false;
   int _editRevision = 0;
@@ -560,6 +564,12 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
 
   void _markEdited() {
     _editRevision++;
+    if (widget.onChangesUpdate != null) {
+      final originalDetections = widget.initialDetectionsOverride ?? widget.layer.detections;
+      final addedCount = _visibleDetections.where((d) => !originalDetections.any((od) => od.id == d.id)).length;
+      final removedCount = originalDetections.where((od) => !_visibleDetections.any((d) => d.id == od.id)).length;
+      widget.onChangesUpdate!(addedCount, removedCount);
+    }
   }
 
   Future<void> _closeImage() async {
@@ -592,8 +602,15 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
     if (!mounted || choice == null) return;
     Navigator.of(context).pop();
     if (choice == 'correction') {
-      final addedCount = _visibleDetections.where((d) => !widget.layer.detections.any((od) => od.id == d.id)).length;
-      final removedCount = widget.layer.detections.where((od) => !_visibleDetections.any((d) => d.id == od.id)).length;
+      // If parent wants to handle correction warning entirely
+      if (widget.onChangesUpdate != null) {
+         widget.onRequestCorrection?.call(widget.layer, null);
+         return;
+      }
+      
+      final originalDetections = widget.initialDetectionsOverride ?? widget.layer.detections;
+      final addedCount = _visibleDetections.where((d) => !originalDetections.any((od) => od.id == d.id)).length;
+      final removedCount = originalDetections.where((od) => !_visibleDetections.any((d) => d.id == od.id)).length;
       
       String warning = '';
       if (addedCount > 0 && removedCount > 0) {
@@ -610,15 +627,19 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
 
   Future<void> _loadPhotoSize() async {
     try {
-      final decoded = img.decodeImage(await widget.file.readAsBytes());
-      if (decoded == null || !mounted) return;
-      final oriented = img.bakeOrientation(decoded);
+      final bytes = await widget.file.readAsBytes();
+      final codec = await ui.instantiateImageCodec(bytes);
+      final frame = await codec.getNextFrame();
+      if (!mounted) return;
       setState(() {
         _photoSize = Size(
-          oriented.width.toDouble(),
-          oriented.height.toDouble(),
+          frame.image.width.toDouble(),
+          frame.image.height.toDouble(),
         );
+        _isPhotoSizeLoaded = true;
       });
+      frame.image.dispose();
+      codec.dispose();
     } catch (error, stack) {
       // The image widget will surface an unreadable file while the overlay
       // retains a safe aspect-ratio fallback.
@@ -727,7 +748,7 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.medium,
                         ),
-                        if (_showMasks || _showNumbers || widget.canEdit)
+                        if ((_showMasks || _showNumbers || widget.canEdit) && _isPhotoSizeLoaded)
                           Positioned.fill(
                             child: DetectionOverlayWidget(
                               key: const ValueKey('layer-mask-overlay'),
@@ -914,6 +935,39 @@ class _SplitLayerPhotoViewer extends StatefulWidget {
 
 class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
   int _currentIndex = 0;
+  int _leftAdded = 0;
+  int _leftRemoved = 0;
+  int _rightAdded = 0;
+  int _rightRemoved = 0;
+  
+  void _handleCorrection(LayerRecord layer, [String? _]) {
+    String warning = '';
+    
+    if (_leftAdded > 0 || _leftRemoved > 0 || _rightAdded > 0 || _rightRemoved > 0) {
+      warning = 'Warning: You visually ';
+      
+      final parts = <String>[];
+      if (_leftAdded > 0 && _leftRemoved > 0) {
+        parts.add('added $_leftAdded and removed $_leftRemoved on the left');
+      } else if (_leftAdded > 0) {
+        parts.add('added $_leftAdded on the left');
+      } else if (_leftRemoved > 0) {
+        parts.add('removed $_leftRemoved on the left');
+      }
+      
+      if (_rightAdded > 0 && _rightRemoved > 0) {
+        parts.add('added $_rightAdded and removed $_rightRemoved on the right');
+      } else if (_rightAdded > 0) {
+        parts.add('added $_rightAdded on the right');
+      } else if (_rightRemoved > 0) {
+        parts.add('removed $_rightRemoved on the right');
+      }
+      
+      warning += parts.join(' and ') + ' in the preview. Please update the numbers below to match.';
+    }
+    
+    widget.onRequestCorrection?.call(layer, warning.isEmpty ? null : warning);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -994,7 +1048,11 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
               notesOverride: '[SPLIT_DATA]:${jsonEncode(newSplit)}',
             );
           },
-          onRequestCorrection: widget.onRequestCorrection,
+          onRequestCorrection: _handleCorrection,
+          onChangesUpdate: (added, removed) {
+            _leftAdded = added;
+            _leftRemoved = removed;
+          },
         ),
         LayerHistoryPhotoViewer(
           layer: layer,
@@ -1014,7 +1072,11 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
               notesOverride: '[SPLIT_DATA]:${jsonEncode(newSplit)}',
             );
           },
-          onRequestCorrection: widget.onRequestCorrection,
+          onRequestCorrection: _handleCorrection,
+          onChangesUpdate: (added, removed) {
+            _rightAdded = added;
+            _rightRemoved = removed;
+          },
         ),
       ],
     );
