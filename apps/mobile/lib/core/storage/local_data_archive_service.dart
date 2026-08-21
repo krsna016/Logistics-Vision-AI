@@ -363,52 +363,23 @@ class LocalDataArchiveService {
         throw const FormatException();
       }
 
-      final key = await _deriveKey(password, salt);
-      final algorithm = AesGcm.with256bits();
-      await algorithm.decrypt(
-        SecretBox(
-          const <int>[],
-          nonce: _chunkNonce(noncePrefix, 0xffffffff),
-          mac: Mac(base64Decode(metadataMacValue)),
+      // PBKDF2, AES-GCM, chunk reads, and archive hashing are CPU-intensive;
+      // run them away from Flutter's UI isolate for large protected backups.
+      final decryptedPath = await Isolate.run(
+        () => _decryptChunkedArchiveInIsolate(
+          outer.path,
+          tempDir.path,
+          metadataJson,
+          metadataMacValue,
+          password,
+          plainSize,
+          chunks,
+          salt,
+          noncePrefix,
+          metadata['archiveSha256'] as String,
         ),
-        secretKey: key,
-        aad: utf8.encode(metadataJson),
       );
-
-      final decrypted = File(p.join(tempDir.path, 'decrypted_backup.zip'));
-      final output = await decrypted.open(mode: FileMode.write);
-      var written = 0;
-      try {
-        for (var index = 0; index < chunks.length; index++) {
-          final chunkFile = File(p.joinAll([
-            outer.path,
-            ...p.posix.split(chunks[index]),
-          ]));
-          final encryptedLength = await chunkFile.length();
-          if (encryptedLength <= 16 ||
-              encryptedLength > _encryptionChunkBytes + 16) {
-            throw const FormatException();
-          }
-          final encrypted = await chunkFile.readAsBytes();
-          final clear = await algorithm.decrypt(
-            SecretBox(
-              encrypted.sublist(0, encrypted.length - 16),
-              nonce: _chunkNonce(noncePrefix, index),
-              mac: Mac(encrypted.sublist(encrypted.length - 16)),
-            ),
-            secretKey: key,
-            aad: utf8.encode('SmartLoad-backup-v2:$index'),
-          );
-          await output.writeFrom(clear);
-          written += clear.length;
-        }
-      } finally {
-        await output.close();
-      }
-      if (written != plainSize ||
-          await _sha256File(decrypted) != metadata['archiveSha256']) {
-        throw const FormatException();
-      }
+      final decrypted = File(decryptedPath);
       final decryptedRoot = await Directory(
         p.join(tempDir.path, 'decrypted_contents'),
       ).create(recursive: true);
@@ -1282,6 +1253,74 @@ void _extractArchiveSync(String archivePath, String targetPath) {
   } finally {
     input.close();
   }
+}
+
+Future<String> _decryptChunkedArchiveInIsolate(
+  String outerPath,
+  String tempPath,
+  String metadataJson,
+  String metadataMacValue,
+  String password,
+  int plainSize,
+  List<String> chunks,
+  List<int> salt,
+  List<int> noncePrefix,
+  String archiveSha256,
+) async {
+  const kdfIterations = 600000;
+  const chunkBytes = 8 * 1024 * 1024;
+  final key = await Pbkdf2(
+    macAlgorithm: Hmac.sha256(),
+    iterations: kdfIterations,
+    bits: 256,
+  ).deriveKey(
+    secretKey: SecretKey(utf8.encode(password)),
+    nonce: salt,
+  );
+  final algorithm = AesGcm.with256bits();
+  await algorithm.decrypt(
+    SecretBox(
+      const <int>[],
+      nonce: _chunkNonce(noncePrefix, 0xffffffff),
+      mac: Mac(base64Decode(metadataMacValue)),
+    ),
+    secretKey: key,
+    aad: utf8.encode(metadataJson),
+  );
+
+  final decrypted = File(p.join(tempPath, 'decrypted_backup.zip'));
+  final output = await decrypted.open(mode: FileMode.write);
+  var written = 0;
+  try {
+    for (var index = 0; index < chunks.length; index++) {
+      final chunkFile = File(p.joinAll([
+        outerPath,
+        ...p.posix.split(chunks[index]),
+      ]));
+      final encryptedLength = await chunkFile.length();
+      if (encryptedLength <= 16 || encryptedLength > chunkBytes + 16) {
+        throw const FormatException();
+      }
+      final encrypted = await chunkFile.readAsBytes();
+      final clear = await algorithm.decrypt(
+        SecretBox(
+          encrypted.sublist(0, encrypted.length - 16),
+          nonce: _chunkNonce(noncePrefix, index),
+          mac: Mac(encrypted.sublist(encrypted.length - 16)),
+        ),
+        secretKey: key,
+        aad: utf8.encode('SmartLoad-backup-v2:$index'),
+      );
+      await output.writeFrom(clear);
+      written += clear.length;
+    }
+  } finally {
+    await output.close();
+  }
+  if (written != plainSize || await _sha256File(decrypted) != archiveSha256) {
+    throw const FormatException();
+  }
+  return decrypted.path;
 }
 
 Future<void> _encryptArchiveInIsolate(
