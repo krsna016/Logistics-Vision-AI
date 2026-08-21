@@ -232,7 +232,7 @@ class _OpenFrontierLabsCredit extends StatelessWidget {
           const SizedBox(width: 14),
           const Expanded(
             child: Text(
-              'OpenFrontier Labs  - Pioneering Intelligent Futures.',
+              'OpenFrontier Labs - Pioneering Intelligent Futures.',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w600,
