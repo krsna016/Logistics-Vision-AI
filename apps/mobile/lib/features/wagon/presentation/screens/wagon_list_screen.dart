@@ -456,7 +456,16 @@ class _LoadingSelectorBar extends StatelessWidget {
     return Material(
       elevation: 0,
       color: Colors.transparent,
-      child: Padding(
+      child: Stack(
+        children: [
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: MediaQuery.viewPaddingOf(context).bottom + 8,
+            child: const ColoredBox(color: Color(0xFF142238)),
+          ),
+          Padding(
         // viewPadding includes the permanent three-button navigation area.
         // Using it explicitly keeps this persistent selector above the bar on
         // edge-to-edge Android devices, while remaining zero on gesture-only
@@ -464,7 +473,7 @@ class _LoadingSelectorBar extends StatelessWidget {
         padding: EdgeInsets.only(
           bottom: MediaQuery.viewPaddingOf(context).bottom + 8,
         ),
-        child: GestureDetector(
+            child: GestureDetector(
           onTap: onToggle,
           onVerticalDragEnd: (details) {
             final velocity = details.velocity.pixelsPerSecond.dy;
@@ -664,7 +673,9 @@ class _LoadingSelectorBar extends StatelessWidget {
               ],
             ),
           ),
-        ),
+            ),
+          ),
+        ],
       ),
     );
   }
