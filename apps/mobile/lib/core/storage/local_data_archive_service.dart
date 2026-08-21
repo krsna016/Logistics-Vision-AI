@@ -307,7 +307,7 @@ class LocalDataArchiveService {
     if (!await infoFile.exists() && !await payloadFile.exists()) {
       // Backups created before password protection are still accepted. Their
       // own integrity manifest remains mandatory.
-      final legacyRoot = await _findArchiveRoot(outer);
+      final legacyRoot = await _findLegacyRoot(outer);
       return _validateExtractedDirectory(legacyRoot);
     }
     if (!await infoFile.exists()) {
@@ -595,6 +595,66 @@ class LocalDataArchiveService {
     }
     throw StateError(
         'Select the archive folder containing MANIFEST.json and database/.');
+  }
+
+  Future<Directory> _findLegacyRoot(Directory selected) async {
+    try {
+      return await _findArchiveRoot(selected);
+    } on StateError {
+      // A few Android document providers omit the final MANIFEST entry while
+      // copying older, unprotected ZIPs. If the database is present, rebuild
+      // a minimal legacy manifest from the extracted safe file set so the
+      // operational data can still be recovered.
+      Directory? databaseRoot;
+      var pending = <(Directory, int)>[(selected, 0)];
+      while (pending.isNotEmpty) {
+        final current = pending.removeAt(0);
+        final directory = current.$1;
+        final depth = current.$2;
+        if (await File(p.join(
+          directory.path,
+          'database',
+          'smartload_offline.sqlite',
+        )).exists()) {
+          databaseRoot = directory;
+          break;
+        }
+        if (depth >= 4) continue;
+        await for (final entity in directory.list(followLinks: false)) {
+          if (entity is Directory && p.basename(entity.path) != '__MACOSX') {
+            pending.add((entity, depth + 1));
+          }
+        }
+      }
+      if (databaseRoot == null) rethrow;
+      final files = <Map<String, Object>>[];
+      await for (final entity in databaseRoot.list(
+        recursive: true,
+        followLinks: false,
+      )) {
+        if (entity is! File || p.basename(entity.path) == 'MANIFEST.json') {
+          continue;
+        }
+        final relative = p
+            .relative(entity.path, from: databaseRoot.path)
+            .replaceAll(p.separator, '/');
+        if (relative.startsWith('documents/') ||
+            relative == 'database/smartload_offline.sqlite' ||
+            relative == 'database/smartload_offline.sqlite-wal' ||
+            relative == 'database/smartload_offline.sqlite-shm') {
+          files.add({'path': relative, 'sizeBytes': await entity.length()});
+        }
+      }
+      await File(p.join(databaseRoot.path, 'MANIFEST.json')).writeAsString(
+        jsonEncode({
+          'format': 'SmartLoad local audit archive',
+          'createdAtUtc': DateTime.now().toUtc().toIso8601String(),
+          'files': files,
+        }),
+        flush: true,
+      );
+      return databaseRoot;
+    }
   }
 
   Future<ArchiveImportSummary> _importExtractedDirectory(
