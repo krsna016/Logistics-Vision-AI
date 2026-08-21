@@ -1395,15 +1395,21 @@ class _StickyBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 16,
+      margin: EdgeInsets.fromLTRB(
+        8,
+        4,
+        8,
+        MediaQuery.viewPaddingOf(context).bottom + 8,
+      ),
+      padding: const EdgeInsets.only(
+        left: 12,
+        right: 12,
         top: 10,
-        bottom: MediaQuery.of(context).padding.bottom + 10,
+        bottom: 10,
       ),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
-        border: const Border(top: BorderSide(color: AppTheme.dividerColor)),
+        borderRadius: BorderRadius.circular(30),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.3),
