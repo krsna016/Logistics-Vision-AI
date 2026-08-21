@@ -143,6 +143,10 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
+      // Let the page continue behind the inset action card. Without this,
+      // Scaffold paints a full-width rectangular bottom-navigation slot behind
+      // the rounded card, leaving dark corners visible around it.
+      extendBody: true,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
