@@ -476,6 +476,15 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
   late int _displayCartonCount;
   final Set<String> _hiddenDetectionIds = <String>{};
 
+  @override
+  void didUpdateWidget(covariant LayerHistoryPhotoViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.displayCountOverride != oldWidget.displayCountOverride &&
+        widget.displayCountOverride != null) {
+      _displayCartonCount = widget.displayCountOverride!;
+    }
+  }
+
   bool get _hasDetections => _detections.isNotEmpty;
   List<Detection> get _visibleDetections => _detections
       .where((detection) => !_hiddenDetectionIds.contains(detection.id))
@@ -701,7 +710,7 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                         children: [
                           Text(
                             widget.titlePrefixOverride ??
-                                'L${widget.layer.layerNumber}',
+                                'Layer ${widget.layer.layerNumber}',
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.w700,
@@ -942,10 +951,28 @@ class _SplitLayerPhotoViewer extends StatefulWidget {
 
 class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
   int _currentIndex = 0;
+  late int _previewTotal;
   int _leftAdded = 0;
   int _leftRemoved = 0;
   int _rightAdded = 0;
   int _rightRemoved = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _previewTotal = widget.layer.cartonCount;
+  }
+
+  void _updatePreviewTotal() {
+    final next = widget.layer.cartonCount +
+        _leftAdded -
+        _leftRemoved +
+        _rightAdded -
+        _rightRemoved;
+    if (next != _previewTotal) {
+      setState(() => _previewTotal = next);
+    }
+  }
 
   void _handleCorrection(LayerRecord layer, [String? _]) {
     String warning = '';
@@ -989,8 +1016,6 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
 
     final p1 = split['part1Path'] as String;
     final p2 = split['part2Path'] as String;
-
-    final totalCartons = layer.cartonCount;
 
     final d1Raw = split['part1Detections'] as List<dynamic>? ?? [];
     final d2Raw = split['part2Detections'] as List<dynamic>? ?? [];
@@ -1050,7 +1075,7 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
           isActive: _currentIndex == 0,
           titlePrefixOverride: 'Layer ${layer.layerNumber}',
           initialDetectionsOverride: d1,
-          displayCountOverride: totalCartons,
+          displayCountOverride: _previewTotal,
           displayCountOverrideIsTotal: true,
           extraHeaderWidget: headerToggle,
           onSaveDetections: onSaveDetections == null
@@ -1072,6 +1097,7 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
           onChangesUpdate: (added, removed) {
             _leftAdded = added;
             _leftRemoved = removed;
+            _updatePreviewTotal();
           },
         ),
         LayerHistoryPhotoViewer(
@@ -1081,7 +1107,7 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
           isActive: _currentIndex == 1,
           titlePrefixOverride: 'Layer ${layer.layerNumber}',
           initialDetectionsOverride: d2,
-          displayCountOverride: totalCartons,
+          displayCountOverride: _previewTotal,
           displayCountOverrideIsTotal: true,
           extraHeaderWidget: headerToggle,
           onSaveDetections: onSaveDetections == null
@@ -1103,6 +1129,7 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
           onChangesUpdate: (added, removed) {
             _rightAdded = added;
             _rightRemoved = removed;
+            _updatePreviewTotal();
           },
         ),
       ],
