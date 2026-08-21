@@ -74,6 +74,7 @@ class WagonDetailsScreen extends ConsumerWidget {
     );
 
     return Scaffold(
+      extendBody: true,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -832,22 +833,17 @@ class _WagonBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(
+      margin: EdgeInsets.fromLTRB(
+          8, 4, 8, MediaQuery.viewPaddingOf(context).bottom + 8),
+      padding: const EdgeInsets.only(
         left: 12,
         right: 12,
         top: 10,
-        bottom: MediaQuery.of(context).padding.bottom + 10,
+        bottom: 10,
       ),
       decoration: BoxDecoration(
         color: AppTheme.surfaceColor,
-        border: const Border(top: BorderSide(color: AppTheme.dividerColor)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(30),
       ),
       child: onArchive != null
           ? SizedBox(
