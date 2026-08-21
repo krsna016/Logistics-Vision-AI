@@ -149,14 +149,6 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
             ),
           ],
         ),
-        // Reserve the system navigation inset as part of the Control Center
-        // surface so no dark gap is visible below the blue panel.
-        bottomNavigationBar: activeWagons.isNotEmpty && selectedWagon != null
-            ? SizedBox(
-                height: MediaQuery.viewPaddingOf(context).bottom + 8,
-                child: const ColoredBox(color: Color(0xFF142238)),
-              )
-            : null,
         body: Stack(
           children: [
             state.isLoading && state.wagons.isEmpty
@@ -494,224 +486,239 @@ class _LoadingSelectorBar extends StatelessWidget {
     return Material(
       elevation: 0,
       color: Colors.transparent,
-      child: Stack(
-        children: [
-          SizedBox(
-            width: double.infinity,
-            child: Padding(
-              // viewPadding includes the permanent three-button navigation area.
-              // Using it explicitly keeps this persistent selector above the bar on
-              // edge-to-edge Android devices, while remaining zero on gesture-only
-              // devices.
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.viewPaddingOf(context).bottom + 8,
-              ),
-              child: GestureDetector(
-                onTap: onToggle,
-                onVerticalDragEnd: (details) {
-                  final velocity = details.velocity.pixelsPerSecond.dy;
-                  if (velocity < -100) {
-                    if (!expanded) onToggle();
-                  } else if (velocity > 100) {
-                    if (expanded) onToggle();
-                  }
-                },
-                behavior: HitTestBehavior.deferToChild,
-                child: Container(
-                  decoration: const BoxDecoration(
-                    borderRadius:
-                        BorderRadius.vertical(top: Radius.circular(24)),
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF1B2B42), Color(0xFF142238)],
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: Stack(
+          children: [
+            // One continuous surface includes the system navigation inset.
+            const Positioned.fill(
+              child: ColoredBox(color: Color(0xFF142238)),
+            ),
+            SizedBox(
+              width: double.infinity,
+              child: Padding(
+                // viewPadding includes the permanent three-button navigation area.
+                // Using it explicitly keeps this persistent selector above the bar on
+                // edge-to-edge Android devices, while remaining zero on gesture-only
+                // devices.
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.viewPaddingOf(context).bottom + 8,
+                ),
+                child: GestureDetector(
+                  onTap: onToggle,
+                  onVerticalDragEnd: (details) {
+                    final velocity = details.velocity.pixelsPerSecond.dy;
+                    if (velocity < -100) {
+                      if (!expanded) onToggle();
+                    } else if (velocity > 100) {
+                      if (expanded) onToggle();
+                    }
+                  },
+                  behavior: HitTestBehavior.deferToChild,
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(24)),
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF1B2B42), Color(0xFF142238)],
+                      ),
                     ),
-                  ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const SizedBox(height: 7),
-                      GestureDetector(
-                        onTap: onToggle,
-                        behavior: HitTestBehavior.opaque,
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 7),
-                          child: Container(
-                            width: 34,
-                            height: 4,
-                            decoration: BoxDecoration(
-                              color: const Color(0x668DB7EA),
-                              borderRadius: BorderRadius.circular(99),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(height: 7),
+                        GestureDetector(
+                          onTap: onToggle,
+                          behavior: HitTestBehavior.opaque,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 7),
+                            child: Container(
+                              width: 34,
+                              height: 4,
+                              decoration: BoxDecoration(
+                                color: const Color(0x668DB7EA),
+                                borderRadius: BorderRadius.circular(99),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                      AnimatedSize(
-                        duration: const Duration(milliseconds: 180),
-                        curve: Curves.easeOutCubic,
-                        alignment: Alignment.topCenter,
-                        child: expanded
-                            ? Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          'TRUCKS IN WAGON: ${selectedWagon.wagonNumber}',
-                                          style: TextStyle(
-                                            color: colors.onSurface,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800,
-                                            letterSpacing: .3,
-                                          ),
-                                        ),
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text(
-                                              aiMode ? 'AI MODE' : 'MANUAL',
-                                              style: TextStyle(
-                                                color: aiMode
-                                                    ? const Color(0xFF64B5F6)
-                                                    : colors.onSurface
-                                                        .withValues(alpha: 0.7),
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                              ),
+                        AnimatedSize(
+                          duration: const Duration(milliseconds: 180),
+                          curve: Curves.easeOutCubic,
+                          alignment: Alignment.topCenter,
+                          child: expanded
+                              ? Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Text(
+                                            'TRUCKS IN WAGON: ${selectedWagon.wagonNumber}',
+                                            style: TextStyle(
+                                              color: colors.onSurface,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800,
+                                              letterSpacing: .3,
                                             ),
-                                            const SizedBox(width: 8),
-                                            SizedBox(
-                                              height: 24,
-                                              child: FittedBox(
-                                                fit: BoxFit.fill,
-                                                child: Switch.adaptive(
-                                                  value: aiMode,
-                                                  onChanged: onAiModeToggle,
+                                          ),
+                                          Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                aiMode ? 'AI MODE' : 'MANUAL',
+                                                style: TextStyle(
+                                                  color: aiMode
+                                                      ? const Color(0xFF64B5F6)
+                                                      : colors.onSurface
+                                                          .withValues(
+                                                              alpha: 0.7),
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.bold,
                                                 ),
                                               ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    GestureDetector(
-                                      onTap: () {},
-                                      behavior: HitTestBehavior.opaque,
-                                      child: SizedBox(
-                                        height: 64,
-                                        child: wagonTrucks.isEmpty
-                                            ? const Center(
-                                                child: Text(
-                                                    'No trucks created for this wagon'))
-                                            : ListView.separated(
-                                                scrollDirection:
-                                                    Axis.horizontal,
-                                                clipBehavior: Clip.none,
-                                                itemCount: wagonTrucks.length,
-                                                separatorBuilder: (_, __) =>
-                                                    const SizedBox(width: 8),
-                                                itemBuilder: (context, index) {
-                                                  final truck =
-                                                      wagonTrucks[index];
-                                                  return _TruckSelectorChip(
-                                                    truck: truck,
-                                                    onTap: () =>
-                                                        onTruckSelected(truck),
-                                                  );
-                                                },
+                                              const SizedBox(width: 8),
+                                              SizedBox(
+                                                height: 24,
+                                                child: FittedBox(
+                                                  fit: BoxFit.fill,
+                                                  child: Switch.adaptive(
+                                                    value: aiMode,
+                                                    onChanged: onAiModeToggle,
+                                                  ),
+                                                ),
                                               ),
+                                            ],
+                                          ),
+                                        ],
                                       ),
-                                    ),
-                                    if (wagons.length > 1) ...[
-                                      const SizedBox(height: 10),
-                                      const Text(
-                                        'WAGONS',
-                                        style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w800),
-                                      ),
-                                      const SizedBox(height: 5),
+                                      const SizedBox(height: 6),
                                       GestureDetector(
                                         onTap: () {},
                                         behavior: HitTestBehavior.opaque,
                                         child: SizedBox(
-                                          height: 42,
-                                          child: ListView.separated(
-                                            scrollDirection: Axis.horizontal,
-                                            itemCount: wagons.length,
-                                            separatorBuilder: (_, __) =>
-                                                const SizedBox(width: 8),
-                                            itemBuilder: (context, index) {
-                                              final wagon = wagons[index];
-                                              final selected =
-                                                  wagon.id == selectedWagon.id;
-                                              return ChoiceChip(
-                                                selected: selected,
-                                                label: Text(wagon.wagonNumber),
-                                                avatar: Icon(
-                                                    Icons.train_outlined,
-                                                    size: 17,
-                                                    color: selected
-                                                        ? colors.onPrimary
-                                                        : colors.primary),
-                                                showCheckmark: false,
-                                                side: BorderSide.none,
-                                                color: WidgetStateProperty
-                                                    .resolveWith((states) {
-                                                  // ChoiceChip's default pressed overlay uses
-                                                  // the theme secondary (yellow) color. Keep
-                                                  // every interaction state on the same soft
-                                                  // wagon surface or selected blue surface.
-                                                  return states.contains(
-                                                          WidgetState.selected)
-                                                      ? colors.primary
-                                                      : const Color(0xFF24344D);
-                                                }),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(18),
+                                          height: 64,
+                                          child: wagonTrucks.isEmpty
+                                              ? const Center(
+                                                  child: Text(
+                                                      'No trucks created for this wagon'))
+                                              : ListView.separated(
+                                                  scrollDirection:
+                                                      Axis.horizontal,
+                                                  clipBehavior: Clip.none,
+                                                  itemCount: wagonTrucks.length,
+                                                  separatorBuilder: (_, __) =>
+                                                      const SizedBox(width: 8),
+                                                  itemBuilder:
+                                                      (context, index) {
+                                                    final truck =
+                                                        wagonTrucks[index];
+                                                    return _TruckSelectorChip(
+                                                      truck: truck,
+                                                      onTap: () =>
+                                                          onTruckSelected(
+                                                              truck),
+                                                    );
+                                                  },
                                                 ),
-                                                backgroundColor:
-                                                    const Color(0xFF24344D),
-                                                selectedColor: colors.primary,
-                                                labelStyle: TextStyle(
-                                                  color: selected
-                                                      ? colors.onPrimary
-                                                      : colors.onSurface,
-                                                  fontWeight: FontWeight.w700,
-                                                ),
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                        horizontal: 8,
-                                                        vertical: 6),
-                                                onSelected: (_) =>
-                                                    onWagonSelected(wagon),
-                                              );
-                                            },
-                                          ),
                                         ),
                                       ),
+                                      if (wagons.length > 1) ...[
+                                        const SizedBox(height: 10),
+                                        const Text(
+                                          'WAGONS',
+                                          style: TextStyle(
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w800),
+                                        ),
+                                        const SizedBox(height: 5),
+                                        GestureDetector(
+                                          onTap: () {},
+                                          behavior: HitTestBehavior.opaque,
+                                          child: SizedBox(
+                                            height: 42,
+                                            child: ListView.separated(
+                                              scrollDirection: Axis.horizontal,
+                                              itemCount: wagons.length,
+                                              separatorBuilder: (_, __) =>
+                                                  const SizedBox(width: 8),
+                                              itemBuilder: (context, index) {
+                                                final wagon = wagons[index];
+                                                final selected = wagon.id ==
+                                                    selectedWagon.id;
+                                                return ChoiceChip(
+                                                  selected: selected,
+                                                  label:
+                                                      Text(wagon.wagonNumber),
+                                                  avatar: Icon(
+                                                      Icons.train_outlined,
+                                                      size: 17,
+                                                      color: selected
+                                                          ? colors.onPrimary
+                                                          : colors.primary),
+                                                  showCheckmark: false,
+                                                  side: BorderSide.none,
+                                                  color: WidgetStateProperty
+                                                      .resolveWith((states) {
+                                                    // ChoiceChip's default pressed overlay uses
+                                                    // the theme secondary (yellow) color. Keep
+                                                    // every interaction state on the same soft
+                                                    // wagon surface or selected blue surface.
+                                                    return states.contains(
+                                                            WidgetState
+                                                                .selected)
+                                                        ? colors.primary
+                                                        : const Color(
+                                                            0xFF24344D);
+                                                  }),
+                                                  shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            18),
+                                                  ),
+                                                  backgroundColor:
+                                                      const Color(0xFF24344D),
+                                                  selectedColor: colors.primary,
+                                                  labelStyle: TextStyle(
+                                                    color: selected
+                                                        ? colors.onPrimary
+                                                        : colors.onSurface,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 6),
+                                                  onSelected: (_) =>
+                                                      onWagonSelected(wagon),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
-                                  ],
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ),
-                    ],
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
