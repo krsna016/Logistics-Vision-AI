@@ -418,6 +418,10 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep the truck-scoped notifier alive while an async manual save is in
+    // progress. This screen previously used only ref.read(), allowing the
+    // autoDispose provider to disappear between database awaits.
+    ref.watch(layerListProvider(widget.truckId));
     final matchingTrucks = ref
         .watch(truckListProvider)
         .trucks
