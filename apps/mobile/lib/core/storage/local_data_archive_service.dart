@@ -212,84 +212,16 @@ class LocalDataArchiveService {
     File encryptedArchive,
     String password,
   ) async {
-    final random = Random.secure();
-    final salt = List<int>.generate(16, (_) => random.nextInt(256));
-    final noncePrefix = List<int>.generate(8, (_) => random.nextInt(256));
-    final key = await _deriveKey(password, salt);
-    final algorithm = AesGcm.with256bits();
-    final chunkDirectory = await Directory('${encryptedArchive.path}.chunks')
-        .create(recursive: true);
-    final chunkNames = <String>[];
-    final input = await unencryptedArchive.open();
-    try {
-      var chunkIndex = 0;
-      while (true) {
-        final clear = await input.read(_encryptionChunkBytes);
-        if (clear.isEmpty) break;
-        final name = 'chunks/${chunkIndex.toString().padLeft(6, '0')}.bin';
-        final box = await algorithm.encrypt(
-          clear,
-          secretKey: key,
-          nonce: _chunkNonce(noncePrefix, chunkIndex),
-          aad: utf8.encode('SmartLoad-backup-v2:$chunkIndex'),
-        );
-        await File(p.join(chunkDirectory.path, p.basename(name))).writeAsBytes(
-          <int>[...box.cipherText, ...box.mac.bytes],
-          flush: true,
-        );
-        chunkNames.add(name);
-        chunkIndex++;
-      }
-    } finally {
-      await input.close();
-    }
-
-    final metadata = jsonEncode({
-      'format': 'SmartLoad encrypted local backup',
-      'formatVersion': 2,
-      'encryption': 'AES-256-GCM chunked',
-      'kdf': 'PBKDF2-HMAC-SHA256',
-      'iterations': _kdfIterations,
-      'salt': base64Encode(salt),
-      'noncePrefix': base64Encode(noncePrefix),
-      'chunkSizeBytes': _encryptionChunkBytes,
-      'plainSizeBytes': await unencryptedArchive.length(),
-      'archiveSha256': await _sha256File(unencryptedArchive),
-      'chunks': chunkNames,
-    });
-    final metadataBox = await algorithm.encrypt(
-      const <int>[],
-      secretKey: key,
-      nonce: _chunkNonce(noncePrefix, 0xffffffff),
-      aad: utf8.encode(metadata),
+    // PBKDF2 (600k rounds), AES-GCM, hashing, and ZIP assembly are all CPU
+    // intensive. Keep them off Flutter's UI isolate so large backups do not
+    // freeze animations or make the confirmation dialog look hung.
+    await Isolate.run(
+      () => _encryptArchiveInIsolate(
+        unencryptedArchive.path,
+        encryptedArchive.path,
+        password,
+      ),
     );
-
-    final encoder = ZipFileEncoder();
-    encoder.create(encryptedArchive.path);
-    try {
-      encoder.addArchiveFile(ArchiveFile.string(
-        'BACKUP_INFO.json',
-        jsonEncode({
-          'metadata': metadata,
-          'metadataMac': base64Encode(metadataBox.mac.bytes),
-        }),
-      ));
-      for (final name in chunkNames) {
-        await encoder.addFile(
-          File(p.join(chunkDirectory.path, p.basename(name))),
-          name,
-          ArchiveFile.STORE,
-        );
-      }
-      await encoder.close();
-    } catch (_) {
-      await encoder.close();
-      rethrow;
-    } finally {
-      if (await chunkDirectory.exists()) {
-        await chunkDirectory.delete(recursive: true);
-      }
-    }
   }
 
   Future<Directory> _extractProtectedOrLegacyArchive(
@@ -1349,6 +1281,101 @@ void _extractArchiveSync(String archivePath, String targetPath) {
     }
   } finally {
     input.close();
+  }
+}
+
+Future<void> _encryptArchiveInIsolate(
+  String unencryptedPath,
+  String encryptedPath,
+  String password,
+) async {
+  const kdfIterations = 600000;
+  const chunkBytes = 8 * 1024 * 1024;
+  final random = Random.secure();
+  final salt = List<int>.generate(16, (_) => random.nextInt(256));
+  final noncePrefix = List<int>.generate(8, (_) => random.nextInt(256));
+  final key = await Pbkdf2(
+    macAlgorithm: Hmac.sha256(),
+    iterations: kdfIterations,
+    bits: 256,
+  ).deriveKey(
+    secretKey: SecretKey(utf8.encode(password)),
+    nonce: salt,
+  );
+  final algorithm = AesGcm.with256bits();
+  final chunkDirectory =
+      await Directory('$encryptedPath.chunks').create(recursive: true);
+  final chunkNames = <String>[];
+  final input = await File(unencryptedPath).open();
+  try {
+    var chunkIndex = 0;
+    while (true) {
+      final clear = await input.read(chunkBytes);
+      if (clear.isEmpty) break;
+      final name = 'chunks/${chunkIndex.toString().padLeft(6, '0')}.bin';
+      final box = await algorithm.encrypt(
+        clear,
+        secretKey: key,
+        nonce: _chunkNonce(noncePrefix, chunkIndex),
+        aad: utf8.encode('SmartLoad-backup-v2:$chunkIndex'),
+      );
+      await File(p.join(chunkDirectory.path, p.basename(name))).writeAsBytes(
+        <int>[...box.cipherText, ...box.mac.bytes],
+        flush: true,
+      );
+      chunkNames.add(name);
+      chunkIndex++;
+    }
+  } finally {
+    await input.close();
+  }
+
+  final unencryptedFile = File(unencryptedPath);
+  final metadata = jsonEncode({
+    'format': 'SmartLoad encrypted local backup',
+    'formatVersion': 2,
+    'encryption': 'AES-256-GCM chunked',
+    'kdf': 'PBKDF2-HMAC-SHA256',
+    'iterations': kdfIterations,
+    'salt': base64Encode(salt),
+    'noncePrefix': base64Encode(noncePrefix),
+    'chunkSizeBytes': chunkBytes,
+    'plainSizeBytes': await unencryptedFile.length(),
+    'archiveSha256': await _sha256File(unencryptedFile),
+    'chunks': chunkNames,
+  });
+  final metadataBox = await algorithm.encrypt(
+    const <int>[],
+    secretKey: key,
+    nonce: _chunkNonce(noncePrefix, 0xffffffff),
+    aad: utf8.encode(metadata),
+  );
+
+  final encoder = ZipFileEncoder();
+  encoder.create(encryptedPath);
+  try {
+    encoder.addArchiveFile(ArchiveFile.string(
+      'BACKUP_INFO.json',
+      jsonEncode({
+        'metadata': metadata,
+        'metadataMac': base64Encode(metadataBox.mac.bytes),
+      }),
+    ));
+    for (final name in chunkNames) {
+      await encoder.addFile(
+        File(p.join(chunkDirectory.path, p.basename(name))),
+        name,
+        ArchiveFile.STORE,
+      );
+    }
+    await encoder.close();
+  } catch (_) {
+    await encoder.close();
+    rethrow;
+  } finally {
+    if (await chunkDirectory.exists()) {
+      await chunkDirectory.delete(recursive: true);
+    }
   }
 }
 
