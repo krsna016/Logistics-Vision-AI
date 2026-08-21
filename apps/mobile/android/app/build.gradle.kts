@@ -57,12 +57,11 @@ android {
                 )
             }
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = true
-            isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro",
-            )
+            // CameraX and ML Kit discover runtime classes during scanner
+            // startup. Keep release code intact so OCR image streaming is not
+            // stripped or renamed by R8.
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
