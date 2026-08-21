@@ -51,8 +51,29 @@ Map<String, String> parseLayerCorrectionDetails(String? details) {
     caseSensitive: false,
     dotAll: true,
   ).firstMatch(normalized);
-  final beforeItems = _formatCorrectionItems(itemsMatch?.group(1));
-  final afterItems = _formatCorrectionItems(itemsMatch?.group(2));
+  var beforeItems = _formatCorrectionItems(itemsMatch?.group(1));
+  var afterItems = _formatCorrectionItems(itemsMatch?.group(2));
+  // Older app builds recorded only changed allocations as
+  // `Item A (20 -> 25), Item B (10 -> 5)`. Preserve those item-level values
+  // in reports even though the older audit entry did not use JSON snapshots.
+  if (beforeItems.isEmpty && afterItems.isEmpty) {
+    final legacyItems = RegExp(
+      r'Items:\s*(.*?)(?=\.\s*(?:Boxes|Reason):|$)',
+      caseSensitive: false,
+      dotAll: true,
+    ).firstMatch(normalized)?.group(1);
+    final before = <String>[];
+    final after = <String>[];
+    for (final match in RegExp(
+      r'([^,]+?)\s*\((\d+)\s*->\s*(\d+)\)',
+    ).allMatches(legacyItems ?? '')) {
+      final name = match.group(1)!.trim();
+      before.add('$name: ${match.group(2)} cartons');
+      after.add('$name: ${match.group(3)} cartons');
+    }
+    beforeItems = before.join('\n');
+    afterItems = after.join('\n');
+  }
   final boxesMarker = normalized.toLowerCase().lastIndexOf('boxes');
   final boxesText = boxesMarker < 0
       ? null

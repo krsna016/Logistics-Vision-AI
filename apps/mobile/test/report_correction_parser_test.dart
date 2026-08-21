@@ -28,6 +28,19 @@ void main() {
     expect(parsed['after'], contains('A: 35 cartons\nB: 29 cartons'));
   });
 
+  test('keeps item-wise values from legacy correction text', () {
+    final parsed = parseLayerCorrectionDetails(
+      'Layer 1: cartons 40 -> 40, defects 0 -> 0. '
+      'Reason: Item-wise recount. Items: Packaged Foods (20 -> 25), '
+      'Personal Care (20 -> 15)',
+    );
+
+    expect(parsed['before'], contains('Packaged Foods: 20 cartons'));
+    expect(parsed['before'], contains('Personal Care: 20 cartons'));
+    expect(parsed['after'], contains('Packaged Foods: 25 cartons'));
+    expect(parsed['after'], contains('Personal Care: 15 cartons'));
+  });
+
   test('formats correction history as a compact field comparison', () {
     expect(
       formatCorrectionChanges(

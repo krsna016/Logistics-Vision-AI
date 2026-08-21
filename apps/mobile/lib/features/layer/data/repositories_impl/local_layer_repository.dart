@@ -300,7 +300,17 @@ class LocalLayerRepository implements LayerRepository {
         }
       }
       if (changes.isEmpty) return '';
-      return 'Items: ${changes.join(', ')}';
+      // Keep complete before/after snapshots so report history can display
+      // every item allocation, including items whose quantity did not change.
+      List<Map<String, Object>> snapshot(List<dynamic> source) => source
+          .whereType<Map<String, dynamic>>()
+          .map((item) => <String, Object>{
+                'itemName': item['itemName'].toString(),
+                'quantity': (item['quantity'] as num?)?.toInt() ?? 0,
+              })
+          .toList(growable: false);
+      return 'Items: ${jsonEncode(snapshot(oldItems))} -> '
+          '${jsonEncode(snapshot(newItems))}';
     } catch (_) {
       return 'Items modified';
     }
