@@ -465,6 +465,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
 
 class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
   Size _photoSize = const Size(720, 1280);
+  bool _photoSizeReady = false;
   bool _showMasks = false;
   bool _showNumbers = false;
   int _editRevision = 0;
@@ -637,6 +638,7 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
           frame.image.width.toDouble(),
           frame.image.height.toDouble(),
         );
+        _photoSizeReady = true;
       });
       frame.image.dispose();
       codec.dispose();
@@ -752,7 +754,7 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                   color: Colors.black,
                   child: InteractiveViewer(
                     minScale: 0.8,
-                    maxScale: 4,
+                    maxScale: 12,
                     boundaryMargin: const EdgeInsets.all(80),
                     child: Stack(
                       fit: StackFit.expand,
@@ -767,7 +769,8 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
                           fit: BoxFit.contain,
                           filterQuality: FilterQuality.medium,
                         ),
-                        if (_showMasks || _showNumbers || widget.canEdit)
+                        if (_photoSizeReady &&
+                            (_showMasks || _showNumbers || widget.canEdit))
                           Positioned.fill(
                             child: DetectionOverlayWidget(
                               key: const ValueKey('layer-mask-overlay'),

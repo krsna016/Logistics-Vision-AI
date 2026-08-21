@@ -686,6 +686,7 @@ class _ImagePreviewSection extends StatefulWidget {
 class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
   late final TransformationController _zoomController;
   Size _photoSize = const Size(720, 1280);
+  bool _photoSizeReady = false;
   bool _useDarkPalette = false;
 
   @override
@@ -718,6 +719,7 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
         setState(() {
           _photoSize =
               Size(oriented.width.toDouble(), oriented.height.toDouble());
+          _photoSizeReady = true;
           _useDarkPalette = samples > 0 && luminanceTotal / samples >= 145;
         });
       }
@@ -740,7 +742,7 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
         InteractiveViewer(
           transformationController: _zoomController,
           minScale: 1,
-          maxScale: 4,
+          maxScale: 12,
           boundaryMargin: const EdgeInsets.all(80),
           panEnabled: true,
           child: Stack(
@@ -755,23 +757,24 @@ class _ImagePreviewSectionState extends State<_ImagePreviewSection> {
                             size: 80, color: Colors.white24),
                       ),
                     ),
-              Positioned.fill(
-                child: DetectionOverlayWidget(
-                  detections: widget.detections,
-                  hitTestDetections: widget.allDetections,
-                  cameraSize: _photoSize,
-                  fit: BoxFit.contain,
-                  showLabels: false,
-                  showNumbers: widget.showNumbers,
-                  useDarkPalette: switch (widget.outlineColorMode) {
-                    _OutlineColorMode.auto => _useDarkPalette,
-                    _OutlineColorMode.dark => true,
-                    _OutlineColorMode.light => false,
-                  },
-                  onDetectionTapped: widget.onDetectionTapped,
-                  onEmptyAreaTapped: widget.onEmptyAreaTapped,
+              if (_photoSizeReady)
+                Positioned.fill(
+                  child: DetectionOverlayWidget(
+                    detections: widget.detections,
+                    hitTestDetections: widget.allDetections,
+                    cameraSize: _photoSize,
+                    fit: BoxFit.contain,
+                    showLabels: false,
+                    showNumbers: widget.showNumbers,
+                    useDarkPalette: switch (widget.outlineColorMode) {
+                      _OutlineColorMode.auto => _useDarkPalette,
+                      _OutlineColorMode.dark => true,
+                      _OutlineColorMode.light => false,
+                    },
+                    onDetectionTapped: widget.onDetectionTapped,
+                    onEmptyAreaTapped: widget.onEmptyAreaTapped,
+                  ),
                 ),
-              ),
             ],
           ),
         ),
