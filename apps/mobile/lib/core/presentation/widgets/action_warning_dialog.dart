@@ -137,7 +137,10 @@ class _ActionWarningDialogState extends State<ActionWarningDialog> {
                           },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: widget.actionColor,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 12,
+                      ),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -149,13 +152,16 @@ class _ActionWarningDialogState extends State<ActionWarningDialog> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white),
                           )
-                        : FittedBox(
-                            fit: BoxFit.scaleDown,
-                            child: Text(
-                              widget.actionLabel,
-                              maxLines: 1,
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold),
+                        : Text(
+                            widget.actionLabel,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            softWrap: true,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              height: 1.15,
                             ),
                           ),
                   ),
