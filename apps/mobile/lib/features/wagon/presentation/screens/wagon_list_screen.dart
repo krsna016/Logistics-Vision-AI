@@ -152,245 +152,275 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
         body: Stack(
           children: [
             state.isLoading && state.wagons.isEmpty
-            ? const Center(child: CircularProgressIndicator())
-            : RefreshIndicator(
-                onRefresh: () async {
-                  await ref.read(truckListProvider.notifier).refresh();
-                  await ref.read(wagonListProvider.notifier).refresh();
-                },
-                child: CustomScrollView(
-                  slivers: [
-                    // Operations Header
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.only(
-                          left: AppResponsive.pagePadding(context),
-                          right: AppResponsive.pagePadding(context),
-                          top: 20,
-                          bottom: 8,
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Wagon Control Center',
-                              style: TextStyle(
-                                  fontSize: 24, fontWeight: FontWeight.bold),
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: () async {
+                      await ref.read(truckListProvider.notifier).refresh();
+                      await ref.read(wagonListProvider.notifier).refresh();
+                    },
+                    child: CustomScrollView(
+                      slivers: [
+                        // Operations Header
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              left: AppResponsive.pagePadding(context),
+                              right: AppResponsive.pagePadding(context),
+                              top: 20,
+                              bottom: 8,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _getFormattedDate(),
-                              style: const TextStyle(
-                                  color: Color(0xFFBDBDBD), fontSize: 13),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Section 1: Dashboard Stats Row
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: AppResponsive.pagePadding(context),
-                          vertical: 16,
-                        ),
-                        child: Row(
-                          children: [
-                            StatsCard(
-                              icon: Icons.train_outlined,
-                              value: '$activeCount',
-                              title: 'Active Wagons',
-                            ),
-                            const SizedBox(width: 12),
-                            StatsCard(
-                              icon: Icons.local_shipping_outlined,
-                              value: '$totalTrucks',
-                              title: 'Total Trucks',
-                            ),
-                            const SizedBox(width: 12),
-                            StatsCard(
-                              icon: Icons.inventory_2_outlined,
-                              value: '$totalCartons',
-                              title: 'Total Cartons',
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Section 2: Search and Filters
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: AppResponsive.pagePadding(context),
-                        ),
-                        child: Column(
-                          children: [
-                            SearchField(
-                              initialValue: state.searchQuery,
-                              onChanged: (val) =>
-                                  notifier.updateSearchQuery(val),
-                            ),
-                            const SizedBox(height: 16),
-                            SingleChildScrollView(
-                              scrollDirection: Axis.horizontal,
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.start,
-                                children: [
-                                  ChoiceChip(
-                                    label: const Text('All'),
-                                    selected: state.statusFilter == null,
-                                    onSelected: (_) =>
-                                        notifier.setStatusFilter(null),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ChoiceChip(
-                                    label: const Text('Planning'),
-                                    selected: state.statusFilter ==
-                                        WagonStatus.planning,
-                                    onSelected: (_) => notifier
-                                        .setStatusFilter(WagonStatus.planning),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ChoiceChip(
-                                    label: const Text('Loading'),
-                                    selected: state.statusFilter ==
-                                        WagonStatus.loading,
-                                    onSelected: (_) => notifier
-                                        .setStatusFilter(WagonStatus.loading),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  ChoiceChip(
-                                    label: const Text('Completed'),
-                                    selected: state.statusFilter ==
-                                        WagonStatus.completed,
-                                    onSelected: (_) => notifier
-                                        .setStatusFilter(WagonStatus.completed),
-                                  ),
-                                ],
-                              ),
-                            )
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SliverToBoxAdapter(child: SizedBox(height: 16)),
-
-                    // Section 3: Wagon List
-                    if (state.processedWagons.isEmpty)
-                      const SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: Center(
-                          child: EmptyStateWidget(
-                            title: 'No Wagon Activity',
-                            subtitle:
-                                'Create a new wagon to start cargo planning.',
-                          ),
-                        ),
-                      )
-                    else
-                      SliverPadding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: AppResponsive.pagePadding(context),
-                        ),
-                        sliver: SliverList(
-                          delegate: SliverChildBuilderDelegate(
-                            (context, index) {
-                              final wagon = state.processedWagons[index];
-
-                              // Calculate computed metrics
-                              final wagonTrucks = allTrucks.where(
-                                  (t) => t.wagonId == wagon.id && !t.isDeleted);
-                              final archivedWagonTrucks = wagonTrucks
-                                  .where((truck) => truck.isArchived)
-                                  .toList(growable: false);
-                              final loadedCartons = wagonTrucks.fold(
-                                  0, (sum, t) => sum + t.totalCartons);
-                              final hasManifest = wagon.items.isNotEmpty;
-                              final totalCartons = hasManifest
-                                  ? wagon.items.fold<int>(
-                                      0, (sum, item) => sum + item.quantity)
-                                  : null;
-                              final remainingCartons = totalCartons == null
-                                  ? null
-                                  : totalCartons - loadedCartons;
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: WagonCard(
-                                  wagon: wagon,
-                                  totalCartons: totalCartons,
-                                  loadedCartons: loadedCartons,
-                                  remainingCartons: remainingCartons,
-                                  truckCount: wagonTrucks.length,
-                                  archivedTrucks: archivedWagonTrucks,
-                                  onTap: () =>
-                                      context.push('/wagons/${wagon.id}'),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Wagon Control Center',
+                                  style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold),
                                 ),
-                              );
-                            },
-                            childCount: state.processedWagons.length,
+                                const SizedBox(height: 4),
+                                Text(
+                                  _getFormattedDate(),
+                                  style: const TextStyle(
+                                      color: Color(0xFFBDBDBD), fontSize: 13),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
+
+                        // Section 1: Dashboard Stats Row
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppResponsive.pagePadding(context),
+                              vertical: 16,
+                            ),
+                            child: Row(
+                              children: [
+                                StatsCard(
+                                  icon: Icons.train_outlined,
+                                  value: '$activeCount',
+                                  title: 'Active Wagons',
+                                ),
+                                const SizedBox(width: 12),
+                                StatsCard(
+                                  icon: Icons.local_shipping_outlined,
+                                  value: '$totalTrucks',
+                                  title: 'Total Trucks',
+                                ),
+                                const SizedBox(width: 12),
+                                StatsCard(
+                                  icon: Icons.inventory_2_outlined,
+                                  value: '$totalCartons',
+                                  title: 'Total Cartons',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Section 2: Search and Filters
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppResponsive.pagePadding(context),
+                            ),
+                            child: Column(
+                              children: [
+                                SearchField(
+                                  initialValue: state.searchQuery,
+                                  onChanged: (val) =>
+                                      notifier.updateSearchQuery(val),
+                                ),
+                                const SizedBox(height: 16),
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    mainAxisAlignment: MainAxisAlignment.start,
+                                    children: [
+                                      ChoiceChip(
+                                        label: const Text('All'),
+                                        selected: state.statusFilter == null,
+                                        onSelected: (_) =>
+                                            notifier.setStatusFilter(null),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      ChoiceChip(
+                                        label: const Text('Planning'),
+                                        selected: state.statusFilter ==
+                                            WagonStatus.planning,
+                                        onSelected: (_) =>
+                                            notifier.setStatusFilter(
+                                                WagonStatus.planning),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      ChoiceChip(
+                                        label: const Text('Loading'),
+                                        selected: state.statusFilter ==
+                                            WagonStatus.loading,
+                                        onSelected: (_) =>
+                                            notifier.setStatusFilter(
+                                                WagonStatus.loading),
+                                      ),
+                                      const SizedBox(width: 6),
+                                      ChoiceChip(
+                                        label: const Text('Completed'),
+                                        selected: state.statusFilter ==
+                                            WagonStatus.completed,
+                                        onSelected: (_) =>
+                                            notifier.setStatusFilter(
+                                                WagonStatus.completed),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                        // Section 3: Wagon List
+                        if (state.processedWagons.isEmpty)
+                          const SliverFillRemaining(
+                            hasScrollBody: false,
+                            child: Center(
+                              child: EmptyStateWidget(
+                                title: 'No Wagon Activity',
+                                subtitle:
+                                    'Create a new wagon to start cargo planning.',
+                              ),
+                            ),
+                          )
+                        else
+                          SliverPadding(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: AppResponsive.pagePadding(context),
+                            ),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, index) {
+                                  final wagon = state.processedWagons[index];
+
+                                  // Calculate computed metrics
+                                  final wagonTrucks = allTrucks.where((t) =>
+                                      t.wagonId == wagon.id && !t.isDeleted);
+                                  final archivedWagonTrucks = wagonTrucks
+                                      .where((truck) => truck.isArchived)
+                                      .toList(growable: false);
+                                  final loadedCartons = wagonTrucks.fold(
+                                      0, (sum, t) => sum + t.totalCartons);
+                                  final hasManifest = wagon.items.isNotEmpty;
+                                  final totalCartons = hasManifest
+                                      ? wagon.items.fold<int>(
+                                          0, (sum, item) => sum + item.quantity)
+                                      : null;
+                                  final remainingCartons = totalCartons == null
+                                      ? null
+                                      : totalCartons - loadedCartons;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 12),
+                                    child: WagonCard(
+                                      wagon: wagon,
+                                      totalCartons: totalCartons,
+                                      loadedCartons: loadedCartons,
+                                      remainingCartons: remainingCartons,
+                                      truckCount: wagonTrucks.length,
+                                      archivedTrucks: archivedWagonTrucks,
+                                      onTap: () =>
+                                          context.push('/wagons/${wagon.id}'),
+                                    ),
+                                  );
+                                },
+                                childCount: state.processedWagons.length,
+                              ),
+                            ),
+                          ),
+                        const SliverToBoxAdapter(child: SizedBox(height: 80)),
+                      ],
+                    ),
+                  ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Padding(
+                    padding: EdgeInsets.only(
+                      right: 16,
+                      bottom: activeWagons.isNotEmpty && selectedWagon != null
+                          ? 8
+                          : MediaQuery.viewPaddingOf(context).bottom + 8,
+                    ),
+                    child: FloatingActionButton.extended(
+                      onPressed: () {
+                        showModalBottomSheet<void>(
+                          context: context,
+                          isScrollControlled: true,
+                          isDismissible: false,
+                          enableDrag: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
+                          ),
+                          builder: (context) => const CreateWagonSheet(),
+                        );
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Create Wagon'),
+                      extendedPadding:
+                          const EdgeInsets.symmetric(horizontal: 20),
+                      extendedIconLabelSpacing: 8,
+                      materialTapTargetSize: MaterialTapTargetSize.padded,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
                       ),
-                    const SliverToBoxAdapter(child: SizedBox(height: 80)),
-                  ],
-                ),
+                    ),
+                  ),
+                  if (activeWagons.isNotEmpty && selectedWagon != null)
+                    SizedBox(
+                      width: double.infinity,
+                      child: _LoadingSelectorBar(
+                        wagons: activeWagons,
+                        trucks: truckState.trucks,
+                        selectedWagon: selectedWagon,
+                        expanded: _selectorExpanded,
+                        aiMode: _aiMode,
+                        onAiModeToggle: (mode) =>
+                            setState(() => _aiMode = mode),
+                        onToggle: () => setState(
+                            () => _selectorExpanded = !_selectorExpanded),
+                        onWagonSelected: (wagon) =>
+                            setState(() => _selectedWagonId = wagon.id),
+                        onTruckSelected: (truck) async {
+                          if (_aiMode) {
+                            await context.push(
+                                '/trucks/${truck.id}/camera?from=controlCenter');
+                          } else {
+                            await context.push(
+                                '/trucks/${truck.id}/manual-count?from=controlCenter');
+                          }
+                          if (mounted) {
+                            await ref
+                                .read(truckListProvider.notifier)
+                                .refresh();
+                            await ref
+                                .read(wagonListProvider.notifier)
+                                .refresh();
+                          }
+                        },
+                      ),
+                    ),
+                ],
               ),
-            if (activeWagons.isNotEmpty && selectedWagon != null)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: _LoadingSelectorBar(
-                wagons: activeWagons,
-                trucks: truckState.trucks,
-                selectedWagon: selectedWagon,
-                expanded: _selectorExpanded,
-                aiMode: _aiMode,
-                onAiModeToggle: (mode) => setState(() => _aiMode = mode),
-                onToggle: () =>
-                    setState(() => _selectorExpanded = !_selectorExpanded),
-                onWagonSelected: (wagon) =>
-                    setState(() => _selectedWagonId = wagon.id),
-                onTruckSelected: (truck) async {
-                  if (_aiMode) {
-                    await context
-                        .push('/trucks/${truck.id}/camera?from=controlCenter');
-                  } else {
-                    await context.push(
-                        '/trucks/${truck.id}/manual-count?from=controlCenter');
-                  }
-                  if (mounted) {
-                    await ref.read(truckListProvider.notifier).refresh();
-                    await ref.read(wagonListProvider.notifier).refresh();
-                  }
-                },
-                ),
-              ),
+            ),
           ],
-        ),
-        floatingActionButton: FloatingActionButton.extended(
-          onPressed: () {
-            showModalBottomSheet<void>(
-              context: context,
-              isScrollControlled: true,
-              isDismissible: false,
-              enableDrag: true,
-              shape: const RoundedRectangleBorder(
-                borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-              ),
-              builder: (context) => const CreateWagonSheet(),
-            );
-          },
-          icon: const Icon(Icons.add),
-          label: const Text('Create Wagon'),
-          extendedPadding: const EdgeInsets.symmetric(horizontal: 20),
-          extendedIconLabelSpacing: 8,
-          materialTapTargetSize: MaterialTapTargetSize.padded,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         ),
       ),
     );
@@ -458,221 +488,219 @@ class _LoadingSelectorBar extends StatelessWidget {
       color: Colors.transparent,
       child: Stack(
         children: [
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: MediaQuery.viewPaddingOf(context).bottom + 8,
-            child: const ColoredBox(color: Color(0xFF142238)),
-          ),
-          Padding(
-        // viewPadding includes the permanent three-button navigation area.
-        // Using it explicitly keeps this persistent selector above the bar on
-        // edge-to-edge Android devices, while remaining zero on gesture-only
-        // devices.
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewPaddingOf(context).bottom + 8,
-        ),
-            child: GestureDetector(
-          onTap: onToggle,
-          onVerticalDragEnd: (details) {
-            final velocity = details.velocity.pixelsPerSecond.dy;
-            if (velocity < -100) {
-              if (!expanded) onToggle();
-            } else if (velocity > 100) {
-              if (expanded) onToggle();
-            }
-          },
-          behavior: HitTestBehavior.deferToChild,
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: const BoxDecoration(
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(24),
-                bottom: Radius.circular(20),
+          SizedBox(
+            width: double.infinity,
+            child: Padding(
+              // viewPadding includes the permanent three-button navigation area.
+              // Using it explicitly keeps this persistent selector above the bar on
+              // edge-to-edge Android devices, while remaining zero on gesture-only
+              // devices.
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewPaddingOf(context).bottom + 8,
               ),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF1B2B42), Color(0xFF142238)],
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 7),
-                GestureDetector(
-                  onTap: onToggle,
-                  behavior: HitTestBehavior.opaque,
-                  child: Padding(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 24, vertical: 7),
-                    child: Container(
-                      width: 34,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: const Color(0x668DB7EA),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
+              child: GestureDetector(
+                onTap: onToggle,
+                onVerticalDragEnd: (details) {
+                  final velocity = details.velocity.pixelsPerSecond.dy;
+                  if (velocity < -100) {
+                    if (!expanded) onToggle();
+                  } else if (velocity > 100) {
+                    if (expanded) onToggle();
+                  }
+                },
+                behavior: HitTestBehavior.deferToChild,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    borderRadius:
+                        BorderRadius.vertical(top: Radius.circular(24)),
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF1B2B42), Color(0xFF142238)],
                     ),
                   ),
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 180),
-                  curve: Curves.easeOutCubic,
-                  alignment: Alignment.topCenter,
-                  child: expanded
-                      ? Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    'TRUCKS IN WAGON: ${selectedWagon.wagonNumber}',
-                                    style: TextStyle(
-                                      color: colors.onSurface,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800,
-                                      letterSpacing: .3,
-                                    ),
-                                  ),
-                                  Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        aiMode ? 'AI MODE' : 'MANUAL',
-                                        style: TextStyle(
-                                          color: aiMode
-                                              ? const Color(0xFF64B5F6)
-                                              : colors.onSurface
-                                                  .withValues(alpha: 0.7),
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 7),
+                      GestureDetector(
+                        onTap: onToggle,
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 7),
+                          child: Container(
+                            width: 34,
+                            height: 4,
+                            decoration: BoxDecoration(
+                              color: const Color(0x668DB7EA),
+                              borderRadius: BorderRadius.circular(99),
+                            ),
+                          ),
+                        ),
+                      ),
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 180),
+                        curve: Curves.easeOutCubic,
+                        alignment: Alignment.topCenter,
+                        child: expanded
+                            ? Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 0, 12, 8),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          'TRUCKS IN WAGON: ${selectedWagon.wagonNumber}',
+                                          style: TextStyle(
+                                            color: colors.onSurface,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800,
+                                            letterSpacing: .3,
+                                          ),
                                         ),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Text(
+                                              aiMode ? 'AI MODE' : 'MANUAL',
+                                              style: TextStyle(
+                                                color: aiMode
+                                                    ? const Color(0xFF64B5F6)
+                                                    : colors.onSurface
+                                                        .withValues(alpha: 0.7),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            SizedBox(
+                                              height: 24,
+                                              child: FittedBox(
+                                                fit: BoxFit.fill,
+                                                child: Switch.adaptive(
+                                                  value: aiMode,
+                                                  onChanged: onAiModeToggle,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    GestureDetector(
+                                      onTap: () {},
+                                      behavior: HitTestBehavior.opaque,
+                                      child: SizedBox(
+                                        height: 64,
+                                        child: wagonTrucks.isEmpty
+                                            ? const Center(
+                                                child: Text(
+                                                    'No trucks created for this wagon'))
+                                            : ListView.separated(
+                                                scrollDirection:
+                                                    Axis.horizontal,
+                                                clipBehavior: Clip.none,
+                                                itemCount: wagonTrucks.length,
+                                                separatorBuilder: (_, __) =>
+                                                    const SizedBox(width: 8),
+                                                itemBuilder: (context, index) {
+                                                  final truck =
+                                                      wagonTrucks[index];
+                                                  return _TruckSelectorChip(
+                                                    truck: truck,
+                                                    onTap: () =>
+                                                        onTruckSelected(truck),
+                                                  );
+                                                },
+                                              ),
                                       ),
-                                      const SizedBox(width: 8),
-                                      SizedBox(
-                                        height: 24,
-                                        child: FittedBox(
-                                          fit: BoxFit.fill,
-                                          child: Switch.adaptive(
-                                            value: aiMode,
-                                            onChanged: onAiModeToggle,
+                                    ),
+                                    if (wagons.length > 1) ...[
+                                      const SizedBox(height: 10),
+                                      const Text(
+                                        'WAGONS',
+                                        style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w800),
+                                      ),
+                                      const SizedBox(height: 5),
+                                      GestureDetector(
+                                        onTap: () {},
+                                        behavior: HitTestBehavior.opaque,
+                                        child: SizedBox(
+                                          height: 42,
+                                          child: ListView.separated(
+                                            scrollDirection: Axis.horizontal,
+                                            itemCount: wagons.length,
+                                            separatorBuilder: (_, __) =>
+                                                const SizedBox(width: 8),
+                                            itemBuilder: (context, index) {
+                                              final wagon = wagons[index];
+                                              final selected =
+                                                  wagon.id == selectedWagon.id;
+                                              return ChoiceChip(
+                                                selected: selected,
+                                                label: Text(wagon.wagonNumber),
+                                                avatar: Icon(
+                                                    Icons.train_outlined,
+                                                    size: 17,
+                                                    color: selected
+                                                        ? colors.onPrimary
+                                                        : colors.primary),
+                                                showCheckmark: false,
+                                                side: BorderSide.none,
+                                                color: WidgetStateProperty
+                                                    .resolveWith((states) {
+                                                  // ChoiceChip's default pressed overlay uses
+                                                  // the theme secondary (yellow) color. Keep
+                                                  // every interaction state on the same soft
+                                                  // wagon surface or selected blue surface.
+                                                  return states.contains(
+                                                          WidgetState.selected)
+                                                      ? colors.primary
+                                                      : const Color(0xFF24344D);
+                                                }),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(18),
+                                                ),
+                                                backgroundColor:
+                                                    const Color(0xFF24344D),
+                                                selectedColor: colors.primary,
+                                                labelStyle: TextStyle(
+                                                  color: selected
+                                                      ? colors.onPrimary
+                                                      : colors.onSurface,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 6),
+                                                onSelected: (_) =>
+                                                    onWagonSelected(wagon),
+                                              );
+                                            },
                                           ),
                                         ),
                                       ),
                                     ],
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 6),
-                              GestureDetector(
-                                onTap: () {},
-                                behavior: HitTestBehavior.opaque,
-                                child: SizedBox(
-                                  height: 64,
-                                  child: wagonTrucks.isEmpty
-                                      ? const Center(
-                                          child: Text(
-                                              'No trucks created for this wagon'))
-                                      : ListView.separated(
-                                          scrollDirection: Axis.horizontal,
-                                          clipBehavior: Clip.none,
-                                          itemCount: wagonTrucks.length,
-                                          separatorBuilder: (_, __) =>
-                                              const SizedBox(width: 8),
-                                          itemBuilder: (context, index) {
-                                            final truck = wagonTrucks[index];
-                                            return _TruckSelectorChip(
-                                              truck: truck,
-                                              onTap: () =>
-                                                  onTruckSelected(truck),
-                                            );
-                                          },
-                                        ),
+                                  ],
                                 ),
-                              ),
-                              if (wagons.length > 1) ...[
-                                const SizedBox(height: 10),
-                                const Text(
-                                  'WAGONS',
-                                  style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w800),
-                                ),
-                                const SizedBox(height: 5),
-                                GestureDetector(
-                                  onTap: () {},
-                                  behavior: HitTestBehavior.opaque,
-                                  child: SizedBox(
-                                    height: 42,
-                                    child: ListView.separated(
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: wagons.length,
-                                      separatorBuilder: (_, __) =>
-                                          const SizedBox(width: 8),
-                                      itemBuilder: (context, index) {
-                                        final wagon = wagons[index];
-                                        final selected =
-                                            wagon.id == selectedWagon.id;
-                                        return ChoiceChip(
-                                          selected: selected,
-                                          label: Text(wagon.wagonNumber),
-                                          avatar: Icon(Icons.train_outlined,
-                                              size: 17,
-                                              color: selected
-                                                  ? colors.onPrimary
-                                                  : colors.primary),
-                                          showCheckmark: false,
-                                          side: BorderSide.none,
-                                          color:
-                                              WidgetStateProperty.resolveWith(
-                                                  (states) {
-                                            // ChoiceChip's default pressed overlay uses
-                                            // the theme secondary (yellow) color. Keep
-                                            // every interaction state on the same soft
-                                            // wagon surface or selected blue surface.
-                                            return states.contains(
-                                                    WidgetState.selected)
-                                                ? colors.primary
-                                                : const Color(0xFF24344D);
-                                          }),
-                                          shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(18),
-                                          ),
-                                          backgroundColor:
-                                              const Color(0xFF24344D),
-                                          selectedColor: colors.primary,
-                                          labelStyle: TextStyle(
-                                            color: selected
-                                                ? colors.onPrimary
-                                                : colors.onSurface,
-                                            fontWeight: FontWeight.w700,
-                                          ),
-                                          padding: const EdgeInsets.symmetric(
-                                              horizontal: 8, vertical: 6),
-                                          onSelected: (_) =>
-                                              onWagonSelected(wagon),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        )
-                      : const SizedBox.shrink(),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          ),
+              ),
             ),
           ),
         ],
