@@ -1272,6 +1272,20 @@ Future<Uint8List> _buildTruckPdfBytes(
               pw.Expanded(
                 flex: 2,
                 child: pw.Column(children: [
+                  pw.Text('Total Layers',
+                      style: const pw.TextStyle(
+                          fontSize: 8, color: PdfColors.grey700)),
+                  pw.SizedBox(height: 4),
+                  pw.Text('${report['totalLayers'] ?? 0}',
+                      style: pw.TextStyle(
+                          fontSize: 15, fontWeight: pw.FontWeight.bold)),
+                ]),
+              ),
+              pw.Container(width: 0.7, height: 42, color: PdfColors.grey400),
+              pw.SizedBox(width: 12),
+              pw.Expanded(
+                flex: 2,
+                child: pw.Column(children: [
                   pw.Text('Total Cartons',
                       style: const pw.TextStyle(
                           fontSize: 8, color: PdfColors.grey700)),
