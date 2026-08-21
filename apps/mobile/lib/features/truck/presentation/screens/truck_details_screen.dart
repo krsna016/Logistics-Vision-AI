@@ -1453,10 +1453,11 @@ class _StickyBottomBar extends StatelessWidget {
                           : AppTheme.primaryColor,
                       foregroundColor:
                           isReadOnly ? AppTheme.textSecondary : Colors.white,
+                      elevation: 6,
                       minimumSize: const Size.fromHeight(_actionHeight),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24)),
+                          borderRadius: BorderRadius.circular(16)),
                     ),
                   ),
                 ),
