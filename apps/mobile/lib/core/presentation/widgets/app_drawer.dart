@@ -657,7 +657,7 @@ class AppDrawer extends ConsumerWidget {
         title: 'Share Protected Backup?',
         content:
             'This creates one AES-256 encrypted ZIP containing local operational data: the database, audit records, saved images, activity logs, and generated exports. Login tokens, password hashes, and earlier backups are excluded. The receiving device will need the password to restore it.',
-        actionLabel: 'Create & Share Protected ZIP',
+        actionLabel: 'Share Protected ZIP',
         actionColor: AppTheme.primaryColor,
         icon: Icons.inventory_2_outlined,
         onConfirm: () async {

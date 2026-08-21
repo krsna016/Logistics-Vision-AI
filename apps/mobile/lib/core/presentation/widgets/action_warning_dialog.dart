@@ -152,16 +152,16 @@ class _ActionWarningDialogState extends State<ActionWarningDialog> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white),
                           )
-                        : Text(
-                            widget.actionLabel,
-                            textAlign: TextAlign.center,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            softWrap: true,
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              height: 1.15,
+                        : FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              widget.actionLabel,
+                              maxLines: 1,
+                              softWrap: false,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
                   ),
