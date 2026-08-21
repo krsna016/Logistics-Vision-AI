@@ -341,6 +341,11 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
       _error = null;
     });
     try {
+      // The Control Center shortcut can open this screen while its list
+      // providers are one frame behind the selected truck. Refresh the source
+      // records before resolving the wagon manifest and saving the layer.
+      await ref.read(truckListProvider.notifier).refresh();
+      await ref.read(wagonListProvider.notifier).refresh();
       final matchingTrucks = ref
           .read(truckListProvider)
           .trucks
@@ -396,7 +401,8 @@ class _ManualCountScreenState extends ConsumerState<ManualCountScreen> {
       if (mounted) {
         setState(() {
           _isSavingLayer = false;
-          _error = 'Could not save this layer. Please try again.';
+          _error =
+              'Could not save this layer: ${error.toString().replaceFirst('Bad state: ', '')}';
         });
       }
     }
