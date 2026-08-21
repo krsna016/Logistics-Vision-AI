@@ -713,8 +713,15 @@ class LocalDataArchiveService {
     );
     late List<String> availableTables;
     try {
+      // SQLCipher must receive the attached database key as part of ATTACH.
+      // Setting PRAGMA key afterwards is too late: SQLite has already tried
+      // to decode the first page and reports valid legacy plaintext files as
+      // "file is not a database". An empty key explicitly selects a legacy
+      // unencrypted SQLite archive.
+      final attachKey = importedDatabaseKey ?? '';
       await _database.customStatement(
-          "ATTACH DATABASE '${_sqlQuote(staging.path)}' AS imported_archive");
+          "ATTACH DATABASE '${_sqlQuote(staging.path)}' AS imported_archive "
+          "KEY '${_sqlQuote(attachKey)}'");
       try {
         if (importedDatabaseKey != null) {
           await _database.customStatement(
