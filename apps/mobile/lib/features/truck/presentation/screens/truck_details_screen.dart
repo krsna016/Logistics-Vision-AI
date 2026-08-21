@@ -596,7 +596,8 @@ class _TruckDetailsScreenState extends ConsumerState<TruckDetailsScreen> {
           final hasUnsavedChanges = !allowCorrectionPop &&
               (cartonController.text.trim() != '${layer.cartonCount}' ||
                   defectController.text.trim() != '${layer.defectCount}' ||
-                  notesController.text.trim() != (layer.notes ?? '').trim() ||
+                  notesController.text.trim() !=
+                      (layer.displayNotes ?? '').trim() ||
                   reasonController.text.trim().isNotEmpty ||
                   allocationsChanged ||
                   photoChanged);

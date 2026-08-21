@@ -181,9 +181,9 @@ class TruckTable extends StatelessWidget {
                     .toList(),
               ),
             ],
-            if (layer.notes?.trim().isNotEmpty == true) ...[
+            if (layer.displayNotes?.trim().isNotEmpty == true) ...[
               const SizedBox(height: 6),
-              Text(layer.notes!,
+              Text(layer.displayNotes!,
                   style: const TextStyle(
                       color: AppTheme.textSecondary, fontSize: 12)),
             ],
