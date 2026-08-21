@@ -2,6 +2,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/features/wagon/domain/services/wagon_number_parser.dart';
 
 void main() {
+  test('accepts printed BCNHL six-digit wagon numbers', () {
+    final candidates = WagonNumberParser.candidatesFromText('BCNHL-700301');
+    expect(candidates, contains('BCNHL700301'));
+    expect(WagonNumberParser.looksLikeWagonNumber('BCNHL700301'), isTrue);
+  });
+
+  test('accepts nine to fifteen digit wagon identifiers with BC prefix', () {
+    for (final value in <String>[
+      '123456789',
+      '123456789012345',
+      'BCNHL123456789',
+      'BC123456789012345',
+    ]) {
+      expect(WagonNumberParser.looksLikeWagonNumber(value), isTrue,
+          reason: value);
+      expect(WagonNumberParser.candidatesFromText(value), contains(value),
+          reason: value);
+    }
+  });
+
   test('joins wagon class and eleven-digit number', () {
     final candidates = WagonNumberParser.candidatesFromText(
       'BCNAHSM1\n31142324907',

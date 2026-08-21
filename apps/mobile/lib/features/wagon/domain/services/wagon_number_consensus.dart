@@ -14,12 +14,13 @@ class WagonNumberConsensus {
   String? addCandidates(Iterable<String> candidates) {
     final candidate = candidates.firstOrNull;
     if (candidate == null) return null;
-    final match = RegExp(r'^(BCN(?:[A-Z][A-Z0-9]{0,7})?)?(3\d{10})$')
-        .firstMatch(candidate);
+    final match = RegExp(
+      r'^(BC[A-Z0-9]{0,8})([4-9]\d{5})$|^(BC[A-Z0-9]{0,8})?(\d{9,15})$',
+    ).firstMatch(candidate);
     if (match == null) return null;
 
-    _wagonClass = match.group(1) ?? _wagonClass;
-    final number = match.group(2)!;
+    _wagonClass = match.group(1) ?? match.group(3) ?? _wagonClass;
+    final number = match.group(2) ?? match.group(4)!;
     _numberHistory.add(number);
     if (_numberHistory.length > historyLimit) _numberHistory.removeAt(0);
 

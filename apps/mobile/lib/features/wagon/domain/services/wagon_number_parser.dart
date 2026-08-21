@@ -6,19 +6,26 @@ class WagonNumberParser {
 
   static bool looksLikeWagonNumber(String value) {
     final normalized = normalize(value);
-    return RegExp(r'^3\d{10}$').hasMatch(normalized) ||
-        RegExp(r'^BCN(?:[A-Z][A-Z0-9]{0,7})?3\d{10}$').hasMatch(normalized);
+    // Accept the numeric wagon identifier range used by different rail
+    // markings (9–15 digits), with an optional BC-family class prefix such as
+    // BCNHL. Keep the prefix because it is meaningful to the operator.
+    return RegExp(r'^\d{9,15}$').hasMatch(normalized) ||
+        RegExp(r'^BC[A-Z0-9]{0,8}\d{9,15}$').hasMatch(normalized) ||
+        RegExp(r'^BC[A-Z0-9]{0,8}[4-9]\d{5}$').hasMatch(normalized);
   }
 
   static List<String> candidatesFromText(String text) {
     final tokens = text
-        .split(RegExp(r'[\r\n\s,;|:/]+'))
+        .split(RegExp(r'[\r\n\s,;|:/-]+'))
         .map(normalize)
         .where((token) => token.isNotEmpty)
         .toList();
     final wagonClasses = _wagonClasses(tokens);
     final numbers = _wagonNumbers(tokens);
     final candidates = <String>{};
+    // OCR may return the complete marking as one token (for example
+    // BCNHL123456789), so retain already-valid compact tokens as candidates.
+    candidates.addAll(tokens.where(looksLikeWagonNumber));
 
     for (final wagonClass in wagonClasses) {
       for (final number in numbers) {
@@ -49,13 +56,20 @@ class WagonNumberParser {
   static Set<String> _wagonNumbers(List<String> tokens) {
     final numbers = <String>{};
     for (var start = 0; start < tokens.length; start++) {
+      // A one- or two-character numeric token is commonly the final digit of
+      // a BC class marking (for example, `BCN AHSM 1`), not the start of the
+      // wagon identifier. Starting here would create a false longer number.
+      if (tokens[start].length <= 2) continue;
       var joined = '';
       for (var end = start; end < tokens.length && end <= start + 3; end++) {
         final digits = _asDigits(tokens[end]);
         if (digits == null) break;
         joined += digits;
-        if (joined.length > 11) break;
-        if (RegExp(r'^3\d{10}$').hasMatch(joined)) numbers.add(joined);
+        if (joined.length > 15) break;
+        if (RegExp(r'^\d{9,15}$').hasMatch(joined) ||
+            RegExp(r'^[4-9]\d{5}$').hasMatch(joined)) {
+          numbers.add(joined);
+        }
       }
     }
     return numbers;
@@ -64,7 +78,7 @@ class WagonNumberParser {
   static String? _correctWagonClass(String value) {
     final normalized =
         normalize(value).replaceAllMapped(RegExp(r'(?<=M)[IL]$'), (_) => '1');
-    if (RegExp(r'^BCN(?:[A-Z][A-Z0-9]{0,7})?$').hasMatch(normalized)) {
+    if (RegExp(r'^BC[A-Z0-9]{0,8}$').hasMatch(normalized)) {
       return normalized;
     }
     return null;
