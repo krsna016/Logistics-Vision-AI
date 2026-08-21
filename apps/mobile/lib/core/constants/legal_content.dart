@@ -10,7 +10,7 @@ class LegalContent {
 
 **Privacy contact:** 016.krsna@gmail.com
 
-This policy explains how Vinayak SmartLoad handles information used in warehouse and loading operations. OpenFrontier Labs builds and maintains the app under the motto: **“Expanding the Possible — ambitious without sounding exaggerated.”**
+This policy explains how Vinayak SmartLoad handles information used in warehouse and loading operations. OpenFrontier Labs builds and maintains the app: **“Pioneering Intelligent Futures.”**
 
 ## 1. Scope and roles
 
@@ -91,7 +91,7 @@ Questions, concerns, or privacy requests can be sent to the privacy contact show
 
 **गोपनीयता संपर्क:** 016.krsna@gmail.com
 
-यह नीति बताती है कि Vinayak SmartLoad वेयरहाउस और लोडिंग ऑपरेशन की जानकारी को कैसे संभालता है। OpenFrontier Labs इस ऐप का निर्माता और मेंटेनर है। हमारा सिद्धांत है: **“Expanding the Possible — ambitious without sounding exaggerated.”**
+यह नीति बताती है कि Vinayak SmartLoad वेयरहाउस और लोडिंग ऑपरेशन की जानकारी को कैसे संभालता है। OpenFrontier Labs इस ऐप का निर्माता और मेंटेनर है। हमारा सिद्धांत है: **“Pioneering Intelligent Futures.”**
 
 ## 1. दायरा और जिम्मेदारियां
 
