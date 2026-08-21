@@ -149,7 +149,9 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
             ),
           ],
         ),
-        body: state.isLoading && state.wagons.isEmpty
+        body: Stack(
+          children: [
+            state.isLoading && state.wagons.isEmpty
             ? const Center(child: CircularProgressIndicator())
             : RefreshIndicator(
                 onRefresh: () async {
@@ -336,9 +338,12 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
                   ],
                 ),
               ),
-        bottomNavigationBar: activeWagons.isEmpty || selectedWagon == null
-            ? null
-            : _LoadingSelectorBar(
+            if (activeWagons.isNotEmpty && selectedWagon != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: _LoadingSelectorBar(
                 wagons: activeWagons,
                 trucks: truckState.trucks,
                 selectedWagon: selectedWagon,
@@ -362,7 +367,10 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
                     await ref.read(wagonListProvider.notifier).refresh();
                   }
                 },
+                ),
               ),
+          ],
+        ),
         floatingActionButton: FloatingActionButton.extended(
           onPressed: () {
             showModalBottomSheet<void>(
