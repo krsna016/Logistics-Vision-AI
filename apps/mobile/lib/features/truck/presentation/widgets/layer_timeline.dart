@@ -435,6 +435,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
   final String? titlePrefixOverride;
   final List<Detection>? initialDetectionsOverride;
   final int? displayCountOverride;
+  final bool displayCountOverrideIsTotal;
   final Widget? extraHeaderWidget;
   final Future<String?> Function(LayerRecord layer, List<Detection> detections,
       {int? cartonCountOverride, String? notesOverride})? onSaveDetections;
@@ -451,6 +452,7 @@ class LayerHistoryPhotoViewer extends StatefulWidget {
     this.titlePrefixOverride,
     this.initialDetectionsOverride,
     this.displayCountOverride,
+    this.displayCountOverrideIsTotal = false,
     this.extraHeaderWidget,
     this.onSaveDetections,
     this.onRequestCorrection,
@@ -525,7 +527,9 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
         color: const Color(0xFF34D399),
         metadata: const {'manuallyAdded': true, 'source': 'layerHistory'},
       ));
-      _displayCartonCount = _visibleDetections.length;
+      if (!widget.displayCountOverrideIsTotal) {
+        _displayCartonCount = _visibleDetections.length;
+      }
       _showMasks = true;
       _errorMessage = null;
     });
@@ -539,7 +543,9 @@ class _LayerHistoryPhotoViewerState extends State<LayerHistoryPhotoViewer> {
       } else {
         _hiddenDetectionIds.add(detection.id);
       }
-      _displayCartonCount = _visibleDetections.length;
+      if (!widget.displayCountOverrideIsTotal) {
+        _displayCartonCount = _visibleDetections.length;
+      }
       _errorMessage = null;
     });
     _markEdited();
@@ -984,11 +990,7 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
     final p1 = split['part1Path'] as String;
     final p2 = split['part2Path'] as String;
 
-    // Instead of using the static frozen AI counts, we divide the current verified cartonCount
-    // in half so it stays synced with any edits made in the Layer Correction page.
     final totalCartons = layer.cartonCount;
-    final c1 = (totalCartons / 2).ceil();
-    final c2 = totalCartons - c1;
 
     final d1Raw = split['part1Detections'] as List<dynamic>? ?? [];
     final d2Raw = split['part2Detections'] as List<dynamic>? ?? [];
@@ -1048,7 +1050,8 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
           isActive: _currentIndex == 0,
           titlePrefixOverride: 'Layer ${layer.layerNumber}',
           initialDetectionsOverride: d1,
-          displayCountOverride: c1,
+          displayCountOverride: totalCartons,
+          displayCountOverrideIsTotal: true,
           extraHeaderWidget: headerToggle,
           onSaveDetections: onSaveDetections == null
               ? null
@@ -1078,7 +1081,8 @@ class _SplitLayerPhotoViewerState extends State<_SplitLayerPhotoViewer> {
           isActive: _currentIndex == 1,
           titlePrefixOverride: 'Layer ${layer.layerNumber}',
           initialDetectionsOverride: d2,
-          displayCountOverride: c2,
+          displayCountOverride: totalCartons,
+          displayCountOverrideIsTotal: true,
           extraHeaderWidget: headerToggle,
           onSaveDetections: onSaveDetections == null
               ? null
