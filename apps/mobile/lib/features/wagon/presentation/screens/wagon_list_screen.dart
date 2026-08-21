@@ -354,8 +354,8 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
                     padding: EdgeInsets.only(
                       right: 16,
                       bottom: activeWagons.isNotEmpty && selectedWagon != null
-                          ? 8
-                          : MediaQuery.viewPaddingOf(context).bottom + 8,
+                          ? 12
+                          : MediaQuery.viewPaddingOf(context).bottom + 12,
                     ),
                     child: FloatingActionButton.extended(
                       onPressed: () {
