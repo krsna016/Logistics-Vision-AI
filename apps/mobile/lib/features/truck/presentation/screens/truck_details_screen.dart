@@ -1429,40 +1429,34 @@ class _StickyBottomBar extends StatelessWidget {
           : Row(
               children: [
                 Expanded(
-                  child: SizedBox(
-                    height: _actionHeight,
-                    child: FloatingActionButton.extended(
-                      heroTag: null,
-                      onPressed: isReadOnly
-                          ? null
-                          : (hasActiveSession ? onCapture : onStartSession),
-                      icon: Icon(
+                  child: ElevatedButton.icon(
+                    onPressed: isReadOnly
+                        ? null
+                        : (hasActiveSession ? onCapture : onStartSession),
+                    icon: Icon(
                         hasActiveSession
                             ? Icons.camera_alt_outlined
                             : Icons.play_circle_outline,
-                        size: 20,
-                      ),
-                      label: Text(
-                        isReadOnly
-                            ? 'Session Closed'
-                            : (hasActiveSession
-                                ? 'Capture Layer'
-                                : 'Start Loading'),
-                        style: const TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 15),
-                      ),
+                        size: 20),
+                    label: Text(
+                      isReadOnly
+                          ? 'Session Closed'
+                          : (hasActiveSession
+                              ? 'Capture Layer'
+                              : 'Start Loading'),
+                      style: const TextStyle(
+                          fontWeight: FontWeight.bold, fontSize: 15),
+                    ),
+                    style: ElevatedButton.styleFrom(
                       backgroundColor: isReadOnly
                           ? AppTheme.dividerColor
                           : AppTheme.primaryColor,
                       foregroundColor:
                           isReadOnly ? AppTheme.textSecondary : Colors.white,
-                      elevation: 6,
-                      extendedPadding:
-                          const EdgeInsets.symmetric(horizontal: 20),
-                      extendedIconLabelSpacing: 8,
-                      materialTapTargetSize: MaterialTapTargetSize.padded,
+                      minimumSize: const Size.fromHeight(_actionHeight),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16)),
+                          borderRadius: BorderRadius.circular(24)),
                     ),
                   ),
                 ),
