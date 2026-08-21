@@ -307,7 +307,13 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 class _AuthRouterRefresh extends ChangeNotifier {
   _AuthRouterRefresh(Ref ref) {
-    ref.listen<User?>(authProvider, (_, __) => notifyListeners());
+    // Profile/session refreshes can replace the User object without changing
+    // the authenticated identity. Do not rebuild GoRouter for those updates:
+    // transient route extras (captured photo, AI result) would otherwise be
+    // lost when Review is reconstructed from the URL.
+    ref.listen<User?>(authProvider, (previous, current) {
+      if (previous?.id != current?.id) notifyListeners();
+    });
   }
 }
 

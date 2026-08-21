@@ -27,7 +27,11 @@ class ImageStorageService {
         '${safePrefix.isEmpty ? 'image' : safePrefix}_${DateTime.now().microsecondsSinceEpoch}.jpg';
     final destination = p.join(basePath, fileName);
 
-    await imageFile.copy(destination);
+    // Persist the picker/native-camera file with an explicit flushed write.
+    // Some Android firmware can return from copy() before the destination is
+    // durably readable by the next Review frame.
+    final bytes = await imageFile.readAsBytes();
+    await Isolate.run(() => _writeImageBytesDurably(destination, bytes));
     // Returning relative path could be better, but absolute is fine for now as it's within AppDocs
     return destination;
   }
@@ -96,6 +100,10 @@ class ImageStorageService {
     if (!isInsideStorage) return null;
     return File(candidate);
   }
+}
+
+Future<void> _writeImageBytesDurably(String path, Uint8List bytes) async {
+  await File(path).writeAsBytes(bytes, flush: true);
 }
 
 Uint8List _createNormalizedCropBytesFromEncoded(

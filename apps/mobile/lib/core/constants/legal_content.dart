@@ -7,6 +7,7 @@ class LegalContent {
 **Effective date:** 20 August 2026
 
 **Company:** OpenFrontier Labs
+
 **Privacy contact:** 016.krsna@gmail.com
 
 This policy explains how Vinayak SmartLoad handles information used in warehouse and loading operations. OpenFrontier Labs builds and maintains the app under the motto: **“Expanding the Possible — ambitious without sounding exaggerated.”**
@@ -87,6 +88,7 @@ Questions, concerns, or privacy requests can be sent to the privacy contact show
 **प्रभावी तिथि:** 20 अगस्त 2026
 
 **कंपनी:** OpenFrontier Labs
+
 **गोपनीयता संपर्क:** 016.krsna@gmail.com
 
 यह नीति बताती है कि Vinayak SmartLoad वेयरहाउस और लोडिंग ऑपरेशन की जानकारी को कैसे संभालता है। OpenFrontier Labs इस ऐप का निर्माता और मेंटेनर है। हमारा सिद्धांत है: **“Expanding the Possible — ambitious without sounding exaggerated.”**

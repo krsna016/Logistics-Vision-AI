@@ -629,6 +629,19 @@ class LocalDataArchiveService {
     final staging = File(p.join(documents.path,
         'smartload_import_staging_${DateTime.now().microsecondsSinceEpoch}.sqlite'));
     await importedDatabase.copy(staging.path);
+    // Protected archives can contain SQLite WAL/SHM companions. Attach the
+    // complete set so SQLite sees the same committed state as on the source
+    // device; copying only the main encrypted file can make a valid backup
+    // appear corrupt or incomplete.
+    final stagingCompanions = <File>[];
+    for (final suffix in ['-wal', '-shm']) {
+      final companion = File('${importedDatabase.path}$suffix');
+      if (await companion.exists()) {
+        final staged = File('${staging.path}$suffix');
+        await companion.copy(staged.path);
+        stagingCompanions.add(staged);
+      }
+    }
     final documentRollback = await Directory(p.join(
       extracted.path,
       '.smartload_document_rollback',
@@ -690,6 +703,9 @@ class LocalDataArchiveService {
       rethrow;
     } finally {
       if (await staging.exists()) await staging.delete();
+      for (final companion in stagingCompanions) {
+        if (await companion.exists()) await companion.delete();
+      }
       if (await documentRollback.exists()) {
         await documentRollback.delete(recursive: true);
       }
@@ -721,6 +737,14 @@ class LocalDataArchiveService {
   ) async {
     final sourceRoot = Directory(p.join(extracted.path, 'documents'));
     if (!await sourceRoot.exists()) return const [];
+    final manifestFile = File(p.join(extracted.path, 'MANIFEST.json'));
+    var isOriginalLegacyManifest = false;
+    if (await manifestFile.exists()) {
+      final decoded = jsonDecode(await manifestFile.readAsString());
+      isOriginalLegacyManifest = decoded is Map &&
+          decoded['format'] == 'SmartLoad local audit archive' &&
+          decoded['formatVersion'] == null;
+    }
     final result = <_ImportedDocument>[];
     await for (final entity in sourceRoot.list(
       recursive: true,
@@ -730,7 +754,10 @@ class LocalDataArchiveService {
       final relative = p
           .relative(entity.path, from: sourceRoot.path)
           .replaceAll(p.separator, '/');
-      if (!_isBackedUpDocumentPath(relative)) {
+      final allowed = isOriginalLegacyManifest
+          ? _isAllowedLegacyImportedDocumentPath('documents/$relative')
+          : _isBackedUpDocumentPath(relative);
+      if (!allowed) {
         throw StateError('The backup contains an unsupported document path.');
       }
       final destination = File(p.joinAll([
@@ -1060,6 +1087,8 @@ class LocalDataArchiveService {
           'This archive is from an unsupported format. Create a new protected backup from the source device.');
     }
     final listedPaths = <String>{};
+    final isOriginalLegacyManifest =
+        isLegacyFormat && manifest['formatVersion'] == null;
     for (final entry in manifest['files'] as List) {
       if (entry is! Map || entry['path'] is! String) {
         throw StateError('The archive integrity manifest is invalid.');
@@ -1068,8 +1097,6 @@ class LocalDataArchiveService {
       // The first local-only release recorded file sizes but not hashes. Keep
       // this narrowly scoped compatibility path so those genuine SmartLoad
       // backups remain restorable; every newer archive still requires SHA-256.
-      final isOriginalLegacyManifest =
-          isLegacyFormat && manifest['formatVersion'] == null;
       if (!hasDigest &&
           (!isOriginalLegacyManifest || entry['sizeBytes'] is! num)) {
         throw StateError('The archive integrity manifest is invalid.');
@@ -1084,9 +1111,11 @@ class LocalDataArchiveService {
             'The archive integrity manifest contains an unsafe path.');
       }
       if (relativePath.startsWith('documents/') &&
-          !_isAllowedImportedDocumentPath(relativePath)) {
-        throw StateError(
-            'The archive contains a document type that SmartLoad cannot safely restore.');
+          !(isOriginalLegacyManifest
+              ? _isAllowedLegacyImportedDocumentPath(relativePath)
+              : _isAllowedImportedDocumentPath(relativePath))) {
+        throw StateError('The archive contains an unsupported document type '
+            '(${p.basename(relativePath)}). SmartLoad cannot safely restore it.');
       }
       final file =
           File(p.joinAll([folder.path, ...p.posix.split(relativePath)]));
@@ -1141,6 +1170,41 @@ class LocalDataArchiveService {
     const prefix = 'documents/';
     if (!archivePath.startsWith(prefix)) return false;
     return _isBackedUpDocumentPath(archivePath.substring(prefix.length));
+  }
+
+  /// The first unprotected SmartLoad backups copied the whole Documents
+  /// directory, so their generated reports did not always use a
+  /// `SmartLoad_` prefix. Preserve those backups while still restricting
+  /// restored files to non-executable operational documents and images.
+  static bool _isAllowedLegacyImportedDocumentPath(String archivePath) {
+    const prefix = 'documents/';
+    if (!archivePath.startsWith(prefix)) return false;
+    final relative = archivePath.substring(prefix.length).replaceAll('\\', '/');
+    if (relative.isEmpty) return false;
+    final lower = relative.toLowerCase();
+    const extensions = <String>{
+      '.bak',
+      '.csv',
+      '.db',
+      '.docx',
+      '.jpeg',
+      '.jpg',
+      '.json',
+      '.log',
+      '.pdf',
+      '.png',
+      '.sqlite',
+      '.sqlite-shm',
+      '.sqlite-wal',
+      '.txt',
+      '.webp',
+      '.xlsx',
+      '.zip',
+    };
+    // Legacy archives copied the Documents tree verbatim, including nested
+    // report/export folders. The manifest/path checks above already reject
+    // absolute paths, backslashes, empty segments, and `..` traversal.
+    return extensions.any(lower.endsWith);
   }
 }
 
