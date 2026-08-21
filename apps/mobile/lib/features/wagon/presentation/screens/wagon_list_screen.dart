@@ -149,6 +149,14 @@ class _WagonListScreenState extends ConsumerState<WagonListScreen> {
             ),
           ],
         ),
+        // Reserve the system navigation inset as part of the Control Center
+        // surface so no dark gap is visible below the blue panel.
+        bottomNavigationBar: activeWagons.isNotEmpty && selectedWagon != null
+            ? SizedBox(
+                height: MediaQuery.viewPaddingOf(context).bottom + 8,
+                child: const ColoredBox(color: Color(0xFF142238)),
+              )
+            : null,
         body: Stack(
           children: [
             state.isLoading && state.wagons.isEmpty
