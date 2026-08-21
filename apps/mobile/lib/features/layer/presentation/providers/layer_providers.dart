@@ -260,7 +260,10 @@ class LayerListNotifier extends StateNotifier<LayerListState> {
     } catch (e) {
       state = state.copyWith(isLoading: false);
       AppLogger.error('Failed to save layer', e);
-      return 'Failed to save layer session.';
+      // Preserve the concrete database/provider failure so the operator can
+      // distinguish a stale Control Center record from a validation problem.
+      final detail = e.toString().replaceFirst('Bad state: ', '').trim();
+      return detail.isEmpty ? 'Failed to save layer session.' : detail;
     }
   }
 
