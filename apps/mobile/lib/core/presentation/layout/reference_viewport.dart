@@ -2,18 +2,24 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-/// Normalizes SmartLoad's visual density against the approved reference phone.
+/// Renders SmartLoad through the same logical-width canvas as the approved
+/// reference phone.
 ///
-/// The reference device renders Flutter at 2.4 logical pixels per physical
-/// pixel. Some Android phones use 3.0 or more for the same physical panel,
-/// which makes an identical logical layout look materially larger. This
-/// viewport gives those devices more logical layout space and scales the
-/// finished frame back to the real screen, keeping typography, cards, icons,
-/// spacing, touch regions, safe areas, and keyboard insets in one coordinate
-/// system.
+/// The reference device is 1220 physical pixels wide with Android's display
+/// density overridden to 384 dpi. Flutter therefore exposes a
+/// 508.333-logical-pixel-wide window (1220 / (384 / 160)). A conventional
+/// phone commonly exposes only 360--430 logical pixels, which otherwise makes
+/// every fixed-size control occupy a much larger fraction of the display.
+///
+/// On narrower phones we lay the app out at the reference width, then scale
+/// the complete frame down uniformly. Insets and hit testing participate in
+/// the same transform. Wider displays retain a centered, reference-width
+/// workspace instead of stretching the phone UI.
 class SmartLoadReferenceViewport extends StatelessWidget {
-  static const double maximumWorkspaceWidth = 520;
-  static const double tabletShortestSide = 600;
+  static const double referencePhysicalWidth = 1220;
+  static const double referenceDensityDpi = 384;
+  static const double referenceLogicalWidth =
+      referencePhysicalWidth / (referenceDensityDpi / 160);
 
   final Widget child;
 
@@ -25,36 +31,49 @@ class SmartLoadReferenceViewport extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final isLargeOrSegmented = media.size.shortestSide >= tabletShortestSide ||
-        media.displayFeatures.isNotEmpty;
+    final workspaceWidth = math.min(media.size.width, referenceLogicalWidth);
+    final scale = workspaceWidth / referenceLogicalWidth;
+    final virtualHeight = media.size.height / scale;
 
-    final workspaceWidth = isLargeOrSegmented
-        ? math.min(maximumWorkspaceWidth, media.size.width)
-        : media.size.width;
+    EdgeInsets inverseScale(EdgeInsets value) => EdgeInsets.fromLTRB(
+          value.left / scale,
+          value.top / scale,
+          value.right / scale,
+          value.bottom / scale,
+        );
 
-    // We rely purely on Flutter's native logical pixels (which are already density-independent).
-    // We only lock the text scaling to 1.0 to prevent system font sizes from breaking the UI.
     final normalizedMedia = media.copyWith(
+      size: Size(referenceLogicalWidth, virtualHeight),
+      padding: inverseScale(media.padding),
+      viewPadding: inverseScale(media.viewPadding),
+      viewInsets: inverseScale(media.viewInsets),
+      systemGestureInsets: inverseScale(media.systemGestureInsets),
       textScaler: TextScaler.noScaling,
-      size: Size(workspaceWidth, media.size.height),
-      displayFeatures: isLargeOrSegmented ? const [] : null,
+      displayFeatures: const [],
     );
 
-    final normalizedChild = MediaQuery(data: normalizedMedia, child: child);
+    final viewport = SizedBox(
+      width: referenceLogicalWidth,
+      height: virtualHeight,
+      child: MediaQuery(data: normalizedMedia, child: child),
+    );
 
-    if (isLargeOrSegmented) {
-      return ColoredBox(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: SizedBox(
-            width: workspaceWidth,
-            child: normalizedChild,
+    return ColoredBox(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          width: workspaceWidth,
+          height: media.size.height,
+          child: ClipRect(
+            child: FittedBox(
+              alignment: Alignment.topLeft,
+              fit: BoxFit.fill,
+              child: viewport,
+            ),
           ),
         ),
-      );
-    }
-
-    return normalizedChild;
+      ),
+    );
   }
 }

@@ -5,8 +5,10 @@ import 'package:mobile/core/presentation/layout/reference_viewport.dart';
 
 void main() {
   test('reference viewport keeps its documented workspace limits', () {
-    expect(SmartLoadReferenceViewport.maximumWorkspaceWidth, 520);
-    expect(SmartLoadReferenceViewport.tabletShortestSide, 600);
+    expect(SmartLoadReferenceViewport.referencePhysicalWidth, 1220);
+    expect(SmartLoadReferenceViewport.referenceDensityDpi, 384);
+    expect(SmartLoadReferenceViewport.referenceLogicalWidth,
+        closeTo(508.333333, 0.000001));
   });
 
   testWidgets(
@@ -38,12 +40,14 @@ void main() {
       ),
     );
 
-    expect(normalized.size.width, closeTo(390, 0.000001));
-    expect(normalized.size.height, closeTo(844, 0.000001));
-    expect(normalized.padding.top, closeTo(24, 0.000001));
-    expect(normalized.viewPadding.top, closeTo(24, 0.000001));
-    expect(normalized.viewInsets.bottom, closeTo(300, 0.000001));
-    expect(normalized.systemGestureInsets.left, closeTo(12, 0.000001));
+    const scale = 390 / SmartLoadReferenceViewport.referenceLogicalWidth;
+    expect(normalized.size.width,
+        closeTo(SmartLoadReferenceViewport.referenceLogicalWidth, 0.000001));
+    expect(normalized.size.height, closeTo(844 / scale, 0.000001));
+    expect(normalized.padding.top, closeTo(24 / scale, 0.000001));
+    expect(normalized.viewPadding.top, closeTo(24 / scale, 0.000001));
+    expect(normalized.viewInsets.bottom, closeTo(300 / scale, 0.000001));
+    expect(normalized.systemGestureInsets.left, closeTo(12 / scale, 0.000001));
     expect(normalized.textScaler.scale(1), closeTo(1, 0.000001));
     expect(tester.takeException(), isNull);
   });
@@ -75,7 +79,8 @@ void main() {
       ),
     );
 
-    expect(normalized.size, const Size(520, 1280));
+    expect(normalized.size,
+        const Size(SmartLoadReferenceViewport.referenceLogicalWidth, 1280));
     expect(normalized.padding.left, 18);
     expect(normalized.padding.right, 18);
     expect(normalized.padding.top, 24);
@@ -115,8 +120,9 @@ void main() {
           ),
         ),
       );
-      expect(normalized.size.width, greaterThanOrEqualTo(320));
-      expect(normalized.textScaler.scale(1), inInclusiveRange(0.92, 1.03));
+      expect(normalized.size.width,
+          closeTo(SmartLoadReferenceViewport.referenceLogicalWidth, 0.000001));
+      expect(normalized.textScaler.scale(1), 1);
       expect(tester.takeException(), isNull);
     }
   });
