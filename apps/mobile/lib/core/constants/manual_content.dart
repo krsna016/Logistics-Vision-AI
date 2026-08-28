@@ -269,7 +269,7 @@ Only use the access level assigned to you. If an action is unavailable, ask the 
 
 Operational records and carton counting run on this device. Sign-in, account administration, and account-status checks use the sign-in service and may need a network connection. Once signed in, warehouse records are not synchronized to that service. An offline device cannot receive an immediate account-disable instruction.
 
-In non-production builds, **Demo Entry** opens a temporary Demo Operator session without credentials. This control is unavailable in production builds.
+When enabled for the installed build, **Enter as Administrator** opens a temporary, non-persistent Local Administrator session without credentials. It uses the same Administrator role and local app permissions as an authenticated administrator. The control is included automatically in non-production builds and only by explicit compile-time opt-in in a release build. Features that depend on the central account service still require that service to be running. Treat an enabled release APK as administrator-sensitive and install it only on trusted devices.
 
 The signed-in user's name is used as the operator and supervisor identity in new records. One logged-in session should therefore show one operator name for work performed in that session.
 
@@ -1155,6 +1155,8 @@ SmartLoad एक वैगन से एक या अधिक वाहनो�
 5. Authentication सफल होते ही Wagon Control Center खुल जाता है।
 
 ऑपरेशनल रिकॉर्ड और कार्टन गिनती इस डिवाइस पर काम करते हैं। साइन-इन, अकाउंट प्रबंधन और अकाउंट-स्थिति जांच साइन-इन सेवा का उपयोग करते हैं और इनके लिए नेटवर्क कनेक्शन आवश्यक हो सकता है। साइन-इन के बाद वेयरहाउस रिकॉर्ड उस सेवा से सिंक्रनाइज़ नहीं होते। ऑफलाइन डिवाइस को अकाउंट-disable निर्देश तुरंत नहीं मिल सकता।
+
+जिन builds में यह सुविधा enable है, उनमें **Enter as Administrator** बिना credentials के अस्थायी Local Administrator session खोलता है। इसे authenticated Administrator जैसी role और local app permissions मिलती हैं। Non-production builds में यह अपने-आप शामिल होता है; release build में इसे compile time पर स्पष्ट रूप से enable करना पड़ता है। Central account service पर निर्भर सुविधाओं के लिए वह service चालू रहना जरूरी है। Enabled release APK केवल trusted devices पर install करें।
 
 लॉगिन किए हुए उपयोगकर्ता का नाम नई लेयर में ऑपरेटर और रिपोर्ट में सुपरवाइजर के रूप में उपयोग होता है। इसलिए एक ही लॉगिन से किए काम में उसी व्यक्ति का नाम होना चाहिए।
 

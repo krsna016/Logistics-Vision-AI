@@ -59,10 +59,11 @@ class _LoginCardState extends ConsumerState<LoginCard> {
     }
   }
 
-  void _handleDemoEntry() {
+  Future<void> _handleLocalAdministratorEntry() async {
     setState(() => _isLoading = true);
     final inferenceNotifier = ref.read(inferenceNotifierProvider.notifier);
-    ref.read(authProvider.notifier).enterDemo();
+    await ref.read(authProvider.notifier).enterLocalAdministrator();
+    if (!mounted) return;
     _completeEntry(inferenceNotifier);
   }
 
@@ -212,16 +213,16 @@ class _LoginCardState extends ConsumerState<LoginCard> {
                           color: Colors.white)),
             ),
           ),
-          if (Environment.current != Environment.production) ...[
+          if (Environment.enableLocalAdministratorEntry) ...[
             const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
               height: 50,
               child: OutlinedButton.icon(
-                onPressed: _isLoading ? null : _handleDemoEntry,
-                icon: const Icon(Icons.science_outlined),
+                onPressed: _isLoading ? null : _handleLocalAdministratorEntry,
+                icon: const Icon(Icons.admin_panel_settings_outlined),
                 label: const Text(
-                  'Demo Entry',
+                  'Enter as Administrator',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 style: OutlinedButton.styleFrom(

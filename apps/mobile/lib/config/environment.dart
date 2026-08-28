@@ -17,6 +17,13 @@ enum Environment {
     );
   }
 
+  /// Credential-free local Administrator access is available automatically in
+  /// non-production builds. Release builds must opt in explicitly at compile
+  /// time with `--dart-define=ENABLE_LOCAL_ADMIN_ENTRY=true`.
+  static bool get enableLocalAdministratorEntry =>
+      current != Environment.production ||
+      const bool.fromEnvironment('ENABLE_LOCAL_ADMIN_ENTRY');
+
   String get apiBaseUrl {
     const override = String.fromEnvironment('API_BASE_URL');
     if (override.isNotEmpty) return override;

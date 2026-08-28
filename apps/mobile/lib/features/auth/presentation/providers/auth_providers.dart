@@ -99,6 +99,7 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   // The cached profile makes the user experience persistent. The server is
   // consulted only to validate account status, never to sync operational data.
   static const _cachedUserKey = 'cached_authenticated_user';
+  static const _localAdministratorId = 'local_administrator';
 
   AuthNotifier(this._repository, this._storage) : super(null) {
     WidgetsBinding.instance.addObserver(this);
@@ -188,6 +189,9 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
   }
 
   Future<void> _validateCachedAccount(User cachedUser) async {
+    // Local administrator entry deliberately has no server-issued token. Keep
+    // that development-only session active while the app is resumed.
+    if (cachedUser.id == _localAdministratorId) return;
     if (_repository is! RemoteAuthRepository) return;
     final remoteRepository = _repository;
     if (!await remoteRepository.hasValidToken()) {
@@ -208,16 +212,21 @@ class AuthNotifier extends StateNotifier<User?> with WidgetsBindingObserver {
     }
   }
 
-  /// Starts a non-persistent local session for device demonstrations. It never
-  /// sends credentials, creates a token, or starts session polling/tracking.
-  void enterDemo() {
-    if (Environment.current == Environment.production) return;
+  /// Starts a non-persistent local Administrator session for development.
+  /// It never sends credentials or creates a server authentication token.
+  Future<void> enterLocalAdministrator() async {
+    if (!Environment.enableLocalAdministratorEntry) return;
+
+    // Do not let a previous server session affect requests made while using
+    // the explicitly local Administrator identity.
+    await _storage.delete(key: StorageService.keyJwtToken);
+    await _storage.delete(key: _cachedUserKey);
     state = const User(
-      id: 'local_demo_operator',
-      employeeId: 'DEMO',
-      name: 'Demo Operator',
-      role: Role.supervisor,
-      warehouse: 'Local Test Warehouse',
+      id: _localAdministratorId,
+      employeeId: 'LOCAL-ADMIN',
+      name: 'Local Administrator',
+      role: Role.administrator,
+      warehouse: 'Local Device',
     );
   }
 
