@@ -16,6 +16,8 @@ import '../../../../core/presentation/widgets/app_drawer.dart';
 import '../widgets/wagon_card.dart';
 import '../widgets/create_wagon_sheet.dart';
 
+const Color _loadingSelectorSurfaceColor = Color(0xFF142238);
+
 class WagonListScreen extends ConsumerStatefulWidget {
   const WagonListScreen({super.key});
 
@@ -492,7 +494,7 @@ class _LoadingSelectorBar extends StatelessWidget {
           children: [
             // One continuous surface includes the system navigation inset.
             const Positioned.fill(
-              child: ColoredBox(color: Color(0xFF142238)),
+              child: ColoredBox(color: _loadingSelectorSurfaceColor),
             ),
             SizedBox(
               width: double.infinity,
@@ -519,11 +521,7 @@ class _LoadingSelectorBar extends StatelessWidget {
                     decoration: const BoxDecoration(
                       borderRadius:
                           BorderRadius.vertical(top: Radius.circular(24)),
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF1B2B42), Color(0xFF142238)],
-                      ),
+                      color: _loadingSelectorSurfaceColor,
                     ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
